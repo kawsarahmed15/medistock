@@ -28,6 +28,7 @@ import { Route as AppCustomersRouteImport } from './routes/_app.customers'
 import { Route as AppCartRouteImport } from './routes/_app.cart'
 import { Route as AppBillsRouteImport } from './routes/_app.bills'
 import { Route as AppBillsIndexRouteImport } from './routes/_app.bills.index'
+import { Route as AppInventoryIdRouteImport } from './routes/_app.inventory_.$id'
 import { Route as AppBillsIdRouteImport } from './routes/_app.bills.$id'
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -124,6 +125,11 @@ const AppBillsIndexRoute = AppBillsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppBillsRoute,
 } as any)
+const AppInventoryIdRoute = AppInventoryIdRouteImport.update({
+  id: '/inventory_/$id',
+  path: '/inventory/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBillsIdRoute = AppBillsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
   '/bills/$id': typeof AppBillsIdRoute
+  '/inventory/$id': typeof AppInventoryIdRoute
   '/bills/': typeof AppBillsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/': typeof AppIndexRoute
   '/bills/$id': typeof AppBillsIdRoute
+  '/inventory/$id': typeof AppInventoryIdRoute
   '/bills': typeof AppBillsIndexRoute
 }
 export interface FileRoutesById {
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/_app/': typeof AppIndexRoute
   '/_app/bills/$id': typeof AppBillsIdRoute
+  '/_app/inventory_/$id': typeof AppInventoryIdRoute
   '/_app/bills/': typeof AppBillsIndexRoute
 }
 export interface FileRouteTypes {
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/users'
     | '/bills/$id'
+    | '/inventory/$id'
     | '/bills/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/'
     | '/bills/$id'
+    | '/inventory/$id'
     | '/bills'
   id:
     | '__root__'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/_app/'
     | '/_app/bills/$id'
+    | '/_app/inventory_/$id'
     | '/_app/bills/'
   fileRoutesById: FileRoutesById
 }
@@ -405,6 +417,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBillsIndexRouteImport
       parentRoute: typeof AppBillsRoute
     }
+    '/_app/inventory_/$id': {
+      id: '/_app/inventory_/$id'
+      path: '/inventory/$id'
+      fullPath: '/inventory/$id'
+      preLoaderRoute: typeof AppInventoryIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/bills/$id': {
       id: '/_app/bills/$id'
       path: '/$id'
@@ -439,6 +458,7 @@ interface AppRouteChildren {
   AppSellRoute: typeof AppSellRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppInventoryIdRoute: typeof AppInventoryIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -451,6 +471,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSellRoute: AppSellRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppInventoryIdRoute: AppInventoryIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

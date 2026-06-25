@@ -61,6 +61,85 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+router.get("/:id", async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, category, price, cost_price, stock, expiry, batch, manufacturer, sku,
+              prescription, tax_percent, created_at
+       FROM products
+       WHERE id = ? AND user_id = ?
+       LIMIT 1`,
+      [req.params.id, req.auth.userId],
+    );
+    if (rows.length === 0) throw buildApiError(404, "Product not found");
+    res.json(rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/:id/history", async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, action, quantity, balance, notes, created_at
+       FROM product_history
+       WHERE product_id = ? AND user_id = ?
+       ORDER BY created_at DESC`,
+      [req.params.id, req.auth.userId],
+    );
+    res.json(rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/:id/stock", async (req, res, next) => {
+  try {
+    const { action, quantity, notes } = req.body;
+    if (!["stock_in", "stock_out", "purchase", "adjustment"].includes(action)) {
+      throw buildApiError(400, "Invalid action");
+    }
+    const qty = Number(quantity);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      throw buildApiError(400, "Quantity must be greater than 0");
+    }
+
+    const [rows] = await pool.query(
+      "SELECT stock FROM products WHERE id = ? AND user_id = ? LIMIT 1",
+      [req.params.id, req.auth.userId],
+    );
+    if (rows.length === 0) throw buildApiError(404, "Product not found");
+
+    const currentStock = Number(rows[0].stock || 0);
+    let nextStock = currentStock;
+
+    if (action === "stock_out") {
+      nextStock = Math.max(0, currentStock - qty);
+    } else {
+      nextStock = currentStock + qty;
+    }
+
+    const diff = nextStock - currentStock;
+
+    // Update product stock
+    await pool.query(
+      "UPDATE products SET stock = ? WHERE id = ? AND user_id = ?",
+      [nextStock, req.params.id, req.auth.userId],
+    );
+
+    // Insert history
+    await pool.query(
+      `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [generateId(), req.auth.userId, req.params.id, action, diff, nextStock, notes || null],
+    );
+
+    res.json({ stock: nextStock, message: "Stock updated successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.patch("/:id", async (req, res, next) => {
   try {
     const id = String(req.params.id || "");

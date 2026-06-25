@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { productsStore, type Product } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -490,6 +490,11 @@ function InventoryPage() {
                       >
                         <ShoppingCart className="h-4 w-4" />
                       </Button>
+                      <Link to="/inventory/$id" params={{ id: p.id }}>
+                        <Button variant="ghost" size="icon" title="View Details">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Button variant="ghost" size="icon" onClick={() => startEdit(p)} title="Edit">
                         <Pencil className="h-4 w-4" />
                       </Button>
