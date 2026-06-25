@@ -1,0 +1,38 @@
+]633;E;ls --color=auto -la /usr/local/lsws/conf 2> /dev/null;f4d78196-bf7c-419c-b92e-fb53a49cbd99]633;Ctotal 68
+drwxr-x--x  6 lsadm  nobody  4096 Mar 31 20:55 .
+drwxr-xr-x 31 root   root    4096 Mar 31 21:06 ..
+drwxr-x---  2 nobody nobody    44 Mar 31 20:56 acme
+drwxr-x---  2 lsadm  nobody     6 Jan 14 02:52 cert
+-rwxr-x---  1 lsadm  nobody 11675 Apr 26 16:12 httpd_config.conf
+-rwxr-x---  1 lsadm  nobody 11675 Apr 26 16:12 httpd_config.conf0
+-rwxr-x---  1 lsadm  nobody  7649 Jan 14 02:52 httpd_config.conf.backup
+-rwxr-x---  1 lsadm  nobody  4988 Mar 31 20:55 httpd_config.conf.txt
+-rwxr-x---  1 lsadm  nobody  5123 Jan 14 02:52 mime.properties
+-rwxr-x---  1 lsadm  nobody  5123 Mar 31 20:55 mime.properties0
+drwxr-x---  2 lsadm  nobody   118 Mar 31 20:55 templates
+drwxr-x--x 10 lsadm  lsadm   4096 Apr 26 16:12 vhosts
+total 8
+drwxr-x--x 10 lsadm lsadm  4096 Apr 26 16:12 .
+drwxr-x--x  6 lsadm nobody 4096 Mar 31 20:55 ..
+drwxr-x---  2 lsadm lsadm    43 Apr 16 05:18 dev.oudessence.shop
+drwxr-x---  2 lsadm lsadm    99 Mar 31 20:55 Example
+drwxr-x---  2 lsadm lsadm    43 Apr 16 03:54 mail.dev.oudessence.shop
+drwxr-x---  2 lsadm lsadm    43 Apr 15 20:54 mail.oudessence.shop
+drwxr-x---  2 lsadm lsadm    43 Apr 26 16:12 medistock.teklin.in
+drwxr-x---  2 lsadm lsadm    43 Apr 15 20:55 oudessence.shop
+drwxr-x---  2 lsadm lsadm    43 Apr 15 20:24 srv1591482.hstgr.cloud
+drwxr-x---  2 lsadm lsadm    43 Apr 26 15:41 teklin.in
+/usr/local/lsws/conf/vhosts/medistock.teklin.in/vhost.conf:docRoot                   /home/teklin.in/medistock.teklin.in
+/usr/local/lsws/conf/vhosts/medistock.teklin.in/vhost.conf:  keyFile                 /etc/letsencrypt/live/medistock.teklin.in/privkey.pem
+/usr/local/lsws/conf/vhosts/medistock.teklin.in/vhost.conf:  certFile                /etc/letsencrypt/live/medistock.teklin.in/fullchain.pem
+/usr/local/lsws/conf/vhosts/medistock.teklin.in/vhost.conf0:docRoot                   /home/teklin.in/medistock.teklin.in
+/usr/local/lsws/conf/vhosts/medistock.teklin.in/vhost.conf0:  keyFile                 /etc/letsencrypt/live/medistock.teklin.in/privkey.pem
+/usr/local/lsws/conf/vhosts/medistock.teklin.in/vhost.conf0:  certFile                /etc/letsencrypt/live/medistock.teklin.in/fullchain.pem
+/usr/local/lsws/conf/httpd_config.conf:  map                     medistock.teklin.in medistock.teklin.in
+/usr/local/lsws/conf/httpd_config.conf:  map                     medistock.teklin.in medistock.teklin.in
+/usr/local/lsws/conf/httpd_config.conf:  map                     medistock.teklin.in medistock.teklin.in
+/usr/local/lsws/conf/httpd_config.conf:virtualHost medistock.teklin.in {
+/usr/local/lsws/conf/httpd_config.conf0:  map                     medistock.teklin.in medistock.teklin.in
+/usr/local/lsws/conf/httpd_config.conf0:  map                     medistock.teklin.in medistock.teklin.in
+/usr/local/lsws/conf/httpd_config.conf0:  map                     medistock.teklin.in medistock.teklin.in
+/usr/local/lsws/conf/httpd_config.conf0:virtualHost medistock.teklin.in {

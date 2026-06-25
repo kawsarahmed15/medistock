@@ -1,0 +1,115 @@
+
+> build
+> vite build
+
+vite v7.3.2 building client environment for production...
+transforming...
+✓ 2880 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore                                 0.02 kB
+dist/client/assets/styles-BDudG9z_.css                   89.21 kB │ gzip:  14.64 kB
+dist/client/assets/_app.index-DtqBFgK5.js                 0.04 kB │ gzip:   0.06 kB
+dist/client/assets/plus-BN21PIcA.js                       0.16 kB │ gzip:   0.15 kB
+dist/client/assets/arrow-left-D4XOKU_f.js                 0.17 kB │ gzip:   0.17 kB
+dist/client/assets/search-DnvKjAt7.js                     0.17 kB │ gzip:   0.17 kB
+dist/client/assets/trending-up-B5vI24LW.js                0.18 kB │ gzip:   0.17 kB
+dist/client/assets/pill-R946DwPx.js                       0.22 kB │ gzip:   0.19 kB
+dist/client/assets/wallet-CSl_SgUs.js                     0.29 kB │ gzip:   0.21 kB
+dist/client/assets/shopping-cart-Cm6oRqRI.js              0.29 kB │ gzip:   0.23 kB
+dist/client/assets/users-CMdXhbZp.js                      0.31 kB │ gzip:   0.23 kB
+dist/client/assets/phone-CrzPCNar.js                      0.32 kB │ gzip:   0.23 kB
+dist/client/assets/package-BBIOVW6-.js                    0.37 kB │ gzip:   0.26 kB
+dist/client/assets/smartphone-BLiEOCQu.js                 0.40 kB │ gzip:   0.27 kB
+dist/client/assets/keyboard-DY8ugUU-.js                   0.46 kB │ gzip:   0.26 kB
+dist/client/assets/trash-2-LUQ3CAhX.js                    0.56 kB │ gzip:   0.33 kB
+dist/client/assets/input-Bj6JBKcp.js                      0.59 kB │ gzip:   0.37 kB
+dist/client/assets/receipt-text-D9xnY7CB.js               0.67 kB │ gzip:   0.29 kB
+dist/client/assets/label-dI0R3onL.js                      0.91 kB │ gzip:   0.56 kB
+dist/client/assets/card-BDhxeWBM.js                       1.01 kB │ gzip:   0.38 kB
+dist/client/assets/table-BGFR_Qxd.js                      1.60 kB │ gzip:   0.56 kB
+dist/client/assets/verify-email-s-bvGJIs.js               2.44 kB │ gzip:   1.03 kB
+dist/client/assets/forgot-password-BRmSObP0.js            2.46 kB │ gzip:   1.06 kB
+dist/client/assets/reset-password-CfEjZuh_.js             2.51 kB │ gzip:   1.12 kB
+dist/client/assets/signup-BPudcRWY.js                     3.18 kB │ gzip:   1.28 kB
+dist/client/assets/login-B2DeXtvL.js                      3.23 kB │ gzip:   1.25 kB
+dist/client/assets/_app.customers-CsIZv1zn.js             3.65 kB │ gzip:   1.62 kB
+dist/client/assets/customer-details-dialog-DZ8Qz3sY.js    5.07 kB │ gzip:   2.15 kB
+dist/client/assets/_app.sell-BTMMGH9P.js                  5.87 kB │ gzip:   2.29 kB
+dist/client/assets/index-C476wwMX.js                      6.54 kB │ gzip:   2.62 kB
+dist/client/assets/_app.bills._id-CUEnXM4k.js             7.73 kB │ gzip:   2.50 kB
+dist/client/assets/_app.dashboard-BnrCRfTe.js             8.99 kB │ gzip:   3.02 kB
+dist/client/assets/tabs-BtWiTsWK.js                       9.15 kB │ gzip:   3.58 kB
+dist/client/assets/_app.bills-z2hbznS-.js                10.00 kB │ gzip:   3.16 kB
+dist/client/assets/_app.cart-CvVuv5lX.js                 10.32 kB │ gzip:   3.31 kB
+dist/client/assets/purify.es-OpeaODd9.js                 24.10 kB │ gzip:   9.05 kB
+dist/client/assets/dialog-DpRAaNjG.js                    28.98 kB │ gzip:  10.21 kB
+dist/client/assets/button-BFTdMSRV.js                    31.81 kB │ gzip:  10.50 kB
+dist/client/assets/_app-GnifhV_P.js                      55.31 kB │ gzip:  18.57 kB
+dist/client/assets/_app.revenue-Bfn0FWZN.js              61.96 kB │ gzip:  17.35 kB
+dist/client/assets/index.es-BNJKPWes.js                 158.86 kB │ gzip:  53.06 kB
+dist/client/assets/html2canvas.esm-DXEQVQnt.js          201.04 kB │ gzip:  47.43 kB
+dist/client/assets/AreaChart-C5GkgoUe.js                347.84 kB │ gzip: 104.31 kB
+dist/client/assets/_app.inventory-Ce_BhWf6.js           351.22 kB │ gzip: 105.64 kB
+dist/client/assets/index-Di83QQoQ.js                    370.35 kB │ gzip: 117.11 kB
+dist/client/assets/bill-pdf-CSCnRMBp.js                 419.56 kB │ gzip: 136.83 kB
+✓ built in 10.00s
+vite v7.3.2 building ssr environment for production...
+transforming...
+✓ 2936 modules transformed.
+rendering chunks...
+Using secrets defined in .env
+dist/server/.dev.vars                                                  0.05 kB
+dist/server/wrangler.json                                              1.24 kB
+dist/server/.vite/manifest.json                                       15.75 kB
+dist/server/assets/styles-BDudG9z_.css                                89.21 kB
+dist/server/assets/start-HYkvq4Ni.js                                   0.06 kB
+dist/server/assets/_app.index-BTU5dmpx.js                              0.08 kB
+dist/server/assets/__23tanstack-start-plugin-adapters-Cwee5PKy.js      0.14 kB
+dist/server/index.js                                                   0.21 kB
+dist/server/assets/plus-DwzEO9kV.js                                    0.25 kB
+dist/server/assets/arrow-left-C1TmA1BV.js                              0.27 kB
+dist/server/assets/search-D7jf_Rtk.js                                  0.28 kB
+dist/server/assets/trending-up-BUhb6fn5.js                             0.29 kB
+dist/server/assets/pill-cox8qbWM.js                                    0.32 kB
+dist/server/assets/wallet-vnNapFEW.js                                  0.42 kB
+dist/server/assets/users-C8pPBm2W.js                                   0.43 kB
+dist/server/assets/phone-SkR8HP5-.js                                   0.44 kB
+dist/server/assets/shopping-cart-CzWvKYOF.js                           0.45 kB
+dist/server/assets/package-XdNcxuHo.js                                 0.52 kB
+dist/server/assets/smartphone-B2-wrM7t.js                              0.62 kB
+dist/server/assets/keyboard-Cvj0HsF7.js                                0.63 kB
+dist/server/assets/trash-2-D9gh9PY9.js                                 0.80 kB
+dist/server/assets/receipt-text-CR9BFO03.js                            0.82 kB
+dist/server/assets/input-a_psiH_V.js                                   0.84 kB
+dist/server/assets/card-BdItl2-t.js                                    1.76 kB
+dist/server/assets/label-DOJ2vj_q.js                                   1.82 kB
+dist/server/assets/table-DLWJIcXr.js                                   2.66 kB
+dist/server/assets/forgot-password-BHb8hp-F.js                         4.25 kB
+dist/server/assets/verify-email-BilF7DVl.js                            4.30 kB
+dist/server/assets/reset-password-okP3ijvr.js                          4.38 kB
+dist/server/assets/_tanstack-start-manifest_v-DxhD5mD4.js              5.10 kB
+dist/server/assets/login-BjLsCXJm.js                                   5.53 kB
+dist/server/assets/signup-Bbm6AsJX.js                                  5.77 kB
+dist/server/assets/_app.customers-DsVC-Jiq.js                          6.50 kB
+dist/server/assets/customer-details-dialog-C5MTeCYn.js                 9.71 kB
+dist/server/assets/_app.sell-DUpVmZBC.js                              10.81 kB
+dist/server/assets/_app.bills._id-BHNZpmHR.js                         13.75 kB
+dist/server/assets/index-DRBPf7hj.js                                  15.86 kB
+dist/server/assets/_app.dashboard-DloMWVGx.js                         16.08 kB
+dist/server/assets/_app.cart-VC6YKt8Y.js                              18.28 kB
+dist/server/assets/_app.bills-BqVPRWj8.js                             18.90 kB
+dist/server/assets/tabs-BvjGpShK.js                                   23.00 kB
+dist/server/assets/purify.es-DWPu-QNj.js                              49.44 kB
+dist/server/assets/dialog-DuD5FikP.js                                 65.88 kB
+dist/server/assets/_app-Bx1f1xTx.js                                   91.78 kB
+dist/server/assets/button-Uuyb4XXh.js                                107.98 kB
+dist/server/assets/_app.revenue-CeEby7gt.js                          135.48 kB
+dist/server/assets/router-BOK6XAtO.js                                184.58 kB
+dist/server/assets/html2canvas.esm-C17pzFXx.js                       349.31 kB
+dist/server/assets/index.es-CHcoMR1K.js                              361.05 kB
+dist/server/assets/bill-pdf-B5RD8Ak0.js                              664.51 kB
+dist/server/assets/worker-entry-D03cJaum.js                          733.03 kB
+dist/server/assets/AreaChart-CGcyuKlZ.js                             799.13 kB
+dist/server/assets/_app.inventory-Bxxusy-I.js                      1,014.64 kB
+✓ built in 12.19s

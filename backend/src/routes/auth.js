@@ -1,0 +1,320 @@
+import { Router } from "express";
+import { pool } from "../db.js";
+import {
+  buildApiError,
+  comparePassword,
+  generateId,
+  generateToken,
+  hashPassword,
+  hashToken,
+  sanitizeUser,
+  signAuthToken,
+} from "../utils.js";
+import { requireAuth } from "../middleware/auth.js";
+import { config } from "../config.js";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../services/email.js";
+
+const router = Router();
+
+function ensureEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    throw buildApiError(400, "Valid email is required");
+  }
+  return email;
+}
+
+function ensurePassword(value, label = "Password") {
+  const password = String(value || "");
+  if (password.length < 8) {
+    throw buildApiError(400, `${label} must be at least 8 characters`);
+  }
+  return password;
+}
+
+function ensureName(value) {
+  const name = String(value || "").trim();
+  if (!name) {
+    throw buildApiError(400, "Name is required");
+  }
+  if (name.length > 80) {
+    throw buildApiError(400, "Name is too long");
+  }
+  return name;
+}
+
+router.post("/signup", async (req, res, next) => {
+  try {
+    const name = ensureName(req.body?.name);
+    const email = ensureEmail(req.body?.email);
+    const password = ensurePassword(req.body?.password);
+
+    const [existing] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
+    if (existing.length > 0) {
+      throw buildApiError(409, "An account already exists with this email");
+    }
+
+    const userId = generateId();
+    const passwordHash = await hashPassword(password);
+    await pool.query(
+      `INSERT INTO users (id, name, email, password_hash, is_verified)
+       VALUES (?, ?, ?, ?, 0)`,
+      [userId, name, email, passwordHash],
+    );
+
+    const token = generateToken();
+    const tokenHash = hashToken(token);
+    await pool.query(
+      `INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at)
+       VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))`,
+      [generateId(), userId, tokenHash],
+    );
+
+    const verificationUrl = `${config.appBaseUrl}/verify-email?token=${token}`;
+    await sendVerificationEmail({ to: email, name, verificationUrl });
+
+    res.status(201).json({
+      message: "Account created. Please verify your email before logging in.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/login", async (req, res, next) => {
+  try {
+    const email = ensureEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+
+    const [rows] = await pool.query(
+      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, gst_number, bill_color, signature, role, account_status
+       FROM users
+       WHERE email = ?
+       LIMIT 1`,
+      [email],
+    );
+    const user = rows[0];
+
+    if (!user) {
+      throw buildApiError(401, "Invalid email or password");
+    }
+
+    const ok = await comparePassword(password, user.password_hash);
+    if (!ok) {
+      throw buildApiError(401, "Invalid email or password");
+    }
+
+    if (!user.is_verified) {
+      throw buildApiError(403, "Please verify your email before logging in");
+    }
+
+    const token = signAuthToken(user);
+    res.json({ token, user: sanitizeUser(user) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/verify-email", async (req, res, next) => {
+  try {
+    const token = String(req.query?.token || "").trim();
+    if (!token) {
+      throw buildApiError(400, "Verification token is required");
+    }
+
+    const tokenHash = hashToken(token);
+    const [rows] = await pool.query(
+      `SELECT id, user_id FROM email_verification_tokens
+       WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [tokenHash],
+    );
+    const row = rows[0];
+    if (!row) {
+      throw buildApiError(400, "Verification link is invalid or expired");
+    }
+
+    await pool.query("UPDATE users SET is_verified = 1 WHERE id = ?", [row.user_id]);
+    await pool.query("UPDATE email_verification_tokens SET used_at = NOW() WHERE id = ?", [row.id]);
+
+    res.json({ message: "Email verified successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/resend-verification", async (req, res, next) => {
+  try {
+    const email = ensureEmail(req.body?.email);
+
+    const [rows] = await pool.query(
+      `SELECT id, name, email, is_verified FROM users WHERE email = ? LIMIT 1`,
+      [email],
+    );
+    const user = rows[0];
+
+    if (!user || user.is_verified) {
+      res.json({ message: "If your account is pending verification, a link has been sent." });
+      return;
+    }
+
+    const token = generateToken();
+    await pool.query(
+      `INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at)
+       VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))`,
+      [generateId(), user.id, hashToken(token)],
+    );
+
+    const verificationUrl = `${config.appBaseUrl}/verify-email?token=${token}`;
+    await sendVerificationEmail({ to: user.email, name: user.name, verificationUrl });
+
+    res.json({ message: "Verification email sent" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/forgot-password", async (req, res, next) => {
+  try {
+    const email = ensureEmail(req.body?.email);
+
+    const [rows] = await pool.query(
+      `SELECT id, name, email FROM users WHERE email = ? LIMIT 1`,
+      [email],
+    );
+    const user = rows[0];
+
+    if (!user) {
+      res.json({ message: "If an account exists, a reset link has been sent." });
+      return;
+    }
+
+    const token = generateToken();
+    await pool.query(
+      `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at)
+       VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
+      [generateId(), user.id, hashToken(token)],
+    );
+
+    const resetUrl = `${config.appBaseUrl}/reset-password?token=${token}`;
+    await sendPasswordResetEmail({ to: user.email, name: user.name, resetUrl });
+
+    res.json({ message: "If an account exists, a reset link has been sent." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/reset-password", async (req, res, next) => {
+  try {
+    const token = String(req.body?.token || "").trim();
+    if (!token) {
+      throw buildApiError(400, "Reset token is required");
+    }
+    const newPassword = ensurePassword(req.body?.newPassword, "New password");
+
+    const [rows] = await pool.query(
+      `SELECT id, user_id FROM password_reset_tokens
+       WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [hashToken(token)],
+    );
+    const row = rows[0];
+
+    if (!row) {
+      throw buildApiError(400, "Reset link is invalid or expired");
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, row.user_id]);
+    await pool.query("UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?", [row.id]);
+
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/me", requireAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, gst_number, bill_color, signature, role, account_status FROM users WHERE id = ? LIMIT 1`,
+      [req.auth.userId],
+    );
+    const user = rows[0];
+    if (!user) {
+      throw buildApiError(401, "Unauthorized");
+    }
+    res.json({ user: sanitizeUser(user) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/profile", requireAuth, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, gst_number, bill_color, signature, role, account_status FROM users WHERE id = ? LIMIT 1`,
+      [req.auth.userId],
+    );
+    const user = rows[0];
+    if (!user) {
+      throw buildApiError(401, "Unauthorized");
+    }
+
+    const name = req.body.name !== undefined ? ensureName(req.body.name) : user.name;
+    const pharmacyName = req.body.pharmacyName !== undefined ? req.body.pharmacyName : user.pharmacy_name;
+    const gstNumber = req.body.gstNumber !== undefined ? req.body.gstNumber : user.gst_number;
+    const billColor = req.body.billColor !== undefined ? req.body.billColor : user.bill_color;
+    const signature = req.body.signature !== undefined ? req.body.signature : user.signature;
+
+    await pool.query(
+      "UPDATE users SET name = ?, pharmacy_name = ?, gst_number = ?, bill_color = ?, signature = ? WHERE id = ?",
+      [name, pharmacyName, gstNumber, billColor, signature, req.auth.userId]
+    );
+
+    const [updatedRows] = await pool.query(
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, gst_number, bill_color, signature, role, account_status FROM users WHERE id = ? LIMIT 1`,
+      [req.auth.userId],
+    );
+
+    res.json({ user: sanitizeUser(updatedRows[0]) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/change-password", requireAuth, async (req, res, next) => {
+  try {
+    const currentPassword = String(req.body?.currentPassword || "");
+    const newPassword = ensurePassword(req.body?.newPassword, "New password");
+
+    const [rows] = await pool.query(
+      `SELECT id, password_hash FROM users WHERE id = ? LIMIT 1`,
+      [req.auth.userId],
+    );
+    const user = rows[0];
+    if (!user) {
+      throw buildApiError(401, "Unauthorized");
+    }
+
+    const ok = await comparePassword(currentPassword, user.password_hash);
+    if (!ok) {
+      throw buildApiError(400, "Current password is incorrect");
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.auth.userId]);
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export { router as authRouter };

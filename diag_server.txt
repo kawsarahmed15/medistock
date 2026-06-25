@@ -1,0 +1,26 @@
+==PWD==
+/home/teklin.in/medistock.teklin.in
+==NODE==
+v20.20.2
+10.8.2
+==PM2==
+┌────┬───────────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name                  │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼───────────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ [1m[36m0[39m[22m  │ medistock-backend     │ default     │ N/A     │ [7m[1mfork[22m[27m    │ 0        │ 0      │ 10   │ [31m[1merrored[22m[39m   │ 0%       │ 0b       │ [1mroot[22m     │ [90mdisabled[39m │
+│ [1m[36m1[39m[22m  │ medistock-frontend    │ default     │ N/A     │ [7m[1mfork[22m[27m    │ 551037   │ 84s    │ 0    │ [32m[1monline[22m[39m    │ 0%       │ 56.2mb   │ [1mroot[22m     │ [90mdisabled[39m │
+└────┴───────────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+==PORTS==
+LISTEN 0      4096         0.0.0.0:80         0.0.0.0:*    users:(("litespeed",pid=541522,fd=9),("litespeed",pid=541516,fd=9))                                                                                          
+LISTEN 0      4096         0.0.0.0:80         0.0.0.0:*    users:(("litespeed",pid=541521,fd=8),("litespeed",pid=541516,fd=8))                                                                                          
+LISTEN 0      511          0.0.0.0:4173       0.0.0.0:*    users:(("node",pid=551067,fd=25))                                                                                                                            
+LISTEN 0      4096         0.0.0.0:443        0.0.0.0:*    users:(("litespeed",pid=541522,fd=11),("litespeed",pid=541516,fd=11))                                                                                        
+LISTEN 0      4096         0.0.0.0:443        0.0.0.0:*    users:(("litespeed",pid=541521,fd=10),("litespeed",pid=541516,fd=10))                                                                                        
+LISTEN 0      4096               *:443              *:*    users:(("litespeed",pid=541521,fd=14),("litespeed",pid=541516,fd=14))                                                                                        
+LISTEN 0      4096               *:443              *:*    users:(("litespeed",pid=541522,fd=15),("litespeed",pid=541516,fd=15))                                                                                        
+==WEBPROC==
+root      541516       1  0 16:12 ?        00:00:01 openlitespeed (lshttpd - main)
+root      541517  541516  0 16:12 ?        00:00:00 openlitespeed (lscgid)
+nobody    541521  541516  0 16:12 ?        00:01:12 openlitespeed (lshttpd - #01)
+nobody    541522  541516  0 16:12 ?        00:01:01 openlitespeed (lshttpd - #02)
+root      551434  551377  0 18:24 pts/2    00:00:00 grep -E --color=auto nginx|httpd|apache2|litespeed
