@@ -336,7 +336,7 @@ function InventoryPage() {
                 <span className="sm:hidden">Add</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
               </DialogHeader>
@@ -426,49 +426,6 @@ function InventoryPage() {
                     </Button>
                   </div>
                 </Field>
-                <div className="col-span-2 border-t pt-4 mt-2">
-                  <h3 className="text-sm font-medium mb-3">Packaging Configuration</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <Field label="Base Unit">
-                      <Input
-                        value={form.baseUnit}
-                        onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
-                        placeholder="e.g. Strip"
-                      />
-                    </Field>
-                    <Field label="Pack Unit">
-                      <Input
-                        value={form.packUnit}
-                        onChange={(e) => setForm({ ...form, packUnit: e.target.value })}
-                        placeholder="e.g. Box"
-                      />
-                    </Field>
-                    <Field label="Units / Pack">
-                      <Input
-                        type="number"
-                        value={form.conversionFactor}
-                        onChange={(e) => setForm({ ...form, conversionFactor: e.target.value })}
-                        min="1"
-                      />
-                    </Field>
-                    <Field label="Pack Cost Price">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.packCostPrice}
-                        onChange={(e) => setForm({ ...form, packCostPrice: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Pack Selling Price">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.packPrice}
-                        onChange={(e) => setForm({ ...form, packPrice: e.target.value })}
-                      />
-                    </Field>
-                  </div>
-                </div>
                 <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <div className="text-sm font-medium">Prescription required</div>
