@@ -10,7 +10,7 @@ router.get("/", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, name, category, price, cost_price, stock, expiry, batch, manufacturer, sku,
-              prescription, tax_percent, created_at
+              prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
        FROM products
        WHERE user_id = ?
        ORDER BY created_at DESC`,
@@ -28,8 +28,8 @@ router.post("/", async (req, res, next) => {
     const id = generateId();
     await pool.query(
       `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, batch,
-         manufacturer, sku, prescription, tax_percent)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         manufacturer, sku, prescription, tax_percent, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         req.auth.userId,
@@ -44,12 +44,17 @@ router.post("/", async (req, res, next) => {
         body.sku ? String(body.sku).trim() : null,
         body.prescription ? 1 : 0,
         Number(body.taxPercent || 0),
+        String(body.baseUnit || "Unit").trim() || "Unit",
+        String(body.packUnit || "Pack").trim() || "Pack",
+        Number(body.conversionFactor || 1) || 1,
+        body.packPrice == null ? null : Number(body.packPrice),
+        body.packCostPrice == null ? null : Number(body.packCostPrice),
       ],
     );
 
     const [rows] = await pool.query(
       `SELECT id, name, category, price, cost_price, stock, expiry, batch, manufacturer, sku,
-              prescription, tax_percent, created_at
+              prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
        FROM products
        WHERE id = ? AND user_id = ?
        LIMIT 1`,
@@ -65,7 +70,7 @@ router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, name, category, price, cost_price, stock, expiry, batch, manufacturer, sku,
-              prescription, tax_percent, created_at
+              prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
        FROM products
        WHERE id = ? AND user_id = ?
        LIMIT 1`,
@@ -159,16 +164,21 @@ router.patch("/:id", async (req, res, next) => {
       prescription: "prescription",
       taxPercent: "tax_percent",
       costPrice: "cost_price",
+      baseUnit: "base_unit",
+      packUnit: "pack_unit",
+      conversionFactor: "conversion_factor",
+      packPrice: "pack_price",
+      packCostPrice: "pack_cost_price",
     };
 
     for (const [inputKey, dbKey] of Object.entries(map)) {
       if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
         fields.push(`${dbKey} = ?`);
         let value = body[inputKey];
-        if (["price", "taxPercent", "costPrice"].includes(inputKey) && value != null) value = Number(value);
+        if (["price", "taxPercent", "costPrice", "packPrice", "packCostPrice", "conversionFactor"].includes(inputKey) && value != null) value = Number(value);
         if (["stock"].includes(inputKey) && value != null) value = Number(value);
         if (inputKey === "prescription") value = value ? 1 : 0;
-        if (["batch", "manufacturer", "sku", "costPrice"].includes(inputKey) && (value === "" || value == null)) {
+        if (["batch", "manufacturer", "sku", "costPrice", "packPrice", "packCostPrice"].includes(inputKey) && (value === "" || value == null)) {
           value = null;
         }
         values.push(value);

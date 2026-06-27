@@ -60,6 +60,11 @@ type FormState = {
   sku: string;
   taxPercent: string;
   prescription: boolean;
+  baseUnit: string;
+  packUnit: string;
+  conversionFactor: string;
+  packPrice: string;
+  packCostPrice: string;
 };
 
 const empty: FormState = {
@@ -74,6 +79,11 @@ const empty: FormState = {
   sku: "",
   taxPercent: "12",
   prescription: false,
+  baseUnit: "Unit",
+  packUnit: "Pack",
+  conversionFactor: "1",
+  packPrice: "",
+  packCostPrice: "",
 };
 
 function InventoryPage() {
@@ -125,6 +135,11 @@ function InventoryPage() {
         sku: match.sku ?? trimmed,
         taxPercent: String(match.taxPercent ?? 0),
         prescription: !!match.prescription,
+        baseUnit: match.baseUnit ?? "Unit",
+        packUnit: match.packUnit ?? "Pack",
+        conversionFactor: String(match.conversionFactor ?? 1),
+        packPrice: match.packPrice != null ? String(match.packPrice) : "",
+        packCostPrice: match.packCostPrice != null ? String(match.packCostPrice) : "",
       });
       toast.success(`Found ${match.name} · adjust stock and save`);
     } else {
@@ -210,6 +225,11 @@ function InventoryPage() {
       sku: p.sku ?? "",
       taxPercent: String(p.taxPercent ?? 0),
       prescription: !!p.prescription,
+      baseUnit: p.baseUnit ?? "Unit",
+      packUnit: p.packUnit ?? "Pack",
+      conversionFactor: String(p.conversionFactor ?? 1),
+      packPrice: p.packPrice != null ? String(p.packPrice) : "",
+      packCostPrice: p.packCostPrice != null ? String(p.packCostPrice) : "",
     });
     setOpen(true);
   };
@@ -228,6 +248,11 @@ function InventoryPage() {
       sku: form.sku.trim() || undefined,
       taxPercent: Number(form.taxPercent) || 0,
       prescription: form.prescription,
+      baseUnit: form.baseUnit.trim() || "Unit",
+      packUnit: form.packUnit.trim() || "Pack",
+      conversionFactor: Number(form.conversionFactor) || 1,
+      packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
+      packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
     };
     if (!payload.name || !payload.expiry || isNaN(payload.price) || isNaN(payload.stock)) {
       toast.error("Please fill name, price, stock and expiry.");
@@ -401,6 +426,49 @@ function InventoryPage() {
                     </Button>
                   </div>
                 </Field>
+                <div className="col-span-2 border-t pt-4 mt-2">
+                  <h3 className="text-sm font-medium mb-3">Packaging Configuration</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <Field label="Base Unit">
+                      <Input
+                        value={form.baseUnit}
+                        onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
+                        placeholder="e.g. Strip"
+                      />
+                    </Field>
+                    <Field label="Pack Unit">
+                      <Input
+                        value={form.packUnit}
+                        onChange={(e) => setForm({ ...form, packUnit: e.target.value })}
+                        placeholder="e.g. Box"
+                      />
+                    </Field>
+                    <Field label="Units / Pack">
+                      <Input
+                        type="number"
+                        value={form.conversionFactor}
+                        onChange={(e) => setForm({ ...form, conversionFactor: e.target.value })}
+                        min="1"
+                      />
+                    </Field>
+                    <Field label="Pack Cost Price">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.packCostPrice}
+                        onChange={(e) => setForm({ ...form, packCostPrice: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Pack Selling Price">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.packPrice}
+                        onChange={(e) => setForm({ ...form, packPrice: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                </div>
                 <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <div className="text-sm font-medium">Prescription required</div>

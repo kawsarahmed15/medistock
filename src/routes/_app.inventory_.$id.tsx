@@ -22,6 +22,7 @@ function ProductDetails() {
   // Stock action dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<"stock_in" | "stock_out" | "purchase">("stock_in");
+  const [unitType, setUnitType] = useState<"base" | "pack">("base");
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -49,11 +50,19 @@ function ProductDetails() {
     const qty = parseInt(quantity);
     if (!qty || qty <= 0) return toast.error("Quantity must be greater than 0");
 
+    let finalQty = qty;
+    let finalNotes = notes;
+    if (unitType === "pack" && product.conversion_factor > 1) {
+      finalQty = qty * product.conversion_factor;
+      const unitText = actionType === "stock_out" ? "Removed" : "Added";
+      finalNotes = `(${unitText} ${qty} ${product.pack_unit || 'Pack'}s) ${notes}`.trim();
+    }
+
     setSubmitting(true);
     try {
       await apiRequest(`/products/${id}/stock`, {
         method: "POST",
-        body: { action: actionType, quantity: qty, notes },
+        body: { action: actionType, quantity: finalQty, notes: finalNotes },
         auth: true,
       });
       toast.success("Stock updated successfully");
@@ -70,6 +79,7 @@ function ProductDetails() {
 
   const openAction = (type: "stock_in" | "stock_out" | "purchase") => {
     setActionType(type);
+    setUnitType("base");
     setDialogOpen(true);
   };
 
@@ -116,7 +126,12 @@ function ProductDetails() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold">{product.stock}</div>
+              <div className="text-4xl font-bold">{product.stock} <span className="text-sm font-normal text-muted-foreground">{product.base_unit || 'Unit'}s</span></div>
+              {product.conversion_factor > 1 && (
+                <div className="text-sm text-muted-foreground mt-1">
+                  ({Math.floor(product.stock / product.conversion_factor)} {product.pack_unit || 'Pack'}s, {product.stock % product.conversion_factor} {product.base_unit || 'Unit'}s)
+                </div>
+              )}
               <div className="mt-6 flex flex-col gap-2">
                 <Button onClick={() => openAction("purchase")} variant="default" className="w-full gap-2">
                   <ShoppingCart className="w-4 h-4" /> Add Purchase
@@ -140,13 +155,25 @@ function ProductDetails() {
             <CardContent className="space-y-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Price (MRP)</span>
-                <span className="font-medium">₹{Number(product.price).toFixed(2)}</span>
+                <span className="font-medium">₹{Number(product.price).toFixed(2)} / {product.base_unit || 'Unit'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cost Price</span>
-                <span className="font-medium">₹{Number(product.cost_price || 0).toFixed(2)}</span>
+                <span className="font-medium">₹{Number(product.cost_price || 0).toFixed(2)} / {product.base_unit || 'Unit'}</span>
               </div>
-              <div className="flex justify-between">
+              {product.conversion_factor > 1 && (
+                <>
+                  <div className="flex justify-between border-t pt-2 mt-2">
+                    <span className="text-muted-foreground">Pack Price</span>
+                    <span className="font-medium">₹{Number(product.pack_price || 0).toFixed(2)} / {product.pack_unit || 'Pack'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pack Cost</span>
+                    <span className="font-medium">₹{Number(product.pack_cost_price || 0).toFixed(2)} / {product.pack_unit || 'Pack'}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between border-t pt-2 mt-2">
                 <span className="text-muted-foreground">Tax (GST)</span>
                 <span className="font-medium">{Number(product.tax_percent || 0).toFixed(1)}%</span>
               </div>
@@ -212,15 +239,35 @@ function ProductDetails() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleStockAction} className="space-y-4 mt-4">
+            {product?.conversion_factor > 1 && (
+              <div className="flex gap-4 mb-4">
+                <Button 
+                  type="button"
+                  variant={unitType === "base" ? "default" : "outline"}
+                  onClick={() => setUnitType("base")}
+                  className="flex-1"
+                >
+                  By {product.base_unit || 'Unit'}
+                </Button>
+                <Button 
+                  type="button"
+                  variant={unitType === "pack" ? "default" : "outline"}
+                  onClick={() => setUnitType("pack")}
+                  className="flex-1"
+                >
+                  By {product.pack_unit || 'Pack'}
+                </Button>
+              </div>
+            )}
             <div className="space-y-2">
-              <Label>Quantity</Label>
+              <Label>Quantity ({unitType === "pack" ? product?.pack_unit || 'Pack' : product?.base_unit || 'Unit'})</Label>
               <Input 
                 type="number" 
                 min="1" 
                 value={quantity} 
                 onChange={(e) => setQuantity(e.target.value)} 
                 required 
-                placeholder="Enter quantity..."
+                placeholder={`Enter number of ${unitType === "pack" ? product?.pack_unit + 's' || 'Packs' : product?.base_unit + 's' || 'Units'}...`}
               />
             </div>
             <div className="space-y-2">

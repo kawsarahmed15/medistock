@@ -15,6 +15,11 @@ export type Product = {
   sku?: string;
   prescription?: boolean;
   taxPercent?: number;
+  baseUnit?: string;
+  packUnit?: string;
+  conversionFactor?: number;
+  packPrice?: number;
+  packCostPrice?: number;
   createdAt: string;
 };
 
