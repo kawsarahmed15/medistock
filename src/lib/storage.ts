@@ -34,6 +34,7 @@ export type BillItem = {
   taxPercent: number;
   mrp?: number;
   pack?: string;
+  expiry?: string;
 };
 
 export type Bill = {
@@ -135,6 +136,7 @@ type BillItemRow = {
   tax_percent: number | string;
   mrp: number | string | null;
   pack: string | null;
+  expiry: string | null;
 };
 
 function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
@@ -159,6 +161,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       taxPercent: Number(it.tax_percent) || 0,
       mrp: num(it.mrp),
       pack: it.pack ?? undefined,
+      expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
     })),
   };
 }

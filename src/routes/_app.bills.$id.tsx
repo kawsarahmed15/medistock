@@ -159,16 +159,16 @@ function BillDetailPage() {
         <div className="grid sm:grid-cols-2 gap-4 py-5 text-sm">
           <div>
             <div className="text-xs text-muted-foreground uppercase tracking-wide">Billed to</div>
-            <div className="font-medium mt-1 flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="font-bold text-lg uppercase mt-1 flex items-center gap-1.5">
+              <User className="h-4 w-4 text-muted-foreground" />
               {bill.customerName ?? "Walk-in customer"}
             </div>
             {bill.customerPhone && (
               <div className="text-xs text-muted-foreground mt-0.5">{bill.customerPhone}</div>
             )}
             {bill.customerNotes && (
-              <div className="text-xs text-muted-foreground mt-1.5 whitespace-pre-wrap">
-                Notes: {bill.customerNotes}
+              <div className="text-sm mt-2 whitespace-pre-wrap">
+                {bill.customerNotes}
               </div>
             )}
           </div>
@@ -198,6 +198,7 @@ function BillDetailPage() {
                 <th className="text-left p-3 font-medium">Sl. No.</th>
                 <th className="text-left p-3 font-medium">Item</th>
                 <th className="text-right p-3 font-medium">Pack</th>
+                <th className="text-center p-3 font-medium">Expiry</th>
                 <th className="text-right p-3 font-medium">MRP</th>
                 <th className="text-right p-3 font-medium">Qty</th>
                 <th className="text-right p-3 font-medium">Price</th>
@@ -213,7 +214,8 @@ function BillDetailPage() {
                   <tr key={it.productId || it.name} className="border-t">
                     <td className="p-3 text-muted-foreground">{idx + 1}</td>
                     <td className="p-3">{it.name}</td>
-                    <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/\*/g, "x") : "—"}</td>
+                    <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
+                    <td className="p-3 text-center text-xs tabular-nums">{it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.qty}</td>
                     <td className="p-3 text-right tabular-nums">{it.price.toFixed(2)}</td>
@@ -249,7 +251,8 @@ function BillDetailPage() {
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {it.qty} × {it.price.toFixed(2)} · Tax {it.taxPercent}% ({tax.toFixed(2)})
-                  {it.pack && ` · Pack ${it.pack.replace(/\*/g, "x")}`}
+                  {it.pack && ` · Pack ${it.pack.replace(/[*x]/gi, "X")}`}
+                  {it.expiry && ` · Exp ${new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'})}`}
                   {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                 </div>
               </div>
@@ -269,6 +272,7 @@ function BillDetailPage() {
                     <th className="text-left p-3 font-medium">Sl. No.</th>
                     <th className="text-left p-3 font-medium">Item</th>
                     <th className="text-right p-3 font-medium">Pack</th>
+                    <th className="text-center p-3 font-medium">Expiry</th>
                     <th className="text-right p-3 font-medium">MRP</th>
                     <th className="text-right p-3 font-medium">Qty</th>
                     <th className="text-right p-3 font-medium">Price</th>
@@ -279,7 +283,8 @@ function BillDetailPage() {
                     <tr key={it.productId || it.name} className="border-t">
                       <td className="p-3 text-muted-foreground">{idx + 1}</td>
                       <td className="p-3">{it.name}</td>
-                      <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/\*/g, "x") : "—"}</td>
+                      <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
+                      <td className="p-3 text-center text-xs tabular-nums">{it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "—"}</td>
                       <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                       <td className="p-3 text-right tabular-nums">{it.qty}</td>
                       <td className="p-3 text-right tabular-nums font-medium text-primary">Free</td>
@@ -300,7 +305,8 @@ function BillDetailPage() {
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     Qty: {it.qty}
-                    {it.pack && ` · Pack ${it.pack.replace(/\*/g, "x")}`}
+                    {it.pack && ` · Pack ${it.pack.replace(/[*x]/gi, "X")}`}
+                    {it.expiry && ` · Exp ${new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'})}`}
                     {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                   </div>
                 </div>

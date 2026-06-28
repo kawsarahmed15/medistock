@@ -105,27 +105,37 @@ export async function downloadBillPdf(bill: Bill) {
 
   doc.setFont("helvetica", "normal");
   y += 16;
-  doc.text(clean(bill.customerName) || "Walk-in customer", left, y);
+  doc.setFont("helvetica", "bold");
+  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left, y);
+  doc.setFont("helvetica", "normal");
   doc.text(bill.paymentMethod.toUpperCase(), right - 160, y);
 
   y += 14;
   if (bill.customerPhone) doc.text(clean(bill.customerPhone), left, y);
   if (bill.cashier) doc.text(`Cashier: ${clean(bill.cashier)}`, right - 160, y);
+  
+  if (bill.customerNotes) {
+    y += 14;
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), right - 160 - left);
+    doc.text(splitNotes, left, y);
+    y += (splitNotes.length - 1) * 12; // Adjust y in case it wraps
+  }
 
   // ===== Items table =====
   autoTable(doc, {
     startY: 165,
-    head: [["Sl. No.", "Item", "Pack", "MRP", "Qty", "Price", "Tax %", "Total"]],
+    head: [["Sl. No.", "Item", "Pack", "Expiry", "MRP", "Qty", "Price", "Tax %", "Total"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
       return [
         String(idx + 1),
         clean(it.name),
-        it.pack ? it.pack.replace(/\*/g, "x") : "-",
-        it.mrp != null ? money(it.mrp) : "-",
+        it.pack ? it.pack.replace(/[*x]/gi, "X") : "-",
+        it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "-",
+        it.mrp != null ? it.mrp.toFixed(2) : "-",
         String(it.qty),
-        money(it.price),
+        it.price.toFixed(2),
         `${it.taxPercent}%`,
         money(line + tax),
       ];
@@ -145,12 +155,13 @@ export async function downloadBillPdf(bill: Bill) {
     },
     columnStyles: {
       0: { cellWidth: 24, halign: "center" },
-      2: { halign: "center", cellWidth: 45 },
-      3: { halign: "right", cellWidth: 50 },
-      4: { halign: "right", cellWidth: 30 },
-      5: { halign: "right", cellWidth: 60 },
-      6: { halign: "right", cellWidth: 45 },
-      7: { halign: "right", cellWidth: 70 },
+      2: { halign: "center", cellWidth: 35 },
+      3: { halign: "center", cellWidth: 40 },
+      4: { halign: "right", cellWidth: 45 },
+      5: { halign: "right", cellWidth: 30 },
+      6: { halign: "right", cellWidth: 50 },
+      7: { halign: "right", cellWidth: 40 },
+      8: { halign: "right", cellWidth: 60 },
     },
     margin: { left, right: 40 },
     theme: "grid",
