@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS bills (
   number VARCHAR(50) NOT NULL,
   customer_name VARCHAR(190) NULL,
   customer_phone VARCHAR(50) NULL,
+  customer_address TEXT NULL,
   customer_notes TEXT NULL,
   cashier VARCHAR(120) NULL,
   payment_method ENUM('cash', 'online') NOT NULL DEFAULT 'cash',

@@ -8,7 +8,7 @@ router.use(requireAuth);
 router.get("/", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT customer_name, customer_phone, customer_notes, total, created_at
+      `SELECT customer_name, customer_phone, customer_address, customer_notes, total, created_at
        FROM bills
        WHERE user_id = ?
        ORDER BY created_at DESC`,
@@ -25,6 +25,7 @@ router.get("/", async (req, res, next) => {
         map.set(key, {
           phone,
           name,
+          address: row.customer_address || undefined,
           notes: row.customer_notes || undefined,
           visits: 1,
           totalSpent: Number(row.total || 0),

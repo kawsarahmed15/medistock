@@ -6,6 +6,7 @@ export type CartItem = { product: Product; qty: number; freeQty?: number };
 export type Customer = {
   name: string;
   phone: string;
+  address?: string;
   notes: string;
   prescriptionRef?: string;
   /** Data URL (image/*) of an uploaded prescription photo. */
@@ -15,6 +16,7 @@ export type Customer = {
 const emptyCustomer: Customer = {
   name: "",
   phone: "",
+  address: "",
   notes: "",
   prescriptionRef: "",
   prescriptionPhoto: "",

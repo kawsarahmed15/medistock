@@ -79,6 +79,7 @@ export async function downloadBillPdf(bill: Bill) {
     addressLines = doc.splitTextToSize(clean(pharmacyAddress), 300);
     headerHeight += addressLines.length * 12; // 12pt per line
   }
+  headerHeight += 10; // Add gap between address and tax invoice text
 
   doc.rect(0, 0, pageWidth, headerHeight, "F");
 
@@ -95,10 +96,11 @@ export async function downloadBillPdf(bill: Bill) {
     currentY += addressLines.length * 12;
   }
 
+  currentY += 10; // Gap between address and Tax invoice text
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text("Tax invoice / Sale bill", left, currentY);
-  currentY += 16;
+  currentY += 14;
 
   if (gstNumber) {
     doc.setFontSize(9);
@@ -132,9 +134,25 @@ export async function downloadBillPdf(bill: Bill) {
   doc.setFont("helvetica", "normal");
   doc.text(bill.paymentMethod.toUpperCase(), right - 160, y);
 
-  y += 14;
-  if (bill.customerPhone) doc.text(clean(bill.customerPhone), left, y);
-  if (bill.cashier) doc.text(`Cashier: ${clean(bill.cashier)}`, right - 160, y);
+  let leftY = y + 14;
+  if (bill.customerPhone) {
+    doc.text(clean(bill.customerPhone), left, leftY);
+    leftY += 14;
+  }
+  
+  if (bill.customerAddress) {
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), 200);
+    doc.text(custAddrLines, left, leftY);
+    leftY += custAddrLines.length * 12;
+  }
+
+  let rightY = y + 14;
+  if (bill.cashier) {
+    doc.text(`Cashier: ${clean(bill.cashier)}`, right - 160, rightY);
+    rightY += 14;
+  }
+
+  y = Math.max(leftY, rightY);
   
   if (bill.customerNotes) {
     y += 14;

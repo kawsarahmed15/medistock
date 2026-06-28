@@ -57,6 +57,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
     setForm({
       name: c.name,
       phone: c.phone,
+      address: c.address ?? "",
       notes: c.notes ?? "",
     });
     setShowPicker(false);
@@ -70,6 +71,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
     const cleaned = {
       name: form.name.trim().slice(0, 100),
       phone: phone.slice(0, 20),
+      address: (form.address || "").trim().slice(0, 300),
       notes: form.notes.trim().slice(0, 300),
     };
     setCustomer(cleaned);
@@ -187,6 +189,19 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               maxLength={20}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               placeholder="+91 98765 43210"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cd-address" className="text-xs">
+              Address
+            </Label>
+            <Textarea
+              id="cd-address"
+              value={form.address || ""}
+              maxLength={300}
+              rows={2}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Full address (optional)"
             />
           </div>
           <div className="space-y-1.5">

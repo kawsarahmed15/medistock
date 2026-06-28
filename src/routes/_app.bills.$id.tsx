@@ -170,6 +170,11 @@ function BillDetailPage() {
             {bill.customerPhone && (
               <div className="text-xs text-muted-foreground mt-0.5">{bill.customerPhone}</div>
             )}
+            {bill.customerAddress && (
+              <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap leading-snug">
+                {bill.customerAddress}
+              </div>
+            )}
             {bill.customerNotes && (
               <div className="text-sm mt-2 whitespace-pre-wrap">
                 {bill.customerNotes}

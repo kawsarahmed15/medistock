@@ -231,6 +231,11 @@ function CartPage() {
                   {cart.customer.phone && (
                     <div className="text-muted-foreground">{cart.customer.phone}</div>
                   )}
+                  {cart.customer.address && (
+                    <div className="text-muted-foreground whitespace-pre-wrap mt-0.5 leading-snug">
+                      {cart.customer.address}
+                    </div>
+                  )}
                   {cart.customer.notes && (
                     <div className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">
                       {cart.customer.notes}

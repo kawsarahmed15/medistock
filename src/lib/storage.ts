@@ -43,6 +43,7 @@ export type Bill = {
   number: string;
   customerName?: string;
   customerPhone?: string;
+  customerAddress?: string;
   customerNotes?: string;
   items: BillItem[];
   subtotal: number;
@@ -147,6 +148,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     number: b.number,
     customerName: b.customer_name ?? undefined,
     customerPhone: b.customer_phone ?? undefined,
+    customerAddress: b.customer_address ?? undefined,
     customerNotes: b.customer_notes ?? undefined,
     cashier: b.cashier ?? undefined,
     paymentMethod: b.payment_method,
@@ -189,6 +191,7 @@ export const billsStore = {
 export type Customer = {
   phone: string;
   name: string;
+  address?: string;
   notes?: string;
   visits: number;
   totalSpent: number;

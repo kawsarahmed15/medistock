@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.get("/", async (req, res, next) => {
   try {
     const [bills] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_notes, cashier, payment_method,
+      `SELECT id, number, customer_name, customer_phone, customer_address, customer_notes, cashier, payment_method,
               subtotal, tax, total, created_at
        FROM bills
        WHERE user_id = ?
@@ -52,7 +52,7 @@ router.get("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_notes, cashier, payment_method,
+      `SELECT id, number, customer_name, customer_phone, customer_address, customer_notes, cashier, payment_method,
               subtotal, tax, total, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
@@ -90,15 +90,16 @@ router.post("/", async (req, res, next) => {
 
       const id = generateId();
       await conn.query(
-        `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_notes,
+        `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_notes,
            cashier, payment_method, subtotal, tax, total)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           req.auth.userId,
           invoiceNo,
           body.customerName || null,
           body.customerPhone || null,
+          body.customerAddress || null,
           body.customerNotes || null,
           body.cashier || null,
           body.paymentMethod === "online" ? "online" : "cash",
@@ -134,7 +135,7 @@ router.post("/", async (req, res, next) => {
     });
 
     const [rows] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_notes, cashier, payment_method,
+      `SELECT id, number, customer_name, customer_phone, customer_address, customer_notes, cashier, payment_method,
               subtotal, tax, total, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
