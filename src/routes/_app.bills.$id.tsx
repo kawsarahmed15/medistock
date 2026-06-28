@@ -195,6 +195,7 @@ function BillDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
+                <th className="text-left p-3 font-medium">Sl. No.</th>
                 <th className="text-left p-3 font-medium">Item</th>
                 <th className="text-right p-3 font-medium">MRP</th>
                 <th className="text-right p-3 font-medium">Qty</th>
@@ -204,11 +205,12 @@ function BillDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {paidItems.map((it) => {
+              {paidItems.map((it, idx) => {
                 const line = it.price * it.qty;
                 const tax = (line * it.taxPercent) / 100;
                 return (
                   <tr key={it.productId || it.name} className="border-t">
+                    <td className="p-3 text-muted-foreground">{idx + 1}</td>
                     <td className="p-3">{it.name}</td>
                     <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.qty}</td>
@@ -229,7 +231,7 @@ function BillDetailPage() {
 
         {paidItems.length > 0 && (
           <div className="space-y-2 sm:hidden mt-4">
-            {paidItems.map((it) => {
+            {paidItems.map((it, idx) => {
               const line = it.price * it.qty;
             const tax = (line * it.taxPercent) / 100;
             return (
@@ -238,7 +240,7 @@ function BillDetailPage() {
                 className="border rounded-lg p-3 text-sm"
               >
                 <div className="flex justify-between gap-2">
-                  <span className="font-medium">{it.name}</span>
+                  <span className="font-medium">{idx + 1}. {it.name}</span>
                   <span className="font-semibold tabular-nums">
                     {(line + tax).toFixed(2)}
                   </span>
@@ -261,6 +263,7 @@ function BillDetailPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
+                    <th className="text-left p-3 font-medium">Sl. No.</th>
                     <th className="text-left p-3 font-medium">Item</th>
                     <th className="text-right p-3 font-medium">MRP</th>
                     <th className="text-right p-3 font-medium">Qty</th>
@@ -268,8 +271,9 @@ function BillDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {freeItems.map((it) => (
+                  {freeItems.map((it, idx) => (
                     <tr key={it.productId || it.name} className="border-t">
+                      <td className="p-3 text-muted-foreground">{idx + 1}</td>
                       <td className="p-3">{it.name}</td>
                       <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                       <td className="p-3 text-right tabular-nums">{it.qty}</td>
@@ -280,13 +284,13 @@ function BillDetailPage() {
               </table>
             </div>
             <div className="space-y-2 sm:hidden">
-              {freeItems.map((it) => (
+              {freeItems.map((it, idx) => (
                 <div
                   key={it.productId || it.name}
                   className="border rounded-lg p-3 text-sm"
                 >
                   <div className="flex justify-between gap-2">
-                    <span className="font-medium">{it.name}</span>
+                    <span className="font-medium">{idx + 1}. {it.name}</span>
                     <span className="font-semibold text-primary">Free</span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">

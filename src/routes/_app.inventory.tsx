@@ -54,7 +54,9 @@ type FormState = {
   costPrice: string;
   price: string;
   mrp: string;
-  stock: string;
+  stockType: string;
+  stockPacks: string;
+  stockUnits: string;
   expiry: string;
   batch: string;
   manufacturer: string;
@@ -74,7 +76,9 @@ const empty: FormState = {
   costPrice: "",
   price: "",
   mrp: "",
-  stock: "",
+  stockType: "other",
+  stockPacks: "",
+  stockUnits: "",
   expiry: "",
   batch: "",
   manufacturer: "",
@@ -131,7 +135,9 @@ function InventoryPage() {
         costPrice: match.costPrice != null ? String(match.costPrice) : "",
         price: String(match.price),
         mrp: match.mrp != null ? String(match.mrp) : "",
-        stock: String(match.stock),
+        stockType: "other",
+        stockPacks: "1",
+        stockUnits: String(match.stock),
         expiry: match.expiry.slice(0, 10),
         batch: match.batch ?? "",
         manufacturer: match.manufacturer ?? "",
@@ -222,7 +228,9 @@ function InventoryPage() {
       costPrice: p.costPrice != null ? String(p.costPrice) : "",
       price: String(p.price),
       mrp: p.mrp != null ? String(p.mrp) : "",
-      stock: String(p.stock),
+      stockType: "other",
+      stockPacks: "1",
+      stockUnits: String(p.stock),
       expiry: p.expiry.slice(0, 10),
       batch: p.batch ?? "",
       manufacturer: p.manufacturer ?? "",
@@ -246,7 +254,9 @@ function InventoryPage() {
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
       price: Number(form.price),
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
-      stock: Number(form.stock),
+      stock: (form.stockType === "tab" || form.stockType === "cap")
+        ? (Number(form.stockPacks) || 0) * (Number(form.stockUnits) || 0)
+        : (Number(form.stockUnits) || 0),
       expiry: form.expiry,
       batch: form.batch.trim() || undefined,
       manufacturer: form.manufacturer.trim() || undefined,
@@ -393,14 +403,51 @@ function InventoryPage() {
                     placeholder="Printed price"
                   />
                 </Field>
-                <Field label="Stock">
-                  <Input
-                    type="number"
-                    value={form.stock}
-                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                    required
-                  />
+                <Field label="Stock Type">
+                  <select
+                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={form.stockType}
+                    onChange={(e) => setForm({ ...form, stockType: e.target.value })}
+                  >
+                    <option value="other">General / Other</option>
+                    <option value="tab">Tablet (Tab)</option>
+                    <option value="cap">Capsule (Cap)</option>
+                    <option value="syp">Syrup (Syp)</option>
+                    <option value="inj">Injection (Inj)</option>
+                    <option value="jar">Jar</option>
+                  </select>
                 </Field>
+                {(form.stockType === "tab" || form.stockType === "cap") ? (
+                  <Field label="Stock (Strips × Per Strip)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Strips"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground">×</span>
+                      <Input
+                        type="number"
+                        placeholder="Units"
+                        value={form.stockUnits}
+                        onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </Field>
+                ) : (
+                  <Field label="Stock Quantity">
+                    <Input
+                      type="number"
+                      placeholder="Qty"
+                      value={form.stockUnits}
+                      onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
+                      required
+                    />
+                  </Field>
+                )}
                 <Field label="Expiry">
                   <Input
                     type="date"
