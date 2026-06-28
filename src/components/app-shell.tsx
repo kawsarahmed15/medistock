@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -55,6 +55,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const [isDesktop, setIsDesktop] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(min-width: 768px)");
+    const onChange = () => setIsDesktop(mql.matches);
+    setIsDesktop(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
 
   const sidebarBody = (onNavigate?: () => void) => (
     <aside className="h-full flex flex-col border-r border-sidebar-border bg-sidebar shadow-soft overflow-hidden print:hidden">
@@ -225,27 +235,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="h-screen w-full bg-gradient-soft overflow-hidden">
-      {/* Mobile / tablet: single column, nav lives in the hamburger sheet */}
-      <div className="md:hidden h-full">{main}</div>
-
-      {/* Desktop: resizable two-pane */}
-      <div className="hidden md:block h-full">
-        <ResizablePanelGroup orientation="horizontal" id="medistock-shell" className="h-full">
-          <ResizablePanel
-            id="sidebar"
-            defaultSize="256px"
-            minSize="180px"
-            maxSize="480px"
-            className="h-full"
-          >
-            {sidebarBody()}
-          </ResizablePanel>
-          <ResizableHandle className="pointer-events-none opacity-0" />
-          <ResizablePanel id="main" className="h-full">
-            {main}
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+      {!isDesktop ? (
+        <div className="md:hidden h-full">{main}</div>
+      ) : (
+        <div className="hidden md:block h-full">
+          <ResizablePanelGroup orientation="horizontal" id="medistock-shell" className="h-full">
+            <ResizablePanel
+              id="sidebar"
+              defaultSize={20}
+              minSize={15}
+              maxSize={40}
+              className="h-full"
+            >
+              {sidebarBody()}
+            </ResizablePanel>
+            <ResizableHandle className="pointer-events-none opacity-0" />
+            <ResizablePanel id="main" className="h-full">
+              {main}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
+      )}
 
       <UserProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </div>
