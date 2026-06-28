@@ -18,11 +18,12 @@ import { Minus, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { SellSkeleton } from "@/components/loading-skeleton";
 
-type SellSearch = { add?: string };
+type SellSearch = { add?: string; new?: number };
 
 export const Route = createFileRoute("/_app/sell")({
   validateSearch: (search: Record<string, unknown>): SellSearch => ({
     add: typeof search.add === "string" ? search.add : undefined,
+    new: search.new ? 1 : undefined,
   }),
   component: SellPage,
 });
@@ -82,8 +83,16 @@ function SellPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.add]);
+
+  // Handle Alt+N shortcut
+  useEffect(() => {
+    if (search.new) {
+      setCustomerOpen(true);
+      routeNavigate({ search: (prev) => ({ ...prev, new: undefined }), replace: true });
+    }
+  }, [search.new, routeNavigate]);
 
   const filtered = useMemo(
     () =>

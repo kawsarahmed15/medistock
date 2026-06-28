@@ -58,12 +58,14 @@ export function KeyboardShortcuts() {
       };
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
+        e.stopPropagation();
         cart.clear();
-        return go("/sell");
+        return navigate({ to: "/sell", search: { new: 1 } as any });
       }
       
       if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
+        e.stopPropagation();
         // Use any since typescript won't strictly validate search params in generic navigate here
         return navigate({ to: "/inventory", search: { add: 1 } as any });
       }

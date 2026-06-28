@@ -352,14 +352,12 @@ function InventoryPage() {
             <ScanLine className="h-4 w-4" />
             <span className="hidden sm:inline">Scan SKU</span>
           </Button>
+          <Button onClick={startAdd} className="shadow-soft">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Add product</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={startAdd} className="shadow-soft">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Add product</span>
-                <span className="sm:hidden">Add</span>
-              </Button>
-            </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
