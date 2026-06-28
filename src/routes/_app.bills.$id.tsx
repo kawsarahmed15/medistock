@@ -183,8 +183,6 @@ function BillDetailPage() {
           </div>
         </div>
 
-        </div>
-
         {/* Items: table on sm+, stacked rows on mobile */}
         {(() => {
           const paidItems = bill.items.filter((it) => it.price > 0);
@@ -198,6 +196,7 @@ function BillDetailPage() {
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left p-3 font-medium">Item</th>
+                <th className="text-right p-3 font-medium">MRP</th>
                 <th className="text-right p-3 font-medium">Qty</th>
                 <th className="text-right p-3 font-medium">Price</th>
                 <th className="text-right p-3 font-medium">Tax</th>
@@ -210,12 +209,8 @@ function BillDetailPage() {
                 const tax = (line * it.taxPercent) / 100;
                 return (
                   <tr key={it.productId || it.name} className="border-t">
-                    <td className="p-3">
-                      <div>{it.name}</div>
-                      {it.mrp != null && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5">MRP: {it.mrp.toFixed(2)}</div>
-                      )}
-                    </td>
+                    <td className="p-3">{it.name}</td>
+                    <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.qty}</td>
                     <td className="p-3 text-right tabular-nums">{it.price.toFixed(2)}</td>
                     <td className="p-3 text-right tabular-nums">
@@ -230,9 +225,7 @@ function BillDetailPage() {
             </tbody>
           </table>
         </div>
-
-          </table>
-        </div>
+              )}
 
         {paidItems.length > 0 && (
           <div className="space-y-2 sm:hidden mt-4">
@@ -255,7 +248,7 @@ function BillDetailPage() {
                   {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                 </div>
               </div>
-              </div>
+
             );
           })}
         </div>
@@ -269,6 +262,7 @@ function BillDetailPage() {
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left p-3 font-medium">Item</th>
+                    <th className="text-right p-3 font-medium">MRP</th>
                     <th className="text-right p-3 font-medium">Qty</th>
                     <th className="text-right p-3 font-medium">Price</th>
                   </tr>
@@ -276,12 +270,8 @@ function BillDetailPage() {
                 <tbody>
                   {freeItems.map((it) => (
                     <tr key={it.productId || it.name} className="border-t">
-                      <td className="p-3">
-                        <div>{it.name}</div>
-                        {it.mrp != null && (
-                          <div className="text-[10px] text-muted-foreground mt-0.5">MRP: {it.mrp.toFixed(2)}</div>
-                        )}
-                      </td>
+                      <td className="p-3">{it.name}</td>
+                      <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                       <td className="p-3 text-right tabular-nums">{it.qty}</td>
                       <td className="p-3 text-right tabular-nums font-medium text-primary">Free</td>
                     </tr>
