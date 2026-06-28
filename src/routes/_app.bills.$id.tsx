@@ -195,15 +195,15 @@ function BillDetailPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left p-3 font-medium">Sl. No.</th>
+                <th className="w-10 text-center p-3 font-medium">#</th>
                 <th className="text-left p-3 font-medium">Item</th>
-                <th className="text-right p-3 font-medium">Pack</th>
-                <th className="text-center p-3 font-medium">Expiry</th>
-                <th className="text-right p-3 font-medium">MRP</th>
-                <th className="text-right p-3 font-medium">Qty</th>
-                <th className="text-right p-3 font-medium">Price</th>
-                <th className="text-right p-3 font-medium">Tax</th>
-                <th className="text-right p-3 font-medium">Total</th>
+                <th className="w-20 text-right p-3 font-medium">Pack</th>
+                <th className="w-20 text-center p-3 font-medium">Exp.</th>
+                <th className="w-20 text-right p-3 font-medium">MRP</th>
+                <th className="w-16 text-right p-3 font-medium">Qty</th>
+                <th className="w-24 text-right p-3 font-medium">Price</th>
+                <th className="w-28 text-right p-3 font-medium">Tax</th>
+                <th className="w-28 text-right p-3 font-medium">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -212,7 +212,7 @@ function BillDetailPage() {
                 const tax = (line * it.taxPercent) / 100;
                 return (
                   <tr key={it.productId || it.name} className="border-t">
-                    <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                    <td className="p-3 text-center text-muted-foreground">{idx + 1}</td>
                     <td className="p-3">{it.name}</td>
                     <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
                     <td className="p-3 text-center text-xs tabular-nums">{it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "—"}</td>
@@ -269,19 +269,19 @@ function BillDetailPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="text-left p-3 font-medium">Sl. No.</th>
+                    <th className="w-10 text-center p-3 font-medium">#</th>
                     <th className="text-left p-3 font-medium">Item</th>
-                    <th className="text-right p-3 font-medium">Pack</th>
-                    <th className="text-center p-3 font-medium">Expiry</th>
-                    <th className="text-right p-3 font-medium">MRP</th>
-                    <th className="text-right p-3 font-medium">Qty</th>
-                    <th className="text-right p-3 font-medium">Price</th>
+                    <th className="w-20 text-right p-3 font-medium">Pack</th>
+                    <th className="w-20 text-center p-3 font-medium">Exp.</th>
+                    <th className="w-20 text-right p-3 font-medium">MRP</th>
+                    <th className="w-16 text-right p-3 font-medium">Qty</th>
+                    <th className="w-24 text-right p-3 font-medium">Price</th>
                   </tr>
                 </thead>
                 <tbody>
                   {freeItems.map((it, idx) => (
                     <tr key={it.productId || it.name} className="border-t">
-                      <td className="p-3 text-muted-foreground">{idx + 1}</td>
+                      <td className="p-3 text-center text-muted-foreground">{idx + 1}</td>
                       <td className="p-3">{it.name}</td>
                       <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
                       <td className="p-3 text-center text-xs tabular-nums">{it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "—"}</td>

@@ -124,7 +124,7 @@ export async function downloadBillPdf(bill: Bill) {
   // ===== Items table =====
   autoTable(doc, {
     startY: 165,
-    head: [["Sl. No.", "Item", "Pack", "Expiry", "MRP", "Qty", "Price", "Tax %", "Total"]],
+    head: [["#", "Item", "Pack", "Exp.", "MRP", "Qty", "Price", "Tax %", "Total"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
@@ -154,14 +154,14 @@ export async function downloadBillPdf(bill: Bill) {
       halign: "left",
     },
     columnStyles: {
-      0: { cellWidth: 24, halign: "center" },
+      0: { cellWidth: 20, halign: "center" },
       2: { halign: "center", cellWidth: 35 },
       3: { halign: "center", cellWidth: 40 },
-      4: { halign: "right", cellWidth: 45 },
-      5: { halign: "right", cellWidth: 30 },
-      6: { halign: "right", cellWidth: 50 },
-      7: { halign: "right", cellWidth: 40 },
-      8: { halign: "right", cellWidth: 60 },
+      4: { halign: "right", cellWidth: 40 },
+      5: { halign: "right", cellWidth: 28 },
+      6: { halign: "right", cellWidth: 45 },
+      7: { halign: "right", cellWidth: 35 },
+      8: { halign: "right", cellWidth: 55 },
     },
     margin: { left, right: 40 },
     theme: "grid",
