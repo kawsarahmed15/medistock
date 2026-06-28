@@ -319,10 +319,11 @@ function BillDetailPage() {
     })()}
 
         <div className="mt-6 sm:ml-auto w-full sm:w-72 space-y-1.5 text-sm">
-          <Row label="Subtotal" value={formatMoney(bill.subtotal)} />
-          <Row label="Tax" value={formatMoney(bill.tax)} />
-          <div className="border-t pt-2">
-            <Row label="Grand total" value={formatMoney(bill.total)} bold />
+          <Row label="Subtotal" value={bill.subtotal.toFixed(2)} />
+          <Row label="Tax" value={bill.tax.toFixed(2)} />
+          <div className="border-t my-3 border-dashed" />
+          <div className="text-primary text-base">
+            <Row label="Grand total" value={bill.total.toFixed(2)} bold />
           </div>
         </div>
 

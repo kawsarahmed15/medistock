@@ -137,15 +137,16 @@ export async function downloadBillPdf(bill: Bill) {
         String(it.qty),
         it.price.toFixed(2),
         `${it.taxPercent}%`,
-        money(line + tax),
+        (line + tax).toFixed(2),
       ];
     }),
     styles: {
-      fontSize: 9.5,
-      cellPadding: 7,
+      fontSize: 8.5,
+      cellPadding: 4,
       lineColor: [220, 220, 220],
       lineWidth: 0.4,
       textColor: [40, 40, 40],
+      overflow: "hidden",
     },
     headStyles: {
       fillColor: primaryRgb,
@@ -180,13 +181,13 @@ export async function downloadBillPdf(bill: Bill) {
   doc.setTextColor(110, 110, 110);
   doc.text("Subtotal", totalsLabelX, ty);
   doc.setTextColor(35, 35, 35);
-  doc.text(money(bill.subtotal), totalsValueX, ty, { align: "right" });
+  doc.text(bill.subtotal.toFixed(2), totalsValueX, ty, { align: "right" });
 
   ty += 16;
   doc.setTextColor(110, 110, 110);
   doc.text("Tax", totalsLabelX, ty);
   doc.setTextColor(35, 35, 35);
-  doc.text(money(bill.tax), totalsValueX, ty, { align: "right" });
+  doc.text(bill.tax.toFixed(2), totalsValueX, ty, { align: "right" });
 
   ty += 10;
   doc.setDrawColor(220, 220, 220);
@@ -197,7 +198,7 @@ export async function downloadBillPdf(bill: Bill) {
   doc.setFontSize(12);
   doc.setTextColor(...primaryRgb);
   doc.text("Grand total", totalsLabelX, ty);
-  doc.text(money(bill.total), totalsValueX, ty, { align: "right" });
+  doc.text(bill.total.toFixed(2), totalsValueX, ty, { align: "right" });
 
   // Customer notes (optional)
   if (bill.customerNotes && bill.customerNotes.trim()) {
