@@ -207,13 +207,14 @@ function InventoryPage() {
   }, [filtered]);
 
   useEffect(() => {
-    if (search.add) {
+    const handler = () => {
       setEditing(null);
       setForm(empty);
       setOpen(true);
-      // Removed immediate navigate to avoid double-render transition
-    }
-  }, [search.add]);
+    };
+    window.addEventListener("trigger-add-product", handler);
+    return () => window.removeEventListener("trigger-add-product", handler);
+  }, []);
 
   if (loading && items.length === 0) return <TableSkeleton cols={6} />;
 
@@ -357,15 +358,7 @@ function InventoryPage() {
             <span className="hidden sm:inline">Add product</span>
             <span className="sm:hidden">Add</span>
           </Button>
-          <Dialog 
-            open={open} 
-            onOpenChange={(v) => {
-              setOpen(v);
-              if (!v && search.add) {
-                navigate({ search: (prev) => ({ ...prev, add: undefined }), replace: true });
-              }
-            }}
-          >
+          <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>

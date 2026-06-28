@@ -60,14 +60,27 @@ export function KeyboardShortcuts() {
         e.preventDefault();
         e.stopPropagation();
         cart.clear();
-        return navigate({ to: "/sell", search: { new: 1 } as any });
+        if (routerState.location.pathname !== "/sell") {
+          navigate({ to: "/sell" }).then(() => {
+            window.dispatchEvent(new CustomEvent("trigger-new-bill"));
+          });
+        } else {
+          window.dispatchEvent(new CustomEvent("trigger-new-bill"));
+        }
+        return;
       }
       
       if (e.altKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         e.stopPropagation();
-        // Use any since typescript won't strictly validate search params in generic navigate here
-        return navigate({ to: "/inventory", search: { add: 1 } as any });
+        if (!routerState.location.pathname.startsWith("/inventory")) {
+          navigate({ to: "/inventory" }).then(() => {
+            window.dispatchEvent(new CustomEvent("trigger-add-product"));
+          });
+        } else {
+          window.dispatchEvent(new CustomEvent("trigger-add-product"));
+        }
+        return;
       }
 
       // Always allow F-keys / ? except when typing

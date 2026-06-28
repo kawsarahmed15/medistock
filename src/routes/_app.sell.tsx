@@ -86,13 +86,12 @@ function SellPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.add]);
 
-  // Handle Alt+N shortcut
+  // Handle Alt+N shortcut via custom event
   useEffect(() => {
-    if (search.new) {
-      setCustomerOpen(true);
-      // Removed immediate navigate to avoid double-render transition
-    }
-  }, [search.new]);
+    const handler = () => setCustomerOpen(true);
+    window.addEventListener("trigger-new-bill", handler);
+    return () => window.removeEventListener("trigger-new-bill", handler);
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -278,12 +277,7 @@ function SellPage() {
 
       <CustomerDetailsDialog 
         open={customerOpen} 
-        onOpenChange={(v) => {
-          setCustomerOpen(v);
-          if (!v && search.new) {
-            routeNavigate({ search: (prev) => ({ ...prev, new: undefined }), replace: true });
-          }
-        }} 
+        onOpenChange={setCustomerOpen} 
       />
     </div>
   );
