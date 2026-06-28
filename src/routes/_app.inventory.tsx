@@ -139,8 +139,8 @@ function InventoryPage() {
         mrp: match.mrp != null ? String(match.mrp) : "",
         stock: String(match.stock),
         stockType: match.pack ? "tab" : "other",
-        stockPacks: match.pack ? match.pack.split("*")[0] : "",
-        stockUnits: match.pack ? match.pack.split("*")[1] : "",
+        stockPacks: match.pack ? match.pack.split(/[*xX]/)[0] : "",
+        stockUnits: match.pack ? match.pack.split(/[*xX]/)[1] : "",
         expiry: match.expiry.slice(0, 10),
         batch: match.batch ?? "",
         manufacturer: match.manufacturer ?? "",
@@ -233,8 +233,8 @@ function InventoryPage() {
       mrp: p.mrp != null ? String(p.mrp) : "",
       stock: String(p.stock),
       stockType: p.pack ? "tab" : "other",
-      stockPacks: p.pack ? p.pack.split("*")[0] : "",
-      stockUnits: p.pack ? p.pack.split("*")[1] : "",
+      stockPacks: p.pack ? p.pack.split(/[*xX]/)[0] : "",
+      stockUnits: p.pack ? p.pack.split(/[*xX]/)[1] : "",
       expiry: p.expiry.slice(0, 10),
       batch: p.batch ?? "",
       manufacturer: p.manufacturer ?? "",
@@ -255,7 +255,7 @@ function InventoryPage() {
     let packValue: string | undefined = undefined;
     if (form.stockType === "tab" || form.stockType === "cap") {
       if (form.stockPacks && form.stockUnits) {
-        packValue = `${form.stockPacks}*${form.stockUnits}`;
+        packValue = `${form.stockPacks}x${form.stockUnits}`;
       }
     }
     const payload = {

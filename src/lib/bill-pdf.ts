@@ -115,14 +115,14 @@ export async function downloadBillPdf(bill: Bill) {
   // ===== Items table =====
   autoTable(doc, {
     startY: 165,
-    head: [["#", "Item", "Pack", "MRP", "Qty", "Price", "Tax %", "Total"]],
+    head: [["Sl. No.", "Item", "Pack", "MRP", "Qty", "Price", "Tax %", "Total"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
       return [
         String(idx + 1),
         clean(it.name),
-        it.pack || "-",
+        it.pack ? it.pack.replace(/\*/g, "x") : "-",
         it.mrp != null ? money(it.mrp) : "-",
         String(it.qty),
         money(it.price),
