@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, IndianRupee, ReceiptText, TrendingUp, Wallet } from "lucide-react";
-import { billsStore, type Bill } from "@/lib/storage";
+import { billsStore, customersStore, type Bill } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,20 +88,27 @@ function RevenuePage() {
 
   const [loading, setLoading] = useState(true);
 
+  const [payments, setPayments] = useState<{ amount: number; method: string; created_at: string }[]>([]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    billsStore
-      .list()
-      .then((b) => {
+    
+    Promise.all([
+      billsStore.list(),
+      customersStore.getAllPayments()
+    ])
+      .then(([b, p]) => {
         if (!cancelled) {
           setBills(b);
+          setPayments(p);
           setLoading(false);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setBills([]);
+          setPayments([]);
           setLoading(false);
         }
       });
@@ -124,24 +131,43 @@ function RevenuePage() {
     [bills, start, end],
   );
 
+  const filteredPayments = useMemo(
+    () =>
+      payments.filter((p) => {
+        const t = new Date(p.created_at).getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      }),
+    [payments, start, end]
+  );
+
   const stats = useMemo(() => {
-    const totalRevenue = filteredBills.reduce((s, b) => s + b.total, 0);
-    const totalTax = filteredBills.reduce((s, b) => s + b.tax, 0);
+    // Total Revenue = Sum of subtotals (revenue before tax)
+    const totalRevenue = filteredBills.reduce((s, b) => s + (b.subtotal || 0), 0);
+    const totalTax = filteredBills.reduce((s, b) => s + (b.tax || 0), 0);
     const avgBill = filteredBills.length ? totalRevenue / filteredBills.length : 0;
+    
+    // Cost must include free quantities given away
     const cost = filteredBills.reduce(
       (s, b) =>
-        s + b.items.reduce((is, it) => is + (it.costPrice ?? 0) * it.qty, 0),
+        s + b.items.reduce((is, it) => is + (it.costPrice ?? 0) * (it.qty + (it.freeQty || 0)), 0),
       0,
     );
-    const profit = filteredBills.reduce((s, b) => s + b.subtotal, 0) - cost;
+    const profit = totalRevenue - cost;
+    
     const cash = filteredBills
-      .filter((b) => b.paymentMethod === "cash")
-      .reduce((s, b) => s + b.total, 0);
+      .reduce((s, b) => s + (b.paymentMethod === "cash" ? b.total : (b.paymentMethod === "credit" ? b.advanceAmount : 0)), 0) +
+      filteredPayments.reduce((s, p) => s + (p.method === "cash" ? p.amount : 0), 0);
+      
     const online = filteredBills
-      .filter((b) => b.paymentMethod === "online")
-      .reduce((s, b) => s + b.total, 0);
-    return { totalRevenue, totalTax, avgBill, profit, cash, online };
-  }, [filteredBills]);
+      .reduce((s, b) => s + (b.paymentMethod === "online" ? b.total : 0), 0) +
+      filteredPayments.reduce((s, p) => s + (p.method === "online" ? p.amount : 0), 0);
+      
+    const creditCollection = filteredBills
+      .reduce((s, b) => s + (b.paymentMethod === "credit" ? b.advanceAmount : 0), 0) +
+      filteredPayments.reduce((s, p) => s + p.amount, 0);
+
+    return { totalRevenue, totalTax, avgBill, profit, cash, online, creditCollection };
+  }, [filteredBills, filteredPayments]);
 
   // For "today" we'll render an hourly chart instead of daily.
   const isToday = range === "today";
@@ -346,7 +372,7 @@ function RevenuePage() {
         <StatCard label="Avg bill value" value={formatMoney(stats.avgBill)} icon={ReceiptText} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="shadow-soft border-l-4 border-l-success">
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Cash collection</div>
@@ -357,6 +383,12 @@ function RevenuePage() {
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Online collection</div>
             <div className="mt-1 text-2xl font-semibold text-primary">{formatMoney(stats.online)}</div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-soft border-l-4 border-l-amber-500">
+          <CardContent className="p-5">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Credit collection</div>
+            <div className="mt-1 text-2xl font-semibold text-amber-500">{formatMoney(stats.creditCollection)}</div>
           </CardContent>
         </Card>
       </div>

@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.get("/", async (req, res, next) => {
   try {
     const [bills] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, cashier, payment_method, advance_amount, total, created_at
+      `SELECT id, number, customer_name, customer_phone, cashier, payment_method, advance_amount, subtotal, tax, total, created_at
        FROM bills
        WHERE user_id = ?
        ORDER BY created_at DESC

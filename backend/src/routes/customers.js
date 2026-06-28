@@ -86,6 +86,26 @@ router.get("/", async (req, res, next) => {
 
 import { generateId } from "../utils.js";
 
+router.get("/payments/all", async (req, res, next) => {
+  try {
+    const params = [req.auth.userId];
+    let query = `SELECT id, amount, payment_method as method, created_at FROM customer_payments WHERE user_id = ?`;
+    if (req.query.from) {
+      query += ` AND created_at >= ?`;
+      params.push(req.query.from);
+    }
+    if (req.query.to) {
+      query += ` AND created_at <= ?`;
+      params.push(`${req.query.to} 23:59:59`);
+    }
+    query += ` ORDER BY created_at DESC`;
+    const [payments] = await pool.query(query, params);
+    res.json(payments);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/pay", async (req, res, next) => {
   try {
     const { phone, name, amount, method, notes } = req.body;

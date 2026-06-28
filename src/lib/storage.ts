@@ -218,6 +218,13 @@ export const customersStore = {
   async getCreditHistory(phone: string): Promise<any[]> {
     return await apiRequest<any[]>(`/customers/${encodeURIComponent(phone)}/credit-history`, { auth: true });
   },
+  async getAllPayments(from?: string, to?: string): Promise<{ id: string, amount: number, method: string, created_at: string }[]> {
+    const params = new URLSearchParams();
+    if (from) params.append("from", from);
+    if (to) params.append("to", to);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return await apiRequest<any[]>(`/customers/payments/all${qs}`, { auth: true });
+  },
   async update(phone: string, data: { name?: string; phone?: string; address?: string; notes?: string }): Promise<{ success: boolean }> {
     return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone)}`, { method: "PUT", body: data, auth: true });
   }
