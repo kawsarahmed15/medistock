@@ -158,9 +158,21 @@ function BillsPage() {
     e.stopPropagation();
     try {
       const fresh = (await billsStore.get(b.id)) ?? b;
-      await downloadBillPdf(fresh);
+      await downloadBillPdf(fresh, {
+        pharmacyName: session?.pharmacyName,
+        pharmacyAddress: session?.pharmacyAddress,
+        gstNumber: session?.gstNumber,
+        billColor: session?.billColor,
+        signature: session?.signature,
+      });
     } catch {
-      await downloadBillPdf(b);
+      await downloadBillPdf(b, {
+        pharmacyName: session?.pharmacyName,
+        pharmacyAddress: session?.pharmacyAddress,
+        gstNumber: session?.gstNumber,
+        billColor: session?.billColor,
+        signature: session?.signature,
+      });
       toast.error("Could not refresh, downloaded cached copy");
     }
   };

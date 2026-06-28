@@ -99,7 +99,13 @@ function BillDetailPage() {
           </Button>
           <Button
             size="sm"
-            onClick={() => void downloadBillPdf(bill)}
+            onClick={() => void downloadBillPdf(bill, {
+              pharmacyName: session?.pharmacyName,
+              pharmacyAddress: session?.pharmacyAddress,
+              gstNumber: session?.gstNumber,
+              billColor: session?.billColor,
+              signature: session?.signature,
+            })}
             className="shadow-soft"
           >
             <Download className="h-4 w-4" />

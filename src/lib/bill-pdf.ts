@@ -28,31 +28,28 @@ function clean(s: string | undefined | null): string {
     .replace(/[^\x20-\x7E]/g, "");
 }
 
-export async function downloadBillPdf(bill: Bill) {
+export async function downloadBillPdf(
+  bill: Bill,
+  settings?: {
+    pharmacyName?: string;
+    pharmacyAddress?: string;
+    gstNumber?: string;
+    billColor?: string;
+    signature?: string;
+  }
+) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const left = 40;
   const right = pageWidth - 40;
 
-  // Retrieve customized billing settings from Supabase user session metadata
-  let pharmacyName = "MediStock Pharmacy";
-  let pharmacyAddress = "";
-  let gstNumber = "";
-  let billColor = "#1a9890"; // default teal
-  let signature = "";
-
-  try {
-    const { user } = await apiRequest<{ user: any }>("/auth/me", { auth: true });
-    const meta = user || {};
-    if (meta.pharmacyName) pharmacyName = meta.pharmacyName;
-    if (meta.pharmacyAddress) pharmacyAddress = meta.pharmacyAddress;
-    if (meta.gstNumber) gstNumber = meta.gstNumber;
-    if (meta.billColor) billColor = meta.billColor;
-    if (meta.signature) signature = meta.signature;
-  } catch (err) {
-    console.error("Could not fetch user metadata for billing preferences", err);
-  }
+  // Retrieve customized billing settings from passed options
+  const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
+  const pharmacyAddress = settings?.pharmacyAddress || "";
+  const gstNumber = settings?.gstNumber || "";
+  const billColor = settings?.billColor || "#1a9890";
+  const signature = settings?.signature || "";
 
   // Parse color hex to RGB
   const hexToRgb = (hex: string): [number, number, number] => {
