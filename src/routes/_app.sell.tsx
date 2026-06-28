@@ -90,9 +90,9 @@ function SellPage() {
   useEffect(() => {
     if (search.new) {
       setCustomerOpen(true);
-      routeNavigate({ search: (prev) => ({ ...prev, new: undefined }), replace: true });
+      // Removed immediate navigate to avoid double-render transition
     }
-  }, [search.new, routeNavigate]);
+  }, [search.new]);
 
   const filtered = useMemo(
     () =>
@@ -276,7 +276,15 @@ function SellPage() {
         </DialogContent>
       </Dialog>
 
-      <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
+      <CustomerDetailsDialog 
+        open={customerOpen} 
+        onOpenChange={(v) => {
+          setCustomerOpen(v);
+          if (!v && search.new) {
+            routeNavigate({ search: (prev) => ({ ...prev, new: undefined }), replace: true });
+          }
+        }} 
+      />
     </div>
   );
 }

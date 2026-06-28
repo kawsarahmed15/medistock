@@ -211,9 +211,9 @@ function InventoryPage() {
       setEditing(null);
       setForm(empty);
       setOpen(true);
-      navigate({ search: (prev) => ({ ...prev, add: undefined }), replace: true });
+      // Removed immediate navigate to avoid double-render transition
     }
-  }, [search.add, navigate]);
+  }, [search.add]);
 
   if (loading && items.length === 0) return <TableSkeleton cols={6} />;
 
@@ -357,7 +357,15 @@ function InventoryPage() {
             <span className="hidden sm:inline">Add product</span>
             <span className="sm:hidden">Add</span>
           </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog 
+            open={open} 
+            onOpenChange={(v) => {
+              setOpen(v);
+              if (!v && search.add) {
+                navigate({ search: (prev) => ({ ...prev, add: undefined }), replace: true });
+              }
+            }}
+          >
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
