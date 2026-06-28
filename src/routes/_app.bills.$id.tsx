@@ -293,9 +293,15 @@ function BillDetailPage() {
               {bill.advanceAmount > 0 && (
                 <Row label="Advance Paid" value={bill.advanceAmount.toFixed(2)} />
               )}
-              <div className="text-destructive font-semibold">
-                <Row label="Balance Due" value={(bill.total - bill.advanceAmount).toFixed(2)} />
-              </div>
+              {bill.total >= bill.advanceAmount ? (
+                <div className="text-destructive font-semibold">
+                  <Row label="Balance Due" value={(bill.total - bill.advanceAmount).toFixed(2)} />
+                </div>
+              ) : (
+                <div className="text-emerald-600 font-semibold">
+                  <Row label="Change / Credit" value={(bill.advanceAmount - bill.total).toFixed(2)} />
+                </div>
+              )}
             </>
           )}
         </div>

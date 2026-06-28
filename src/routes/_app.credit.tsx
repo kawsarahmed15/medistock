@@ -232,8 +232,11 @@ function CreditPage() {
                       <div className="flex justify-between gap-3 text-muted-foreground">
                         <span>Total Paid:</span> <span>{formatMoney(c.totalPaid)}</span>
                       </div>
-                      <div className="flex justify-between gap-3 font-semibold text-destructive mt-0.5">
-                        <span>Balance:</span> <span>{formatMoney(c.balance)}</span>
+                      <div className="flex justify-between gap-3 font-semibold mt-0.5">
+                        <span>Balance:</span> 
+                        <span className={c.balance < 0 ? "text-emerald-500" : "text-destructive"}>
+                          {c.balance < 0 ? `+${formatMoney(Math.abs(c.balance))} (Credit)` : formatMoney(c.balance)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -359,7 +362,13 @@ function CreditPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
-                        {h.type === 'bill' ? <span className="text-destructive">-{formatMoney(h.amount)}</span> : <span className="text-emerald-600">+{formatMoney(h.amount)}</span>}
+                        {h.type === 'bill' ? (
+                          h.amount >= 0 
+                            ? <span className="text-destructive">-{formatMoney(h.amount)}</span>
+                            : <span className="text-emerald-600">+{formatMoney(Math.abs(h.amount))}</span>
+                        ) : (
+                          <span className="text-emerald-600">+{formatMoney(h.amount)}</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -253,8 +253,13 @@ export async function downloadBillPdf(
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38); // destructive red
-    doc.text("Balance Due", totalsLabelX, ty);
-    doc.text((bill.total - bill.advanceAmount).toFixed(2), totalsValueX, ty, { align: "right" });
+    if (bill.total >= bill.advanceAmount) {
+      doc.text("Balance Due:", totalsLabelX, ty);
+      doc.text((bill.total - bill.advanceAmount).toFixed(2), totalsValueX, ty, { align: "right" });
+    } else {
+      doc.text("Change / Credit:", totalsLabelX, ty);
+      doc.text((bill.advanceAmount - bill.total).toFixed(2), totalsValueX, ty, { align: "right" });
+    }
   }
 
   // Customer notes (optional)
