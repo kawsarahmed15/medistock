@@ -21,6 +21,8 @@ const SHORTCUTS = [
   { keys: "F5", label: "Bills" },
   { keys: "F6", label: "Customers" },
   { keys: "F7", label: "Revenue" },
+  { keys: "Alt + N", label: "New bill (Clear cart)" },
+  { keys: "Alt + A", label: "Add new product" },
   { keys: "F9", label: "Checkout (generate bill from cart)" },
   { keys: "↑ ↓ / J K", label: "Move between bills (on Bills page)" },
   { keys: "Enter", label: "Open focused bill" },
@@ -50,13 +52,24 @@ export function KeyboardShortcuts() {
 
   useEffect(() => {
     const handler = async (e: KeyboardEvent) => {
-      // Always allow F-keys / ? except when typing
-      if (isTypingTarget(e.target) && e.key !== "Escape") return;
-
       const go = (to: string) => {
         e.preventDefault();
         navigate({ to });
       };
+      if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        cart.clear();
+        return go("/sell");
+      }
+      
+      if (e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        // Use any since typescript won't strictly validate search params in generic navigate here
+        return navigate({ to: "/inventory", search: { add: 1 } as any });
+      }
+
+      // Always allow F-keys / ? except when typing
+      if (isTypingTarget(e.target) && e.key !== "Escape") return;
 
       switch (e.key) {
         case "F1":
