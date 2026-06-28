@@ -66,17 +66,37 @@ function CartPage() {
         customerNotes: combinedNotes || undefined,
         cashier: session?.name,
         paymentMethod: cart.paymentMethod,
-        items: cart.items.map((i) => ({
-          productId: i.product.id,
-          name: i.product.name,
-          price: i.product.price,
-          costPrice: i.product.costPrice,
-          qty: i.qty,
-          taxPercent: i.product.taxPercent ?? 0,
-          mrp: i.product.mrp,
-          pack: i.product.pack,
-          expiry: i.product.expiry,
-        })),
+        items: cart.items.flatMap((i) => {
+          const res = [];
+          const paidQty = i.qty - (i.freeQty || 0);
+          if (paidQty > 0) {
+            res.push({
+              productId: i.product.id,
+              name: i.product.name,
+              price: i.product.price,
+              costPrice: i.product.costPrice,
+              qty: paidQty,
+              taxPercent: i.product.taxPercent ?? 0,
+              mrp: i.product.mrp,
+              pack: i.product.pack,
+              expiry: i.product.expiry,
+            });
+          }
+          if (i.freeQty && i.freeQty > 0) {
+            res.push({
+              productId: i.product.id,
+              name: i.product.name,
+              price: 0,
+              costPrice: i.product.costPrice,
+              qty: i.freeQty,
+              taxPercent: i.product.taxPercent ?? 0,
+              mrp: i.product.mrp,
+              pack: i.product.pack,
+              expiry: i.product.expiry,
+            });
+          }
+          return res;
+        }),
         subtotal: cart.subtotal,
         tax: cart.tax,
         total: cart.total,
@@ -149,7 +169,7 @@ function CartPage() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {i.isFree ? (
+                        {i.freeQty && i.freeQty === i.qty ? (
                           <span className="font-semibold text-primary">Free</span>
                         ) : (
                           <>{formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax</>
@@ -157,14 +177,18 @@ function CartPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant={i.isFree ? "default" : "outline"}
-                        size="sm"
-                        className="text-[10px] h-8 px-2"
-                        onClick={() => cart.toggleFree(i.product.id)}
-                      >
-                        Free
-                      </Button>
+                      <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
+                        <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">Free</span>
+                        <select
+                          className="text-xs bg-transparent outline-none cursor-pointer"
+                          value={i.freeQty || 0}
+                          onChange={(e) => cart.setFreeQty(i.product.id, Number(e.target.value))}
+                        >
+                          {Array.from({ length: i.qty + 1 }, (_, k) => (
+                            <option key={k} value={k}>{k}</option>
+                          ))}
+                        </select>
+                      </div>
                       <Button
                         variant="outline"
                         size="icon"
@@ -185,7 +209,7 @@ function CartPage() {
                       </Button>
                     </div>
                     <div className="w-24 text-right tabular-nums font-medium">
-                      {i.isFree ? "₹0.00" : formatMoney(i.product.price * i.qty)}
+                      {i.freeQty === i.qty ? "₹0.00" : formatMoney(i.product.price * (i.qty - (i.freeQty || 0)))}
                     </div>
                     <Button
                       variant="ghost"

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import type { PaymentMethod, Product } from "./storage";
 
-export type CartItem = { product: Product; qty: number; isFree?: boolean };
+export type CartItem = { product: Product; qty: number; freeQty?: number };
 
 export type Customer = {
   name: string;
@@ -25,7 +25,7 @@ type CartCtx = {
   add: (product: Product, qty?: number) => { isFirst: boolean };
   remove: (productId: string) => void;
   setQty: (productId: string, qty: number) => void;
-  toggleFree: (productId: string) => void;
+  setFreeQty: (productId: string, freeQty: number) => void;
   clear: () => void;
   subtotal: number;
   tax: number;
@@ -68,15 +68,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const setQty: CartCtx["setQty"] = (id, qty) =>
     setItems((prev) =>
-      prev.map((i) =>
-        i.product.id === id ? { ...i, qty: Math.max(1, Math.min(i.product.stock, qty)) } : i,
-      ),
+      prev.map((i) => {
+        if (i.product.id !== id) return i;
+        const newQty = Math.max(1, Math.min(i.product.stock, qty));
+        return { ...i, qty: newQty, freeQty: Math.min(i.freeQty || 0, newQty) };
+      }),
     );
 
-  const toggleFree: CartCtx["toggleFree"] = (id) =>
+  const setFreeQty: CartCtx["setFreeQty"] = (id, freeQty) =>
     setItems((prev) =>
       prev.map((i) =>
-        i.product.id === id ? { ...i, isFree: !i.isFree } : i,
+        i.product.id === id ? { ...i, freeQty: Math.max(0, Math.min(i.qty, freeQty)) } : i,
       ),
     );
 
@@ -87,9 +89,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setPaymentMethod("cash");
   };
 
-  const subtotal = items.reduce((s, i) => s + (i.isFree ? 0 : i.product.price * i.qty), 0);
+  const subtotal = items.reduce((s, i) => s + ((i.qty - (i.freeQty || 0)) * i.product.price), 0);
   const tax = items.reduce(
-    (s, i) => s + (i.isFree ? 0 : (i.product.price * i.qty * (i.product.taxPercent ?? 0)) / 100),
+    (s, i) => s + (((i.qty - (i.freeQty || 0)) * i.product.price * (i.product.taxPercent ?? 0)) / 100),
     0,
   );
   const total = subtotal + tax;
@@ -102,7 +104,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         add,
         remove,
         setQty,
-        toggleFree,
+        setFreeQty,
         clear,
         subtotal,
         tax,
