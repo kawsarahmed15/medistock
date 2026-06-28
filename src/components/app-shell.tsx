@@ -242,9 +242,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <ResizablePanelGroup orientation="horizontal" id="medistock-shell" className="h-full">
             <ResizablePanel
               id="sidebar"
-              defaultSize={20}
-              minSize={15}
-              maxSize={40}
+              defaultSize={"256px" as any}
+              minSize={"180px" as any}
+              maxSize={"480px" as any}
               className="h-full"
             >
               {sidebarBody()}
