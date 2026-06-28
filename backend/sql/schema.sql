@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS bills (
   customer_address TEXT NULL,
   customer_notes TEXT NULL,
   cashier VARCHAR(120) NULL,
-  payment_method ENUM('cash', 'online') NOT NULL DEFAULT 'cash',
+  payment_method ENUM('cash', 'online', 'credit') NOT NULL DEFAULT 'cash',
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   tax DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -99,4 +99,17 @@ CREATE TABLE IF NOT EXISTS bill_items (
   INDEX idx_bill_items_user (user_id),
   CONSTRAINT fk_bill_items_bill FOREIGN KEY (bill_id) REFERENCES bills(id) ON DELETE CASCADE,
   CONSTRAINT fk_bill_items_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS customer_payments (
+  id CHAR(36) PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  customer_phone VARCHAR(50) NULL,
+  customer_name VARCHAR(190) NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  payment_method ENUM('cash', 'online') NOT NULL DEFAULT 'cash',
+  notes TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_payments_user_customer (user_id, customer_phone),
+  CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

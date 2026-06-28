@@ -141,7 +141,7 @@ function BillDetailPage() {
             <div>
               <div className="font-semibold text-lg leading-tight">{pharmacyName}</div>
               {session?.pharmacyAddress && (
-                <div className="text-xs text-muted-foreground whitespace-pre-wrap leading-snug mt-0.5">
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-snug mt-0">
                   {session.pharmacyAddress}
                 </div>
               )}

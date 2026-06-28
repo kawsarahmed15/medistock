@@ -6,6 +6,7 @@ import {
   Minus,
   Plus,
   Smartphone,
+  CreditCard,
   ShoppingCart,
   Trash2,
   UserRound,
@@ -254,7 +255,7 @@ function CartPage() {
               <CardTitle className="text-base">Payment</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <PayChoice
                   label="Cash"
                   Icon={Banknote}
@@ -266,6 +267,12 @@ function CartPage() {
                   Icon={Smartphone}
                   active={cart.paymentMethod === "online"}
                   onClick={() => cart.setPaymentMethod("online")}
+                />
+                <PayChoice
+                  label="Credit"
+                  Icon={CreditCard}
+                  active={cart.paymentMethod === "credit"}
+                  onClick={() => cart.setPaymentMethod("credit")}
                 />
               </div>
             </CardContent>

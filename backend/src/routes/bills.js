@@ -102,7 +102,7 @@ router.post("/", async (req, res, next) => {
           body.customerAddress || null,
           body.customerNotes || null,
           body.cashier || null,
-          body.paymentMethod === "online" ? "online" : "cash",
+          ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
           Number(body.subtotal || 0),
           Number(body.tax || 0),
           Number(body.total || 0),

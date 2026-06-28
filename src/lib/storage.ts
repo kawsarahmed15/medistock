@@ -1,6 +1,6 @@
 import { apiRequest } from "./api-client";
 
-export type PaymentMethod = "cash" | "online";
+export type PaymentMethod = "cash" | "online" | "credit";
 
 export type Product = {
   id: string;
@@ -195,6 +195,9 @@ export type Customer = {
   notes?: string;
   visits: number;
   totalSpent: number;
+  totalCredit: number;
+  totalPaid: number;
+  balance: number;
   lastVisit: string; // ISO
 };
 
@@ -202,6 +205,9 @@ export const customersStore = {
   async list(): Promise<Customer[]> {
     return await apiRequest<Customer[]>("/customers", { auth: true });
   },
+  async addPayment(data: { phone: string; name: string; amount: number; method: PaymentMethod; notes?: string }): Promise<{ success: boolean; id: string }> {
+    return await apiRequest<{ success: boolean; id: string }>("/customers/pay", { method: "POST", body: data, auth: true });
+  }
 };
 
 const THEME_KEY = "pharma.theme";

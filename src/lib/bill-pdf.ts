@@ -75,9 +75,9 @@ export async function downloadBillPdf(bill: Bill) {
   let addressLines = [];
   if (pharmacyAddress) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     addressLines = doc.splitTextToSize(clean(pharmacyAddress), 300);
-    headerHeight += addressLines.length * 12; // 12pt per line
+    headerHeight += addressLines.length * 13; // 13pt per line
   }
   headerHeight += 10; // Add gap between address and tax invoice text
 
@@ -88,12 +88,12 @@ export async function downloadBillPdf(bill: Bill) {
   doc.setFontSize(20);
   doc.text(clean(pharmacyName), left, 36);
 
-  let currentY = 54;
+  let currentY = 50; // closer to clinic name
   if (addressLines.length > 0) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.text(addressLines, left, currentY);
-    currentY += addressLines.length * 12;
+    currentY += addressLines.length * 13;
   }
 
   currentY += 10; // Gap between address and Tax invoice text
