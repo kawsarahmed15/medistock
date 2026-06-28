@@ -27,6 +27,7 @@ const PRESETS = [
 function SettingsPage() {
   const { session, updateSession } = useAuth();
   const [pharmacyName, setPharmacyName] = useState(session?.pharmacyName ?? "");
+  const [pharmacyAddress, setPharmacyAddress] = useState(session?.pharmacyAddress ?? "");
   const [gstNumber, setGstNumber] = useState(session?.gstNumber ?? "");
   const [billColor, setBillColor] = useState(session?.billColor ?? "#1a9890");
   const [signature, setSignature] = useState(session?.signature ?? "");
@@ -36,6 +37,7 @@ function SettingsPage() {
   useEffect(() => {
     if (session) {
       if (session.pharmacyName) setPharmacyName(session.pharmacyName);
+      if (session.pharmacyAddress) setPharmacyAddress(session.pharmacyAddress);
       if (session.gstNumber) setGstNumber(session.gstNumber);
       if (session.billColor) setBillColor(session.billColor);
       if (session.signature) setSignature(session.signature);
@@ -77,6 +79,7 @@ function SettingsPage() {
         method: "PATCH",
         body: {
           pharmacyName: pharmacyName.trim() || null,
+          pharmacyAddress: pharmacyAddress.trim() || null,
           gstNumber: gstNumber.trim() || null,
           billColor: billColor,
           signature: signature || null,
@@ -86,6 +89,7 @@ function SettingsPage() {
 
       updateSession({
         pharmacyName: pharmacyName.trim() || undefined,
+        pharmacyAddress: pharmacyAddress.trim() || undefined,
         gstNumber: gstNumber.trim() || undefined,
         billColor: billColor,
         signature: signature || undefined,
@@ -138,6 +142,16 @@ function SettingsPage() {
                   onChange={(e) => setPharmacyName(e.target.value)}
                   placeholder="e.g. Care Pharmacy & Wellness Centre"
                   className="font-medium"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pharmacy-address">Pharmacy Address</Label>
+                <Input
+                  id="pharmacy-address"
+                  value={pharmacyAddress}
+                  onChange={(e) => setPharmacyAddress(e.target.value)}
+                  placeholder="e.g. 123 Health Ave, Medical District, NY 10001"
                 />
               </div>
 
@@ -295,8 +309,15 @@ function SettingsPage() {
             <CardContent className="space-y-4 text-xs pb-4">
               <div className="border rounded p-3 space-y-2 bg-muted/20">
                 <div className="flex justify-between items-center pb-2 border-b">
-                  <div className="font-semibold text-foreground truncate max-w-[130px]">
-                    {pharmacyName || "MediStock Pharmacy"}
+                  <div className="flex flex-col max-w-[150px]">
+                    <div className="font-semibold text-foreground truncate">
+                      {pharmacyName || "MediStock Pharmacy"}
+                    </div>
+                    {pharmacyAddress && (
+                      <div className="text-[10px] text-muted-foreground whitespace-pre-wrap leading-tight mt-0.5">
+                        {pharmacyAddress}
+                      </div>
+                    )}
                   </div>
                   <div className="font-mono text-[9px] text-muted-foreground">INV-0001</div>
                 </div>

@@ -37,6 +37,7 @@ export async function downloadBillPdf(bill: Bill) {
 
   // Retrieve customized billing settings from Supabase user session metadata
   let pharmacyName = "MediStock Pharmacy";
+  let pharmacyAddress = "";
   let gstNumber = "";
   let billColor = "#1a9890"; // default teal
   let signature = "";
@@ -44,9 +45,10 @@ export async function downloadBillPdf(bill: Bill) {
   try {
     const { user } = await apiRequest<{ user: any }>("/auth/me", { auth: true });
     const meta = user || {};
-    if (meta.pharmacy_name) pharmacyName = meta.pharmacy_name;
-    if (meta.gst_number) gstNumber = meta.gst_number;
-    if (meta.bill_color) billColor = meta.bill_color;
+    if (meta.pharmacyName) pharmacyName = meta.pharmacyName;
+    if (meta.pharmacyAddress) pharmacyAddress = meta.pharmacyAddress;
+    if (meta.gstNumber) gstNumber = meta.gstNumber;
+    if (meta.billColor) billColor = meta.billColor;
     if (meta.signature) signature = meta.signature;
   } catch (err) {
     console.error("Could not fetch user metadata for billing preferences", err);
@@ -67,20 +69,40 @@ export async function downloadBillPdf(bill: Bill) {
 
   // ===== Header band =====
   doc.setFillColor(...primaryRgb);
-  doc.rect(0, 0, pageWidth, 90, "F");
+  
+  // Calculate header height based on content
+  let headerHeight = 90;
+  let addressLines = [];
+  if (pharmacyAddress) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    addressLines = doc.splitTextToSize(clean(pharmacyAddress), 300);
+    headerHeight += addressLines.length * 12; // 12pt per line
+  }
+
+  doc.rect(0, 0, pageWidth, headerHeight, "F");
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.text(clean(pharmacyName), left, 36);
 
+  let currentY = 54;
+  if (addressLines.length > 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(addressLines, left, currentY);
+    currentY += addressLines.length * 12;
+  }
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text("Tax invoice / Sale bill", left, 54);
+  doc.text("Tax invoice / Sale bill", left, currentY);
+  currentY += 16;
 
   if (gstNumber) {
     doc.setFontSize(9);
-    doc.text(`GSTIN: ${clean(gstNumber.toUpperCase())}`, left, 70);
+    doc.text(`GSTIN: ${clean(gstNumber.toUpperCase())}`, left, currentY);
   }
 
   doc.setFont("helvetica", "bold");
@@ -97,7 +119,7 @@ export async function downloadBillPdf(bill: Bill) {
 
   // ===== Parties block =====
   doc.setTextColor(35, 35, 35);
-  let y = 120;
+  let y = headerHeight + 30;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text("Billed to", left, y);

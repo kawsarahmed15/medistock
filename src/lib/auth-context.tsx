@@ -6,6 +6,7 @@ export type Session = {
   name: string;
   email: string;
   pharmacyName?: string;
+  pharmacyAddress?: string;
   gstNumber?: string;
   billColor?: string;
   signature?: string;
@@ -40,10 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             userId: res.user.id,
             name: res.user.name,
             email: res.user.email,
-            pharmacyName: res.user.pharmacy_name,
-            gstNumber: res.user.gst_number,
-            billColor: res.user.bill_color,
+            pharmacyName: res.user.pharmacyName,
+            pharmacyAddress: res.user.pharmacyAddress,
+            gstNumber: res.user.gstNumber,
+            billColor: res.user.billColor,
             signature: res.user.signature,
+            role: res.user.role,
+            accountStatus: res.user.accountStatus,
           });
         } catch {
           setAuthToken(null);
@@ -67,10 +71,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId: res.user.id,
         name: res.user.name,
         email: res.user.email,
-        pharmacyName: res.user.pharmacy_name,
-        gstNumber: res.user.gst_number,
-        billColor: res.user.bill_color,
+        pharmacyName: res.user.pharmacyName,
+        pharmacyAddress: res.user.pharmacyAddress,
+        gstNumber: res.user.gstNumber,
+        billColor: res.user.billColor,
         signature: res.user.signature,
+        role: res.user.role,
+        accountStatus: res.user.accountStatus,
       });
     },
     signup: async (name, email, password, pharmacyName) => {

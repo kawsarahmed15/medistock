@@ -140,9 +140,13 @@ function BillDetailPage() {
             </div>
             <div>
               <div className="font-semibold text-lg leading-tight">{pharmacyName}</div>
-              <div className="text-xs text-muted-foreground">Invoice / Tax bill</div>
+              {session?.pharmacyAddress && (
+                <div className="text-xs text-muted-foreground whitespace-pre-wrap leading-snug mt-0.5">
+                  {session.pharmacyAddress}
+                </div>
+              )}
               {session?.gstNumber && (
-                <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                <div className="text-[10px] text-muted-foreground mt-1 font-mono">
                   GSTIN: {session.gstNumber.toUpperCase()}
                 </div>
               )}

@@ -44,14 +44,14 @@ export function sanitizeUser(row) {
     id: row.id,
     name: row.name,
     email: row.email,
-    isVerified: !!row.is_verified,
-    createdAt: row.created_at,
-    pharmacy_name: row.pharmacy_name,
-    gst_number: row.gst_number,
-    bill_color: row.bill_color,
-    signature: row.signature,
-    role: row.role,
-    account_status: row.account_status,
+    isVerified: Boolean(row.is_verified),
+    pharmacyName: row.pharmacy_name || undefined,
+    pharmacyAddress: row.pharmacy_address || undefined,
+    gstNumber: row.gst_number || undefined,
+    billColor: row.bill_color || undefined,
+    signature: row.signature || undefined,
+    role: row.role || "user",
+    accountStatus: row.account_status || "active",
   };
 }
 
