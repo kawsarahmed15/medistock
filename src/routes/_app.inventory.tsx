@@ -53,6 +53,7 @@ type FormState = {
   category: string;
   costPrice: string;
   price: string;
+  mrp: string;
   stock: string;
   expiry: string;
   batch: string;
@@ -72,6 +73,7 @@ const empty: FormState = {
   category: "",
   costPrice: "",
   price: "",
+  mrp: "",
   stock: "",
   expiry: "",
   batch: "",
@@ -128,6 +130,7 @@ function InventoryPage() {
         category: match.category,
         costPrice: match.costPrice != null ? String(match.costPrice) : "",
         price: String(match.price),
+        mrp: match.mrp != null ? String(match.mrp) : "",
         stock: String(match.stock),
         expiry: match.expiry.slice(0, 10),
         batch: match.batch ?? "",
@@ -218,6 +221,7 @@ function InventoryPage() {
       category: p.category,
       costPrice: p.costPrice != null ? String(p.costPrice) : "",
       price: String(p.price),
+      mrp: p.mrp != null ? String(p.mrp) : "",
       stock: String(p.stock),
       expiry: p.expiry.slice(0, 10),
       batch: p.batch ?? "",
@@ -241,6 +245,7 @@ function InventoryPage() {
       category: form.category.trim() || "General",
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
       price: Number(form.price),
+      mrp: form.mrp === "" ? undefined : Number(form.mrp),
       stock: Number(form.stock),
       expiry: form.expiry,
       batch: form.batch.trim() || undefined,
@@ -377,6 +382,15 @@ function InventoryPage() {
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                     required
+                  />
+                </Field>
+                <Field label="MRP">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.mrp}
+                    onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                    placeholder="Printed price"
                   />
                 </Field>
                 <Field label="Stock">

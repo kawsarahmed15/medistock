@@ -25,7 +25,7 @@ router.get("/", async (req, res, next) => {
     const ids = bills.map((bill) => bill.id);
     const placeholders = ids.map(() => "?").join(",");
     const [items] = await pool.query(
-      `SELECT bill_id, product_id, name, price, cost_price, qty, tax_percent
+      `SELECT bill_id, product_id, name, price, cost_price, qty, tax_percent, mrp
        FROM bill_items
        WHERE user_id = ? AND bill_id IN (${placeholders})`,
       [req.auth.userId, ...ids],
@@ -65,7 +65,7 @@ router.get("/:id", async (req, res, next) => {
     }
 
     const [items] = await pool.query(
-      `SELECT bill_id, product_id, name, price, cost_price, qty, tax_percent
+      `SELECT bill_id, product_id, name, price, cost_price, qty, tax_percent, mrp
        FROM bill_items
        WHERE user_id = ? AND bill_id = ?`,
       [req.auth.userId, req.params.id],
@@ -110,8 +110,8 @@ router.post("/", async (req, res, next) => {
 
       for (const item of items) {
         await conn.query(
-          `INSERT INTO bill_items (id, bill_id, user_id, product_id, name, price, cost_price, qty, tax_percent)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO bill_items (id, bill_id, user_id, product_id, name, price, cost_price, qty, tax_percent, mrp)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             generateId(),
             id,
@@ -122,6 +122,7 @@ router.post("/", async (req, res, next) => {
             item.costPrice == null ? null : Number(item.costPrice),
             Number(item.qty || 0),
             Number(item.taxPercent || 0),
+            item.mrp == null || item.mrp === "" ? null : Number(item.mrp),
           ],
         );
       }

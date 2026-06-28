@@ -10,6 +10,7 @@ export type Product = {
   costPrice?: number;
   stock: number;
   expiry: string; // ISO
+  mrp?: number;
   batch?: string;
   manufacturer?: string;
   sku?: string;
@@ -30,6 +31,7 @@ export type BillItem = {
   costPrice?: number;
   qty: number;
   taxPercent: number;
+  mrp?: number;
 };
 
 export type Bill = {
@@ -55,6 +57,7 @@ type ProductRow = {
   cost_price: number | string | null;
   stock: number;
   expiry: string;
+  mrp: number | string | null;
   batch: string | null;
   manufacturer: string | null;
   sku: string | null;
@@ -75,6 +78,7 @@ function rowToProduct(r: ProductRow): Product {
     costPrice: num(r.cost_price),
     stock: r.stock,
     expiry: r.expiry,
+    mrp: num(r.mrp),
     batch: r.batch ?? undefined,
     manufacturer: r.manufacturer ?? undefined,
     sku: r.sku ?? undefined,
@@ -125,6 +129,7 @@ type BillItemRow = {
   cost_price: number | string | null;
   qty: number;
   tax_percent: number | string;
+  mrp: number | string | null;
 };
 
 function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
@@ -147,6 +152,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       costPrice: num(it.cost_price),
       qty: it.qty,
       taxPercent: Number(it.tax_percent) || 0,
+      mrp: num(it.mrp),
     })),
   };
 }

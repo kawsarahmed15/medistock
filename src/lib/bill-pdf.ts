@@ -121,7 +121,7 @@ export async function downloadBillPdf(bill: Bill) {
       const tax = (line * it.taxPercent) / 100;
       return [
         String(idx + 1),
-        clean(it.name),
+        `${clean(it.name)}${it.mrp != null ? `\nMRP: ${money(it.mrp)}` : ""}`,
         String(it.qty),
         money(it.price),
         `${it.taxPercent}%`,

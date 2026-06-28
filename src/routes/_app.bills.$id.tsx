@@ -183,8 +183,17 @@ function BillDetailPage() {
           </div>
         </div>
 
+        </div>
+
         {/* Items: table on sm+, stacked rows on mobile */}
-        <div className="rounded-lg overflow-hidden border hidden sm:block">
+        {(() => {
+          const paidItems = bill.items.filter((it) => it.price > 0);
+          const freeItems = bill.items.filter((it) => it.price === 0);
+
+          return (
+            <>
+              {paidItems.length > 0 && (
+                <div className="rounded-lg overflow-hidden border hidden sm:block">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -196,12 +205,17 @@ function BillDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {bill.items.map((it) => {
+              {paidItems.map((it) => {
                 const line = it.price * it.qty;
                 const tax = (line * it.taxPercent) / 100;
                 return (
                   <tr key={it.productId || it.name} className="border-t">
-                    <td className="p-3">{it.name}</td>
+                    <td className="p-3">
+                      <div>{it.name}</div>
+                      {it.mrp != null && (
+                        <div className="text-[10px] text-muted-foreground mt-0.5">MRP: {it.mrp.toFixed(2)}</div>
+                      )}
+                    </td>
                     <td className="p-3 text-right tabular-nums">{it.qty}</td>
                     <td className="p-3 text-right tabular-nums">{it.price.toFixed(2)}</td>
                     <td className="p-3 text-right tabular-nums">
@@ -217,9 +231,13 @@ function BillDetailPage() {
           </table>
         </div>
 
-        <div className="space-y-2 sm:hidden">
-          {bill.items.map((it) => {
-            const line = it.price * it.qty;
+          </table>
+        </div>
+
+        {paidItems.length > 0 && (
+          <div className="space-y-2 sm:hidden mt-4">
+            {paidItems.map((it) => {
+              const line = it.price * it.qty;
             const tax = (line * it.taxPercent) / 100;
             return (
               <div
@@ -234,11 +252,65 @@ function BillDetailPage() {
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {it.qty} × {it.price.toFixed(2)} · Tax {it.taxPercent}% ({tax.toFixed(2)})
+                  {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                 </div>
+              </div>
               </div>
             );
           })}
         </div>
+        )}
+
+        {freeItems.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-sm font-semibold mb-3 text-primary">Free Items Included</h3>
+            <div className="rounded-lg overflow-hidden border hidden sm:block">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-3 font-medium">Item</th>
+                    <th className="text-right p-3 font-medium">Qty</th>
+                    <th className="text-right p-3 font-medium">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {freeItems.map((it) => (
+                    <tr key={it.productId || it.name} className="border-t">
+                      <td className="p-3">
+                        <div>{it.name}</div>
+                        {it.mrp != null && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5">MRP: {it.mrp.toFixed(2)}</div>
+                        )}
+                      </td>
+                      <td className="p-3 text-right tabular-nums">{it.qty}</td>
+                      <td className="p-3 text-right tabular-nums font-medium text-primary">Free</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="space-y-2 sm:hidden">
+              {freeItems.map((it) => (
+                <div
+                  key={it.productId || it.name}
+                  className="border rounded-lg p-3 text-sm"
+                >
+                  <div className="flex justify-between gap-2">
+                    <span className="font-medium">{it.name}</span>
+                    <span className="font-semibold text-primary">Free</span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Qty: {it.qty}
+                    {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        </>
+      );
+    })()}
 
         <div className="mt-6 sm:ml-auto w-full sm:w-72 space-y-1.5 text-sm">
           <Row label="Subtotal" value={formatMoney(bill.subtotal)} />

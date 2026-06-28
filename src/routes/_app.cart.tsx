@@ -73,6 +73,7 @@ function CartPage() {
           costPrice: i.product.costPrice,
           qty: i.qty,
           taxPercent: i.product.taxPercent ?? 0,
+          mrp: i.product.mrp,
         })),
         subtotal: cart.subtotal,
         tax: cart.tax,
@@ -146,10 +147,22 @@ function CartPage() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax
+                        {i.isFree ? (
+                          <span className="font-semibold text-primary">Free</span>
+                        ) : (
+                          <>{formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax</>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant={i.isFree ? "default" : "outline"}
+                        size="sm"
+                        className="text-[10px] h-8 px-2"
+                        onClick={() => cart.toggleFree(i.product.id)}
+                      >
+                        Free
+                      </Button>
                       <Button
                         variant="outline"
                         size="icon"
@@ -170,7 +183,7 @@ function CartPage() {
                       </Button>
                     </div>
                     <div className="w-24 text-right tabular-nums font-medium">
-                      {formatMoney(i.product.price * i.qty)}
+                      {i.isFree ? "₹0.00" : formatMoney(i.product.price * i.qty)}
                     </div>
                     <Button
                       variant="ghost"
