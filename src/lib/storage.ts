@@ -217,6 +217,9 @@ export const customersStore = {
   },
   async getCreditHistory(phone: string): Promise<any[]> {
     return await apiRequest<any[]>(`/customers/${encodeURIComponent(phone)}/credit-history`, { auth: true });
+  },
+  async update(phone: string, data: { name?: string; phone?: string; address?: string; notes?: string }): Promise<{ success: boolean }> {
+    return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone)}`, { method: "PUT", body: data, auth: true });
   }
 };
 

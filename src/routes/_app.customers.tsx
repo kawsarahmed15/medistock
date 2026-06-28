@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar } from "lucide-react";
+import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar, Pencil } from "lucide-react";
 import { customersStore, type Customer } from "@/lib/storage";
 import { useCart } from "@/lib/cart-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/_app/customers")({
   component: CustomersPage,
@@ -32,16 +35,22 @@ function CustomersPage() {
   const [period, setPeriod] = useState("this_month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", address: "", notes: "" });
+  const [isSaving, setIsSaving] = useState(false);
   
   const navigate = useNavigate();
   const cart = useCart();
 
-  useEffect(() => {
+  const loadData = () => {
     let alive = true;
     let from, to;
     const now = new Date();
     
-    if (period === "this_month") {
+    if (period === "today") {
+      from = now.toISOString().slice(0, 10);
+      to = now.toISOString().slice(0, 10);
+    } else if (period === "this_month") {
       from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
       to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
     } else if (period === "this_year") {
@@ -61,6 +70,10 @@ function CustomersPage() {
     return () => {
       alive = false;
     };
+  };
+
+  useEffect(() => {
+    return loadData();
   }, [period, customFrom, customTo]);
 
   const filtered = useMemo(() => {
@@ -90,6 +103,26 @@ function CustomersPage() {
     cart.setCustomerSubmitted(true);
     toast.success(`Selected ${c.name || c.phone} for next sale`);
     navigate({ to: "/sell" });
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCustomer) return;
+    if (!editForm.phone.trim()) {
+      toast.error("Phone number is required");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await customersStore.update(editingCustomer.phone, editForm);
+      toast.success("Customer details updated");
+      setEditingCustomer(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update customer");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -126,6 +159,7 @@ function CustomersPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
                 <SelectItem value="this_month">This Month</SelectItem>
                 <SelectItem value="this_year">This Year</SelectItem>
                 <SelectItem value="all_time">All Time</SelectItem>
@@ -213,6 +247,16 @@ function CustomersPage() {
                     >
                       <ShoppingCart className="h-3.5 w-3.5" /> Use
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingCustomer(c);
+                        setEditForm({ name: c.name, phone: c.phone, address: c.address || "", notes: c.notes || "" });
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -220,6 +264,56 @@ function CustomersPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editingCustomer} onOpenChange={(v) => !v && setEditingCustomer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+            <DialogDescription>Update details for this customer.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSave} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Customer Name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone (Required)</Label>
+              <Input
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                placeholder="Phone Number"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Address</Label>
+              <Textarea
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                placeholder="Customer Address"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                placeholder="Any special notes..."
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setEditingCustomer(null)}>Cancel</Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

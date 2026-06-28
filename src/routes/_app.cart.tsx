@@ -52,6 +52,16 @@ function CartPage() {
       );
       return;
     }
+    
+    if (cart.customer.name && !cart.customer.phone?.trim()) {
+      toast.error("Phone number is mandatory when adding a customer.");
+      return;
+    }
+    if (cart.paymentMethod === "credit" && (!cart.customer.name?.trim() || !cart.customer.phone?.trim())) {
+      toast.error("Customer name and phone number are mandatory for credit payments.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Persist Rx info into the bill notes so it appears on invoices.

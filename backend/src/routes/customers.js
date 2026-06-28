@@ -141,4 +141,27 @@ router.get("/:phone/credit-history", async (req, res, next) => {
   }
 });
 
+router.put("/:phone", async (req, res, next) => {
+  try {
+    const oldPhone = req.params.phone;
+    const { name, phone, address, notes } = req.body;
+    
+    // Update bills
+    await pool.query(
+      `UPDATE bills SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_notes = ? WHERE user_id = ? AND customer_phone = ?`,
+      [name || null, phone || null, address || null, notes || null, req.auth.userId, oldPhone]
+    );
+
+    // Update payments
+    await pool.query(
+      `UPDATE customer_payments SET customer_name = ?, customer_phone = ? WHERE user_id = ? AND customer_phone = ?`,
+      [name || null, phone || null, req.auth.userId, oldPhone]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export { router as customersRouter };

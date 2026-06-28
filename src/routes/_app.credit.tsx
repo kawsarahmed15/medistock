@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { CreditCard, Search, Phone, History } from "lucide-react";
 import { customersStore, type Customer } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,9 @@ function CreditPage() {
 
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [history, setHistory] = useState<any[] | null>(null);
+  
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
 
   const loadData = () => {
     customersStore
@@ -61,6 +64,53 @@ function CreditPage() {
         c.phone.toLowerCase().includes(needle),
     );
   }, [customers, q]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (focusedIdx >= filtered.length) setFocusedIdx(0);
+  }, [filtered.length, focusedIdx]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Don't intercept if user is typing in dialogs or search
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
+        return;
+      }
+      if (paymentCustomer || historyCustomer) return; // Don't navigate if dialog is open
+      if (filtered.length === 0) return;
+
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.min(filtered.length - 1, i + 1);
+          rowRefs.current[next]?.focus();
+          return next;
+        });
+      } else if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.max(0, i - 1);
+          rowRefs.current[next]?.focus();
+          return next;
+        });
+      } else if (e.key === "Enter") {
+        const c = filtered[focusedIdx];
+        if (c) {
+          e.preventDefault();
+          setPaymentCustomer(c);
+        }
+      } else if (e.key === "h" || e.key === "H") {
+        const c = filtered[focusedIdx];
+        if (c) {
+          e.preventDefault();
+          loadHistory(c);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [filtered, focusedIdx, paymentCustomer, historyCustomer]);
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +161,12 @@ function CreditPage() {
           <p className="text-sm text-muted-foreground mt-1">
             Manage customers with active credit balances.
           </p>
+          <p className="text-[11px] text-muted-foreground mt-1 hidden md:block">
+            Tip: use <kbd className="px-1 rounded border bg-muted">↑</kbd>
+            <kbd className="px-1 rounded border bg-muted ml-1">↓</kbd> to move,
+            <kbd className="px-1 rounded border bg-muted ml-1">Enter</kbd> to pay,
+            <kbd className="px-1 rounded border bg-muted ml-1">H</kbd> for history.
+          </p>
         </div>
         <div className="relative w-full sm:w-72">
           <Search className="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -146,10 +202,15 @@ function CreditPage() {
             </div>
           ) : (
             <ul className="divide-y">
-              {filtered.map((c) => (
+              {filtered.map((c, idx) => (
                 <li
                   key={`${c.phone}-${c.name}`}
-                  className="flex flex-wrap items-center gap-3 py-4 animate-fade-in"
+                  ref={(el) => (rowRefs.current[idx] = el)}
+                  tabIndex={0}
+                  onClick={() => setFocusedIdx(idx)}
+                  className={`flex flex-wrap items-center gap-3 py-4 animate-fade-in outline-none rounded-lg px-2 transition-colors ${
+                    focusedIdx === idx ? "bg-muted/50 border-primary/20" : "hover:bg-muted/30"
+                  }`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">
