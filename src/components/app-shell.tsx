@@ -15,6 +15,7 @@ import {
   UserCog,
   Settings,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import { UserProfileDialog } from "@/components/user-profile-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -43,6 +44,7 @@ const nav = [
   { to: "/cart", label: "Cart", icon: ShoppingBag },
   { to: "/bills", label: "Bills", icon: ReceiptText },
   { to: "/customers", label: "Customers", icon: Users },
+  { to: "/credit", label: "Credit", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

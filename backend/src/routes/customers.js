@@ -7,13 +7,31 @@ router.use(requireAuth);
 
 router.get("/", async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT customer_name, customer_phone, customer_address, customer_notes, payment_method, total, created_at
+    let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_notes, payment_method, total, created_at
        FROM bills
-       WHERE user_id = ?
-       ORDER BY created_at DESC`,
-      [req.auth.userId],
-    );
+       WHERE user_id = ?`;
+    let paymentsQuery = `SELECT customer_phone, customer_name, amount, created_at 
+       FROM customer_payments 
+       WHERE user_id = ?`;
+    const params = [req.auth.userId];
+    const payParams = [req.auth.userId];
+
+    if (req.query.from) {
+      billsQuery += ` AND created_at >= ?`;
+      paymentsQuery += ` AND created_at >= ?`;
+      params.push(req.query.from);
+      payParams.push(req.query.from);
+    }
+    if (req.query.to) {
+      billsQuery += ` AND created_at <= ?`;
+      paymentsQuery += ` AND created_at <= ?`;
+      params.push(`${req.query.to} 23:59:59`);
+      payParams.push(`${req.query.to} 23:59:59`);
+    }
+
+    billsQuery += ` ORDER BY created_at DESC`;
+
+    const [rows] = await pool.query(billsQuery, params);
 
     const map = new Map();
     for (const row of rows) {
@@ -44,12 +62,7 @@ router.get("/", async (req, res, next) => {
       }
     }
 
-    const [payments] = await pool.query(
-      `SELECT customer_phone, customer_name, amount 
-       FROM customer_payments 
-       WHERE user_id = ?`,
-      [req.auth.userId]
-    );
+    const [payments] = await pool.query(paymentsQuery, payParams);
 
     for (const p of payments) {
       const phone = String(p.customer_phone || "").trim();
@@ -94,6 +107,35 @@ router.post("/pay", async (req, res, next) => {
       ]
     );
     res.status(201).json({ success: true, id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:phone/credit-history", async (req, res, next) => {
+  try {
+    const phone = req.params.phone;
+    
+    // Get credit bills
+    const [bills] = await pool.query(
+      `SELECT id, number, total as amount, created_at, 'bill' as type 
+       FROM bills 
+       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit'
+       ORDER BY created_at DESC`,
+      [req.auth.userId, phone]
+    );
+
+    // Get payments
+    const [payments] = await pool.query(
+      `SELECT id, amount, payment_method as method, created_at, 'payment' as type 
+       FROM customer_payments 
+       WHERE user_id = ? AND customer_phone = ?
+       ORDER BY created_at DESC`,
+      [req.auth.userId, phone]
+    );
+
+    const history = [...bills, ...payments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    res.json(history);
   } catch (err) {
     next(err);
   }

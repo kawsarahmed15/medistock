@@ -202,11 +202,18 @@ export type Customer = {
 };
 
 export const customersStore = {
-  async list(): Promise<Customer[]> {
-    return await apiRequest<Customer[]>("/customers", { auth: true });
+  async list(from?: string, to?: string): Promise<Customer[]> {
+    const params = new URLSearchParams();
+    if (from) params.append("from", from);
+    if (to) params.append("to", to);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return await apiRequest<Customer[]>(`/customers${qs}`, { auth: true });
   },
   async addPayment(data: { phone: string; name: string; amount: number; method: PaymentMethod; notes?: string }): Promise<{ success: boolean; id: string }> {
     return await apiRequest<{ success: boolean; id: string }>("/customers/pay", { method: "POST", body: data, auth: true });
+  },
+  async getCreditHistory(phone: string): Promise<any[]> {
+    return await apiRequest<any[]>(`/customers/${encodeURIComponent(phone)}/credit-history`, { auth: true });
   }
 };
 
