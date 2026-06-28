@@ -67,6 +67,7 @@ function CartPage() {
         customerNotes: combinedNotes || undefined,
         cashier: session?.name,
         paymentMethod: cart.paymentMethod,
+        advanceAmount: cart.advanceAmount,
         items: cart.items.map((i) => ({
           productId: i.product.id,
           name: i.product.name,
@@ -260,13 +261,13 @@ function CartPage() {
                   label="Cash"
                   Icon={Banknote}
                   active={cart.paymentMethod === "cash"}
-                  onClick={() => cart.setPaymentMethod("cash")}
+                  onClick={() => { cart.setPaymentMethod("cash"); cart.setAdvanceAmount(0); }}
                 />
                 <PayChoice
                   label="Online"
                   Icon={Smartphone}
                   active={cart.paymentMethod === "online"}
-                  onClick={() => cart.setPaymentMethod("online")}
+                  onClick={() => { cart.setPaymentMethod("online"); cart.setAdvanceAmount(0); }}
                 />
                 <PayChoice
                   label="Credit"
@@ -275,6 +276,25 @@ function CartPage() {
                   onClick={() => cart.setPaymentMethod("credit")}
                 />
               </div>
+              
+              {cart.paymentMethod === "credit" && (
+                <div className="mt-4 space-y-1.5 animate-fade-in">
+                  <Label className="text-xs">Advance Payment (Optional)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={cart.total}
+                      value={cart.advanceAmount || ""}
+                      onChange={(e) => cart.setAdvanceAmount(Number(e.target.value))}
+                      className="pl-7"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

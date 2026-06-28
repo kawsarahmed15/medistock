@@ -9,11 +9,11 @@ router.use(requireAuth);
 router.get("/", async (req, res, next) => {
   try {
     const [bills] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_notes, cashier, payment_method,
-              subtotal, tax, total, created_at
+      `SELECT id, number, customer_name, customer_phone, cashier, payment_method, advance_amount, total, created_at
        FROM bills
        WHERE user_id = ?
-       ORDER BY created_at DESC`,
+       ORDER BY created_at DESC
+       LIMIT 50`,
       [req.auth.userId],
     );
 
@@ -52,7 +52,7 @@ router.get("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_notes, cashier, payment_method,
+      `SELECT id, number, customer_name, customer_phone, customer_address, customer_notes, cashier, payment_method, advance_amount,
               subtotal, tax, total, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
@@ -91,8 +91,8 @@ router.post("/", async (req, res, next) => {
       const id = generateId();
       await conn.query(
         `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_notes,
-           cashier, payment_method, subtotal, tax, total)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           cashier, payment_method, advance_amount, subtotal, tax, total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           req.auth.userId,
@@ -103,6 +103,7 @@ router.post("/", async (req, res, next) => {
           body.customerNotes || null,
           body.cashier || null,
           ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
+          Number(body.advanceAmount || 0),
           Number(body.subtotal || 0),
           Number(body.tax || 0),
           Number(body.total || 0),

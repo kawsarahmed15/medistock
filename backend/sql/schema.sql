@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS bills (
   customer_notes TEXT NULL,
   cashier VARCHAR(120) NULL,
   payment_method ENUM('cash', 'online', 'credit') NOT NULL DEFAULT 'cash',
+  advance_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   tax DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,

@@ -241,6 +241,24 @@ export async function downloadBillPdf(bill: Bill) {
   doc.setTextColor(...primaryRgb);
   doc.text("Grand total", totalsLabelX, ty);
   doc.text(bill.total.toFixed(2), totalsValueX, ty, { align: "right" });
+  
+  if (bill.paymentMethod === "credit") {
+    if (bill.advanceAmount > 0) {
+      ty += 16;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(110, 110, 110);
+      doc.text("Advance Paid", totalsLabelX, ty);
+      doc.setTextColor(35, 35, 35);
+      doc.text(bill.advanceAmount.toFixed(2), totalsValueX, ty, { align: "right" });
+    }
+    ty += 16;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 38, 38); // destructive red
+    doc.text("Balance Due", totalsLabelX, ty);
+    doc.text((bill.total - bill.advanceAmount).toFixed(2), totalsValueX, ty, { align: "right" });
+  }
 
   // Customer notes (optional)
   if (bill.customerNotes && bill.customerNotes.trim()) {

@@ -7,7 +7,7 @@ router.use(requireAuth);
 
 router.get("/", async (req, res, next) => {
   try {
-    let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_notes, payment_method, total, created_at
+    let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_notes, payment_method, advance_amount, total, created_at
        FROM bills
        WHERE user_id = ?`;
     let paymentsQuery = `SELECT customer_phone, customer_name, amount, created_at 
@@ -47,7 +47,7 @@ router.get("/", async (req, res, next) => {
           notes: row.customer_notes || undefined,
           visits: 1,
           totalSpent: Number(row.total || 0),
-          totalCredit: row.payment_method === 'credit' ? Number(row.total || 0) : 0,
+          totalCredit: row.payment_method === 'credit' ? Number(row.total || 0) - Number(row.advance_amount || 0) : 0,
           totalPaid: 0,
           balance: 0,
           lastVisit: row.created_at,
@@ -57,7 +57,7 @@ router.get("/", async (req, res, next) => {
         current.visits += 1;
         current.totalSpent += Number(row.total || 0);
         if (row.payment_method === 'credit') {
-          current.totalCredit += Number(row.total || 0);
+          current.totalCredit += Number(row.total || 0) - Number(row.advance_amount || 0);
         }
       }
     }
@@ -118,7 +118,7 @@ router.get("/:phone/credit-history", async (req, res, next) => {
     
     // Get credit bills
     const [bills] = await pool.query(
-      `SELECT id, number, total as amount, created_at, 'bill' as type 
+      `SELECT id, number, (total - advance_amount) as amount, created_at, 'bill' as type 
        FROM bills 
        WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit'
        ORDER BY created_at DESC`,

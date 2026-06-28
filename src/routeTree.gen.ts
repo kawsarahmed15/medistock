@@ -25,6 +25,7 @@ import { Route as AppRevenueRouteImport } from './routes/_app.revenue'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCustomersRouteImport } from './routes/_app.customers'
+import { Route as AppCreditRouteImport } from './routes/_app.credit'
 import { Route as AppCartRouteImport } from './routes/_app.cart'
 import { Route as AppBillsRouteImport } from './routes/_app.bills'
 import { Route as AppBillsIndexRouteImport } from './routes/_app.bills.index'
@@ -110,6 +111,11 @@ const AppCustomersRoute = AppCustomersRouteImport.update({
   path: '/customers',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCreditRoute = AppCreditRouteImport.update({
+  id: '/credit',
+  path: '/credit',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCartRoute = AppCartRouteImport.update({
   id: '/cart',
   path: '/cart',
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/bills': typeof AppBillsRouteWithChildren
   '/cart': typeof AppCartRoute
+  '/credit': typeof AppCreditRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/cart': typeof AppCartRoute
+  '/credit': typeof AppCreditRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_app/bills': typeof AppBillsRouteWithChildren
   '/_app/cart': typeof AppCartRoute
+  '/_app/credit': typeof AppCreditRoute
   '/_app/customers': typeof AppCustomersRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inventory': typeof AppInventoryRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/bills'
     | '/cart'
+    | '/credit'
     | '/customers'
     | '/dashboard'
     | '/inventory'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/cart'
+    | '/credit'
     | '/customers'
     | '/dashboard'
     | '/inventory'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_app/bills'
     | '/_app/cart'
+    | '/_app/credit'
     | '/_app/customers'
     | '/_app/dashboard'
     | '/_app/inventory'
@@ -396,6 +408,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCustomersRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/credit': {
+      id: '/_app/credit'
+      path: '/credit'
+      fullPath: '/credit'
+      preLoaderRoute: typeof AppCreditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cart': {
       id: '/_app/cart'
       path: '/cart'
@@ -451,6 +470,7 @@ const AppBillsRouteWithChildren = AppBillsRoute._addFileChildren(
 interface AppRouteChildren {
   AppBillsRoute: typeof AppBillsRouteWithChildren
   AppCartRoute: typeof AppCartRoute
+  AppCreditRoute: typeof AppCreditRoute
   AppCustomersRoute: typeof AppCustomersRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppInventoryRoute: typeof AppInventoryRoute
@@ -464,6 +484,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBillsRoute: AppBillsRouteWithChildren,
   AppCartRoute: AppCartRoute,
+  AppCreditRoute: AppCreditRoute,
   AppCustomersRoute: AppCustomersRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppInventoryRoute: AppInventoryRoute,

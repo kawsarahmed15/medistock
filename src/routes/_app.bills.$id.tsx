@@ -282,6 +282,16 @@ function BillDetailPage() {
           <div className="text-primary text-base">
             <Row label="Grand total" value={bill.total.toFixed(2)} bold />
           </div>
+          {bill.paymentMethod === "credit" && (
+            <>
+              {bill.advanceAmount > 0 && (
+                <Row label="Advance Paid" value={bill.advanceAmount.toFixed(2)} />
+              )}
+              <div className="text-destructive font-semibold">
+                <Row label="Balance Due" value={(bill.total - bill.advanceAmount).toFixed(2)} />
+              </div>
+            </>
+          )}
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-8">
