@@ -74,6 +74,7 @@ function CartPage() {
           qty: i.qty,
           taxPercent: i.product.taxPercent ?? 0,
           mrp: i.product.mrp,
+          pack: i.product.pack,
         })),
         subtotal: cart.subtotal,
         tax: cart.tax,

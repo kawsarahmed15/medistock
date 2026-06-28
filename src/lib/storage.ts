@@ -11,6 +11,7 @@ export type Product = {
   stock: number;
   expiry: string; // ISO
   mrp?: number;
+  pack?: string;
   batch?: string;
   manufacturer?: string;
   sku?: string;
@@ -32,6 +33,7 @@ export type BillItem = {
   qty: number;
   taxPercent: number;
   mrp?: number;
+  pack?: string;
 };
 
 export type Bill = {
@@ -58,6 +60,7 @@ type ProductRow = {
   stock: number;
   expiry: string;
   mrp: number | string | null;
+  pack: string | null;
   batch: string | null;
   manufacturer: string | null;
   sku: string | null;
@@ -79,6 +82,7 @@ function rowToProduct(r: ProductRow): Product {
     stock: r.stock,
     expiry: r.expiry,
     mrp: num(r.mrp),
+    pack: r.pack ?? undefined,
     batch: r.batch ?? undefined,
     manufacturer: r.manufacturer ?? undefined,
     sku: r.sku ?? undefined,
@@ -130,6 +134,7 @@ type BillItemRow = {
   qty: number;
   tax_percent: number | string;
   mrp: number | string | null;
+  pack: string | null;
 };
 
 function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
@@ -153,6 +158,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       qty: it.qty,
       taxPercent: Number(it.tax_percent) || 0,
       mrp: num(it.mrp),
+      pack: it.pack ?? undefined,
     })),
   };
 }

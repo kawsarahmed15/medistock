@@ -54,6 +54,7 @@ type FormState = {
   costPrice: string;
   price: string;
   mrp: string;
+  stock: string;
   stockType: string;
   stockPacks: string;
   stockUnits: string;
@@ -76,6 +77,7 @@ const empty: FormState = {
   costPrice: "",
   price: "",
   mrp: "",
+  stock: "",
   stockType: "other",
   stockPacks: "",
   stockUnits: "",
@@ -135,9 +137,10 @@ function InventoryPage() {
         costPrice: match.costPrice != null ? String(match.costPrice) : "",
         price: String(match.price),
         mrp: match.mrp != null ? String(match.mrp) : "",
-        stockType: "other",
-        stockPacks: "1",
-        stockUnits: String(match.stock),
+        stock: String(match.stock),
+        stockType: match.pack ? "tab" : "other",
+        stockPacks: match.pack ? match.pack.split("*")[0] : "",
+        stockUnits: match.pack ? match.pack.split("*")[1] : "",
         expiry: match.expiry.slice(0, 10),
         batch: match.batch ?? "",
         manufacturer: match.manufacturer ?? "",
@@ -228,9 +231,10 @@ function InventoryPage() {
       costPrice: p.costPrice != null ? String(p.costPrice) : "",
       price: String(p.price),
       mrp: p.mrp != null ? String(p.mrp) : "",
-      stockType: "other",
-      stockPacks: "1",
-      stockUnits: String(p.stock),
+      stock: String(p.stock),
+      stockType: p.pack ? "tab" : "other",
+      stockPacks: p.pack ? p.pack.split("*")[0] : "",
+      stockUnits: p.pack ? p.pack.split("*")[1] : "",
       expiry: p.expiry.slice(0, 10),
       batch: p.batch ?? "",
       manufacturer: p.manufacturer ?? "",
@@ -248,15 +252,20 @@ function InventoryPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    let packValue: string | undefined = undefined;
+    if (form.stockType === "tab" || form.stockType === "cap") {
+      if (form.stockPacks && form.stockUnits) {
+        packValue = `${form.stockPacks}*${form.stockUnits}`;
+      }
+    }
     const payload = {
       name: form.name.trim(),
       category: form.category.trim() || "General",
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
       price: Number(form.price),
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
-      stock: (form.stockType === "tab" || form.stockType === "cap")
-        ? (Number(form.stockPacks) || 0) * (Number(form.stockUnits) || 0)
-        : (Number(form.stockUnits) || 0),
+      stock: Number(form.stock) || 0,
+      pack: packValue,
       expiry: form.expiry,
       batch: form.batch.trim() || undefined,
       manufacturer: form.manufacturer.trim() || undefined,
@@ -417,8 +426,8 @@ function InventoryPage() {
                     <option value="jar">Jar</option>
                   </select>
                 </Field>
-                {(form.stockType === "tab" || form.stockType === "cap") ? (
-                  <Field label="Stock (Strips × Per Strip)">
+                {(form.stockType === "tab" || form.stockType === "cap") && (
+                  <Field label="Pack (Strips × Per Strip)">
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
@@ -437,17 +446,16 @@ function InventoryPage() {
                       />
                     </div>
                   </Field>
-                ) : (
-                  <Field label="Stock Quantity">
-                    <Input
-                      type="number"
-                      placeholder="Qty"
-                      value={form.stockUnits}
-                      onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
-                      required
-                    />
-                  </Field>
                 )}
+                <Field label="Stock Quantity">
+                  <Input
+                    type="number"
+                    placeholder="Total qty"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                    required
+                  />
+                </Field>
                 <Field label="Expiry">
                   <Input
                     type="date"

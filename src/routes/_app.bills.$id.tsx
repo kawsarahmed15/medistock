@@ -197,6 +197,7 @@ function BillDetailPage() {
               <tr>
                 <th className="text-left p-3 font-medium">Sl. No.</th>
                 <th className="text-left p-3 font-medium">Item</th>
+                <th className="text-right p-3 font-medium">Pack</th>
                 <th className="text-right p-3 font-medium">MRP</th>
                 <th className="text-right p-3 font-medium">Qty</th>
                 <th className="text-right p-3 font-medium">Price</th>
@@ -212,6 +213,7 @@ function BillDetailPage() {
                   <tr key={it.productId || it.name} className="border-t">
                     <td className="p-3 text-muted-foreground">{idx + 1}</td>
                     <td className="p-3">{it.name}</td>
+                    <td className="p-3 text-right tabular-nums">{it.pack || "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.qty}</td>
                     <td className="p-3 text-right tabular-nums">{it.price.toFixed(2)}</td>
@@ -247,6 +249,7 @@ function BillDetailPage() {
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {it.qty} × {it.price.toFixed(2)} · Tax {it.taxPercent}% ({tax.toFixed(2)})
+                  {it.pack && ` · Pack ${it.pack}`}
                   {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                 </div>
               </div>
@@ -265,6 +268,7 @@ function BillDetailPage() {
                   <tr>
                     <th className="text-left p-3 font-medium">Sl. No.</th>
                     <th className="text-left p-3 font-medium">Item</th>
+                    <th className="text-right p-3 font-medium">Pack</th>
                     <th className="text-right p-3 font-medium">MRP</th>
                     <th className="text-right p-3 font-medium">Qty</th>
                     <th className="text-right p-3 font-medium">Price</th>
@@ -275,6 +279,7 @@ function BillDetailPage() {
                     <tr key={it.productId || it.name} className="border-t">
                       <td className="p-3 text-muted-foreground">{idx + 1}</td>
                       <td className="p-3">{it.name}</td>
+                      <td className="p-3 text-right tabular-nums">{it.pack || "—"}</td>
                       <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                       <td className="p-3 text-right tabular-nums">{it.qty}</td>
                       <td className="p-3 text-right tabular-nums font-medium text-primary">Free</td>
@@ -295,6 +300,7 @@ function BillDetailPage() {
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     Qty: {it.qty}
+                    {it.pack && ` · Pack ${it.pack}`}
                     {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                   </div>
                 </div>

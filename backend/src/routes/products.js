@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.get("/", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, batch, manufacturer, sku,
+      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
               prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
        FROM products
        WHERE user_id = ?
@@ -27,9 +27,9 @@ router.post("/", async (req, res, next) => {
     const body = req.body || {};
     const id = generateId();
     await pool.query(
-      `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, mrp, batch,
+      `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, mrp, pack, batch,
          manufacturer, sku, prescription, tax_percent, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         req.auth.userId,
@@ -40,6 +40,7 @@ router.post("/", async (req, res, next) => {
         Number(body.stock || 0),
         String(body.expiry || "").slice(0, 10),
         body.mrp == null || body.mrp === "" ? null : Number(body.mrp),
+        body.pack ? String(body.pack).trim() : null,
         body.batch ? String(body.batch).trim() : null,
         body.manufacturer ? String(body.manufacturer).trim() : null,
         body.sku ? String(body.sku).trim() : null,
@@ -54,7 +55,7 @@ router.post("/", async (req, res, next) => {
     );
 
     const [rows] = await pool.query(
-      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, batch, manufacturer, sku,
+      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
               prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
        FROM products
        WHERE id = ? AND user_id = ?
@@ -70,7 +71,7 @@ router.post("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, batch, manufacturer, sku,
+      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
               prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
        FROM products
        WHERE id = ? AND user_id = ?
@@ -160,6 +161,7 @@ router.patch("/:id", async (req, res, next) => {
       stock: "stock",
       expiry: "expiry",
       mrp: "mrp",
+      pack: "pack",
       batch: "batch",
       manufacturer: "manufacturer",
       sku: "sku",
@@ -180,7 +182,7 @@ router.patch("/:id", async (req, res, next) => {
         if (["price", "taxPercent", "costPrice", "mrp", "packPrice", "packCostPrice", "conversionFactor"].includes(inputKey) && value != null) value = Number(value);
         if (["stock"].includes(inputKey) && value != null) value = Number(value);
         if (inputKey === "prescription") value = value ? 1 : 0;
-        if (["batch", "manufacturer", "sku", "costPrice", "mrp", "packPrice", "packCostPrice"].includes(inputKey) && (value === "" || value == null)) {
+        if (["pack", "batch", "manufacturer", "sku", "costPrice", "mrp", "packPrice", "packCostPrice"].includes(inputKey) && (value === "" || value == null)) {
           value = null;
         }
         values.push(value);
