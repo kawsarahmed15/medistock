@@ -46,7 +46,7 @@ function CreditPage() {
   const loadData = () => {
     customersStore
       .list() // Load all time to get accurate credit balances
-      .then((c) => setCustomers(c.filter(cust => cust.balance > 0)))
+      .then((c) => setCustomers(c.filter(cust => cust.totalCredit !== 0 || cust.totalPaid > 0 || cust.balance !== 0)))
       .catch((e) => toast.error((e as Error).message || "Failed to load credit customers"));
   };
 
@@ -159,7 +159,7 @@ function CreditPage() {
             <CreditCard className="h-6 w-6 text-primary" /> Credit Management
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage customers with active credit balances.
+            Manage customers with active credit balances or credit history.
           </p>
           <p className="text-[11px] text-muted-foreground mt-1 hidden md:block">
             Tip: use <kbd className="px-1 rounded border bg-muted">↑</kbd>
@@ -184,7 +184,7 @@ function CreditPage() {
           <CardTitle className="text-base">
             {customers === null
               ? "Loading…"
-              : `${filtered.length} customers with balance`}
+              : `${filtered.length} customers with credit history`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -197,7 +197,7 @@ function CreditPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 space-y-2">
               <p className="text-sm text-muted-foreground">
-                No active credit balances found.
+                No credit history found.
               </p>
             </div>
           ) : (
@@ -234,7 +234,7 @@ function CreditPage() {
                       </div>
                       <div className="flex justify-between gap-3 font-semibold mt-0.5">
                         <span>Balance:</span> 
-                        <span className={c.balance < 0 ? "text-emerald-500" : "text-destructive"}>
+                        <span className={c.balance < 0 ? "text-emerald-500" : c.balance > 0 ? "text-destructive" : "text-foreground"}>
                           {c.balance < 0 ? `+${formatMoney(Math.abs(c.balance))} (Credit)` : formatMoney(c.balance)}
                         </span>
                       </div>
