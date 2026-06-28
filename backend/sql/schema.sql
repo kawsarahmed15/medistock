@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS products (
   stock INT NOT NULL DEFAULT 0,
   expiry DATE NOT NULL,
   mrp DECIMAL(12,2) NULL,
+  pack VARCHAR(50) NULL,
   batch VARCHAR(120) NULL,
   manufacturer VARCHAR(180) NULL,
   sku VARCHAR(120) NULL,
@@ -82,11 +83,10 @@ CREATE TABLE IF NOT EXISTS bill_items (
   qty INT NOT NULL,
   tax_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
   mrp DECIMAL(12,2) NULL,
+  pack VARCHAR(50) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_bill_items_bill (bill_id),
   INDEX idx_bill_items_user (user_id),
   CONSTRAINT fk_bill_items_bill FOREIGN KEY (bill_id) REFERENCES bills(id) ON DELETE CASCADE,
   CONSTRAINT fk_bill_items_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-ALTER TABLE products ADD COLUMN pack VARCHAR(50) NULL;
-ALTER TABLE bill_items ADD COLUMN pack VARCHAR(50) NULL;
