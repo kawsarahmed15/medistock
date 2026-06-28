@@ -66,37 +66,18 @@ function CartPage() {
         customerNotes: combinedNotes || undefined,
         cashier: session?.name,
         paymentMethod: cart.paymentMethod,
-        items: cart.items.flatMap((i) => {
-          const res = [];
-          const paidQty = i.qty - (i.freeQty || 0);
-          if (paidQty > 0) {
-            res.push({
-              productId: i.product.id,
-              name: i.product.name,
-              price: i.product.price,
-              costPrice: i.product.costPrice,
-              qty: paidQty,
-              taxPercent: i.product.taxPercent ?? 0,
-              mrp: i.product.mrp,
-              pack: i.product.pack,
-              expiry: i.product.expiry,
-            });
-          }
-          if (i.freeQty && i.freeQty > 0) {
-            res.push({
-              productId: i.product.id,
-              name: i.product.name,
-              price: 0,
-              costPrice: i.product.costPrice,
-              qty: i.freeQty,
-              taxPercent: i.product.taxPercent ?? 0,
-              mrp: i.product.mrp,
-              pack: i.product.pack,
-              expiry: i.product.expiry,
-            });
-          }
-          return res;
-        }),
+        items: cart.items.map((i) => ({
+          productId: i.product.id,
+          name: i.product.name,
+          price: i.product.price,
+          costPrice: i.product.costPrice,
+          qty: i.qty - (i.freeQty || 0),
+          freeQty: i.freeQty || 0,
+          taxPercent: i.product.taxPercent ?? 0,
+          mrp: i.product.mrp,
+          pack: i.product.pack,
+          expiry: i.product.expiry,
+        })),
         subtotal: cart.subtotal,
         tax: cart.tax,
         total: cart.total,

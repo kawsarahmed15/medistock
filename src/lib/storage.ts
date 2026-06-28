@@ -35,6 +35,7 @@ export type BillItem = {
   mrp?: number;
   pack?: string;
   expiry?: string;
+  freeQty?: number;
 };
 
 export type Bill = {
@@ -137,6 +138,7 @@ type BillItemRow = {
   mrp: number | string | null;
   pack: string | null;
   expiry: string | null;
+  free_qty: number;
 };
 
 function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
@@ -162,6 +164,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       mrp: num(it.mrp),
       pack: it.pack ?? undefined,
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
+      freeQty: Number(it.free_qty) || 0,
     })),
   };
 }

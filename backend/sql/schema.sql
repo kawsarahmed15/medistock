@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS bill_items (
   mrp DECIMAL(12,2) NULL,
   pack VARCHAR(50) NULL,
   expiry DATE NULL,
+  free_qty INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_bill_items_bill (bill_id),
   INDEX idx_bill_items_user (user_id),
