@@ -7,6 +7,7 @@ import {
   ReceiptText,
   Search,
   Smartphone,
+  CreditCard,
 } from "lucide-react";
 import { billsStore, type Bill } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import { downloadBillPdf } from "@/lib/bill-pdf";
 import { toast } from "sonner";
 
 type FilterRange = "all" | "day" | "month" | "year" | "custom";
-type PayFilter = "all" | "cash" | "online";
+type PayFilter = "all" | "cash" | "online" | "credit";
 type BillsSearch = { range?: FilterRange; from?: string; to?: string; pay?: PayFilter };
 
 export const Route = createFileRoute("/_app/bills/")({
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/_app/bills/")({
     const r = search.range as string | undefined;
     const valid: FilterRange[] = ["all", "day", "month", "year", "custom"];
     const p = search.pay as string | undefined;
-    const validPay: PayFilter[] = ["all", "cash", "online"];
+    const validPay: PayFilter[] = ["all", "cash", "online", "credit"];
     return {
       range: valid.includes(r as FilterRange) ? (r as FilterRange) : undefined,
       from: typeof search.from === "string" ? search.from : undefined,
@@ -144,6 +145,9 @@ function BillsPage() {
     .reduce((s, b) => s + b.total, 0);
   const onlineTotal = filtered
     .filter((b) => b.paymentMethod === "online")
+    .reduce((s, b) => s + b.total, 0);
+  const creditTotal = filtered
+    .filter((b) => b.paymentMethod === "credit")
     .reduce((s, b) => s + b.total, 0);
 
   const setPay = (p: PayFilter) => {
@@ -314,6 +318,9 @@ function BillsPage() {
             <TabsTrigger value="online">
               <Smartphone className="h-3.5 w-3.5" /> Online
             </TabsTrigger>
+            <TabsTrigger value="credit">
+              <CreditCard className="h-3.5 w-3.5" /> Credit
+            </TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="sm:ml-auto flex flex-wrap gap-2 text-xs">
@@ -322,6 +329,9 @@ function BillsPage() {
           </span>
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
             <Smartphone className="h-3.5 w-3.5" /> Online {formatMoney(onlineTotal)}
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 text-destructive font-medium">
+            <CreditCard className="h-3.5 w-3.5" /> Credit {formatMoney(creditTotal)}
           </span>
         </div>
       </Card>
