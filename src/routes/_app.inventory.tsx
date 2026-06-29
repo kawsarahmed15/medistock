@@ -740,20 +740,40 @@ async function parseExcel(file: File): Promise<any[]> {
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: "binary" });
+        const workbook = XLSX.read(data, { type: "binary", cellDates: true });
         const firstSheet = workbook.SheetNames[0];
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
         
-        const parsed = rows.map((row: any) => ({
-          name: row.name || row.Name || row["Product Name"] || "",
-          category: row.category || row.Category || "General",
-          costPrice: Number(row.costPrice || row.cost_price || row["Cost Price"] || row["Buying Price"]) || 0,
-          price: Number(row.price || row.Price || row["Selling Price"]) || 0,
-          stock: Number(row.stock || row.Stock || row.Qty || row.Quantity) || 0,
-          expiry: row.expiry || row.Expiry ? new Date(row.expiry || row.Expiry).toISOString().slice(0, 10) : new Date(Date.now() + 31536000000).toISOString().slice(0, 10),
-          batch: String(row.batch || row.Batch || ""),
-          sku: String(row.sku || row.SKU || ""),
-        })).filter((p) => p.name && p.price > 0 && p.costPrice > 0);
+        const parsed = rows.map((rawRow: any) => {
+          const row: any = {};
+          for (const key in rawRow) {
+             row[key.toLowerCase().replace(/[\s_-]/g, "")] = rawRow[key];
+          }
+          
+          const rawExpiry = row.expiry || row.expdate || row.exp || row.expire;
+          let parsedExpiry = new Date(Date.now() + 31536000000).toISOString().slice(0, 10);
+          if (rawExpiry) {
+            try {
+              parsedExpiry = new Date(rawExpiry).toISOString().slice(0, 10);
+            } catch (e) {
+              // ignore invalid dates
+            }
+          }
+
+          return {
+            name: row.name || row.productname || row.itemname || row.product || row.item || "",
+            category: row.category || row.group || "General",
+            costPrice: Number(row.costprice || row.buyingprice || row.purchaseprice || row.rate || row.ptr) || 0,
+            price: Number(row.price || row.sellingprice || row.saleprice || row.mrp || row.pts) || 0,
+            stock: Number(row.stock || row.qty || row.quantity || row.balance) || 0,
+            expiry: parsedExpiry,
+            batch: String(row.batch || row.batchno || ""),
+            sku: String(row.sku || row.barcode || row.itemcode || ""),
+            mrp: Number(row.mrp || row.maxretailprice) || 0,
+            manufacturer: String(row.manufacturer || row.mfg || row.company || ""),
+            pack: String(row.pack || row.packing || ""),
+          };
+        }).filter((p) => p.name && p.name.trim() !== "");
         resolve(parsed);
       } catch (err) {
         reject(err);
