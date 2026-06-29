@@ -102,6 +102,11 @@ export function KeyboardShortcuts() {
         case "F7":
           return go("/revenue");
         case "/": {
+          if (e.shiftKey) {
+            e.preventDefault();
+            setOpen((v) => !v);
+            return;
+          }
           // Focus the global search
           e.preventDefault();
           const input = document.querySelector<HTMLInputElement>(
@@ -159,8 +164,15 @@ export function KeyboardShortcuts() {
           return;
       }
     };
+    const openHandler = () => setOpen(true);
+    
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("open-shortcuts", openHandler);
+    
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("open-shortcuts", openHandler);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, cart.items, cart.paymentMethod, cart.customer, session, open, routerState.location.pathname]);
 
