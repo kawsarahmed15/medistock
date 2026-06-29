@@ -391,7 +391,7 @@ function CartAddDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v
   }, [open]);
 
   const filtered = useMemo(() => 
-    products.filter(p => p.stock > 0 && p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
+    products.filter(p => p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
   [products, query]);
 
   const onAdd = (p: Product) => {
@@ -420,8 +420,13 @@ function CartAddDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v
              filtered.map(p => (
                <button 
                  key={p.id} 
-                 onClick={() => onAdd(p)}
-                 className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground text-sm transition-colors text-left"
+                 onClick={() => p.stock > 0 && onAdd(p)}
+                 disabled={p.stock <= 0}
+                 className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors text-left ${
+                   p.stock > 0 
+                     ? "hover:bg-accent hover:text-accent-foreground" 
+                     : "opacity-50 cursor-not-allowed"
+                 }`}
                >
                  <div className="min-w-0 flex-1">
                    <div className="font-medium truncate flex items-center gap-2">

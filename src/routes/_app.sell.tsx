@@ -100,9 +100,8 @@ function SellPage() {
     () =>
       products.filter(
         (p) =>
-          p.stock > 0 &&
-          (p.name.toLowerCase().includes(query.toLowerCase()) ||
-            p.category.toLowerCase().includes(query.toLowerCase())),
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.category.toLowerCase().includes(query.toLowerCase()),
       ),
     [products, query],
   );
@@ -168,11 +167,16 @@ function SellPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.map((p, i) => (
+          {filtered.slice(0, 50).map((p, i) => (
             <button
               key={p.id}
-              onClick={() => openQtyPicker(p)}
-              className="text-left rounded-xl border bg-card p-4 shadow-soft hover:shadow-glow hover:-translate-y-0.5 transition-smooth animate-fade-in"
+              onClick={() => p.stock > 0 && openQtyPicker(p)}
+              disabled={p.stock <= 0}
+              className={`text-left rounded-xl border p-4 shadow-soft transition-smooth animate-fade-in ${
+                p.stock > 0
+                  ? "bg-card hover:shadow-glow hover:-translate-y-0.5"
+                  : "bg-muted opacity-50 cursor-not-allowed"
+              }`}
               style={{ animationDelay: `${i * 30}ms` }}
             >
               <div className="flex items-start justify-between gap-2">
