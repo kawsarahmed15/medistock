@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { UserRound, Search, Phone, History } from "lucide-react";
+import { UserRound, Search, Phone, History, MapPin } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { customersStore, type Customer as SavedCustomer } from "@/lib/storage";
 import {
@@ -27,6 +27,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
   const [saved, setSaved] = useState<SavedCustomer[]>([]);
   const [pickQuery, setPickQuery] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  const [nameFocused, setNameFocused] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -54,15 +55,23 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
   }, [saved, pickQuery]);
 
   const pick = (c: SavedCustomer) => {
-    setForm({
+    setForm((prev) => ({
       name: c.name,
-      phone: c.phone,
-      address: c.address ?? "",
-      notes: c.notes ?? "",
-    });
+      phone: c.phone || prev.phone,
+      address: c.address || prev.address,
+      notes: c.notes || prev.notes,
+    }));
     setShowPicker(false);
     setPickQuery("");
   };
+
+  const nameMatches = useMemo(() => {
+    const needle = form.name.trim().toLowerCase();
+    if (needle.length < 2) return [];
+    const filtered = saved.filter((c) => c.name.toLowerCase().includes(needle));
+    if (filtered.length === 1 && filtered[0].name.toLowerCase() === needle) return [];
+    return filtered.slice(0, 4);
+  }, [saved, form.name]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -150,9 +159,14 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                           )}
                         </div>
                         {c.phone && (
-                          <div className="text-muted-foreground flex items-center gap-1">
+                          <div className="text-muted-foreground flex items-center gap-1 mt-0.5">
                             <Phone className="h-3 w-3" /> {c.phone} ·{" "}
                             {c.visits} {c.visits === 1 ? "visit" : "visits"}
+                          </div>
+                        )}
+                        {c.address && (
+                          <div className="text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+                            <MapPin className="h-3 w-3 shrink-0" /> {c.address}
                           </div>
                         )}
                       </button>
@@ -165,7 +179,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
         )}
 
         <form onSubmit={submit} className="space-y-3">
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 relative">
             <Label htmlFor="cd-name" className="text-xs">
               Full name
             </Label>
@@ -173,9 +187,29 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               id="cd-name"
               value={form.name}
               maxLength={100}
+              onFocus={() => setNameFocused(true)}
+              onBlur={() => setTimeout(() => setNameFocused(false), 200)}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="e.g. Asha Verma"
+              autoComplete="off"
             />
+            {nameFocused && nameMatches.length > 0 && (
+              <div className="absolute z-10 w-full bg-popover border rounded-md shadow-md mt-1 top-[calc(100%+4px)] overflow-hidden">
+                {nameMatches.map((c) => (
+                  <button
+                    key={`${c.phone}-${c.name}`}
+                    type="button"
+                    onClick={() => pick(c)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                  >
+                    <div className="font-medium truncate">{c.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {c.phone} {c.address ? `· ${c.address}` : ""}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cd-phone" className="text-xs">
