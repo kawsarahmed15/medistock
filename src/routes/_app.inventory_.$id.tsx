@@ -2,7 +2,7 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { toast } from "sonner";
-import { ArrowLeft, Package, History, ArrowDownToLine, ArrowUpFromLine, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Package, History, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,6 +26,13 @@ function ProductDetails() {
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Price action dialog state
+  const [priceDialogOpen, setPriceDialogOpen] = useState(false);
+  const [newPrice, setNewPrice] = useState("");
+  const [newCostPrice, setNewCostPrice] = useState("");
+  const [newPackPrice, setNewPackPrice] = useState("");
+  const [newPackCostPrice, setNewPackCostPrice] = useState("");
 
   async function loadData() {
     try {
@@ -81,6 +88,38 @@ function ProductDetails() {
     setActionType(type);
     setUnitType("base");
     setDialogOpen(true);
+  };
+
+  const openPriceAction = () => {
+    setNewPrice(product?.price != null ? String(product.price) : "");
+    setNewCostPrice(product?.cost_price != null ? String(product.cost_price) : "");
+    setNewPackPrice(product?.pack_price != null ? String(product.pack_price) : "");
+    setNewPackCostPrice(product?.pack_cost_price != null ? String(product.pack_cost_price) : "");
+    setPriceDialogOpen(true);
+  };
+
+  const handlePriceAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await apiRequest(`/products/${id}`, {
+        method: "PATCH",
+        body: {
+          price: newPrice,
+          costPrice: newCostPrice,
+          packPrice: product?.conversion_factor > 1 ? newPackPrice : null,
+          packCostPrice: product?.conversion_factor > 1 ? newPackCostPrice : null,
+        },
+        auth: true,
+      });
+      toast.success("Prices updated successfully");
+      setPriceDialogOpen(false);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update prices");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -144,6 +183,9 @@ function ProductDetails() {
                     <ArrowUpFromLine className="w-4 h-4 text-rose-500" /> Stock Out
                   </Button>
                 </div>
+                <Button onClick={openPriceAction} variant="outline" className="w-full gap-2 mt-2">
+                  <IndianRupee className="w-4 h-4 text-blue-500" /> Price Adjustment
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -281,6 +323,69 @@ function ProductDetails() {
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={submitting}>Confirm</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={priceDialogOpen} onOpenChange={setPriceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Price Adjustment</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handlePriceAction} className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Selling Price (per {product?.base_unit || 'Unit'})</Label>
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  value={newPrice} 
+                  onChange={(e) => setNewPrice(e.target.value)} 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cost Price (per {product?.base_unit || 'Unit'})</Label>
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  value={newCostPrice} 
+                  onChange={(e) => setNewCostPrice(e.target.value)} 
+                />
+              </div>
+            </div>
+            
+            {product?.conversion_factor > 1 && (
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
+                <div className="space-y-2">
+                  <Label>Pack Price (per {product?.pack_unit || 'Pack'})</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={newPackPrice} 
+                    onChange={(e) => setNewPackPrice(e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pack Cost Price (per {product?.pack_unit || 'Pack'})</Label>
+                  <Input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={newPackCostPrice} 
+                    onChange={(e) => setNewPackCostPrice(e.target.value)} 
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="ghost" onClick={() => setPriceDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={submitting}>Save Prices</Button>
             </div>
           </form>
         </DialogContent>
