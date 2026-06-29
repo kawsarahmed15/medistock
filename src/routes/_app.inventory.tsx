@@ -109,6 +109,7 @@ function InventoryPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<FormState>(empty);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">("date_desc");
   const { session } = useAuth();
   const expiryDays = session?.expiryDays ?? 60;
 
@@ -204,11 +205,15 @@ function InventoryPage() {
       }
       return true;
     });
-  }, [items, query, search.filter]);
 
   const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  }, [filtered]);
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
+      if (sortBy === "name_desc") return b.name.localeCompare(a.name);
+      if (sortBy === "date_asc") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [filtered, sortBy]);
 
   useEffect(() => {
     const handler = () => {
@@ -349,6 +354,16 @@ function InventoryPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+          <select 
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+          >
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+            <option value="name_asc">Name (A-Z)</option>
+            <option value="name_desc">Name (Z-A)</option>
+          </select>
           <Button
             variant="outline"
             onClick={() => setScannerOpen(true)}
@@ -529,6 +544,7 @@ function InventoryPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12 text-center">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">Price</TableHead>
@@ -538,16 +554,16 @@ function InventoryPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                   {items.length === 0
                     ? "No products yet. Add your first one to get started."
                     : "No products match your search."}
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((p) => {
+              sorted.map((p, idx) => {
                 const lowStock = p.stock <= 10;
                 return (
                   <TableRow 
@@ -555,6 +571,9 @@ function InventoryPage() {
                     className="animate-fade-in cursor-pointer hover:bg-muted/50"
                     onClick={() => navigate({ to: "/inventory/$id", params: { id: p.id } })}
                   >
+                    <TableCell className="text-center font-medium text-muted-foreground">
+                      {idx + 1}
+                    </TableCell>
                     <TableCell>
                       <div className="font-medium">{p.name}</div>
                       <div className="text-xs text-muted-foreground">
