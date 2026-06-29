@@ -91,6 +91,7 @@ function CartPage() {
           freeQty: i.freeQty || 0,
           taxPercent: i.product.taxPercent ?? 0,
           mrp: i.product.mrp,
+          batch: i.product.batch,
           pack: i.product.pack,
           expiry: i.product.expiry,
         })),

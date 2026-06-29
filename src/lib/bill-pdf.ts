@@ -161,7 +161,7 @@ export async function downloadBillPdf(
   // ===== Items table =====
   autoTable(doc, {
     startY: 165,
-    head: [["#", "Item", "Pack", "Exp.", "MRP", "Qty", "Free", "Price", "Tax %", "Total"]],
+    head: [["#", "Item", "Pack", "Batch", "Exp.", "MRP", "Qty", "Free", "Price", "Tax %", "Total"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
@@ -169,6 +169,7 @@ export async function downloadBillPdf(
         String(idx + 1),
         clean(it.name),
         it.pack ? it.pack.replace(/[*x]/gi, "X") : "-",
+        it.batch ? it.batch : "-",
         it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "-",
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         String(it.qty),
@@ -193,15 +194,16 @@ export async function downloadBillPdf(
       halign: "left",
     },
     columnStyles: {
-      0: { cellWidth: 18, halign: "center" },
-      2: { halign: "center", cellWidth: 32 },
-      3: { halign: "center", cellWidth: 36 },
-      4: { halign: "right", cellWidth: 36 },
-      5: { halign: "right", cellWidth: 26 },
-      6: { halign: "center", cellWidth: 26 },
-      7: { halign: "right", cellWidth: 40 },
-      8: { halign: "right", cellWidth: 32 },
-      9: { halign: "right", cellWidth: 50 },
+      0: { cellWidth: 16, halign: "center" },
+      2: { halign: "center", cellWidth: 26 },
+      3: { halign: "center", cellWidth: 32 },
+      4: { halign: "center", cellWidth: 32 },
+      5: { halign: "right", cellWidth: 32 },
+      6: { halign: "right", cellWidth: 22 },
+      7: { halign: "center", cellWidth: 22 },
+      8: { halign: "right", cellWidth: 36 },
+      9: { halign: "right", cellWidth: 28 },
+      10: { halign: "right", cellWidth: 44 },
     },
     margin: { left, right: 40 },
     theme: "grid",

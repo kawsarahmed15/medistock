@@ -33,6 +33,7 @@ export type BillItem = {
   qty: number;
   taxPercent: number;
   mrp?: number;
+  batch?: string;
   pack?: string;
   expiry?: string;
   freeQty?: number;
@@ -140,6 +141,7 @@ type BillItemRow = {
   qty: number;
   tax_percent: number | string;
   mrp: number | string | null;
+  batch: string | null;
   pack: string | null;
   expiry: string | null;
   free_qty: number;
@@ -169,6 +171,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       qty: it.qty,
       taxPercent: Number(it.tax_percent) || 0,
       mrp: num(it.mrp),
+      batch: it.batch ?? undefined,
       pack: it.pack ?? undefined,
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
       freeQty: Number(it.free_qty) || 0,

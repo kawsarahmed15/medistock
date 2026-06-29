@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS bill_items (
   qty INT NOT NULL,
   tax_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
   mrp DECIMAL(12,2) NULL,
+  batch VARCHAR(120) NULL,
   pack VARCHAR(50) NULL,
   expiry DATE NULL,
   free_qty INT NOT NULL DEFAULT 0,

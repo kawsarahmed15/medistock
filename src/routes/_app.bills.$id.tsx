@@ -212,6 +212,7 @@ function BillDetailPage() {
                 <th className="w-10 text-center p-3 font-medium">#</th>
                 <th className="text-left p-3 font-medium">Item</th>
                 <th className="w-16 text-right p-3 font-medium">Pack</th>
+                <th className="w-20 text-center p-3 font-medium">Batch</th>
                 <th className="w-16 text-center p-3 font-medium">Exp.</th>
                 <th className="w-16 text-right p-3 font-medium">MRP</th>
                 <th className="w-12 text-right p-3 font-medium">Qty</th>
@@ -230,6 +231,7 @@ function BillDetailPage() {
                     <td className="p-3 text-center text-muted-foreground">{idx + 1}</td>
                     <td className="p-3">{it.name}</td>
                     <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
+                    <td className="p-3 text-center tabular-nums">{it.batch ? it.batch : "—"}</td>
                     <td className="p-3 text-center text-xs tabular-nums">{it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.qty}</td>
@@ -269,6 +271,7 @@ function BillDetailPage() {
                   {it.qty} × {it.price.toFixed(2)} · Tax {it.taxPercent}% ({tax.toFixed(2)})
                   {it.freeQty ? ` · Free ${it.freeQty}` : ""}
                   {it.pack && ` · Pack ${it.pack.replace(/[*x]/gi, "X")}`}
+                  {it.batch && ` · Batch ${it.batch}`}
                   {it.expiry && ` · Exp ${new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'})}`}
                   {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                 </div>
