@@ -146,8 +146,9 @@ function RevenuePage() {
   );
 
   const stats = useMemo(() => {
-    // Total Revenue = Sum of subtotals (revenue before tax)
-    const totalRevenue = filteredBills.reduce((s, b) => s + (b.subtotal || 0), 0);
+    const totalDiscount = filteredBills.reduce((s, b) => s + (b.discount || 0), 0);
+    // Total Revenue = Sum of subtotals (revenue before tax) minus discounts
+    const totalRevenue = filteredBills.reduce((s, b) => s + (b.subtotal || 0), 0) - totalDiscount;
     const totalTax = filteredBills.reduce((s, b) => s + (b.tax || 0), 0);
     const avgBill = filteredBills.length ? totalRevenue / filteredBills.length : 0;
     
