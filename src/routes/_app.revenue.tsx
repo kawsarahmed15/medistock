@@ -155,16 +155,16 @@ function RevenuePage() {
     const profit = totalRevenue - cost;
     
     const cash = filteredBills
-      .reduce((s, b) => s + (b.paymentMethod === "cash" ? b.total : (b.paymentMethod === "credit" ? b.advanceAmount : 0)), 0) +
-      filteredPayments.reduce((s, p) => s + (p.method === "cash" ? p.amount : 0), 0);
+      .reduce((s, b) => s + (b.paymentMethod === "cash" ? (b.total || 0) : (b.paymentMethod === "credit" ? (b.advanceAmount || 0) : 0)), 0) +
+      filteredPayments.reduce((s, p) => s + (p.method === "cash" ? (Number(p.amount) || 0) : 0), 0);
       
     const online = filteredBills
-      .reduce((s, b) => s + (b.paymentMethod === "online" ? b.total : 0), 0) +
-      filteredPayments.reduce((s, p) => s + (p.method === "online" ? p.amount : 0), 0);
+      .reduce((s, b) => s + (b.paymentMethod === "online" ? (b.total || 0) : 0), 0) +
+      filteredPayments.reduce((s, p) => s + (p.method === "online" ? (Number(p.amount) || 0) : 0), 0);
       
     const creditCollection = filteredBills
-      .reduce((s, b) => s + (b.paymentMethod === "credit" ? b.advanceAmount : 0), 0) +
-      filteredPayments.reduce((s, p) => s + p.amount, 0);
+      .reduce((s, b) => s + (b.paymentMethod === "credit" ? (b.advanceAmount || 0) : 0), 0) +
+      filteredPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
     return { totalRevenue, totalTax, avgBill, profit, cash, online, creditCollection };
   }, [filteredBills, filteredPayments]);
