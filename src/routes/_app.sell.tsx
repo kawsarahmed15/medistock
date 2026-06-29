@@ -88,7 +88,10 @@ function SellPage() {
 
   // Handle Alt+N shortcut via custom event
   useEffect(() => {
-    const handler = () => setCustomerOpen(true);
+    const handler = () => {
+      document.getElementById("sell-search-input")?.focus();
+      toast.success("Started a new bill");
+    };
     window.addEventListener("trigger-new-bill", handler);
     return () => window.removeEventListener("trigger-new-bill", handler);
   }, []);
@@ -145,6 +148,7 @@ function SellPage() {
       <div className="relative">
         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
+          id="sell-search-input"
           placeholder="Search products in stock…"
           className="pl-9"
           value={query}
@@ -238,9 +242,23 @@ function SellPage() {
                   min={1}
                   max={maxQty}
                   value={qtyValue}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (maxQty >= 1) confirmAdd();
+                    } else if (e.key === "+" || e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setQtyValue(Math.min(maxQty, qtyValue + 1));
+                    } else if (e.key === "-" || e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setQtyValue(Math.max(1, qtyValue - 1));
+                    }
+                  }}
                   onChange={(e) => {
                     const v = parseInt(e.target.value, 10);
                     if (!isNaN(v)) setQtyValue(Math.max(1, Math.min(maxQty, v)));
+                    else setQtyValue(1);
                   }}
                   className="w-20 text-center text-lg font-semibold tabular-nums"
                 />

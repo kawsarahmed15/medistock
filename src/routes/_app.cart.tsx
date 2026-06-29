@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Banknote,
   FileWarning,
@@ -11,13 +11,15 @@ import {
   Trash2,
   UserRound,
   Pencil,
+  Search,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
-import { billsStore, productsStore } from "@/lib/storage";
+import { billsStore, productsStore, type Product } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerDetailsDialog } from "@/components/customer-details-dialog";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,7 @@ function CartPage() {
   const navigate = useNavigate();
   const [customerOpen, setCustomerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   const rxItems = cart.items.filter((i) => i.product.prescription);
   const hasRx = rxItems.length > 0;
@@ -138,8 +141,8 @@ function CartPage() {
             {cart.items.length === 0 ? (
               <div className="text-center py-12 space-y-3">
                 <p className="text-sm text-muted-foreground">Your cart is empty.</p>
-                <Button asChild size="sm">
-                  <Link to="/sell"><Plus className="h-4 w-4 mr-2" /> Browse & Add Item</Link>
+                <Button size="sm" onClick={() => setAddOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Browse & Add Item
                 </Button>
               </div>
             ) : (
@@ -215,10 +218,8 @@ function CartPage() {
                   </div>
                 ))}
                 <div className="pt-4 pb-1">
-                  <Button asChild variant="outline" className="w-full border-dashed" size="sm">
-                    <Link to="/sell">
-                      <Plus className="h-4 w-4 mr-2" /> Browse & Add Item
-                    </Link>
+                  <Button variant="outline" className="w-full border-dashed" size="sm" onClick={() => setAddOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Browse & Add Item
                   </Button>
                 </div>
               </div>
@@ -371,7 +372,73 @@ function CartPage() {
       </div>
 
       <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
+      <CartAddDialog open={addOpen} onOpenChange={setAddOpen} />
     </div>
+  );
+}
+
+function CartAddDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v: boolean) => void }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [query, setQuery] = useState("");
+  const cart = useCart();
+  
+  useEffect(() => {
+    if (open) {
+      productsStore.list().then(setProducts);
+    } else {
+      setQuery("");
+    }
+  }, [open]);
+
+  const filtered = useMemo(() => 
+    products.filter(p => p.stock > 0 && p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
+  [products, query]);
+
+  const onAdd = (p: Product) => {
+    cart.add(p, 1);
+    toast.success(`${p.name} added to cart`);
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 overflow-hidden gap-0">
+         <div className="flex items-center px-3 border-b">
+           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+           <Input 
+             autoFocus
+             placeholder="Search product to add..." 
+             className="border-0 focus-visible:ring-0 shadow-none text-base"
+             value={query} 
+             onChange={e => setQuery(e.target.value)} 
+           />
+         </div>
+         <div className="max-h-[300px] overflow-y-auto p-1">
+           {filtered.length === 0 ? (
+             <div className="p-4 text-center text-sm text-muted-foreground">No matching products found.</div>
+           ) : (
+             filtered.map(p => (
+               <button 
+                 key={p.id} 
+                 onClick={() => onAdd(p)}
+                 className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground text-sm transition-colors text-left"
+               >
+                 <div className="min-w-0 flex-1">
+                   <div className="font-medium truncate flex items-center gap-2">
+                     {p.name}
+                     {p.prescription && (
+                       <span className="text-[10px] bg-destructive/10 text-destructive px-1 rounded font-bold">Rx</span>
+                     )}
+                   </div>
+                   <div className="text-xs text-muted-foreground">{formatMoney(p.price)} · {p.stock} in stock</div>
+                 </div>
+                 <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+               </button>
+             ))
+           )}
+         </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
