@@ -321,22 +321,53 @@ function CartPage() {
             <CardHeader>
               <CardTitle className="text-base">Discount</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => cart.setDiscountType("percentage")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md border transition-smooth text-center",
+                    cart.discountType === "percentage"
+                      ? "bg-primary/10 border-primary text-primary shadow-soft"
+                      : "border-border hover:bg-accent/40"
+                  )}
+                >
+                  % Percentage
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cart.setDiscountType("flat")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-md border transition-smooth text-center",
+                    cart.discountType === "flat"
+                      ? "bg-primary/10 border-primary text-primary shadow-soft"
+                      : "border-border hover:bg-accent/40"
+                  )}
+                >
+                  ₹ Flat Amount
+                </button>
+              </div>
+
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {cart.discountType === "percentage" ? "%" : "₹"}
+                </span>
                 <Input
                   type="number"
                   step="0.01"
                   min="0"
-                  max={cart.subtotal + cart.tax}
-                  value={cart.discount || ""}
-                  onChange={(e) => cart.setDiscount(Number(e.target.value))}
-                  className="pl-7"
+                  max={cart.discountType === "percentage" ? 100 : cart.subtotal + cart.tax}
+                  value={cart.discountValue || ""}
+                  onChange={(e) => cart.setDiscountValue(Number(e.target.value))}
+                  className="pl-8"
                   placeholder="0.00"
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Enter flat discount amount to reduce the total bill.
+              <p className="text-xs text-muted-foreground">
+                {cart.discountType === "percentage"
+                  ? "Enter discount percentage to reduce the total bill."
+                  : "Enter flat discount amount to reduce the total bill."}
               </p>
             </CardContent>
           </Card>
