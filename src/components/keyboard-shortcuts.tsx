@@ -21,6 +21,7 @@ const SHORTCUTS = [
   { keys: "F5", label: "Bills" },
   { keys: "F6", label: "Customers" },
   { keys: "F7", label: "Revenue" },
+  { keys: "Alt + C", label: "Open cart" },
   { keys: "Alt + N", label: "New bill (Clear cart)" },
   { keys: "Alt + A", label: "Add new product" },
   { keys: "F9", label: "Checkout (generate bill from cart)" },
@@ -66,6 +67,15 @@ export function KeyboardShortcuts() {
           });
         } else {
           window.dispatchEvent(new CustomEvent("trigger-new-bill"));
+        }
+        return;
+      }
+      
+      if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (routerState.location.pathname !== "/cart") {
+          navigate({ to: "/cart" });
         }
         return;
       }

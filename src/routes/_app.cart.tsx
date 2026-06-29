@@ -139,7 +139,7 @@ function CartPage() {
               <div className="text-center py-12 space-y-3">
                 <p className="text-sm text-muted-foreground">Your cart is empty.</p>
                 <Button asChild size="sm">
-                  <Link to="/sell">Browse products</Link>
+                  <Link to="/sell"><Plus className="h-4 w-4 mr-2" /> Browse & Add Item</Link>
                 </Button>
               </div>
             ) : (
@@ -214,6 +214,13 @@ function CartPage() {
                     </Button>
                   </div>
                 ))}
+                <div className="pt-4 pb-1">
+                  <Button asChild variant="outline" className="w-full border-dashed" size="sm">
+                    <Link to="/sell">
+                      <Plus className="h-4 w-4 mr-2" /> Browse & Add Item
+                    </Link>
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
