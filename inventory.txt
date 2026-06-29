@@ -1,0 +1,664 @@
+     1	import { createFileRoute, Link } from "@tanstack/react-router";
+     2	import { useEffect, useMemo, useState, type FormEvent } from "react";
+     3	import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye } from "lucide-react";
+     4	
+     5	import { useCart } from "@/lib/cart-context";
+     6	import { useAuth } from "@/lib/auth-context";
+     7	import { productsStore, type Product } from "@/lib/storage";
+     8	import { Button } from "@/components/ui/button";
+     9	import { Input } from "@/components/ui/input";
+    10	import { Label } from "@/components/ui/label";
+    11	import {
+    12	  Dialog,
+    13	  DialogContent,
+    14	  DialogFooter,
+    15	  DialogHeader,
+    16	  DialogTitle,
+    17	  DialogTrigger,
+    18	} from "@/components/ui/dialog";
+    19	import {
+    20	  Table,
+    21	  TableBody,
+    22	  TableCell,
+    23	  TableHead,
+    24	  TableHeader,
+    25	  TableRow,
+    26	} from "@/components/ui/table";
+    27	import { Card } from "@/components/ui/card";
+    28	import { Switch } from "@/components/ui/switch";
+    29	import { SkuScanner } from "@/components/sku-scanner";
+    30	import { toast } from "sonner";
+    31	
+    32	import { TableSkeleton } from "@/components/loading-skeleton";
+    33	
+    34	type InventorySearch = {
+    35	  add?: number;
+    36	  filter?: "low" | "expiring" | "expired";
+    37	  q?: string;
+    38	};
+    39	
+    40	export const Route = createFileRoute("/_app/inventory")({
+    41	  validateSearch: (search: Record<string, unknown>): InventorySearch => {
+    42	    const f = search.filter as string | undefined;
+    43	    const valid = ["low", "expiring", "expired"];
+    44	    return {
+    45	      add: search.add ? Number(search.add) : undefined,
+    46	      filter: valid.includes(f as string) ? (f as InventorySearch["filter"]) : undefined,
+    47	      q: typeof search.q === "string" ? search.q : undefined,
+    48	    };
+    49	  },
+    50	  component: InventoryPage,
+    51	});
+    52	
+    53	type FormState = {
+    54	  name: string;
+    55	  category: string;
+    56	  costPrice: string;
+    57	  price: string;
+    58	  mrp: string;
+    59	  stock: string;
+    60	  stockType: string;
+    61	  stockPacks: string;
+    62	  stockUnits: string;
+    63	  expiry: string;
+    64	  batch: string;
+    65	  manufacturer: string;
+    66	  sku: string;
+    67	  taxPercent: string;
+    68	  prescription: boolean;
+    69	  baseUnit: string;
+    70	  packUnit: string;
+    71	  conversionFactor: string;
+    72	  packPrice: string;
+    73	  packCostPrice: string;
+    74	};
+    75	
+    76	const empty: FormState = {
+    77	  name: "",
+    78	  category: "",
+    79	  costPrice: "",
+    80	  price: "",
+    81	  mrp: "",
+    82	  stock: "",
+    83	  stockType: "other",
+    84	  stockPacks: "",
+    85	  stockUnits: "",
+    86	  expiry: "",
+    87	  batch: "",
+    88	  manufacturer: "",
+    89	  sku: "",
+    90	  taxPercent: "12",
+    91	  prescription: false,
+    92	  baseUnit: "Unit",
+    93	  packUnit: "Pack",
+    94	  conversionFactor: "1",
+    95	  packPrice: "",
+    96	  packCostPrice: "",
+    97	};
+    98	
+    99	function InventoryPage() {
+   100	  const { q: qParam } = Route.useSearch();
+   101	  const [items, setItems] = useState<Product[]>([]);
+   102	  const [query, setQuery] = useState(qParam ?? "");
+   103	  const [loading, setLoading] = useState(true);
+   104	
+   105	  useEffect(() => {
+   106	    if (typeof qParam === "string") setQuery(qParam);
+   107	  }, [qParam]);
+   108	  const [open, setOpen] = useState(false);
+   109	  const [editing, setEditing] = useState<Product | null>(null);
+   110	  const [form, setForm] = useState<FormState>(empty);
+   111	  const [scannerOpen, setScannerOpen] = useState(false);
+   112	  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">("date_desc");
+   113	  const { session } = useAuth();
+   114	  const expiryDays = session?.expiryDays ?? 60;
+   115	
+   116	  const search = Route.useSearch();
+   117	  const navigate = Route.useNavigate();
+   118	  const cart = useCart();
+   119	
+   120	  const quickAdd = (p: Product) => {
+   121	    if (p.stock <= 0) {
+   122	      toast.error(`${p.name} is out of stock`);
+   123	      return;
+   124	    }
+   125	    cart.add(p, 1);
+   126	    toast.success(`${p.name} added to cart`);
+   127	  };
+   128	
+   129	  const handleScan = (code: string) => {
+   130	    const trimmed = code.trim();
+   131	    if (!trimmed) return;
+   132	    // Match an existing product by SKU
+   133	    const match = items.find(
+   134	      (p) => (p.sku ?? "").trim().toLowerCase() === trimmed.toLowerCase(),
+   135	    );
+   136	    if (match) {
+   137	      // Edit flow with all existing info pre-filled
+   138	      setEditing(match);
+   139	      setForm({
+   140	        name: match.name,
+   141	        category: match.category,
+   142	        costPrice: match.costPrice != null ? String(match.costPrice) : "",
+   143	        price: String(match.price),
+   144	        mrp: match.mrp != null ? String(match.mrp) : "",
+   145	        stock: String(match.stock),
+   146	        stockType: match.pack ? "tab" : "other",
+   147	        stockPacks: match.pack ? match.pack.split(/[*xX]/)[0] : "",
+   148	        stockUnits: match.pack ? match.pack.split(/[*xX]/)[1] : "",
+   149	        expiry: match.expiry.slice(0, 10),
+   150	        batch: match.batch ?? "",
+   151	        manufacturer: match.manufacturer ?? "",
+   152	        sku: match.sku ?? trimmed,
+   153	        taxPercent: String(match.taxPercent ?? 0),
+   154	        prescription: !!match.prescription,
+   155	        baseUnit: match.baseUnit ?? "Unit",
+   156	        packUnit: match.packUnit ?? "Pack",
+   157	        conversionFactor: String(match.conversionFactor ?? 1),
+   158	        packPrice: match.packPrice != null ? String(match.packPrice) : "",
+   159	        packCostPrice: match.packCostPrice != null ? String(match.packCostPrice) : "",
+   160	      });
+   161	      toast.success(`Found ${match.name} · adjust stock and save`);
+   162	    } else {
+   163	      // New product flow with SKU pre-filled
+   164	      setEditing(null);
+   165	      setForm({ ...empty, sku: trimmed });
+   166	      toast.info("New SKU — fill the rest to add the product");
+   167	    }
+   168	    setOpen(true);
+   169	  };
+   170	
+   171	  const refresh = () => {
+   172	    setLoading(true);
+   173	    productsStore
+   174	      .list()
+   175	      .then((data) => {
+   176	        setItems(data);
+   177	        setLoading(false);
+   178	      })
+   179	      .catch(() => {
+   180	        setItems([]);
+   181	        setLoading(false);
+   182	      });
+   183	  };
+   184	  useEffect(refresh, []);
+   185	
+   186	  const filtered = useMemo(() => {
+   187	    return items.filter((p) => {
+   188	      const q = query.toLowerCase();
+   189	      if (
+   190	        q &&
+   191	        !p.name.toLowerCase().includes(q) &&
+   192	        !p.category.toLowerCase().includes(q) &&
+   193	        !(p.sku ?? "").toLowerCase().includes(q)
+   194	      )
+   195	        return false;
+   196	
+   197	      if (search.filter === "low") return p.stock <= 10;
+   198	      if (search.filter === "expiring") {
+   199	        const d = new Date(p.expiry).getTime();
+   200	        const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
+   201	        return days <= expiryDays && days >= 0;
+   202	      }
+   203	      if (search.filter === "expired") {
+   204	        return new Date(p.expiry).getTime() < Date.now();
+   205	      }
+   206	      return true;
+   207	    });
+   208	
+   209	  const sorted = useMemo(() => {
+   210	    return [...filtered].sort((a, b) => {
+   211	      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
+   212	      if (sortBy === "name_desc") return b.name.localeCompare(a.name);
+   213	      if (sortBy === "date_asc") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+   214	      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+   215	    });
+   216	  }, [filtered, sortBy]);
+   217	
+   218	  useEffect(() => {
+   219	    const handler = () => {
+   220	      setEditing(null);
+   221	      setForm(empty);
+   222	      setOpen(true);
+   223	    };
+   224	    window.addEventListener("trigger-add-product", handler);
+   225	    return () => window.removeEventListener("trigger-add-product", handler);
+   226	  }, []);
+   227	
+   228	  if (loading && items.length === 0) return <TableSkeleton cols={6} />;
+   229	
+   230	  const startAdd = () => {
+   231	    setEditing(null);
+   232	    setForm(empty);
+   233	    setOpen(true);
+   234	  };
+   235	
+   236	  const startEdit = (p: Product) => {
+   237	    setEditing(p);
+   238	    setForm({
+   239	      name: p.name,
+   240	      category: p.category,
+   241	      costPrice: p.costPrice != null ? String(p.costPrice) : "",
+   242	      price: String(p.price),
+   243	      mrp: p.mrp != null ? String(p.mrp) : "",
+   244	      stock: String(p.stock),
+   245	      stockType: p.pack ? "tab" : "other",
+   246	      stockPacks: p.pack ? p.pack.split(/[*xX]/)[0] : "",
+   247	      stockUnits: p.pack ? p.pack.split(/[*xX]/)[1] : "",
+   248	      expiry: p.expiry.slice(0, 10),
+   249	      batch: p.batch ?? "",
+   250	      manufacturer: p.manufacturer ?? "",
+   251	      sku: p.sku ?? "",
+   252	      taxPercent: String(p.taxPercent ?? 0),
+   253	      prescription: !!p.prescription,
+   254	      baseUnit: p.baseUnit ?? "Unit",
+   255	      packUnit: p.packUnit ?? "Pack",
+   256	      conversionFactor: String(p.conversionFactor ?? 1),
+   257	      packPrice: p.packPrice != null ? String(p.packPrice) : "",
+   258	      packCostPrice: p.packCostPrice != null ? String(p.packCostPrice) : "",
+   259	    });
+   260	    setOpen(true);
+   261	  };
+   262	
+   263	  const submit = async (e: FormEvent) => {
+   264	    e.preventDefault();
+   265	    let packValue: string | undefined = undefined;
+   266	    if (form.stockType === "tab" || form.stockType === "cap") {
+   267	      if (form.stockPacks && form.stockUnits) {
+   268	        packValue = `${form.stockPacks}x${form.stockUnits}`;
+   269	      }
+   270	    }
+   271	    const payload = {
+   272	      name: form.name.trim(),
+   273	      category: form.category.trim() || "General",
+   274	      costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
+   275	      price: Number(form.price),
+   276	      mrp: form.mrp === "" ? undefined : Number(form.mrp),
+   277	      stock: Number(form.stock) || 0,
+   278	      pack: packValue,
+   279	      expiry: form.expiry,
+   280	      batch: form.batch.trim() || undefined,
+   281	      manufacturer: form.manufacturer.trim() || undefined,
+   282	      sku: form.sku.trim() || undefined,
+   283	      taxPercent: Number(form.taxPercent) || 0,
+   284	      prescription: form.prescription,
+   285	      baseUnit: form.baseUnit.trim() || "Unit",
+   286	      packUnit: form.packUnit.trim() || "Pack",
+   287	      conversionFactor: Number(form.conversionFactor) || 1,
+   288	      packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
+   289	      packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
+   290	    };
+   291	    if (!payload.name || !payload.expiry || isNaN(payload.price) || isNaN(payload.stock) || payload.costPrice === undefined || isNaN(payload.costPrice)) {
+   292	      toast.error("Please fill name, buying price, selling price, stock and expiry.");
+   293	      return;
+   294	    }
+   295	    try {
+   296	      if (editing) {
+   297	        await productsStore.update(editing.id, payload);
+   298	        toast.success("Product updated");
+   299	      } else {
+   300	        await productsStore.add(payload);
+   301	        toast.success("Product added");
+   302	      }
+   303	      refresh();
+   304	      setOpen(false);
+   305	    } catch (err) {
+   306	      toast.error((err as Error).message || "Failed to save product");
+   307	    }
+   308	  };
+   309	
+   310	  const remove = async (p: Product) => {
+   311	    if (!confirm(`Delete ${p.name}?`)) return;
+   312	    try {
+   313	      await productsStore.remove(p.id);
+   314	      refresh();
+   315	      toast.success("Product removed");
+   316	    } catch (err) {
+   317	      toast.error((err as Error).message || "Failed to delete");
+   318	    }
+   319	  };
+   320	
+   321	  const filterLabel: Record<NonNullable<InventorySearch["filter"]>, string> = {
+   322	    low: "Low stock (≤ 10)",
+   323	    expiring: `Expiring within ${expiryDays} days`,
+   324	    expired: "Expired products",
+   325	  };
+   326	
+   327	  return (
+   328	    <div className="space-y-6">
+   329	      <div className="flex flex-wrap items-end justify-between gap-3">
+   330	        <div>
+   331	          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Inventory</h1>
+   332	          <p className="text-sm text-muted-foreground mt-1">
+   333	            Manage your products, stock and expiry.
+   334	          </p>
+   335	          {search.filter && (
+   336	            <div className="mt-3 inline-flex items-center gap-2 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full">
+   337	              Filtered: {filterLabel[search.filter as NonNullable<InventorySearch["filter"]>]}
+   338	              <button
+   339	                onClick={() => navigate({ search: {}, replace: true })}
+   340	                className="hover:underline font-medium"
+   341	              >
+   342	                Clear
+   343	              </button>
+   344	            </div>
+   345	          )}
+   346	        </div>
+   347	        <div className="flex gap-2 w-full md:w-auto">
+   348	          <div className="relative flex-1 md:w-72">
+   349	            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+   350	            <Input
+   351	              placeholder="Search products…"
+   352	              className="pl-9"
+   353	              value={query}
+   354	              onChange={(e) => setQuery(e.target.value)}
+   355	            />
+   356	          </div>
+   357	          <select 
+   358	            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   359	            value={sortBy}
+   360	            onChange={(e) => setSortBy(e.target.value as any)}
+   361	          >
+   362	            <option value="date_desc">Newest first</option>
+   363	            <option value="date_asc">Oldest first</option>
+   364	            <option value="name_asc">Name (A-Z)</option>
+   365	            <option value="name_desc">Name (Z-A)</option>
+   366	          </select>
+   367	          <Button
+   368	            variant="outline"
+   369	            onClick={() => setScannerOpen(true)}
+   370	            title="Scan SKU / barcode"
+   371	          >
+   372	            <ScanLine className="h-4 w-4" />
+   373	            <span className="hidden sm:inline">Scan SKU</span>
+   374	          </Button>
+   375	          <Button onClick={startAdd} className="shadow-soft">
+   376	            <Plus className="h-4 w-4" />
+   377	            <span className="hidden sm:inline">Add product</span>
+   378	            <span className="sm:hidden">Add</span>
+   379	          </Button>
+   380	          <Dialog open={open} onOpenChange={setOpen}>
+   381	            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   382	              <DialogHeader>
+   383	                <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
+   384	              </DialogHeader>
+   385	              <form onSubmit={submit} className="grid grid-cols-2 gap-4">
+   386	                <Field label="Name" className="col-span-2">
+   387	                  <Input
+   388	                    value={form.name}
+   389	                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+   390	                    required
+   391	                  />
+   392	                </Field>
+   393	                <Field label="Category">
+   394	                  <Input
+   395	                    value={form.category}
+   396	                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+   397	                    placeholder="e.g. Antibiotic"
+   398	                  />
+   399	                </Field>
+   400	                <Field label="Manufacturer">
+   401	                  <Input
+   402	                    value={form.manufacturer}
+   403	                    onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
+   404	                  />
+   405	                </Field>
+   406	                <Field label="Buying price">
+   407	                  <Input
+   408	                    type="number"
+   409	                    step="0.01"
+   410	                    value={form.costPrice}
+   411	                    onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+   412	                    placeholder="Cost per unit"
+   413	                    required
+   414	                  />
+   415	                </Field>
+   416	                <Field label="Selling price">
+   417	                  <Input
+   418	                    type="number"
+   419	                    step="0.01"
+   420	                    value={form.price}
+   421	                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+   422	                    required
+   423	                  />
+   424	                </Field>
+   425	                <Field label="MRP">
+   426	                  <Input
+   427	                    type="number"
+   428	                    step="0.01"
+   429	                    value={form.mrp}
+   430	                    onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+   431	                    placeholder="Printed price"
+   432	                  />
+   433	                </Field>
+   434	                <Field label="Stock Type">
+   435	                  <select
+   436	                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   437	                    value={form.stockType}
+   438	                    onChange={(e) => setForm({ ...form, stockType: e.target.value })}
+   439	                  >
+   440	                    <option value="other">General / Other</option>
+   441	                    <option value="tab">Tablet (Tab)</option>
+   442	                    <option value="cap">Capsule (Cap)</option>
+   443	                    <option value="syp">Syrup (Syp)</option>
+   444	                    <option value="inj">Injection (Inj)</option>
+   445	                    <option value="jar">Jar</option>
+   446	                  </select>
+   447	                </Field>
+   448	                {(form.stockType === "tab" || form.stockType === "cap") && (
+   449	                  <Field label="Pack (Strips × Per Strip)">
+   450	                    <div className="flex items-center gap-2">
+   451	                      <Input
+   452	                        type="number"
+   453	                        placeholder="Strips"
+   454	                        value={form.stockPacks}
+   455	                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+   456	                        required
+   457	                      />
+   458	                      <span className="text-muted-foreground">×</span>
+   459	                      <Input
+   460	                        type="number"
+   461	                        placeholder="Units"
+   462	                        value={form.stockUnits}
+   463	                        onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
+   464	                        required
+   465	                      />
+   466	                    </div>
+   467	                  </Field>
+   468	                )}
+   469	                <Field label="Stock Quantity">
+   470	                  <Input
+   471	                    type="number"
+   472	                    placeholder="Total qty"
+   473	                    value={form.stock}
+   474	                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+   475	                    required
+   476	                  />
+   477	                </Field>
+   478	                <Field label="Expiry">
+   479	                  <Input
+   480	                    type="date"
+   481	                    value={form.expiry}
+   482	                    onChange={(e) => setForm({ ...form, expiry: e.target.value })}
+   483	                    required
+   484	                  />
+   485	                </Field>
+   486	                <Field label="Tax %">
+   487	                  <Input
+   488	                    type="number"
+   489	                    value={form.taxPercent}
+   490	                    onChange={(e) => setForm({ ...form, taxPercent: e.target.value })}
+   491	                  />
+   492	                </Field>
+   493	                <Field label="Batch">
+   494	                  <Input
+   495	                    value={form.batch}
+   496	                    onChange={(e) => setForm({ ...form, batch: e.target.value })}
+   497	                  />
+   498	                </Field>
+   499	                <Field label="SKU">
+   500	                  <div className="flex gap-2">
+   501	                    <Input
+   502	                      value={form.sku}
+   503	                      onChange={(e) => setForm({ ...form, sku: e.target.value })}
+   504	                      placeholder="Type or scan"
+   505	                    />
+   506	                    <Button
+   507	                      type="button"
+   508	                      variant="outline"
+   509	                      size="icon"
+   510	                      onClick={() => setScannerOpen(true)}
+   511	                      title="Scan barcode"
+   512	                    >
+   513	                      <ScanLine className="h-4 w-4" />
+   514	                    </Button>
+   515	                  </div>
+   516	                </Field>
+   517	                <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
+   518	                  <div>
+   519	                    <div className="text-sm font-medium">Prescription required</div>
+   520	                    <div className="text-xs text-muted-foreground">
+   521	                      Mark this product as Rx-only.
+   522	                    </div>
+   523	                  </div>
+   524	                  <Switch
+   525	                    checked={form.prescription}
+   526	                    onCheckedChange={(v) => setForm({ ...form, prescription: v })}
+   527	                  />
+   528	                </div>
+   529	                <DialogFooter className="col-span-2">
+   530	                  <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+   531	                    Cancel
+   532	                  </Button>
+   533	                  <Button type="submit" className="shadow-soft">
+   534	                    {editing ? "Save changes" : "Add product"}
+   535	                  </Button>
+   536	                </DialogFooter>
+   537	              </form>
+   538	            </DialogContent>
+   539	          </Dialog>
+   540	        </div>
+   541	      </div>
+   542	
+   543	      <Card className="shadow-soft overflow-hidden">
+   544	        <Table>
+   545	          <TableHeader>
+   546	            <TableRow>
+   547	              <TableHead className="w-12 text-center">#</TableHead>
+   548	              <TableHead>Name</TableHead>
+   549	              <TableHead>Category</TableHead>
+   550	              <TableHead className="text-right">Price</TableHead>
+   551	              <TableHead className="text-right">Stock</TableHead>
+   552	              <TableHead>Expiry</TableHead>
+   553	              <TableHead className="text-right">Actions</TableHead>
+   554	            </TableRow>
+   555	          </TableHeader>
+   556	          <TableBody>
+   557	            {sorted.length === 0 ? (
+   558	              <TableRow>
+   559	                <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+   560	                  {items.length === 0
+   561	                    ? "No products yet. Add your first one to get started."
+   562	                    : "No products match your search."}
+   563	                </TableCell>
+   564	              </TableRow>
+   565	            ) : (
+   566	              sorted.map((p, idx) => {
+   567	                const lowStock = p.stock <= 10;
+   568	                return (
+   569	                  <TableRow 
+   570	                    key={p.id} 
+   571	                    className="animate-fade-in cursor-pointer hover:bg-muted/50"
+   572	                    onClick={() => navigate({ to: "/inventory/$id", params: { id: p.id } })}
+   573	                  >
+   574	                    <TableCell className="text-center font-medium text-muted-foreground">
+   575	                      {idx + 1}
+   576	                    </TableCell>
+   577	                    <TableCell>
+   578	                      <div className="font-medium">{p.name}</div>
+   579	                      <div className="text-xs text-muted-foreground">
+   580	                        {p.manufacturer ?? "—"} {p.batch ? `· Batch ${p.batch}` : ""}
+   581	                        {p.prescription ? " · Rx" : ""}
+   582	                      </div>
+   583	                    </TableCell>
+   584	                    <TableCell>{p.category}</TableCell>
+   585	                    <TableCell className="text-right tabular-nums">
+   586	                      {p.price.toFixed(2)}
+   587	                      {p.taxPercent ? (
+   588	                        <span className="text-xs text-muted-foreground"> +{p.taxPercent}%</span>
+   589	                      ) : null}
+   590	                    </TableCell>
+   591	                    <TableCell className="text-right">
+   592	                      <span
+   593	                        className={
+   594	                          lowStock
+   595	                            ? "inline-block bg-warning/30 text-warning-foreground px-2 py-0.5 rounded-md text-xs"
+   596	                            : "tabular-nums"
+   597	                        }
+   598	                      >
+   599	                        {p.stock}
+   600	                      </span>
+   601	                    </TableCell>
+   602	                    <TableCell>{new Date(p.expiry).toLocaleDateString()}</TableCell>
+   603	                    <TableCell className="text-right">
+   604	                      <Button
+   605	                        variant="ghost"
+   606	                        size="icon"
+   607	                        onClick={(e) => { e.stopPropagation(); quickAdd(p); }}
+   608	                        disabled={p.stock <= 0}
+   609	                        className="text-primary hover:text-primary"
+   610	                        title="Add to cart"
+   611	                      >
+   612	                        <ShoppingCart className="h-4 w-4" />
+   613	                      </Button>
+   614	                      <Link to="/inventory/$id" params={{ id: p.id }} onClick={(e) => e.stopPropagation()}>
+   615	                        <Button variant="ghost" size="icon" title="View Details">
+   616	                          <Eye className="h-4 w-4" />
+   617	                        </Button>
+   618	                      </Link>
+   619	                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); startEdit(p); }} title="Edit">
+   620	                        <Pencil className="h-4 w-4" />
+   621	                      </Button>
+   622	                      <Button
+   623	                        variant="ghost"
+   624	                        size="icon"
+   625	                        onClick={(e) => { e.stopPropagation(); remove(p); }}
+   626	                        className="text-destructive hover:text-destructive"
+   627	                        title="Delete"
+   628	                      >
+   629	                        <Trash2 className="h-4 w-4" />
+   630	                      </Button>
+   631	                    </TableCell>
+   632	                  </TableRow>
+   633	                );
+   634	              })
+   635	            )}
+   636	          </TableBody>
+   637	        </Table>
+   638	      </Card>
+   639	
+   640	      <SkuScanner
+   641	        open={scannerOpen}
+   642	        onOpenChange={setScannerOpen}
+   643	        onDetected={handleScan}
+   644	      />
+   645	    </div>
+   646	  );
+   647	}
+   648	
+   649	function Field({
+   650	  label,
+   651	  children,
+   652	  className,
+   653	}: {
+   654	  label: string;
+   655	  children: React.ReactNode;
+   656	  className?: string;
+   657	}) {
+   658	  return (
+   659	    <div className={`space-y-1.5 ${className ?? ""}`}>
+   660	      <Label className="text-xs">{label}</Label>
+   661	      {children}
+   662	    </div>
+   663	  );
+   664	}

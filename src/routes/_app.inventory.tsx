@@ -205,7 +205,7 @@ function InventoryPage() {
       }
       return true;
     });
-
+  }, [items, query, search.filter, expiryDays]);
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
       if (sortBy === "name_asc") return a.name.localeCompare(b.name);
