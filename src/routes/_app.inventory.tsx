@@ -679,12 +679,13 @@ function BulkImportDialog({ open, onOpenChange, onImport }: { open: boolean, onO
     setError("");
 
     try {
-      if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.name.endsWith(".csv")) {
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
         const data = await parseExcel(file);
         if (data.length === 0) throw new Error("No valid products found in the file.");
         onImport(data);
         onOpenChange(false);
-      } else if (file.name.endsWith(".pdf")) {
+      } else if (fileName.endsWith(".pdf")) {
         const data = await parsePdf(file);
         if (data.length === 0) throw new Error("Could not extract tabular product data from the PDF. The heuristic parser failed.");
         onImport(data);
