@@ -60,10 +60,15 @@ export function KeyboardShortcuts() {
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         e.stopPropagation();
+        if (cart.items.length > 0) {
+          if (!window.confirm("You have a pending bill. Are you sure you want to clear it and start a new one?")) {
+            return;
+          }
+        }
         cart.clear();
         if (routerState.location.pathname !== "/sell") {
           navigate({ to: "/sell" }).then(() => {
-            window.dispatchEvent(new CustomEvent("trigger-new-bill"));
+            setTimeout(() => window.dispatchEvent(new CustomEvent("trigger-new-bill")), 100);
           });
         } else {
           window.dispatchEvent(new CustomEvent("trigger-new-bill"));
@@ -183,8 +188,7 @@ export function KeyboardShortcuts() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("open-shortcuts", openHandler);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, cart.items, cart.paymentMethod, cart.customer, session, open, routerState.location.pathname]);
+  }, [navigate, cart, open, routerState.location.pathname]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
