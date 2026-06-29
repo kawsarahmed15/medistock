@@ -149,6 +149,7 @@ function DashboardPage() {
       icon: IndianRupee,
       tint: "bg-success/15 text-success",
       to: "/revenue",
+      search: { range: "month" },
     },
     {
       label: "Low stock",
