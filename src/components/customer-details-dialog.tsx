@@ -199,7 +199,11 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                   <button
                     key={`${c.phone}-${c.name}`}
                     type="button"
-                    onClick={() => pick(c)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pick(c);
+                      setNameFocused(false);
+                    }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
                   >
                     <div className="font-medium truncate">{c.name}</div>
