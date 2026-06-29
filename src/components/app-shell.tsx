@@ -221,13 +221,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="hidden md:flex flex-1" />
 
         {sellButton}
-        <div 
-          className="hidden lg:flex items-center justify-center h-9 px-3 rounded-lg border border-border bg-muted/30 text-xs text-muted-foreground font-medium select-none cursor-pointer hover:bg-muted/80 transition-colors shrink-0"
-          title="Show keyboard shortcuts"
-          onClick={() => window.dispatchEvent(new CustomEvent("open-shortcuts"))}
-        >
-          Press <kbd className="mx-1.5 px-1.5 py-0.5 rounded-md bg-background border shadow-sm font-sans font-bold text-[10px] text-foreground">?</kbd> for shortcuts
-        </div>
+
         {themeButton}
       </header>
 
