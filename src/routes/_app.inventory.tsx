@@ -549,7 +549,11 @@ function InventoryPage() {
               filtered.map((p) => {
                 const lowStock = p.stock <= 10;
                 return (
-                  <TableRow key={p.id} className="animate-fade-in">
+                  <TableRow 
+                    key={p.id} 
+                    className="animate-fade-in cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate({ to: "/inventory/$id", params: { id: p.id } })}
+                  >
                     <TableCell>
                       <div className="font-medium">{p.name}</div>
                       <div className="text-xs text-muted-foreground">
@@ -580,25 +584,25 @@ function InventoryPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => quickAdd(p)}
+                        onClick={(e) => { e.stopPropagation(); quickAdd(p); }}
                         disabled={p.stock <= 0}
                         className="text-primary hover:text-primary"
                         title="Add to cart"
                       >
                         <ShoppingCart className="h-4 w-4" />
                       </Button>
-                      <Link to="/inventory/$id" params={{ id: p.id }}>
+                      <Link to="/inventory/$id" params={{ id: p.id }} onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" title="View Details">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="icon" onClick={() => startEdit(p)} title="Edit">
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); startEdit(p); }} title="Edit">
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => remove(p)}
+                        onClick={(e) => { e.stopPropagation(); remove(p); }}
                         className="text-destructive hover:text-destructive"
                         title="Delete"
                       >
