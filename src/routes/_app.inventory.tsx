@@ -279,8 +279,8 @@ function InventoryPage() {
       packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
       packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
     };
-    if (!payload.name || !payload.expiry || isNaN(payload.price) || isNaN(payload.stock)) {
-      toast.error("Please fill name, price, stock and expiry.");
+    if (!payload.name || !payload.expiry || isNaN(payload.price) || isNaN(payload.stock) || payload.costPrice === undefined || isNaN(payload.costPrice)) {
+      toast.error("Please fill name, buying price, selling price, stock and expiry.");
       return;
     }
     try {
@@ -391,6 +391,7 @@ function InventoryPage() {
                     value={form.costPrice}
                     onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
                     placeholder="Cost per unit"
+                    required
                   />
                 </Field>
                 <Field label="Selling price">
