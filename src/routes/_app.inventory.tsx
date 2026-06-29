@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye } from "lucide-react";
+import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye, FileUp } from "lucide-react";
+import * as XLSX from "xlsx";
+import * as pdfjsLib from "pdfjs-dist";
+
+if (typeof window !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+}
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { productsStore, type Product } from "@/lib/storage";
@@ -108,6 +114,7 @@ function InventoryPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<FormState>(empty);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const { session } = useAuth();
   const expiryDays = session?.expiryDays ?? 60;
 
@@ -312,6 +319,36 @@ function InventoryPage() {
     }
   };
 
+  const handleBulkImport = async (parsedProducts: any[]) => {
+    try {
+      let count = 0;
+      for (const p of parsedProducts) {
+        await productsStore.add({
+          name: p.name,
+          category: p.category || "General",
+          costPrice: p.costPrice,
+          price: p.price,
+          mrp: p.mrp || p.price,
+          stock: p.stock,
+          expiry: p.expiry,
+          batch: p.batch || undefined,
+          manufacturer: p.manufacturer || undefined,
+          sku: p.sku || undefined,
+          taxPercent: p.taxPercent || 0,
+          prescription: !!p.prescription,
+          baseUnit: "Unit",
+          packUnit: "Pack",
+          conversionFactor: 1,
+        });
+        count++;
+      }
+      toast.success(`Successfully imported ${count} products`);
+      refresh();
+    } catch (err) {
+      toast.error("Failed to import some products: " + ((err as Error).message || "Unknown error"));
+    }
+  };
+
   const filterLabel: Record<NonNullable<InventorySearch["filter"]>, string> = {
     low: "Low stock (≤ 10)",
     expiring: `Expiring within ${expiryDays} days`,
@@ -355,6 +392,10 @@ function InventoryPage() {
           >
             <ScanLine className="h-4 w-4" />
             <span className="hidden sm:inline">Scan SKU</span>
+          </Button>
+          <Button variant="outline" onClick={() => setImportOpen(true)} title="Bulk Import">
+            <FileUp className="h-4 w-4" />
+            <span className="hidden sm:inline">Bulk Import</span>
           </Button>
           <Button onClick={startAdd} className="shadow-soft">
             <Plus className="h-4 w-4" />
@@ -622,8 +663,141 @@ function InventoryPage() {
         onOpenChange={setScannerOpen}
         onDetected={handleScan}
       />
+      <BulkImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImport={handleBulkImport}
+      />
     </div>
   );
+}
+
+function BulkImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenChange: (o: boolean) => void, onImport: (products: any[]) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setLoading(true);
+    setError("");
+
+    try {
+      if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.name.endsWith(".csv")) {
+        const data = await parseExcel(file);
+        if (data.length === 0) throw new Error("No valid products found in the file.");
+        onImport(data);
+        onOpenChange(false);
+      } else if (file.name.endsWith(".pdf")) {
+        const data = await parsePdf(file);
+        if (data.length === 0) throw new Error("Could not extract tabular product data from the PDF. The heuristic parser failed.");
+        onImport(data);
+        onOpenChange(false);
+      } else {
+        throw new Error("Unsupported file format. Please upload an Excel, CSV, or PDF file.");
+      }
+    } catch (err) {
+      setError((err as Error).message || "Failed to process file.");
+    } finally {
+      setLoading(false);
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Bulk Import Products</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Upload an Excel (.xlsx), CSV, or PDF file. Excel/CSV should have columns like <strong>Name, Category, Buying Price, Selling Price, Stock, Expiry, Batch, SKU</strong>.
+          </p>
+          <div className="flex gap-4 items-center">
+             <label className="relative flex-1 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border px-6 py-10 text-center hover:bg-accent/50 transition-smooth">
+                <FileUp className="mx-auto h-8 w-8 text-muted-foreground" />
+                <span className="mt-2 block text-sm font-medium">Click to select file</span>
+                <span className="block text-xs text-muted-foreground">Excel, CSV, PDF up to 10MB</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".xlsx,.xls,.csv,.pdf"
+                  onChange={handleFile}
+                  disabled={loading}
+                />
+             </label>
+          </div>
+          {loading && <p className="text-sm text-primary text-center animate-pulse">Processing file...</p>}
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+async function parseExcel(file: File): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const firstSheet = workbook.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+        
+        const parsed = rows.map((row: any) => ({
+          name: row.name || row.Name || row["Product Name"] || "",
+          category: row.category || row.Category || "General",
+          costPrice: Number(row.costPrice || row.cost_price || row["Cost Price"] || row["Buying Price"]) || 0,
+          price: Number(row.price || row.Price || row["Selling Price"]) || 0,
+          stock: Number(row.stock || row.Stock || row.Qty || row.Quantity) || 0,
+          expiry: row.expiry || row.Expiry ? new Date(row.expiry || row.Expiry).toISOString().slice(0, 10) : new Date(Date.now() + 31536000000).toISOString().slice(0, 10),
+          batch: String(row.batch || row.Batch || ""),
+          sku: String(row.sku || row.SKU || ""),
+        })).filter((p) => p.name && p.price > 0 && p.costPrice > 0);
+        resolve(parsed);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsBinaryString(file);
+  });
+}
+
+async function parsePdf(file: File): Promise<any[]> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const strings = content.items.map((item: any) => item.str);
+    fullText += strings.join(" ") + "\n";
+  }
+  
+  const parsed: any[] = [];
+  const lines = fullText.split('\n');
+  for (const line of lines) {
+    // Basic heuristic: check if line has words, and some numbers at the end
+    // E.g. "Paracetamol 500mg 100 50 80" -> Name Qty Cost Price
+    const match = line.match(/^([A-Za-z0-9\s\-\.]+)\s+(\d+)\s+([\d\.]+)\s+([\d\.]+)/);
+    if (match && match[1].trim().length > 3) {
+       parsed.push({
+         name: match[1].trim(),
+         category: "General",
+         stock: Number(match[2]),
+         costPrice: Number(match[3]),
+         price: Number(match[4]),
+         expiry: new Date(Date.now() + 31536000000).toISOString().slice(0, 10),
+         batch: "",
+         sku: "",
+       });
+    }
+  }
+  return parsed;
 }
 
 function Field({
