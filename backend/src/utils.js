@@ -52,6 +52,7 @@ export function sanitizeUser(row) {
     signature: row.signature || undefined,
     role: row.role || "user",
     accountStatus: row.account_status || "active",
+    expiryDays: row.expiring_days || 60,
   };
 }
 

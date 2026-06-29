@@ -12,6 +12,7 @@ export type Session = {
   signature?: string;
   role?: string;
   accountStatus?: string;
+  expiryDays?: number;
 };
 
 type AuthCtx = {

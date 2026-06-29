@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { Package, ReceiptText, ShoppingCart, AlertTriangle, IndianRupee, TrendingUp } from "lucide-react";
 import { productsStore, billsStore, type Product, type Bill } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,8 @@ function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
+  const { session } = useAuth();
+  const expiryDays = session?.expiryDays ?? 60;
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +82,7 @@ function DashboardPage() {
     .filter((p) => {
       const d = new Date(p.expiry).getTime();
       const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
-      return days <= 60 && days >= 0;
+      return days <= expiryDays && days >= 0;
     })
     .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime());
     

@@ -259,7 +259,7 @@ router.get("/me", requireAuth, async (req, res, next) => {
 router.patch("/profile", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, gst_number, bill_color, signature, role, account_status FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, gst_number, bill_color, signature, role, account_status, expiring_days FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -273,14 +273,15 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
     const gstNumber = req.body.gstNumber !== undefined ? req.body.gstNumber : user.gst_number;
     const billColor = req.body.billColor !== undefined ? req.body.billColor : user.bill_color;
     const signature = req.body.signature !== undefined ? req.body.signature : user.signature;
+    const expiryDays = req.body.expiryDays !== undefined ? Number(req.body.expiryDays) || 60 : user.expiring_days;
 
     await pool.query(
-      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_address = ?, gst_number = ?, bill_color = ?, signature = ? WHERE id = ?",
-      [name, pharmacyName, pharmacyAddress, gstNumber, billColor, signature, req.auth.userId]
+      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_address = ?, gst_number = ?, bill_color = ?, signature = ?, expiring_days = ? WHERE id = ?",
+      [name, pharmacyName, pharmacyAddress, gstNumber, billColor, signature, expiryDays, req.auth.userId]
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_address, gst_number, bill_color, signature, role, account_status FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_address, gst_number, bill_color, signature, role, account_status, expiring_days FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
 

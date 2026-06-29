@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
+import { useAuth } from "@/lib/auth-context";
 import { productsStore, type Product } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +108,8 @@ function InventoryPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<FormState>(empty);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const { session } = useAuth();
+  const expiryDays = session?.expiryDays ?? 60;
 
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -193,7 +196,7 @@ function InventoryPage() {
       if (search.filter === "expiring") {
         const d = new Date(p.expiry).getTime();
         const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
-        return days <= 60 && days >= 0;
+        return days <= expiryDays && days >= 0;
       }
       if (search.filter === "expired") {
         return new Date(p.expiry).getTime() < Date.now();
@@ -311,7 +314,7 @@ function InventoryPage() {
 
   const filterLabel: Record<NonNullable<InventorySearch["filter"]>, string> = {
     low: "Low stock (≤ 10)",
-    expiring: "Expiring within 60 days",
+    expiring: `Expiring within ${expiryDays} days`,
     expired: "Expired products",
   };
 

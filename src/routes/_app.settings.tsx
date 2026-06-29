@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Settings, ShieldCheck, FileText, Palette, FileImage, Trash2, Edit } from "lucide-react";
+import { Settings, ShieldCheck, FileText, Palette, FileImage, Trash2, Edit, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/settings")({
@@ -31,6 +31,7 @@ function SettingsPage() {
   const [gstNumber, setGstNumber] = useState(session?.gstNumber ?? "");
   const [billColor, setBillColor] = useState(session?.billColor ?? "#1a9890");
   const [signature, setSignature] = useState(session?.signature ?? "");
+  const [expiryDays, setExpiryDays] = useState(session?.expiryDays ?? 60);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +42,7 @@ function SettingsPage() {
       if (session.gstNumber) setGstNumber(session.gstNumber);
       if (session.billColor) setBillColor(session.billColor);
       if (session.signature) setSignature(session.signature);
+      if (session.expiryDays) setExpiryDays(session.expiryDays);
     }
   }, [session]);
 
@@ -83,6 +85,7 @@ function SettingsPage() {
           gstNumber: gstNumber.trim() || null,
           billColor: billColor,
           signature: signature || null,
+          expiryDays: Number(expiryDays) || 60,
         },
         auth: true,
       });
@@ -93,6 +96,7 @@ function SettingsPage() {
         gstNumber: gstNumber.trim() || undefined,
         billColor: billColor,
         signature: signature || undefined,
+        expiryDays: Number(expiryDays) || 60,
       });
 
       toast.success("Billing preferences saved successfully");
@@ -223,6 +227,36 @@ function SettingsPage() {
                     />
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-soft border-border/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Clock className="h-5 w-5 text-primary" />
+                Inventory Preferences
+              </CardTitle>
+              <CardDescription>
+                Customize settings related to stock and expiring products.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-w-sm">
+                <Label htmlFor="expiry-days">"Expiring Soon" Threshold</Label>
+                <select
+                  id="expiry-days"
+                  value={expiryDays}
+                  onChange={(e) => setExpiryDays(Number(e.target.value))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value={60}>60 Days</option>
+                  <option value={90}>90 Days</option>
+                  <option value={120}>120 Days</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Products expiring within this timeframe will be highlighted as "Expiring Soon".
+                </p>
               </div>
             </CardContent>
           </Card>
