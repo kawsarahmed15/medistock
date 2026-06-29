@@ -61,6 +61,8 @@ function rangeBounds(range: Range, from?: string, to?: string): { start: Date; e
       break;
     case "month":
       start.setDate(1);
+      end.setMonth(start.getMonth() + 1, 0); // last day of the month
+      end.setHours(23, 59, 59, 999);
       break;
     case "quarter":
       start.setDate(start.getDate() - 89);

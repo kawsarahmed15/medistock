@@ -49,15 +49,20 @@ function DashboardPage() {
     };
   }, []);
 
-  // Month-to-date: bills generated and revenue reset to 0 on the 1st of every month
-  const monthStart = useMemo(() => {
+  // Month-to-date: strictly bounded to the current calendar month
+  const { monthStart, monthEnd } = useMemo(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+    return { monthStart: start, monthEnd: end };
   }, []);
   
   const billsThisMonth = useMemo(
-    () => bills.filter((b) => new Date(b.createdAt).getTime() >= monthStart),
-    [bills, monthStart],
+    () => bills.filter((b) => {
+      const t = new Date(b.createdAt).getTime();
+      return t >= monthStart && t <= monthEnd;
+    }),
+    [bills, monthStart, monthEnd],
   );
   
   const totalSales = billsThisMonth.reduce((s, b) => s + b.total, 0);
