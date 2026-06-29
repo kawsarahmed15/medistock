@@ -228,6 +228,14 @@ export async function downloadBillPdf(
   doc.setTextColor(35, 35, 35);
   doc.text(bill.tax.toFixed(2), totalsValueX, ty, { align: "right" });
 
+  if ((bill.discount || 0) > 0) {
+    ty += 16;
+    doc.setTextColor(110, 110, 110);
+    doc.text("Discount", totalsLabelX, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.text(`-${(bill.discount || 0).toFixed(2)}`, totalsValueX, ty, { align: "right" });
+  }
+
   ty += 10;
   doc.setDrawColor(220, 220, 220);
   doc.line(totalsLabelX, ty, totalsValueX, ty);

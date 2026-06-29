@@ -48,6 +48,7 @@ export type Bill = {
   items: BillItem[];
   subtotal: number;
   tax: number;
+  discount?: number;
   total: number;
   advanceAmount: number;
   paymentMethod: PaymentMethod;
@@ -157,6 +158,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     advanceAmount: Number(b.advance_amount) || 0,
     subtotal: Number(b.subtotal) || 0,
     tax: Number(b.tax) || 0,
+    discount: Number(b.discount) || 0,
     total: Number(b.total) || 0,
     createdAt: b.created_at,
     items: items.map((it) => ({

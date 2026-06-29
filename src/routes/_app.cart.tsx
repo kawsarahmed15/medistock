@@ -81,6 +81,7 @@ function CartPage() {
         cashier: session?.name,
         paymentMethod: cart.paymentMethod,
         advanceAmount: cart.advanceAmount,
+        discount: cart.discount,
         items: cart.items.map((i) => ({
           productId: i.product.id,
           name: i.product.name,
@@ -316,6 +317,30 @@ function CartPage() {
             </CardContent>
           </Card>
 
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle className="text-base">Discount</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={cart.subtotal + cart.tax}
+                  value={cart.discount || ""}
+                  onChange={(e) => cart.setDiscount(Number(e.target.value))}
+                  className="pl-7"
+                  placeholder="0.00"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Enter flat discount amount to reduce the total bill.
+              </p>
+            </CardContent>
+          </Card>
+
           {hasRx && (
             <Card className="shadow-soft border-destructive/40">
               <CardHeader>
@@ -351,6 +376,9 @@ function CartPage() {
             <CardContent className="space-y-2 text-sm">
               <Row label="Subtotal" value={formatMoney(cart.subtotal)} />
               <Row label="Tax" value={formatMoney(cart.tax)} />
+              {cart.discount > 0 && (
+                <Row label="Discount" value={`-${formatMoney(cart.discount)}`} className="text-emerald-500" />
+              )}
               <div className="border-t pt-2">
                 <Row label="Total" value={formatMoney(cart.total)} bold />
               </div>

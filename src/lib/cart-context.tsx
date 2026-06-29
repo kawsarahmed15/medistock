@@ -41,6 +41,8 @@ type CartCtx = {
   setPaymentMethod: (m: PaymentMethod) => void;
   advanceAmount: number;
   setAdvanceAmount: (a: number) => void;
+  discount: number;
+  setDiscount: (d: number) => void;
 };
 
 const Ctx = createContext<CartCtx | null>(null);
@@ -51,6 +53,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [customerSubmitted, setCustomerSubmitted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [discount, setDiscount] = useState(0);
 
   const add: CartCtx["add"] = (product, qty = 1) => {
     const isFirst = items.length === 0;
@@ -93,6 +96,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCustomerSubmitted(false);
     setPaymentMethod("cash");
     setAdvanceAmount(0);
+    setDiscount(0);
   };
 
   const subtotal = items.reduce((s, i) => s + ((i.qty - (i.freeQty || 0)) * i.product.price), 0);
@@ -100,7 +104,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     (s, i) => s + (((i.qty - (i.freeQty || 0)) * i.product.price * (i.product.taxPercent ?? 0)) / 100),
     0,
   );
-  const total = subtotal + tax;
+  const total = Math.max(0, subtotal + tax - discount);
   const count = items.reduce((s, i) => s + i.qty, 0);
 
   return (
@@ -124,6 +128,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setPaymentMethod,
         advanceAmount,
         setAdvanceAmount,
+        discount,
+        setDiscount,
       }}
     >
       {children}
