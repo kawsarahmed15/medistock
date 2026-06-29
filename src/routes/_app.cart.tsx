@@ -327,7 +327,7 @@ function CartPage() {
                   type="button"
                   onClick={() => cart.setDiscountType("percentage")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md border transition-smooth text-center",
+                    "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
                     cart.discountType === "percentage"
                       ? "bg-primary/10 border-primary text-primary shadow-soft"
                       : "border-border hover:bg-accent/40"
@@ -339,7 +339,7 @@ function CartPage() {
                   type="button"
                   onClick={() => cart.setDiscountType("flat")}
                   className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-md border transition-smooth text-center",
+                    "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
                     cart.discountType === "flat"
                       ? "bg-primary/10 border-primary text-primary shadow-soft"
                       : "border-border hover:bg-accent/40"
