@@ -162,11 +162,11 @@ function RevenuePage() {
       .reduce((s, b) => s + (b.paymentMethod === "online" ? (b.total || 0) : 0), 0) +
       filteredPayments.reduce((s, p) => s + (p.method === "online" ? (Number(p.amount) || 0) : 0), 0);
       
-    const creditCollection = filteredBills
-      .reduce((s, b) => s + (b.paymentMethod === "credit" ? (b.advanceAmount || 0) : 0), 0) +
+    const pendingCredit = filteredBills
+      .reduce((s, b) => s + (b.paymentMethod === "credit" ? ((b.total || 0) - (b.advanceAmount || 0)) : 0), 0) -
       filteredPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
-    return { totalRevenue, totalTax, avgBill, profit, cash, online, creditCollection };
+    return { totalRevenue, totalTax, avgBill, profit, cash, online, pendingCredit };
   }, [filteredBills, filteredPayments]);
 
   // For "today" we'll render an hourly chart instead of daily.
@@ -387,8 +387,8 @@ function RevenuePage() {
         </Card>
         <Card className="shadow-soft border-l-4 border-l-amber-500">
           <CardContent className="p-5">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Credit collection</div>
-            <div className="mt-1 text-2xl font-semibold text-amber-500">{formatMoney(stats.creditCollection)}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Pending credit</div>
+            <div className="mt-1 text-2xl font-semibold text-amber-500">{formatMoney(stats.pendingCredit)}</div>
           </CardContent>
         </Card>
       </div>
