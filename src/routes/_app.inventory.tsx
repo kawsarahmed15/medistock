@@ -1,12 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye, FileUp } from "lucide-react";
-import * as XLSX from "xlsx";
-import * as pdfjsLib from "pdfjs-dist";
 
-if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-}
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { productsStore, type Product } from "@/lib/storage";
@@ -738,6 +733,7 @@ function BulkImportDialog({ open, onOpenChange, onImport }: { open: boolean, onO
 }
 
 async function parseExcel(file: File): Promise<any[]> {
+  const XLSX = await import("xlsx");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -768,6 +764,10 @@ async function parseExcel(file: File): Promise<any[]> {
 }
 
 async function parsePdf(file: File): Promise<any[]> {
+  const pdfjsLib = await import("pdfjs-dist");
+  if (typeof window !== "undefined") {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  }
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   let fullText = "";
