@@ -53,6 +53,7 @@ export function sanitizeUser(row) {
     role: row.role || "user",
     accountStatus: row.account_status || "active",
     expiryDays: row.expiring_days || 60,
+    defaultTax: row.default_tax !== null && row.default_tax !== undefined ? Number(row.default_tax) : 12,
   };
 }
 

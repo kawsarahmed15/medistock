@@ -112,6 +112,14 @@ function InventoryPage() {
   const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">("date_desc");
   const { session } = useAuth();
   const expiryDays = session?.expiryDays ?? 60;
+  const defaultTax = session?.defaultTax ?? 12;
+
+  useEffect(() => {
+    // Initialize form with default tax once session is loaded if it's the empty form
+    if (form === empty) {
+      setForm({ ...empty, taxPercent: String(defaultTax) });
+    }
+  }, [defaultTax]);
 
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -162,7 +170,7 @@ function InventoryPage() {
     } else {
       // New product flow with SKU pre-filled
       setEditing(null);
-      setForm({ ...empty, sku: trimmed });
+      setForm({ ...empty, sku: trimmed, taxPercent: String(defaultTax) });
       toast.info("New SKU — fill the rest to add the product");
     }
     setOpen(true);
@@ -218,7 +226,7 @@ function InventoryPage() {
   useEffect(() => {
     const handler = () => {
       setEditing(null);
-      setForm(empty);
+      setForm({ ...empty, taxPercent: String(defaultTax) });
       setOpen(true);
     };
     window.addEventListener("trigger-add-product", handler);
@@ -229,7 +237,7 @@ function InventoryPage() {
 
   const startAdd = () => {
     setEditing(null);
-    setForm(empty);
+    setForm({ ...empty, taxPercent: String(defaultTax) });
     setOpen(true);
   };
 

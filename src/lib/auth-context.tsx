@@ -13,6 +13,7 @@ export type Session = {
   role?: string;
   accountStatus?: string;
   expiryDays?: number;
+  defaultTax?: number;
 };
 
 type AuthCtx = {
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             signature: res.user.signature,
             role: res.user.role,
             accountStatus: res.user.accountStatus,
+            defaultTax: res.user.defaultTax,
           });
         } catch {
           setAuthToken(null);
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signature: res.user.signature,
         role: res.user.role,
         accountStatus: res.user.accountStatus,
+        defaultTax: res.user.defaultTax,
       });
     },
     signup: async (name, email, password, pharmacyName) => {

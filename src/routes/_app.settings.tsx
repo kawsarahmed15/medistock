@@ -32,6 +32,7 @@ function SettingsPage() {
   const [billColor, setBillColor] = useState(session?.billColor ?? "#1a9890");
   const [signature, setSignature] = useState(session?.signature ?? "");
   const [expiryDays, setExpiryDays] = useState(session?.expiryDays ?? 60);
+  const [defaultTax, setDefaultTax] = useState(session?.defaultTax ?? 12);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,6 +44,7 @@ function SettingsPage() {
       if (session.billColor) setBillColor(session.billColor);
       if (session.signature) setSignature(session.signature);
       if (session.expiryDays) setExpiryDays(session.expiryDays);
+      if (session.defaultTax !== undefined) setDefaultTax(session.defaultTax);
     }
   }, [session]);
 
@@ -86,6 +88,7 @@ function SettingsPage() {
           billColor: billColor,
           signature: signature || null,
           expiryDays: Number(expiryDays) || 60,
+          defaultTax: Number(defaultTax),
         },
         auth: true,
       });
@@ -97,6 +100,7 @@ function SettingsPage() {
         billColor: billColor,
         signature: signature || undefined,
         expiryDays: Number(expiryDays) || 60,
+        defaultTax: Number(defaultTax),
       });
 
       toast.success("Billing preferences saved successfully");
@@ -256,6 +260,21 @@ function SettingsPage() {
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
                   Products expiring within this timeframe will be highlighted as "Expiring Soon".
+                </p>
+              </div>
+
+              <div className="space-y-2 max-w-sm mt-4">
+                <Label htmlFor="default-tax">Default Tax %</Label>
+                <Input
+                  id="default-tax"
+                  type="number"
+                  step="0.01"
+                  value={defaultTax}
+                  onChange={(e) => setDefaultTax(Number(e.target.value))}
+                  placeholder="e.g. 12"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Default tax percentage applied when adding new products.
                 </p>
               </div>
             </CardContent>
