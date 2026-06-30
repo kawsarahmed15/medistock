@@ -77,6 +77,7 @@ function CartPage() {
       const bill = await billsStore.add({
         customerName: cart.customer.name || undefined,
         customerPhone: cart.customer.phone || undefined,
+        customerAddress: cart.customer.address || undefined,
         customerNotes: combinedNotes || undefined,
         cashier: session?.name,
         paymentMethod: cart.paymentMethod,

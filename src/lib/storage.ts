@@ -123,6 +123,7 @@ type BillRow = {
   number: string;
   customer_name: string | null;
   customer_phone: string | null;
+  customer_address?: string | null;
   customer_notes: string | null;
   cashier: string | null;
   payment_method: PaymentMethod;
