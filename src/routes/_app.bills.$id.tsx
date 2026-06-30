@@ -322,7 +322,7 @@ function BillDetailPage() {
                 </div>
               )}
               
-              <div className="flex justify-between py-3 my-1 text-xl font-bold uppercase tracking-wide bg-primary text-primary-foreground px-4 rounded-md print:bg-primary print:text-white print:-mx-4">
+              <div className="flex justify-between py-2 text-xl font-bold uppercase tracking-wide text-primary">
                 <span>Net Payable</span>
                 <span className="font-mono">₹{netPayable.toFixed(2)}</span>
               </div>

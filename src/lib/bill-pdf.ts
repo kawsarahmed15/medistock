@@ -296,15 +296,11 @@ export async function downloadBillPdf(
 
   ty += 20;
   
-  // Fill background for Net Payable like UI
-  doc.setFillColor(...primaryRgb);
-  doc.rect(totalsLabelX - 10, ty - 14, 190, 24, "F");
-  
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(...primaryRgb);
   doc.text("Net Payable", totalsLabelX, ty);
-  doc.text(`${RUPEE} ${netPayable.toFixed(2)}`, totalsValueX - 5, ty, { align: "right" });
+  doc.text(`${RUPEE} ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
   
   if (bill.paymentMethod === "credit") {
     ty += 24;
