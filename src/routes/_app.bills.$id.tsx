@@ -211,9 +211,9 @@ function BillDetailPage() {
               <tr>
                 <th className="w-10 text-center p-3 font-medium">#</th>
                 <th className="text-left p-3 font-medium">Item</th>
-                <th className="w-16 text-right p-3 font-medium">Pack</th>
+                <th className="w-20 text-right p-3 font-medium whitespace-nowrap">Pack</th>
                 <th className="w-20 text-center p-3 font-medium">Batch</th>
-                <th className="w-16 text-center p-3 font-medium">Exp.</th>
+                <th className="w-16 text-center p-3 font-medium whitespace-nowrap">Exp.</th>
                 <th className="w-16 text-right p-3 font-medium">MRP</th>
                 <th className="w-12 text-right p-3 font-medium">Qty</th>
                 <th className="w-12 text-right p-3 font-medium">Free</th>
@@ -230,9 +230,14 @@ function BillDetailPage() {
                   <tr key={it.productId || it.name} className="border-t">
                     <td className="p-3 text-center text-muted-foreground">{idx + 1}</td>
                     <td className="p-3">{it.name}</td>
-                    <td className="p-3 text-right tabular-nums">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
+                    <td className="p-3 text-right tabular-nums whitespace-nowrap">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
                     <td className="p-3 text-center tabular-nums">{it.batch ? it.batch : "—"}</td>
-                    <td className="p-3 text-center text-xs tabular-nums">{it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "—"}</td>
+                    <td className="p-3 text-center text-xs tabular-nums whitespace-nowrap">{it.expiry ? (() => {
+                      const d = new Date(it.expiry);
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      const y = String(d.getFullYear()).slice(-2);
+                      return `${m}/${y}`;
+                    })() : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.qty}</td>
                     <td className="p-3 text-right tabular-nums text-primary font-medium">{it.freeQty || 0}</td>
@@ -272,7 +277,12 @@ function BillDetailPage() {
                   {it.freeQty ? ` · Free ${it.freeQty}` : ""}
                   {it.pack && ` · Pack ${it.pack.replace(/[*x]/gi, "X")}`}
                   {it.batch && ` · Batch ${it.batch}`}
-                  {it.expiry && ` · Exp ${new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'})}`}
+                  {it.expiry && ` · Exp ${(() => {
+                    const d = new Date(it.expiry);
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const y = String(d.getFullYear()).slice(-2);
+                    return `${m}/${y}`;
+                  })()}`}
                   {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
                 </div>
               </div>

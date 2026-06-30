@@ -170,7 +170,12 @@ export async function downloadBillPdf(
         clean(it.name),
         it.pack ? it.pack.replace(/[*x]/gi, "X") : "-",
         it.batch ? it.batch : "-",
-        it.expiry ? new Date(it.expiry).toLocaleDateString(undefined, {month: 'short', year: '2-digit'}) : "-",
+        it.expiry ? (() => {
+          const d = new Date(it.expiry);
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const y = String(d.getFullYear()).slice(-2);
+          return `${m}/${y}`;
+        })() : "-",
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         String(it.qty),
         String(it.freeQty || 0),
@@ -195,7 +200,7 @@ export async function downloadBillPdf(
     },
     columnStyles: {
       0: { cellWidth: 16, halign: "center" },
-      2: { halign: "center", cellWidth: 26 },
+      2: { halign: "center", cellWidth: 42 },
       3: { halign: "center", cellWidth: 32 },
       4: { halign: "center", cellWidth: 32 },
       5: { halign: "right", cellWidth: 32 },
