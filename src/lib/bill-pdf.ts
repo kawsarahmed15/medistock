@@ -527,13 +527,13 @@ export async function downloadBillPdf(
   }
 
   // 5. Signatures (Placed at bottom of last page)
-  let sigY = Math.max(leftSideY + 50, rightSideY + 160) + 40;
+  const contentBottom = Math.max(leftSideY + 50, rightSideY + 160);
   
-  const footerSpace = 100;
-  if (sigY > pageHeight - footerSpace) {
+  if (contentBottom > pageHeight - 120) {
     doc.addPage();
-    sigY = 50;
   }
+  
+  const sigY = pageHeight - 65;
 
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.5);
