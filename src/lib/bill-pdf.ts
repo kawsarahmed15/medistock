@@ -1,25 +1,31 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Bill } from "@/lib/storage";
-import { apiRequest } from "@/lib/api-client";
+import QRCode from "qrcode";
 
-// jsPDF's built-in Helvetica font doesn't include the Rupee glyph (₹)
-// or many Unicode dashes — they render as "Ø<>" boxes. Use ASCII only.
-const RUPEE = "Rs.";
+function numberToWords(num: number): string {
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  const val = Math.floor(num);
+  if (val === 0) return 'Zero Rupees Only';
+  
+  const n = ('000000000' + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  if (!n) return '';
 
-function money(n: number) {
-  // Format Indian-style with two decimals, no currency symbol from Intl
-  // (avoids the unsupported ₹ glyph).
-  const formatted = new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-  return `${RUPEE} ${formatted}`;
+  let str = '';
+  str += (n[1] != '00') ? (a[Number(n[1])] || b[n[1][0] as any] + ' ' + a[n[1][1] as any]) + 'Crore ' : '';
+  str += (n[2] != '00') ? (a[Number(n[2])] || b[n[2][0] as any] + ' ' + a[n[2][1] as any]) + 'Lakh ' : '';
+  str += (n[3] != '00') ? (a[Number(n[3])] || b[n[3][0] as any] + ' ' + a[n[3][1] as any]) + 'Thousand ' : '';
+  str += (n[4] != '0') ? (a[Number(n[4])] || b[n[4][0] as any] + ' ' + a[n[4][1] as any]) + 'Hundred ' : '';
+  str += (n[5] != '00') ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0] as any] + ' ' + a[n[5][1] as any]) + 'Rupees ' : 'Rupees ';
+  return str.trim() + ' Only';
 }
+
+const RUPEE = "Rs.";
 
 function clean(s: string | undefined | null): string {
   if (!s) return "";
-  // Strip characters jsPDF helvetica can't render (em dash, en dash, smart quotes, ₹)
   return s
     .replace(/[\u2013\u2014]/g, "-")
     .replace(/[\u2018\u2019]/g, "'")
@@ -45,15 +51,13 @@ export async function downloadBillPdf(
   const left = 40;
   const right = pageWidth - 40;
 
-  // Retrieve customized billing settings from passed options
   const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
-  const pharmacyAddress = settings?.pharmacyAddress || "";
+  const pharmacyAddress = settings?.pharmacyAddress || "123 Health Ave, Medical District, City";
   const gstNumber = settings?.gstNumber || "";
   const drugLicNo = settings?.drugLicNo || "";
   const billColor = settings?.billColor || "#1a9890";
   const signature = settings?.signature || "";
 
-  // Parse color hex to RGB
   const hexToRgb = (hex: string): [number, number, number] => {
     const cleanHex = hex.replace("#", "");
     const num = parseInt(cleanHex, 16);
@@ -65,106 +69,110 @@ export async function downloadBillPdf(
   };
 
   const primaryRgb = hexToRgb(billColor);
-
-  // ===== Header band =====
+  
+  // 1. Header
   let currentY = 40;
   
-  // Left Side: Pharmacy Info
+  const iconSize = 46;
+  doc.setFillColor(...primaryRgb);
+  doc.roundedRect(left, currentY, iconSize, iconSize, 6, 6, "F");
+  
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(4);
+  doc.roundedRect(left + 12, currentY + 12, 22, 22, 11, 11, "S");
+  doc.setLineWidth(2);
+  doc.line(left + 14, currentY + 32, left + 32, currentY + 14);
+
+  let headerLeftX = left + iconSize + 12;
+  
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.text(clean(pharmacyName).toUpperCase(), left, currentY);
+  doc.text(clean(pharmacyName).toUpperCase(), headerLeftX, currentY + 16);
   
-  currentY += 16;
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
+  let addrLines = doc.splitTextToSize(clean(pharmacyAddress), 220);
+  doc.text(addrLines, headerLeftX, currentY + 30);
   
-  let addressLines = [];
-  if (pharmacyAddress) {
-    addressLines = doc.splitTextToSize(clean(pharmacyAddress), 250);
-    doc.text(addressLines, left, currentY);
-    currentY += addressLines.length * 12;
-  }
-  
-  currentY += 4;
+  let headerBottomY = currentY + 30 + (addrLines.length * 12);
   doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
   let gstDlText = "";
   if (gstNumber) gstDlText += `GSTIN: ${clean(gstNumber.toUpperCase())}   `;
   if (drugLicNo) gstDlText += `DL No: ${clean(drugLicNo.toUpperCase())}`;
   if (gstDlText) {
-    doc.text(gstDlText, left, currentY);
-    currentY += 12;
+    doc.text(gstDlText, headerLeftX, headerBottomY);
   }
-  
-  const headerBottomY = currentY + 10;
-  
-  // Right Side: Invoice Meta
-  let rightY = 40;
+
+  // Right Side Header
+  let rightY = currentY;
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("TAX INVOICE", right, rightY, { align: "right" });
+  doc.text("TAX INVOICE", right, rightY + 12, { align: "right" });
   
-  rightY += 16;
-  doc.setTextColor(110, 110, 110);
+  rightY += 30;
   doc.setFontSize(9);
-  doc.text(`Inv No:`, right - 60, rightY);
+  doc.setTextColor(110, 110, 110);
+  doc.setFont("helvetica", "normal");
+  doc.text("Inv No:", right - 60, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.text(clean(bill.number), right, rightY, { align: "right" });
   
-  rightY += 14;
+  rightY += 12;
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text(`Date:`, right - 60, rightY);
+  doc.text("Date:", right - 60, rightY);
   doc.setTextColor(35, 35, 35);
-  doc.text(clean(new Date(bill.createdAt).toLocaleDateString("en-IN")), right, rightY, { align: "right" });
+  doc.text(new Date(bill.createdAt).toLocaleDateString('en-IN'), right, rightY, { align: "right" });
   
-  rightY += 14;
+  rightY += 12;
   doc.setTextColor(110, 110, 110);
-  doc.text(`Time:`, right - 60, rightY);
+  doc.text("Time:", right - 60, rightY);
   doc.setTextColor(35, 35, 35);
-  doc.text(clean(new Date(bill.createdAt).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' })), right, rightY, { align: "right" });
+  doc.text(new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), right, rightY, { align: "right" });
   
-  rightY += 14;
+  rightY += 12;
   doc.setTextColor(110, 110, 110);
-  doc.text(`Cashier:`, right - 60, rightY);
+  doc.text("Cashier:", right - 60, rightY);
   doc.setTextColor(35, 35, 35);
+  doc.setFont("helvetica", "bold");
   doc.text(clean(bill.cashier) || "Admin", right, rightY, { align: "right" });
   
-  // Header Bottom Border
-  let y = Math.max(headerBottomY, rightY + 10);
+  let y = Math.max(headerBottomY, rightY) + 16;
   doc.setDrawColor(...primaryRgb);
   doc.setLineWidth(1.5);
   doc.line(left, y, right, y);
 
-  // ===== Parties block =====
-  y += 15;
-  const boxTop = y;
+  // 2. Customer Details Box
+  y += 16;
+  const custBoxTop = y;
   
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("CUSTOMER DETAILS", left + 10, y + 14);
-  doc.text("PRESCRIPTION INFO", left + 260, y + 14);
+  doc.setFontSize(8.5);
+  doc.text("CUSTOMER DETAILS", left + 12, y + 14);
+  doc.text("PRESCRIPTION INFO", left + (pageWidth/2) - 10, y + 14);
 
-  doc.setTextColor(35, 35, 35);
   let cy = y + 28;
+  doc.setTextColor(35, 35, 35);
   doc.setFontSize(11);
-  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 10, cy);
+  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 12, cy);
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text("Doctor: ", left + 260, cy);
+  doc.text("Doctor: ", left + (pageWidth/2) - 10, cy);
   doc.setTextColor(35, 35, 35);
-  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + 295, cy);
+  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + (pageWidth/2) + 25, cy);
 
   let leftY = cy + 14;
   if (bill.customerPhone) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Phone: `, left + 10, leftY);
+    doc.text(`Phone: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerPhone), left + 45, leftY);
     leftY += 14;
@@ -172,70 +180,71 @@ export async function downloadBillPdf(
   
   if (bill.customerAddress) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Address: `, left + 10, leftY);
+    doc.text(`Address: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), 200);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
     leftY += custAddrLines.length * 12;
   }
 
   if (bill.customerDrugLicNo) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`DL: `, left + 10, leftY);
+    doc.text(`DL: `, left + 12, leftY);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 30, leftY);
+    doc.setFont("helvetica", "normal");
     leftY += 14;
   }
 
   rightY = cy + 14;
   doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, left + 260, rightY);
+  doc.text(`Payment Mode: `, left + (pageWidth/2) - 10, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), left + 330, rightY);
+  doc.text(bill.paymentMethod.toUpperCase(), left + (pageWidth/2) + 60, rightY);
   doc.setFont("helvetica", "normal");
   rightY += 14;
 
   if (bill.customerNotes) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(110, 110, 110);
-    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), right - (left + 260) - 10);
-    doc.text(splitNotes, left + 260, rightY);
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
+    doc.text(splitNotes, left + (pageWidth/2) - 10, rightY);
     rightY += splitNotes.length * 12;
     doc.setFont("helvetica", "normal");
   }
 
-  let boxBottom = Math.max(leftY, rightY) + 6;
+  let custBoxBottom = Math.max(leftY, rightY) + 8;
   
-  // Draw Customer Box
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.5);
-  doc.setFillColor(250, 250, 250);
-  doc.roundedRect(left, boxTop, pageWidth - (left * 2), boxBottom - boxTop, 4, 4, "FD");
+  doc.setFillColor(248, 250, 252); 
+  doc.roundedRect(left, custBoxTop, pageWidth - (left * 2), custBoxBottom - custBoxTop, 6, 6, "FD");
+  doc.line(pageWidth/2 - 20, custBoxTop, pageWidth/2 - 20, custBoxBottom);
   
-  // Re-draw text since roundedRect filled over it
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("CUSTOMER DETAILS", left + 10, y + 14);
-  doc.text("PRESCRIPTION INFO", left + 260, y + 14);
+  doc.setFontSize(8.5);
+  doc.text("CUSTOMER DETAILS", left + 12, custBoxTop + 14);
+  doc.text("PRESCRIPTION INFO", left + (pageWidth/2) - 10, custBoxTop + 14);
 
+  cy = custBoxTop + 28;
   doc.setTextColor(35, 35, 35);
-  cy = y + 28;
   doc.setFontSize(11);
-  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 10, cy);
+  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 12, cy);
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text("Doctor: ", left + 260, cy);
+  doc.text("Doctor: ", left + (pageWidth/2) - 10, cy);
   doc.setTextColor(35, 35, 35);
-  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + 295, cy);
+  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + (pageWidth/2) + 25, cy);
 
   leftY = cy + 14;
   if (bill.customerPhone) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Phone: `, left + 10, leftY);
+    doc.text(`Phone: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerPhone), left + 45, leftY);
     leftY += 14;
@@ -243,48 +252,43 @@ export async function downloadBillPdf(
   
   if (bill.customerAddress) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Address: `, left + 10, leftY);
+    doc.text(`Address: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), 200);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
     leftY += custAddrLines.length * 12;
   }
 
   if (bill.customerDrugLicNo) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`DL: `, left + 10, leftY);
+    doc.text(`DL: `, left + 12, leftY);
+    doc.setFont("helvetica", "bold");
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 30, leftY);
-    leftY += 14;
+    doc.setFont("helvetica", "normal");
   }
 
   rightY = cy + 14;
   doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, left + 260, rightY);
+  doc.text(`Payment Mode: `, left + (pageWidth/2) - 10, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), left + 330, rightY);
+  doc.text(bill.paymentMethod.toUpperCase(), left + (pageWidth/2) + 60, rightY);
   doc.setFont("helvetica", "normal");
   rightY += 14;
 
   if (bill.customerNotes) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(110, 110, 110);
-    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), right - (left + 260) - 10);
-    doc.text(splitNotes, left + 260, rightY);
-    rightY += splitNotes.length * 12;
-    doc.setFont("helvetica", "normal");
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
+    doc.text(splitNotes, left + (pageWidth/2) - 10, rightY);
   }
 
-  // Draw separator line inside box
-  doc.setDrawColor(220, 220, 220);
-  doc.line(left + 245, boxTop, left + 245, boxBottom);
+  y = custBoxBottom;
 
-  y = boxBottom;
-
-  // ===== Items table =====
+  // 3. Items Table
   autoTable(doc, {
-    startY: Math.max(165, y + 15),
+    startY: y + 16,
     head: [["#", "Medicine Name", "Batch No", "Expiry", "HSN", "Qty", "MRP", "GST%", "Rate", "Amount"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
@@ -300,8 +304,8 @@ export async function downloadBillPdf(
         it.expiry ? (() => {
           const d = new Date(it.expiry);
           const m = String(d.getMonth() + 1).padStart(2, '0');
-          const y = String(d.getFullYear()).slice(-2);
-          return `${m}/${y}`;
+          const yr = String(d.getFullYear()).slice(-2);
+          return `${m}/${yr}`;
         })() : "-",
         "-",
         String(it.qty),
@@ -312,16 +316,16 @@ export async function downloadBillPdf(
       ];
     }),
     styles: {
-      fontSize: 8.5,
-      cellPadding: 6,
+      fontSize: 8,
+      cellPadding: 5,
       lineColor: [220, 220, 220],
-      lineWidth: 0.4,
+      lineWidth: 0.5,
       textColor: [40, 40, 40],
       overflow: "linebreak",
     },
     headStyles: {
-      fillColor: [240, 240, 240],
-      textColor: [80, 80, 80],
+      fillColor: [241, 245, 249],
+      textColor: [100, 116, 139],
       fontStyle: "bold",
       halign: "center",
     },
@@ -341,171 +345,239 @@ export async function downloadBillPdf(
     theme: "grid",
   });
 
-  // ===== Totals =====
-  const tableEndY =
-    (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
-      ?.finalY ?? 200;
+  const tableEndY = (doc as any).lastAutoTable?.finalY ?? 200;
+  y = tableEndY + 20;
 
-  const totalsLabelX = right - 180;
-  const totalsValueX = right;
-  let ty = tableEndY + 26;
-  
+  // 4. Totals & Footer Info Area
   const netPayable = Math.round(bill.total);
   const roundOff = netPayable - bill.total;
   const cgst = bill.tax / 2;
   const sgst = bill.tax / 2;
+  const totalQty = bill.items.reduce((acc, item) => acc + item.qty, 0);
+  const totalFree = bill.items.reduce((acc, item) => acc + (item.freeQty || 0), 0);
 
-  doc.setFontSize(10);
+  const leftWidth = (pageWidth - 80) * 0.55;
+  let leftSideY = y;
+  
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(220, 220, 220);
+  doc.roundedRect(left, leftSideY, leftWidth, 50, 6, 6, "FD");
+  
+  try {
+    const qrDataUrl = await QRCode.toDataURL(bill.number, { margin: 1, width: 40 });
+    doc.addImage(qrDataUrl, "PNG", left + 6, leftSideY + 5, 40, 40);
+  } catch(e) {}
+  
+  doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text("Gross Amount", totalsLabelX, ty);
+  doc.text("Total Items:", left + 56, leftSideY + 20);
   doc.setTextColor(35, 35, 35);
-  doc.text((bill.subtotal + (bill.discount || 0)).toFixed(2), totalsValueX, ty, { align: "right" });
+  doc.text(String(bill.items.length), left + 110, leftSideY + 20);
+  
+  doc.setTextColor(110, 110, 110);
+  doc.text("Total Qty:", left + 56, leftSideY + 36);
+  doc.setTextColor(35, 35, 35);
+  let qtyText = String(totalQty);
+  doc.text(qtyText, left + 105, leftSideY + 36);
+  if (totalFree > 0) {
+    doc.setTextColor(...primaryRgb);
+    doc.text(` (+${totalFree} Free)`, left + 105 + doc.getTextWidth(qtyText), leftSideY + 36);
+  }
+  
+  leftSideY += 60;
+  
+  doc.setFillColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
+  doc.setGState(new doc.GState({ opacity: 0.05 }));
+  doc.roundedRect(left, leftSideY, leftWidth, 36, 6, 6, "F");
+  doc.setGState(new doc.GState({ opacity: 1 }));
+  doc.setDrawColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
+  doc.setGState(new doc.GState({ opacity: 0.1 }));
+  doc.roundedRect(left, leftSideY, leftWidth, 36, 6, 6, "S");
+  doc.setGState(new doc.GState({ opacity: 1 }));
 
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...primaryRgb);
+  doc.text("AMOUNT IN WORDS:", left + 10, leftSideY + 14);
+  doc.setFontSize(9);
+  doc.setTextColor(35, 35, 35);
+  doc.text(numberToWords(netPayable), left + 10, leftSideY + 28);
+  
+  leftSideY += 46;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(35, 35, 35);
+  doc.text("TERMS & CONDITIONS:", left, leftSideY + 10);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(110, 110, 110);
+  doc.text("• Goods once sold will not be taken back or exchanged.", left + 6, leftSideY + 22);
+  doc.text("• Please consult your doctor before using the medicines.", left + 6, leftSideY + 34);
+  doc.text("• Keep medicines out of reach of children.", left + 6, leftSideY + 46);
+
+  const rightWidth = (pageWidth - 80) * 0.40;
+  const rightBoxLeft = right - rightWidth;
+  const totalsLabelX = right - 70;
+  const totalsValueX = right - 12;
+  
+  let rightSideY = y;
+  
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(220, 220, 220);
+  doc.roundedRect(rightBoxLeft, rightSideY, rightWidth, 150, 6, 6, "FD");
+
+  let ty = rightSideY + 16;
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text("Gross Amount", rightBoxLeft + 12, ty);
+  doc.setTextColor(35, 35, 35);
+  doc.setFont("helvetica", "bold");
+  doc.text((bill.subtotal + (bill.discount || 0)).toFixed(2), totalsValueX, ty, { align: "right" });
+  
   if ((bill.discount || 0) > 0) {
     ty += 16;
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(22, 163, 74); // green
-    doc.text("Discount", totalsLabelX, ty);
+    doc.text("Discount", rightBoxLeft + 12, ty);
+    doc.setFont("helvetica", "bold");
     doc.text(`-${(bill.discount || 0).toFixed(2)}`, totalsValueX, ty, { align: "right" });
   }
 
   ty += 16;
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(110, 110, 110);
-  doc.text("Taxable Amount", totalsLabelX, ty);
+  doc.text("Taxable Amount", rightBoxLeft + 12, ty);
   doc.setTextColor(35, 35, 35);
+  doc.setFont("helvetica", "bold");
   doc.text(bill.subtotal.toFixed(2), totalsValueX, ty, { align: "right" });
 
   ty += 16;
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(110, 110, 110);
-  doc.text("CGST", totalsLabelX, ty);
+  doc.text("CGST", rightBoxLeft + 12, ty);
   doc.setTextColor(35, 35, 35);
+  doc.setFont("helvetica", "bold");
   doc.text(cgst.toFixed(2), totalsValueX, ty, { align: "right" });
 
   ty += 16;
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(110, 110, 110);
-  doc.text("SGST", totalsLabelX, ty);
+  doc.text("SGST", rightBoxLeft + 12, ty);
   doc.setTextColor(35, 35, 35);
+  doc.setFont("helvetica", "bold");
   doc.text(sgst.toFixed(2), totalsValueX, ty, { align: "right" });
 
+  ty += 6;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(rightBoxLeft + 12, ty, totalsValueX, ty);
+
   if (roundOff !== 0) {
-    ty += 14;
-    doc.setFontSize(9);
+    ty += 12;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(110, 110, 110);
-    doc.text("Round Off", totalsLabelX, ty);
+    doc.text("Round Off", rightBoxLeft + 12, ty);
     doc.text(`${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`, totalsValueX, ty, { align: "right" });
-    doc.setFontSize(10);
+    doc.setFontSize(9);
   }
 
-  ty += 10;
-  doc.setDrawColor(220, 220, 220);
-  doc.line(totalsLabelX, ty, totalsValueX, ty);
-
-  ty += 20;
-  
+  ty += 16;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(...primaryRgb);
-  doc.text("Net Payable", totalsLabelX, ty);
-  doc.text(`${RUPEE} ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+  doc.text("NET PAYABLE", rightBoxLeft + 12, ty);
+  doc.text(`Rs. ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
   
+  ty += 8;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(rightBoxLeft + 12, ty, totalsValueX, ty);
+
+  ty += 14;
   if (bill.paymentMethod === "credit") {
-    ty += 24;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(110, 110, 110);
-    doc.text("Advance Paid", totalsLabelX, ty);
-    doc.setTextColor(35, 35, 35);
-    doc.text(`${RUPEE} ${bill.advanceAmount.toFixed(2)}`, totalsValueX, ty, { align: "right" });
-    
-    ty += 16;
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(220, 38, 38); // destructive red
-    doc.text("Balance Due:", totalsLabelX, ty);
-    doc.text(`${RUPEE} ${(netPayable - bill.advanceAmount).toFixed(2)}`, totalsValueX, ty, { align: "right" });
-  } else {
-    ty += 24;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(110, 110, 110);
-    doc.text("Amount Paid", totalsLabelX, ty);
-    doc.setTextColor(35, 35, 35);
-    doc.text(`${RUPEE} ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
-    
-    ty += 16;
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(22, 163, 74); // success green
-    doc.text("Balance:", totalsLabelX, ty);
-    doc.text(`${RUPEE} 0.00`, totalsValueX, ty, { align: "right" });
-  }
-
-  // Customer notes (optional)
-  if (bill.customerNotes && bill.customerNotes.trim()) {
-    doc.setFont("helvetica", "italic");
     doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(110, 110, 110);
-    const notes = doc.splitTextToSize(`Notes: ${clean(bill.customerNotes)}`, pageWidth - 80);
-    doc.text(notes, left, ty);
+    doc.text("Advance Paid", rightBoxLeft + 12, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Rs. ${bill.advanceAmount.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+    
+    ty += 14;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(220, 38, 38);
+    doc.text("Balance Due", rightBoxLeft + 12, ty);
+    doc.text(`Rs. ${(netPayable - bill.advanceAmount).toFixed(2)}`, totalsValueX, ty, { align: "right" });
+  } else {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(110, 110, 110);
+    doc.text("Amount Paid", rightBoxLeft + 12, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Rs. ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+    
+    ty += 14;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(22, 163, 74);
+    doc.text("Balance", rightBoxLeft + 12, ty);
+    doc.text(`Rs. 0.00`, totalsValueX, ty, { align: "right" });
   }
 
-  // ===== Signature (On Last Page) =====
-  const totalPages = doc.internal.getNumberOfPages();
-  doc.setPage(totalPages);
-
-  const sigWidth = 120;
-  const sigHeight = 50;
-  const sigX = right - sigWidth;
-  let sigY = ty + 20;
-
-  const footerSpace = 60;
-  if (sigY + sigHeight + 30 > pageHeight - footerSpace) {
+  // 5. Signatures (Placed at bottom of last page)
+  let sigY = Math.max(leftSideY + 50, rightSideY + 160) + 40;
+  
+  const footerSpace = 100;
+  if (sigY > pageHeight - footerSpace) {
     doc.addPage();
-    const finalPages = doc.internal.getNumberOfPages();
-    doc.setPage(finalPages);
-    sigY = 50; // top of new page
+    sigY = 50;
   }
 
-  // Draw signature line
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.5);
-  doc.line(sigX, sigY + sigHeight, right, sigY + sigHeight);
-
-  // Label
+  
+  // Left: Customer Sig
+  doc.line(left, sigY, left + 120, sigY);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(110, 110, 110);
-  doc.text("Authorized Signature", right, sigY + sigHeight + 12, { align: "right" });
+  doc.setFontSize(9);
+  doc.setTextColor(140, 140, 140);
+  doc.text("Customer Signature", left + 15, sigY + 12);
+  
+  // Right: Authorized Sig
+  doc.line(right - 140, sigY, right, sigY);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...primaryRgb);
+  doc.text(`FOR ${clean(pharmacyName).toUpperCase()}`, right - 70, sigY - 10, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(140, 140, 140);
+  doc.text("Authorized Signatory", right - 70, sigY + 12, { align: "center" });
 
   if (signature) {
     try {
-      doc.addImage(signature, "PNG", sigX, sigY, sigWidth, sigHeight);
-    } catch (err) {
-      console.error("Failed to add signature image to PDF", err);
-    }
+      doc.addImage(signature, "PNG", right - 120, sigY - 55, 100, 45);
+    } catch (err) {}
   }
 
-  // ===== Footer & Page Numbers =====
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9);
-  doc.setTextColor(140, 140, 140);
-  
-  const finalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= finalPages; i++) {
+  // 6. Absolute Footer
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    doc.text(
-      `Thank you for choosing ${pharmacyName} - get well soon!`,
-      pageWidth / 2,
-      pageHeight - 32,
-      { align: "center" },
-    );
+    
+    doc.setDrawColor(230, 230, 230);
+    doc.line(left, pageHeight - 40, right, pageHeight - 40);
+    
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
-    doc.text(
-      `Page ${i} of ${finalPages}`,
-      pageWidth / 2,
-      pageHeight - 18,
-      { align: "center" }
-    );
-    doc.setFontSize(9);
+    doc.setTextColor(160, 160, 160);
+    doc.text("THANK YOU FOR YOUR BUSINESS. GET WELL SOON!", pageWidth / 2, pageHeight - 24, { align: "center" });
+    
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Page ${i} of ${totalPages}`, right, pageHeight - 24, { align: "right" });
   }
 
   doc.save(`${clean(bill.number) || "bill"}.pdf`);
