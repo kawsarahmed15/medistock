@@ -28,6 +28,7 @@ export type Product = {
 export type BillItem = {
   productId: string;
   name: string;
+  sku?: string;
   price: number;
   costPrice?: number;
   qty: number;
@@ -139,6 +140,7 @@ type BillItemRow = {
   bill_id: string;
   product_id: string | null;
   name: string;
+  sku: string | null;
   price: number | string;
   cost_price: number | string | null;
   qty: number;
@@ -170,6 +172,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     items: items.map((it) => ({
       productId: it.product_id ?? "",
       name: it.name,
+      sku: it.sku ?? undefined,
       price: Number(it.price) || 0,
       costPrice: num(it.cost_price),
       qty: it.qty,

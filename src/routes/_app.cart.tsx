@@ -87,6 +87,7 @@ function CartPage() {
         items: cart.items.map((i) => ({
           productId: i.product.id,
           name: i.product.name,
+          sku: i.product.sku,
           price: i.product.price,
           costPrice: i.product.costPrice,
           qty: i.qty - (i.freeQty || 0),

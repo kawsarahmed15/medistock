@@ -252,7 +252,7 @@ function BillDetailPage() {
                     </td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] uppercase text-muted-foreground whitespace-nowrap">{it.batch || "-"}</td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">{expFormatted}</td>
-                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">-</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">{it.sku || "-"}</td>
                     <td className="py-3 px-2 text-right align-top font-medium">{it.qty}</td>
                     <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
                     <td className="py-3 px-2 text-center align-top text-muted-foreground">{it.taxPercent}%</td>

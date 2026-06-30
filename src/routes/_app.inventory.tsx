@@ -408,10 +408,10 @@ function InventoryPage() {
           <Button
             variant="outline"
             onClick={() => setScannerOpen(true)}
-            title="Scan SKU / barcode"
+            title="Scan HSN / barcode"
           >
             <ScanLine className="h-4 w-4" />
-            <span className="hidden sm:inline">Scan SKU</span>
+            <span className="hidden sm:inline">Scan HSN</span>
           </Button>
           <Button onClick={startAdd} className="shadow-soft">
             <Plus className="h-4 w-4" />
@@ -611,7 +611,7 @@ function InventoryPage() {
                     onChange={(e) => setForm({ ...form, batch: e.target.value })}
                   />
                 </Field>
-                <Field label="SKU">
+                <Field label="HSN Code">
                   <div className="flex gap-2">
                     <Input
                       value={form.sku}

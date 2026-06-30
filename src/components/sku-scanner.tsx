@@ -89,7 +89,7 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
     }
     if (!navigator.mediaDevices?.getUserMedia) {
       setError(
-        "This browser doesn't support camera access. Type the SKU manually below.",
+        "This browser doesn't support camera access. Type the HSN manually below.",
       );
       return;
     }
@@ -144,7 +144,7 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
         msg = "Another app is using the camera. Close it and retry.";
       } else if (msg.includes("Unable to access camera")) {
         msg =
-          "Camera could not start in this browser. Allow camera access, then tap Start camera again. If it still fails, use the manual SKU entry below.";
+          "Camera could not start in this browser. Allow camera access, then tap Start camera again. If it still fails, use the manual HSN entry below.";
       }
       setError(msg);
       void stopScanner();
@@ -165,10 +165,10 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Camera className="h-4 w-4" /> Scan SKU / barcode
+            <Camera className="h-4 w-4" /> Scan HSN / barcode
           </DialogTitle>
           <DialogDescription>
-            Point the camera at the product barcode. We&apos;ll auto-fill the SKU
+            Point the camera at the product barcode. We&apos;ll auto-fill the HSN
             and match an existing product.
           </DialogDescription>
         </DialogHeader>
@@ -232,14 +232,14 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
           {/* Always-available fallback so users are never stuck */}
           <div className="rounded-lg border p-3 space-y-2">
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Keyboard className="h-3.5 w-3.5" /> Or enter SKU manually
+              <Keyboard className="h-3.5 w-3.5" /> Or enter HSN manually
             </div>
             <div className="flex gap-2">
               <Input
                 autoFocus
                 value={manual}
                 onChange={(e) => setManual(e.target.value)}
-                placeholder="Type or paste SKU / barcode"
+                placeholder="Type or paste HSN / barcode"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();

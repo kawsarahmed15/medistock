@@ -307,7 +307,7 @@ export async function downloadBillPdf(
           const yr = String(d.getFullYear()).slice(-2);
           return `${m}/${yr}`;
         })() : "-",
-        "-",
+        clean(it.sku || "-"),
         String(it.qty),
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         `${it.taxPercent}%`,
