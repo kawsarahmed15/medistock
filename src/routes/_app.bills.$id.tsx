@@ -214,10 +214,10 @@ function BillDetailPage() {
                 <th className="w-20 text-right p-3 font-medium whitespace-nowrap">Pack</th>
                 <th className="w-16 text-center p-3 font-medium whitespace-nowrap">Exp.</th>
                 <th className="w-16 text-right p-3 font-medium">MRP</th>
-                <th className="w-16 text-right p-3 font-medium whitespace-nowrap">Qty</th>
-                <th className="w-16 text-right p-3 font-medium whitespace-nowrap">Free</th>
+                <th className="w-16 text-center p-3 font-medium whitespace-nowrap">Qty</th>
+                <th className="w-16 text-center p-3 font-medium whitespace-nowrap">Free</th>
                 <th className="w-20 text-right p-3 font-medium">Price</th>
-                <th className="w-24 text-right p-3 font-medium">Tax</th>
+                <th className="w-24 text-center p-3 font-medium">Tax</th>
                 <th className="w-24 text-right p-3 font-medium">Total</th>
               </tr>
             </thead>
@@ -237,10 +237,10 @@ function BillDetailPage() {
                       return `${m}/${y}`;
                     })() : "—"}</td>
                     <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
-                    <td className="p-3 text-right tabular-nums">{it.qty}</td>
-                    <td className="p-3 text-right tabular-nums text-primary font-medium">{it.freeQty || 0}</td>
+                    <td className="p-3 text-center tabular-nums">{it.qty}</td>
+                    <td className="p-3 text-center tabular-nums text-primary font-medium">{it.freeQty || 0}</td>
                     <td className="p-3 text-right tabular-nums">{it.price.toFixed(2)}</td>
-                    <td className="p-3 text-right tabular-nums">
+                    <td className="p-3 text-center tabular-nums">
                       {it.taxPercent}% ({tax.toFixed(2)})
                     </td>
                     <td className="p-3 text-right tabular-nums font-medium">
