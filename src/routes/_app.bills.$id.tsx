@@ -24,7 +24,6 @@ function numberToWords(num: number): string {
   const val = Math.floor(num);
   if (val === 0) return 'Zero Rupees Only';
   
-  // Format up to 9,99,99,999
   const n = ('000000000' + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
   if (!n) return '';
 
@@ -95,6 +94,26 @@ function BillDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page {
+            margin: 1.5cm;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          /* Print page numbers at bottom center */
+          @page {
+            @bottom-center {
+              content: "Page " counter(page) " of " counter(pages);
+              font-size: 10px;
+              color: #666;
+            }
+          }
+        }
+      `}} />
+
       {/* Action Bar (Hidden in Print) */}
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background sticky top-0 z-10 py-4">
         <Button asChild variant="ghost" size="sm">
@@ -127,84 +146,84 @@ function BillDetailPage() {
       </div>
 
       {/* Invoice Document */}
-      <div className="bg-white text-black p-8 sm:p-10 shadow-lg print:shadow-none print:p-0 print:m-0 w-full min-h-[297mm] mx-auto border print:border-none relative">
+      <div className="bg-card text-card-foreground p-8 sm:p-10 shadow-lg print:shadow-none print:p-0 print:m-0 w-full min-h-[297mm] mx-auto border print:border-none relative rounded-xl">
         {/* Header */}
-        <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+        <div className="flex justify-between items-start border-b-2 border-primary pb-4 mb-4">
           <div className="flex gap-4">
-            <div className="h-16 w-16 rounded-xl bg-slate-900 flex items-center justify-center text-white print:border print:border-black print:bg-white print:text-black">
+            <div className="h-16 w-16 rounded-xl bg-gradient-primary flex items-center justify-center text-primary-foreground print:bg-primary print:text-white">
               <Pill className="h-8 w-8" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold uppercase tracking-wide m-0 leading-tight">
+              <h1 className="text-2xl font-bold uppercase tracking-wide m-0 leading-tight text-primary">
                 {pharmacyName}
               </h1>
-              <p className="text-sm max-w-xs leading-snug mt-1 whitespace-pre-wrap">
+              <p className="text-sm max-w-xs leading-snug mt-1 whitespace-pre-wrap text-muted-foreground">
                 {pharmacyAddress}
               </p>
-              <div className="flex flex-wrap gap-x-4 mt-2 text-xs font-mono">
+              <div className="flex flex-wrap gap-x-4 mt-2 text-xs font-mono text-muted-foreground">
                 {session?.gstNumber && <p><strong>GSTIN:</strong> {session.gstNumber.toUpperCase()}</p>}
                 {session?.drugLicNo && <p><strong>DL No:</strong> {session.drugLicNo.toUpperCase()}</p>}
               </div>
             </div>
           </div>
           <div className="text-right text-sm flex flex-col gap-1">
-            <h2 className="text-xl font-bold uppercase tracking-widest text-gray-500 mb-1 print:text-black">Invoice</h2>
+            <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">Tax Invoice</h2>
             <div className="flex justify-end gap-2">
-              <span className="text-gray-500 print:text-black">Inv No:</span>
-              <span className="font-bold font-mono">{bill.number}</span>
+              <span className="text-muted-foreground">Inv No:</span>
+              <span className="font-bold font-mono text-primary">{bill.number}</span>
             </div>
             <div className="flex justify-end gap-2">
-              <span className="text-gray-500 print:text-black">Date:</span>
+              <span className="text-muted-foreground">Date:</span>
               <span>{new Date(bill.createdAt).toLocaleDateString('en-IN')}</span>
             </div>
             <div className="flex justify-end gap-2">
-              <span className="text-gray-500 print:text-black">Time:</span>
+              <span className="text-muted-foreground">Time:</span>
               <span>{new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <div className="flex justify-end gap-2 mt-1">
-              <span className="text-gray-500 print:text-black">Cashier:</span>
-              <span>{bill.cashier || "Admin"}</span>
+              <span className="text-muted-foreground">Cashier:</span>
+              <span className="font-medium">{bill.cashier || "Admin"}</span>
             </div>
           </div>
         </div>
 
         {/* Customer Details */}
-        <div className="border border-black p-3 mb-4 flex flex-col sm:flex-row justify-between text-sm gap-4">
+        <div className="border border-border rounded-lg p-4 mb-4 flex flex-col sm:flex-row justify-between text-sm gap-4 bg-muted/20">
           <div className="sm:w-1/2">
-            <p className="font-semibold mb-1 uppercase text-xs text-gray-600 print:text-black">Customer Details</p>
+            <p className="font-semibold mb-1 uppercase text-xs text-primary">Customer Details</p>
             <p className="font-bold uppercase text-base">{bill.customerName || "Walk-in Customer"}</p>
-            {bill.customerPhone && <p>Phone: {bill.customerPhone}</p>}
-            {bill.customerAddress && <p>Address: {bill.customerAddress}</p>}
-            {bill.customerDrugLicNo && <p className="font-mono text-xs mt-1">DL: {bill.customerDrugLicNo}</p>}
+            {bill.customerPhone && <p className="text-muted-foreground">Phone: <span className="text-foreground">{bill.customerPhone}</span></p>}
+            {bill.customerAddress && <p className="text-muted-foreground">Address: <span className="text-foreground">{bill.customerAddress}</span></p>}
+            {bill.customerDrugLicNo && <p className="font-mono text-xs mt-1 text-muted-foreground">DL: <span className="text-foreground">{bill.customerDrugLicNo}</span></p>}
           </div>
-          <div className="sm:w-1/2 sm:border-l border-black sm:pl-4">
-            <p className="font-semibold mb-1 uppercase text-xs text-gray-600 print:text-black">Prescription Info</p>
-            <p>Doctor: {bill.customerNotes ? "See Notes" : "N/A"}</p>
-            <p>Payment Mode: <span className="uppercase font-semibold">{bill.paymentMethod}</span></p>
+          <div className="sm:w-1/2 sm:border-l border-border sm:pl-4">
+            <p className="font-semibold mb-1 uppercase text-xs text-primary">Prescription Info</p>
+            <p className="text-muted-foreground">Doctor: <span className="text-foreground">{bill.customerNotes ? "See Notes" : "N/A"}</span></p>
+            <p className="text-muted-foreground">Payment Mode: <span className="uppercase font-semibold text-primary">{bill.paymentMethod}</span></p>
             {bill.customerNotes && (
-              <p className="mt-1 text-xs text-gray-700 print:text-black italic">{bill.customerNotes}</p>
+              <p className="mt-1 text-xs text-muted-foreground italic">{bill.customerNotes}</p>
             )}
           </div>
         </div>
 
         {/* Items Table */}
-        <div className="mb-6 w-full overflow-x-auto">
+        <div className="mb-6 w-full overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-xs border-collapse table-fixed min-w-[700px]">
-            <thead className="table-header-group">
-              <tr className="border-y-2 border-black bg-gray-50 print:bg-transparent">
-                <th className="py-2 px-1 text-center w-[4%]">#</th>
-                <th className="py-2 px-1 text-left w-[24%]">Medicine Name</th>
-                <th className="py-2 px-1 text-center w-[12%]">Batch No</th>
-                <th className="py-2 px-1 text-center w-[8%]">Expiry</th>
-                <th className="py-2 px-1 text-center w-[8%]">HSN</th>
-                <th className="py-2 px-1 text-right w-[8%]">Qty</th>
-                <th className="py-2 px-1 text-right w-[10%]">MRP</th>
-                <th className="py-2 px-1 text-center w-[6%]">GST%</th>
-                <th className="py-2 px-1 text-right w-[10%]">Rate</th>
-                <th className="py-2 px-1 text-right w-[10%]">Amount</th>
+            <thead className="table-header-group bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider">
+              <tr>
+                <th className="py-3 px-2 text-center w-[4%] font-medium">#</th>
+                <th className="py-3 px-2 text-left w-[24%] font-medium">Medicine Name</th>
+                <th className="py-3 px-2 text-center w-[12%] font-medium">Batch No</th>
+                <th className="py-3 px-2 text-center w-[8%] font-medium">Expiry</th>
+                <th className="py-3 px-2 text-center w-[8%] font-medium">HSN</th>
+                <th className="py-3 px-2 text-right w-[8%] font-medium">Qty</th>
+                <th className="py-3 px-4 text-right w-[10%] font-medium">MRP</th>
+                <th className="py-3 px-4 text-center w-[6%] font-medium">GST%</th>
+                <th className="py-3 px-2 text-right w-[10%] font-medium">Rate</th>
+                <th className="py-3 px-2 text-right w-[10%] font-medium">Amount</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {bill.items.map((it, idx) => {
                 const lineAmount = it.price * it.qty;
                 const taxAmount = (lineAmount * it.taxPercent) / 100;
@@ -217,23 +236,23 @@ function BillDetailPage() {
                 })() : "-";
 
                 return (
-                  <tr key={idx} className="border-b border-gray-300 print:border-black break-inside-avoid">
-                    <td className="py-2 px-1 text-center align-top">{idx + 1}</td>
-                    <td className="py-2 px-1 text-left align-top font-semibold truncate break-words whitespace-normal">
+                  <tr key={idx} className="break-inside-avoid hover:bg-muted/30 transition-colors">
+                    <td className="py-3 px-2 text-center align-top text-muted-foreground">{idx + 1}</td>
+                    <td className="py-3 px-2 text-left align-top font-semibold truncate break-words whitespace-normal">
                       {it.name}
-                      <div className="text-[10px] text-gray-500 font-normal mt-0.5 print:text-black">
+                      <div className="text-[10px] text-muted-foreground font-normal mt-0.5">
                         {it.pack ? `Pack: ${it.pack.replace(/[*x]/gi, "X")}` : ''}
-                        {it.freeQty ? ` + ${it.freeQty} Free` : ''}
+                        {it.freeQty ? <span className="text-primary font-medium"> + {it.freeQty} Free</span> : ''}
                       </div>
                     </td>
-                    <td className="py-2 px-1 text-center align-top font-mono text-[10px] uppercase">{it.batch || "-"}</td>
-                    <td className="py-2 px-1 text-center align-top font-mono text-[10px]">{expFormatted}</td>
-                    <td className="py-2 px-1 text-center align-top font-mono text-[10px]">-</td>
-                    <td className="py-2 px-1 text-right align-top font-medium">{it.qty}</td>
-                    <td className="py-2 px-1 text-right align-top font-mono">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
-                    <td className="py-2 px-1 text-center align-top">{it.taxPercent}%</td>
-                    <td className="py-2 px-1 text-right align-top font-mono">{it.price.toFixed(2)}</td>
-                    <td className="py-2 px-1 text-right align-top font-mono font-bold">{(lineAmount + taxAmount).toFixed(2)}</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] uppercase text-muted-foreground">{it.batch || "-"}</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">{expFormatted}</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">-</td>
+                    <td className="py-3 px-2 text-right align-top font-medium">{it.qty}</td>
+                    <td className="py-3 px-4 text-right align-top font-mono text-muted-foreground">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
+                    <td className="py-3 px-4 text-center align-top text-muted-foreground">{it.taxPercent}%</td>
+                    <td className="py-3 px-2 text-right align-top font-mono">{it.price.toFixed(2)}</td>
+                    <td className="py-3 px-2 text-right align-top font-mono font-bold text-primary">{(lineAmount + taxAmount).toFixed(2)}</td>
                   </tr>
                 );
               })}
@@ -242,27 +261,27 @@ function BillDetailPage() {
         </div>
 
         {/* Summary Area */}
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-t-2 border-black pt-4 break-inside-avoid">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4 break-inside-avoid">
           
           {/* Left Footer Area */}
           <div className="w-full sm:w-[55%] flex flex-col gap-4">
-            <div className="flex gap-4 items-center">
-              <div className="p-2 border border-black bg-white inline-block">
-                <QRCode value={bill.number} size={64} level="M" />
+            <div className="flex gap-4 items-center p-3 border border-border rounded-lg bg-muted/10">
+              <div className="p-1.5 bg-white rounded-md shrink-0">
+                <QRCode value={bill.number} size={56} level="M" />
               </div>
-              <div className="text-xs space-y-1">
-                <p><strong>Total Items:</strong> {bill.items.length}</p>
-                <p><strong>Total Qty:</strong> {totalQty} {totalFree > 0 ? `(+${totalFree} Free)` : ''}</p>
+              <div className="text-sm space-y-1">
+                <p><strong className="text-muted-foreground font-medium">Total Items:</strong> {bill.items.length}</p>
+                <p><strong className="text-muted-foreground font-medium">Total Qty:</strong> {totalQty} {totalFree > 0 ? <span className="text-primary font-medium">(+{totalFree} Free)</span> : ''}</p>
               </div>
             </div>
             
-            <div className="text-xs">
-              <p className="font-semibold text-gray-600 uppercase print:text-black mb-1">Amount in Words:</p>
+            <div className="text-xs p-3 bg-primary/5 border border-primary/10 rounded-lg">
+              <p className="font-semibold text-primary uppercase mb-1">Amount in Words:</p>
               <p className="font-bold capitalize">{numberToWords(netPayable)}</p>
             </div>
             
-            <div className="text-[10px] text-gray-500 print:text-black mt-2 leading-relaxed">
-              <p className="font-bold uppercase text-gray-700 print:text-black mb-1">Terms & Conditions:</p>
+            <div className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+              <p className="font-bold uppercase text-foreground mb-1">Terms & Conditions:</p>
               <ul className="list-disc pl-4 space-y-0.5">
                 <li>Goods once sold will not be taken back or exchanged.</li>
                 <li>Please consult your doctor before using the medicines.</li>
@@ -273,59 +292,59 @@ function BillDetailPage() {
           
           {/* Right Summary Area */}
           <div className="w-full sm:w-[40%] text-sm">
-            <div className="space-y-1.5 w-full">
-              <div className="flex justify-between">
+            <div className="space-y-2 w-full p-4 border border-border rounded-lg bg-muted/10">
+              <div className="flex justify-between text-muted-foreground">
                 <span>Gross Amount</span>
-                <span className="font-mono">{(bill.subtotal + (bill.discount || 0)).toFixed(2)}</span>
+                <span className="font-mono text-foreground">{(bill.subtotal + (bill.discount || 0)).toFixed(2)}</span>
               </div>
               {(bill.discount || 0) > 0 && (
-                <div className="flex justify-between text-green-700 print:text-black">
+                <div className="flex justify-between text-success">
                   <span>Discount</span>
-                  <span className="font-mono">-{bill.discount!.toFixed(2)}</span>
+                  <span className="font-mono font-medium">-{bill.discount!.toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between">
+              <div className="flex justify-between text-muted-foreground">
                 <span>Taxable Amount</span>
-                <span className="font-mono">{bill.subtotal.toFixed(2)}</span>
+                <span className="font-mono text-foreground">{bill.subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-muted-foreground">
                 <span>CGST</span>
-                <span className="font-mono">{cgst.toFixed(2)}</span>
+                <span className="font-mono text-foreground">{cgst.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between border-b border-dashed border-black pb-1.5">
+              <div className="flex justify-between text-muted-foreground pb-2 border-b border-border">
                 <span>SGST</span>
-                <span className="font-mono">{sgst.toFixed(2)}</span>
+                <span className="font-mono text-foreground">{sgst.toFixed(2)}</span>
               </div>
               {roundOff !== 0 && (
-                <div className="flex justify-between text-xs text-gray-600 print:text-black pt-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground pt-1">
                   <span>Round Off</span>
                   <span className="font-mono">{roundOff > 0 ? '+' : ''}{roundOff.toFixed(2)}</span>
                 </div>
               )}
               
-              <div className="flex justify-between py-2 text-xl font-bold uppercase tracking-wide bg-gray-100 px-2 print:bg-transparent print:px-0">
+              <div className="flex justify-between py-3 my-1 text-xl font-bold uppercase tracking-wide bg-primary text-primary-foreground px-4 rounded-md print:bg-primary print:text-white print:-mx-4">
                 <span>Net Payable</span>
                 <span className="font-mono">₹{netPayable.toFixed(2)}</span>
               </div>
               
               {bill.paymentMethod === "credit" ? (
-                <div className="text-xs pt-2 space-y-1 border-t border-dashed border-black">
-                  <div className="flex justify-between">
+                <div className="text-xs pt-2 space-y-1.5 border-t border-border">
+                  <div className="flex justify-between text-muted-foreground">
                     <span>Advance Paid</span>
-                    <span className="font-mono">₹{bill.advanceAmount.toFixed(2)}</span>
+                    <span className="font-mono text-foreground">₹{bill.advanceAmount.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between font-bold text-destructive">
                     <span>Balance Due</span>
                     <span className="font-mono">₹{(netPayable - bill.advanceAmount).toFixed(2)}</span>
                   </div>
                 </div>
               ) : (
-                <div className="text-xs pt-2 space-y-1 border-t border-dashed border-black">
-                  <div className="flex justify-between">
+                <div className="text-xs pt-2 space-y-1.5 border-t border-border">
+                  <div className="flex justify-between text-muted-foreground">
                     <span>Amount Paid</span>
-                    <span className="font-mono">₹{netPayable.toFixed(2)}</span>
+                    <span className="font-mono text-foreground">₹{netPayable.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between font-bold text-success">
                     <span>Balance</span>
                     <span className="font-mono">₹0.00</span>
                   </div>
@@ -336,19 +355,19 @@ function BillDetailPage() {
         </div>
 
         {/* Signatures */}
-        <div className="mt-16 flex justify-between items-end text-sm break-inside-avoid px-2">
+        <div className="mt-16 flex justify-between items-end text-sm break-inside-avoid px-4">
           <div className="text-center">
-            <div className="border-t border-black w-40 pt-1">Customer Signature</div>
+            <div className="border-t border-border w-40 pt-2 text-muted-foreground">Customer Signature</div>
           </div>
           <div className="text-center">
-            <div className="h-10"></div> {/* Space for signature or stamp */}
-            <div className="font-bold text-xs uppercase text-gray-500 print:text-black mb-1">For {pharmacyName}</div>
-            <div className="border-t border-black w-48 pt-1">Authorized Signatory</div>
+            <div className="h-12"></div> {/* Space for signature or stamp */}
+            <div className="font-bold text-xs uppercase text-primary mb-2">For {pharmacyName}</div>
+            <div className="border-t border-border w-48 pt-2 text-muted-foreground">Authorized Signatory</div>
           </div>
         </div>
         
         {/* Absolute Footer message */}
-        <div className="mt-8 pt-4 border-t border-gray-200 print:border-black text-center text-[10px] font-semibold tracking-widest uppercase text-gray-400 print:text-black">
+        <div className="mt-10 pt-4 border-t border-border text-center text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
           Thank you for your business. Get well soon!
         </div>
 
@@ -356,3 +375,4 @@ function BillDetailPage() {
     </div>
   );
 }
+

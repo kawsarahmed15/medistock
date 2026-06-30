@@ -137,7 +137,11 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "bold");
   doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left, y);
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
   doc.text(bill.paymentMethod.toUpperCase(), right - 160, y);
+  doc.setTextColor(35, 35, 35);
+  doc.setFont("helvetica", "normal");
 
   let leftY = y + 14;
   if (bill.customerPhone) {
@@ -176,52 +180,57 @@ export async function downloadBillPdf(
   // ===== Items table =====
   autoTable(doc, {
     startY: Math.max(165, y + 15),
-    head: [["#", "Item", "Pack", "Exp.", "MRP", "Qty", "Free", "Price", "Tax %", "Total"]],
+    head: [["#", "Medicine Name", "Batch No", "Expiry", "HSN", "Qty", "MRP", "GST%", "Rate", "Amount"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
+      let nameStr = clean(it.name);
+      if (it.pack) nameStr += `\nPack: ${it.pack.replace(/[*x]/gi, "X")}`;
+      if (it.freeQty) nameStr += `\n+ ${it.freeQty} Free`;
+      
       return [
         String(idx + 1),
-        clean(it.name),
-        it.pack ? it.pack.replace(/[*x]/gi, "X") : "-",
+        nameStr,
+        clean(it.batch || "-"),
         it.expiry ? (() => {
           const d = new Date(it.expiry);
           const m = String(d.getMonth() + 1).padStart(2, '0');
           const y = String(d.getFullYear()).slice(-2);
           return `${m}/${y}`;
         })() : "-",
-        it.mrp != null ? it.mrp.toFixed(2) : "-",
+        "-",
         String(it.qty),
-        String(it.freeQty || 0),
-        it.price.toFixed(2),
+        it.mrp != null ? it.mrp.toFixed(2) : "-",
         `${it.taxPercent}%`,
+        it.price.toFixed(2),
         (line + tax).toFixed(2),
       ];
     }),
     styles: {
       fontSize: 8.5,
-      cellPadding: 4,
+      cellPadding: 6,
       lineColor: [220, 220, 220],
       lineWidth: 0.4,
       textColor: [40, 40, 40],
-      overflow: "hidden",
+      overflow: "linebreak",
     },
     headStyles: {
-      fillColor: primaryRgb,
-      textColor: 255,
+      fillColor: [240, 240, 240],
+      textColor: [80, 80, 80],
       fontStyle: "bold",
-      halign: "left",
+      halign: "center",
     },
     columnStyles: {
       0: { cellWidth: 16, halign: "center" },
+      1: { halign: "left" },
       2: { halign: "center", cellWidth: 42 },
       3: { halign: "center", cellWidth: 32 },
-      4: { halign: "right", cellWidth: 32 },
-      5: { halign: "center", cellWidth: 32 },
-      6: { halign: "center", cellWidth: 32 },
-      7: { halign: "right", cellWidth: 36 },
-      8: { halign: "center", cellWidth: 30 },
-      9: { halign: "right", cellWidth: 46 },
+      4: { halign: "center", cellWidth: 32 },
+      5: { halign: "right", cellWidth: 32 },
+      6: { halign: "right", cellWidth: 40 },
+      7: { halign: "center", cellWidth: 30 },
+      8: { halign: "right", cellWidth: 40 },
+      9: { halign: "right", cellWidth: 50, fontStyle: "bold", textColor: primaryRgb },
     },
     margin: { left, right: 40 },
     theme: "grid",
@@ -235,25 +244,50 @@ export async function downloadBillPdf(
   const totalsLabelX = right - 180;
   const totalsValueX = right;
   let ty = tableEndY + 26;
+  
+  const netPayable = Math.round(bill.total);
+  const roundOff = netPayable - bill.total;
+  const cgst = bill.tax / 2;
+  const sgst = bill.tax / 2;
 
   doc.setFontSize(10);
   doc.setTextColor(110, 110, 110);
-  doc.text("Subtotal", totalsLabelX, ty);
+  doc.text("Gross Amount", totalsLabelX, ty);
+  doc.setTextColor(35, 35, 35);
+  doc.text((bill.subtotal + (bill.discount || 0)).toFixed(2), totalsValueX, ty, { align: "right" });
+
+  if ((bill.discount || 0) > 0) {
+    ty += 16;
+    doc.setTextColor(22, 163, 74); // green
+    doc.text("Discount", totalsLabelX, ty);
+    doc.text(`-${(bill.discount || 0).toFixed(2)}`, totalsValueX, ty, { align: "right" });
+  }
+
+  ty += 16;
+  doc.setTextColor(110, 110, 110);
+  doc.text("Taxable Amount", totalsLabelX, ty);
   doc.setTextColor(35, 35, 35);
   doc.text(bill.subtotal.toFixed(2), totalsValueX, ty, { align: "right" });
 
   ty += 16;
   doc.setTextColor(110, 110, 110);
-  doc.text("Tax", totalsLabelX, ty);
+  doc.text("CGST", totalsLabelX, ty);
   doc.setTextColor(35, 35, 35);
-  doc.text(bill.tax.toFixed(2), totalsValueX, ty, { align: "right" });
+  doc.text(cgst.toFixed(2), totalsValueX, ty, { align: "right" });
 
-  if ((bill.discount || 0) > 0) {
-    ty += 16;
+  ty += 16;
+  doc.setTextColor(110, 110, 110);
+  doc.text("SGST", totalsLabelX, ty);
+  doc.setTextColor(35, 35, 35);
+  doc.text(sgst.toFixed(2), totalsValueX, ty, { align: "right" });
+
+  if (roundOff !== 0) {
+    ty += 14;
+    doc.setFontSize(9);
     doc.setTextColor(110, 110, 110);
-    doc.text("Discount", totalsLabelX, ty);
-    doc.setTextColor(35, 35, 35);
-    doc.text(`-${(bill.discount || 0).toFixed(2)}`, totalsValueX, ty, { align: "right" });
+    doc.text("Round Off", totalsLabelX, ty);
+    doc.text(`${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+    doc.setFontSize(10);
   }
 
   ty += 10;
@@ -261,33 +295,47 @@ export async function downloadBillPdf(
   doc.line(totalsLabelX, ty, totalsValueX, ty);
 
   ty += 20;
+  
+  // Fill background for Net Payable like UI
+  doc.setFillColor(...primaryRgb);
+  doc.rect(totalsLabelX - 10, ty - 14, 190, 24, "F");
+  
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.setTextColor(...primaryRgb);
-  doc.text("Grand total", totalsLabelX, ty);
-  doc.text(bill.total.toFixed(2), totalsValueX, ty, { align: "right" });
+  doc.setTextColor(255, 255, 255);
+  doc.text("Net Payable", totalsLabelX, ty);
+  doc.text(`${RUPEE} ${netPayable.toFixed(2)}`, totalsValueX - 5, ty, { align: "right" });
   
   if (bill.paymentMethod === "credit") {
-    if (bill.advanceAmount > 0) {
-      ty += 16;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(110, 110, 110);
-      doc.text("Advance Paid", totalsLabelX, ty);
-      doc.setTextColor(35, 35, 35);
-      doc.text(bill.advanceAmount.toFixed(2), totalsValueX, ty, { align: "right" });
-    }
+    ty += 24;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(110, 110, 110);
+    doc.text("Advance Paid", totalsLabelX, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.text(`${RUPEE} ${bill.advanceAmount.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+    
     ty += 16;
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38); // destructive red
-    if (bill.total >= bill.advanceAmount) {
-      doc.text("Balance Due:", totalsLabelX, ty);
-      doc.text((bill.total - bill.advanceAmount).toFixed(2), totalsValueX, ty, { align: "right" });
-    } else {
-      doc.text("Change / Credit:", totalsLabelX, ty);
-      doc.text((bill.advanceAmount - bill.total).toFixed(2), totalsValueX, ty, { align: "right" });
-    }
+    doc.text("Balance Due:", totalsLabelX, ty);
+    doc.text(`${RUPEE} ${(netPayable - bill.advanceAmount).toFixed(2)}`, totalsValueX, ty, { align: "right" });
+  } else {
+    ty += 24;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(110, 110, 110);
+    doc.text("Amount Paid", totalsLabelX, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.text(`${RUPEE} ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+    
+    ty += 16;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(22, 163, 74); // success green
+    doc.text("Balance:", totalsLabelX, ty);
+    doc.text(`${RUPEE} 0.00`, totalsValueX, ty, { align: "right" });
   }
 
   // Customer notes (optional)
@@ -335,16 +383,29 @@ export async function downloadBillPdf(
     }
   }
 
-  // ===== Footer =====
+  // ===== Footer & Page Numbers =====
   doc.setFont("helvetica", "italic");
   doc.setFontSize(9);
   doc.setTextColor(140, 140, 140);
-  doc.text(
-    `Thank you for choosing ${pharmacyName} - get well soon!`,
-    pageWidth / 2,
-    pageHeight - 32,
-    { align: "center" },
-  );
+  
+  const finalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= finalPages; i++) {
+    doc.setPage(i);
+    doc.text(
+      `Thank you for choosing ${pharmacyName} - get well soon!`,
+      pageWidth / 2,
+      pageHeight - 32,
+      { align: "center" },
+    );
+    doc.setFontSize(8);
+    doc.text(
+      `Page ${i} of ${finalPages}`,
+      pageWidth / 2,
+      pageHeight - 18,
+      { align: "center" }
+    );
+    doc.setFontSize(9);
+  }
 
   doc.save(`${clean(bill.number) || "bill"}.pdf`);
 }
