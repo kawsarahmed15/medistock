@@ -114,12 +114,11 @@ function parsePack(packStr?: string) {
     return { stockType: "jar", stockPacks: val, stockUnits: "Jar" };
   }
 
-  if (packStr.includes("x") || packStr.includes("X") || packStr.includes("*")) {
-    const parts = packStr.split(/[*xX]/);
-    return { stockType: "tab", stockPacks: parts[0] || "", stockUnits: parts[1] || "" };
+  if (packStr.includes("x") || packStr.includes("X") || packStr.includes("*") || packStr.toUpperCase() === "CAP") {
+    return { stockType: "tab", stockPacks: packStr, stockUnits: "" };
   }
 
-  return { stockType: "other", stockPacks: "", stockUnits: "" };
+  return { stockType: "other", stockPacks: packStr, stockUnits: "" };
 }
 
 function InventoryPage() {
@@ -293,9 +292,9 @@ function InventoryPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     let packValue: string | undefined = undefined;
-    if (form.stockType === "tab" || form.stockType === "cap") {
-      if (form.stockPacks && form.stockUnits) {
-        packValue = `${form.stockPacks}x${form.stockUnits}`;
+    if (form.stockType === "tab" || form.stockType === "cap" || form.stockType === "other") {
+      if (form.stockPacks) {
+        packValue = form.stockPacks;
       }
     } else if (form.stockType === "syp") {
       if (form.stockPacks) {
@@ -495,24 +494,41 @@ function InventoryPage() {
                     <option value="jar">Jar</option>
                   </select>
                 </Field>
-                {(form.stockType === "tab" || form.stockType === "cap") && (
-                  <Field label="Pack (Strips × Per Strip)">
+                {form.stockType === "other" && (
+                  <Field label="Pack Options">
                     <div className="flex items-center gap-2">
                       <Input
-                        type="number"
-                        placeholder="Strips"
+                        list="general-options"
+                        placeholder="e.g. 10X10, ML, GM..."
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                      />
+                      <datalist id="general-options">
+                        <option value="10X10" />
+                        <option value="10X1X10" />
+                        <option value="ML" />
+                        <option value="MG" />
+                        <option value="GM" />
+                        <option value="CAP" />
+                      </datalist>
+                    </div>
+                  </Field>
+                )}
+                {(form.stockType === "tab" || form.stockType === "cap") && (
+                  <Field label="Pack Format">
+                    <div className="flex items-center gap-2 w-full">
+                      <Input
+                        list="tab-cap-pack-options"
+                        placeholder="e.g. 10x10, 10X1X10, CAP"
                         value={form.stockPacks}
                         onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
                         required
                       />
-                      <span className="text-muted-foreground">×</span>
-                      <Input
-                        type="number"
-                        placeholder="Units"
-                        value={form.stockUnits}
-                        onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
-                        required
-                      />
+                      <datalist id="tab-cap-pack-options">
+                        <option value="10X10" />
+                        <option value="10X1X10" />
+                        <option value="CAP" />
+                      </datalist>
                     </div>
                   </Field>
                 )}
