@@ -67,115 +67,220 @@ export async function downloadBillPdf(
   const primaryRgb = hexToRgb(billColor);
 
   // ===== Header band =====
-  doc.setFillColor(...primaryRgb);
+  let currentY = 40;
   
-  // Calculate header height based on content
-  let headerHeight = 90;
-  let addressLines = [];
-  if (pharmacyAddress) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    addressLines = doc.splitTextToSize(clean(pharmacyAddress), 300);
-    headerHeight += addressLines.length * 13; // 13pt per line
-  }
-  headerHeight += 10; // Add gap between address and tax invoice text
-
-  doc.rect(0, 0, pageWidth, headerHeight, "F");
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.text(clean(pharmacyName), left, 36);
-
-  let currentY = 50; // closer to clinic name
-  if (addressLines.length > 0) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(addressLines, left, currentY);
-    currentY += addressLines.length * 13;
-  }
-
-  currentY += 10; // Gap between address and Tax invoice text
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text("Tax invoice / Sale bill", left, currentY);
-  currentY += 14;
-
-  if (gstNumber) {
-    doc.setFontSize(9);
-    doc.text(`GSTIN: ${clean(gstNumber.toUpperCase())}`, left, currentY);
-    currentY += 12;
-  }
-
-  if (drugLicNo) {
-    doc.setFontSize(9);
-    doc.text(`D.L. No: ${clean(drugLicNo.toUpperCase())}`, left, currentY);
-  }
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.text(clean(bill.number), right, 38, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(
-    clean(new Date(bill.createdAt).toLocaleString("en-IN")),
-    right,
-    56,
-    { align: "right" },
-  );
-
-  // ===== Parties block =====
-  doc.setTextColor(35, 35, 35);
-  let y = headerHeight + 30;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("Billed to", left, y);
-  doc.text("Payment", right - 160, y);
-
-  doc.setFont("helvetica", "normal");
-  y += 16;
-  doc.setFont("helvetica", "bold");
-  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left, y);
-  doc.setFont("helvetica", "normal");
+  // Left Side: Pharmacy Info
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), right - 160, y);
-  doc.setTextColor(35, 35, 35);
+  doc.setFontSize(20);
+  doc.text(clean(pharmacyName).toUpperCase(), left, currentY);
+  
+  currentY += 16;
+  doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  
+  let addressLines = [];
+  if (pharmacyAddress) {
+    addressLines = doc.splitTextToSize(clean(pharmacyAddress), 250);
+    doc.text(addressLines, left, currentY);
+    currentY += addressLines.length * 12;
+  }
+  
+  currentY += 4;
+  doc.setFontSize(9);
+  let gstDlText = "";
+  if (gstNumber) gstDlText += `GSTIN: ${clean(gstNumber.toUpperCase())}   `;
+  if (drugLicNo) gstDlText += `DL No: ${clean(drugLicNo.toUpperCase())}`;
+  if (gstDlText) {
+    doc.text(gstDlText, left, currentY);
+    currentY += 12;
+  }
+  
+  const headerBottomY = currentY + 10;
+  
+  // Right Side: Invoice Meta
+  let rightY = 40;
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("TAX INVOICE", right, rightY, { align: "right" });
+  
+  rightY += 16;
+  doc.setTextColor(110, 110, 110);
+  doc.setFontSize(9);
+  doc.text(`Inv No:`, right - 60, rightY);
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.text(clean(bill.number), right, rightY, { align: "right" });
+  
+  rightY += 14;
+  doc.setTextColor(110, 110, 110);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date:`, right - 60, rightY);
+  doc.setTextColor(35, 35, 35);
+  doc.text(clean(new Date(bill.createdAt).toLocaleDateString("en-IN")), right, rightY, { align: "right" });
+  
+  rightY += 14;
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Time:`, right - 60, rightY);
+  doc.setTextColor(35, 35, 35);
+  doc.text(clean(new Date(bill.createdAt).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' })), right, rightY, { align: "right" });
+  
+  rightY += 14;
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Cashier:`, right - 60, rightY);
+  doc.setTextColor(35, 35, 35);
+  doc.text(clean(bill.cashier) || "Admin", right, rightY, { align: "right" });
+  
+  // Header Bottom Border
+  let y = Math.max(headerBottomY, rightY + 10);
+  doc.setDrawColor(...primaryRgb);
+  doc.setLineWidth(1.5);
+  doc.line(left, y, right, y);
 
-  let leftY = y + 14;
+  // ===== Parties block =====
+  y += 15;
+  const boxTop = y;
+  
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("CUSTOMER DETAILS", left + 10, y + 14);
+  doc.text("PRESCRIPTION INFO", left + 260, y + 14);
+
+  doc.setTextColor(35, 35, 35);
+  let cy = y + 28;
+  doc.setFontSize(11);
+  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 10, cy);
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text("Doctor: ", left + 260, cy);
+  doc.setTextColor(35, 35, 35);
+  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + 295, cy);
+
+  let leftY = cy + 14;
   if (bill.customerPhone) {
-    doc.text(`Phone: ${clean(bill.customerPhone)}`, left, leftY);
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Phone: `, left + 10, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerPhone), left + 45, leftY);
     leftY += 14;
   }
   
   if (bill.customerAddress) {
-    const custAddrLines = doc.splitTextToSize(`Address: ${clean(bill.customerAddress)}`, 200);
-    doc.text(custAddrLines, left, leftY);
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Address: `, left + 10, leftY);
+    doc.setTextColor(35, 35, 35);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), 200);
+    doc.text(custAddrLines, left + 55, leftY);
     leftY += custAddrLines.length * 12;
   }
 
   if (bill.customerDrugLicNo) {
-    doc.setFontSize(8.5);
-    doc.text(`D.L. No: ${clean(bill.customerDrugLicNo.toUpperCase())}`, left, leftY);
-    doc.setFontSize(10);
+    doc.setTextColor(110, 110, 110);
+    doc.text(`DL: `, left + 10, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 30, leftY);
     leftY += 14;
   }
 
-  let rightY = y + 14;
-  if (bill.cashier) {
-    doc.text(`Cashier: ${clean(bill.cashier)}`, right - 160, rightY);
-    rightY += 14;
+  rightY = cy + 14;
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Payment Mode: `, left + 260, rightY);
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.text(bill.paymentMethod.toUpperCase(), left + 330, rightY);
+  doc.setFont("helvetica", "normal");
+  rightY += 14;
+
+  if (bill.customerNotes) {
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(110, 110, 110);
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), right - (left + 260) - 10);
+    doc.text(splitNotes, left + 260, rightY);
+    rightY += splitNotes.length * 12;
+    doc.setFont("helvetica", "normal");
   }
 
-  y = Math.max(leftY, rightY);
+  let boxBottom = Math.max(leftY, rightY) + 6;
   
-  if (bill.customerNotes) {
-    y += 14;
-    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), right - 160 - left);
-    doc.text(splitNotes, left, y);
-    y += (splitNotes.length - 1) * 12; // Adjust y in case it wraps
+  // Draw Customer Box
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.5);
+  doc.setFillColor(250, 250, 250);
+  doc.roundedRect(left, boxTop, pageWidth - (left * 2), boxBottom - boxTop, 4, 4, "FD");
+  
+  // Re-draw text since roundedRect filled over it
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("CUSTOMER DETAILS", left + 10, y + 14);
+  doc.text("PRESCRIPTION INFO", left + 260, y + 14);
+
+  doc.setTextColor(35, 35, 35);
+  cy = y + 28;
+  doc.setFontSize(11);
+  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 10, cy);
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text("Doctor: ", left + 260, cy);
+  doc.setTextColor(35, 35, 35);
+  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + 295, cy);
+
+  leftY = cy + 14;
+  if (bill.customerPhone) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Phone: `, left + 10, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerPhone), left + 45, leftY);
+    leftY += 14;
   }
+  
+  if (bill.customerAddress) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Address: `, left + 10, leftY);
+    doc.setTextColor(35, 35, 35);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), 200);
+    doc.text(custAddrLines, left + 55, leftY);
+    leftY += custAddrLines.length * 12;
+  }
+
+  if (bill.customerDrugLicNo) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`DL: `, left + 10, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 30, leftY);
+    leftY += 14;
+  }
+
+  rightY = cy + 14;
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Payment Mode: `, left + 260, rightY);
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.text(bill.paymentMethod.toUpperCase(), left + 330, rightY);
+  doc.setFont("helvetica", "normal");
+  rightY += 14;
+
+  if (bill.customerNotes) {
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(110, 110, 110);
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), right - (left + 260) - 10);
+    doc.text(splitNotes, left + 260, rightY);
+    rightY += splitNotes.length * 12;
+    doc.setFont("helvetica", "normal");
+  }
+
+  // Draw separator line inside box
+  doc.setDrawColor(220, 220, 220);
+  doc.line(left + 245, boxTop, left + 245, boxBottom);
+
+  y = boxBottom;
 
   // ===== Items table =====
   autoTable(doc, {
