@@ -96,6 +96,32 @@ const empty: FormState = {
   packCostPrice: "",
 };
 
+function parsePack(packStr?: string) {
+  if (!packStr) return { stockType: "other", stockPacks: "", stockUnits: "" };
+  
+  if (packStr.toUpperCase().endsWith("ML") && !packStr.includes("x") && !packStr.includes("X")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "syp", stockPacks: val, stockUnits: "ML" };
+  }
+  
+  if (packStr.toUpperCase().endsWith("MG")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "inj", stockPacks: val, stockUnits: "MG" };
+  }
+  
+  if (packStr.toUpperCase().endsWith(" JAR") || packStr.toUpperCase().endsWith(" JARS")) {
+    const val = packStr.replace(/ JARS?/i, "").trim();
+    return { stockType: "jar", stockPacks: val, stockUnits: "Jar" };
+  }
+
+  if (packStr.includes("x") || packStr.includes("X") || packStr.includes("*")) {
+    const parts = packStr.split(/[*xX]/);
+    return { stockType: "tab", stockPacks: parts[0] || "", stockUnits: parts[1] || "" };
+  }
+
+  return { stockType: "other", stockPacks: "", stockUnits: "" };
+}
+
 function InventoryPage() {
   const { q: qParam } = Route.useSearch();
   const [items, setItems] = useState<Product[]>([]);
@@ -151,9 +177,7 @@ function InventoryPage() {
         price: String(match.price),
         mrp: match.mrp != null ? String(match.mrp) : "",
         stock: String(match.stock),
-        stockType: match.pack ? "tab" : "other",
-        stockPacks: match.pack ? match.pack.split(/[*xX]/)[0] : "",
-        stockUnits: match.pack ? match.pack.split(/[*xX]/)[1] : "",
+        ...parsePack(match.pack),
         expiry: match.expiry.slice(0, 10),
         batch: match.batch ?? "",
         manufacturer: match.manufacturer ?? "",
@@ -250,9 +274,7 @@ function InventoryPage() {
       price: String(p.price),
       mrp: p.mrp != null ? String(p.mrp) : "",
       stock: String(p.stock),
-      stockType: p.pack ? "tab" : "other",
-      stockPacks: p.pack ? p.pack.split(/[*xX]/)[0] : "",
-      stockUnits: p.pack ? p.pack.split(/[*xX]/)[1] : "",
+      ...parsePack(p.pack),
       expiry: p.expiry.slice(0, 10),
       batch: p.batch ?? "",
       manufacturer: p.manufacturer ?? "",
@@ -274,6 +296,18 @@ function InventoryPage() {
     if (form.stockType === "tab" || form.stockType === "cap") {
       if (form.stockPacks && form.stockUnits) {
         packValue = `${form.stockPacks}x${form.stockUnits}`;
+      }
+    } else if (form.stockType === "syp") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks}ML`;
+      }
+    } else if (form.stockType === "inj") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks}${form.stockUnits || "ML"}`;
+      }
+    } else if (form.stockType === "jar") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks} Jar`;
       }
     }
     const payload = {
@@ -443,7 +477,15 @@ function InventoryPage() {
                   <select
                     className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     value={form.stockType}
-                    onChange={(e) => setForm({ ...form, stockType: e.target.value })}
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      setForm({
+                        ...form,
+                        stockType: type,
+                        stockPacks: "",
+                        stockUnits: type === "inj" ? "ML" : "",
+                      });
+                    }}
                   >
                     <option value="other">General / Other</option>
                     <option value="tab">Tablet (Tab)</option>
@@ -471,6 +513,55 @@ function InventoryPage() {
                         onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
                         required
                       />
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "syp" && (
+                  <Field label="Pack (ML)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="ML Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">ML</span>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "inj" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <select
+                        className="flex h-9 w-24 items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={form.stockUnits || "ML"}
+                        onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
+                      >
+                        <option value="ML">ML</option>
+                        <option value="MG">MG</option>
+                      </select>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "jar" && (
+                  <Field label="Pack (No. of Jars)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Jars count"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">Jars</span>
                     </div>
                   </Field>
                 )}
