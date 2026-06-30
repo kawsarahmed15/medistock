@@ -241,19 +241,16 @@ function BillDetailPage() {
                     <td className="py-3 px-2 text-center align-top text-muted-foreground">{idx + 1}</td>
                     <td className="py-3 px-2 text-left align-top font-semibold truncate break-words whitespace-normal">
                       {it.name}
-                      {it.freeQty ? (
-                        <div className="text-[10px] text-primary font-normal mt-0.5">
-                          + {it.freeQty} Free
-                        </div>
-                      ) : null}
                     </td>
                     <td className="py-3 px-2 text-center align-top text-[10px] font-mono text-muted-foreground whitespace-nowrap">
                       {it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"}
                     </td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] uppercase text-muted-foreground whitespace-nowrap">{it.batch || "-"}</td>
-                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">{expFormatted}</td>
-                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">{it.sku || "-"}</td>
-                    <td className="py-3 px-2 text-right align-top font-medium">{it.qty}</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">{expFormatted}</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">{it.sku || "-"}</td>
+                    <td className="py-3 px-2 text-right align-top font-medium whitespace-nowrap">
+                      {it.qty}{it.freeQty ? `+${it.freeQty}` : ""}
+                    </td>
                     <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
                     <td className="py-3 px-2 text-center align-top text-muted-foreground">{it.taxPercent}%</td>
                     <td className="py-3 px-2 text-right align-top font-mono">{it.price.toFixed(2)}</td>

@@ -294,7 +294,6 @@ export async function downloadBillPdf(
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
       let nameStr = clean(it.name);
-      if (it.freeQty) nameStr += `\n+ ${it.freeQty} Free`;
       
       return [
         String(idx + 1),
@@ -308,7 +307,7 @@ export async function downloadBillPdf(
           return `${m}/${yr}`;
         })() : "-",
         clean(it.sku || "-"),
-        String(it.qty),
+        String(it.qty) + (it.freeQty ? `+${it.freeQty}` : ""),
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         `${it.taxPercent}%`,
         it.price.toFixed(2),
@@ -316,8 +315,8 @@ export async function downloadBillPdf(
       ];
     }),
     styles: {
-      fontSize: 8,
-      cellPadding: 5,
+      fontSize: 7.5,
+      cellPadding: 4,
       lineColor: [220, 220, 220],
       lineWidth: 0.5,
       textColor: [40, 40, 40],
@@ -334,8 +333,8 @@ export async function downloadBillPdf(
       1: { halign: "left" },
       2: { halign: "center", cellWidth: "wrap" },
       3: { halign: "center", cellWidth: "wrap" },
-      4: { halign: "center", cellWidth: 28 },
-      5: { halign: "center", cellWidth: 28 },
+      4: { halign: "center", cellWidth: "wrap" },
+      5: { halign: "center", cellWidth: "wrap" },
       6: { halign: "right", cellWidth: 26 },
       7: { halign: "right", cellWidth: 36 },
       8: { halign: "center", cellWidth: 28 },
