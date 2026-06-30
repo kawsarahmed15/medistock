@@ -117,30 +117,30 @@ export async function downloadBillPdf(
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Inv No:", right - 60, rightY);
+  doc.text("Inv No:", right - 100, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(clean(bill.number), right, rightY, { align: "right" });
+  doc.text(clean(bill.number), right-20, rightY, { align: "right" });
   
   rightY += 12;
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Date:", right - 60, rightY);
+  doc.text("Date:", right - 100, rightY);
   doc.setTextColor(35, 35, 35);
-  doc.text(new Date(bill.createdAt).toLocaleDateString('en-IN'), right, rightY, { align: "right" });
+  doc.text(new Date(bill.createdAt).toLocaleDateString('en-IN'), right-20, rightY, { align: "right" });
   
-  rightY += 12;
-  doc.setTextColor(110, 110, 110);
-  doc.text("Time:", right - 60, rightY);
-  doc.setTextColor(35, 35, 35);
-  doc.text(new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), right, rightY, { align: "right" });
+  // rightY += 12;
+  // doc.setTextColor(110, 110, 110);
+  // doc.text("Time:", right - 60, rightY);
+  // doc.setTextColor(35, 35, 35);
+  // doc.text(new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), right, rightY, { align: "right" });
   
-  rightY += 12;
-  doc.setTextColor(110, 110, 110);
-  doc.text("Cashier:", right - 60, rightY);
-  doc.setTextColor(35, 35, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text(clean(bill.cashier) || "Admin", right, rightY, { align: "right" });
+  // rightY += 12;
+  // doc.setTextColor(110, 110, 110);
+  // doc.text("Cashier:", right - 60, rightY);
+  // doc.setTextColor(35, 35, 35);
+  // doc.setFont("helvetica", "bold");
+  // doc.text(clean(bill.cashier) || "Admin", right, rightY, { align: "right" });
   
   let y = Math.max(headerBottomY, rightY) + 16;
   doc.setDrawColor(...primaryRgb);
@@ -289,7 +289,7 @@ export async function downloadBillPdf(
   // 3. Items Table
   autoTable(doc, {
     startY: y + 16,
-    head: [["#", "Medicine Name", "Pack", { content: "Batch No", styles: { halign: "left" } }, "Exp", { content: "HSN", styles: { halign: "left" } }, "Qty", "MRP", "GST%", "Rate", "Amount"]],
+    head: [["#", "Medicine Name", "Pack", "Batch", "Exp.", "HSN", "Qty", "MRP", "GST", "Rate", "Amount"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
@@ -332,9 +332,9 @@ export async function downloadBillPdf(
       0: { cellWidth: 16, halign: "center" },
       1: { halign: "left" },
       2: { halign: "center", cellWidth: "wrap" },
-      3: { halign: "left", cellWidth: "wrap" },
+      3: { halign: "center", cellWidth: "wrap" },
       4: { halign: "center", cellWidth: "wrap" },
-      5: { halign: "left", cellWidth: "wrap" },
+      5: { halign: "center", cellWidth: "wrap" },
       6: { halign: "right", cellWidth: 26 },
       7: { halign: "right", cellWidth: 36 },
       8: { halign: "center", cellWidth: 28 },
@@ -573,7 +573,7 @@ export async function downloadBillPdf(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);
     doc.setTextColor(160, 160, 160);
-    doc.text("THANK YOU FOR YOUR BUSINESS. GET WELL SOON!", pageWidth / 2, pageHeight - 24, { align: "center" });
+    doc.text("THANK YOU FOR CHOOSING US.", pageWidth / 2, pageHeight - 24, { align: "center" });
     
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
