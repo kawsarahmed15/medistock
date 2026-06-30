@@ -152,7 +152,9 @@ export async function downloadBillPdf(
   }
 
   if (bill.customerDrugLicNo) {
+    doc.setFontSize(8.5);
     doc.text(`D.L. No: ${clean(bill.customerDrugLicNo.toUpperCase())}`, left, leftY);
+    doc.setFontSize(10);
     leftY += 14;
   }
 

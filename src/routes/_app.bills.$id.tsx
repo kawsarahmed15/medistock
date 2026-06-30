@@ -2,30 +2,39 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  Banknote,
   Download,
-  Pill,
   Printer,
-  ReceiptText,
-  Smartphone,
-  TrendingUp,
-  User,
-  Wallet,
+  Pill,
 } from "lucide-react";
+import QRCode from "react-qr-code";
 import { billsStore, type Bill } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { downloadBillPdf } from "@/lib/bill-pdf";
 import { useAuth } from "@/lib/auth-context";
-
 import { BillDetailSkeleton } from "@/components/loading-skeleton";
 
 export const Route = createFileRoute("/_app/bills/$id")({
   component: BillDetailPage,
 });
 
-function formatMoney(n: number) {
-  return new Intl.NumberFormat(undefined, { style: "currency", currency: "INR" }).format(n);
+function numberToWords(num: number): string {
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  const val = Math.floor(num);
+  if (val === 0) return 'Zero Rupees Only';
+  
+  // Format up to 9,99,99,999
+  const n = ('000000000' + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  if (!n) return '';
+
+  let str = '';
+  str += (n[1] != '00') ? (a[Number(n[1])] || b[n[1][0] as any] + ' ' + a[n[1][1] as any]) + 'Crore ' : '';
+  str += (n[2] != '00') ? (a[Number(n[2])] || b[n[2][0] as any] + ' ' + a[n[2][1] as any]) + 'Lakh ' : '';
+  str += (n[3] != '00') ? (a[Number(n[3])] || b[n[3][0] as any] + ' ' + a[n[3][1] as any]) + 'Thousand ' : '';
+  str += (n[4] != '0') ? (a[Number(n[4])] || b[n[4][0] as any] + ' ' + a[n[4][1] as any]) + 'Hundred ' : '';
+  str += (n[5] != '00') ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0] as any] + ' ' + a[n[5][1] as any]) + 'Rupees ' : 'Rupees ';
+  return str.trim() + ' Only';
 }
 
 function BillDetailPage() {
@@ -33,7 +42,9 @@ function BillDetailPage() {
   const [bill, setBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
+  
   const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
+  const pharmacyAddress = session?.pharmacyAddress || "123 Health Ave, Medical District, City";
 
   useEffect(() => {
     let cancelled = false;
@@ -57,18 +68,6 @@ function BillDetailPage() {
     };
   }, [id]);
 
-  const stats = useMemo(() => {
-    if (!bill) return null;
-    const itemCount = bill.items.reduce((s, it) => s + it.qty, 0);
-    const cost = bill.items.reduce(
-      (s, it) => s + (it.costPrice ?? 0) * it.qty,
-      0,
-    );
-    const profit = bill.subtotal - cost;
-    const margin = bill.subtotal > 0 ? (profit / bill.subtotal) * 100 : 0;
-    return { itemCount, cost, profit, margin };
-  }, [bill]);
-
   if (loading) return <BillDetailSkeleton />;
 
   if (!bill) {
@@ -82,26 +81,37 @@ function BillDetailPage() {
     );
   }
 
-  const PayIcon = bill.paymentMethod === "cash" ? Banknote : Smartphone;
+  const totalQty = bill.items.reduce((acc, item) => acc + item.qty, 0);
+  const totalFree = bill.items.reduce((acc, item) => acc + (item.freeQty || 0), 0);
+  const cgst = bill.tax / 2;
+  const sgst = bill.tax / 2;
+  
+  const netPayable = Math.round(bill.total);
+  const roundOff = netPayable - bill.total;
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+    <div className="max-w-4xl mx-auto space-y-6 pb-20">
+      {/* Action Bar (Hidden in Print) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background sticky top-0 z-10 py-4">
         <Button asChild variant="ghost" size="sm">
           <Link to="/bills">
-            <ArrowLeft className="h-4 w-4" /> All bills
+            <ArrowLeft className="h-4 w-4 mr-2" /> All bills
           </Link>
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Print</span>
           </Button>
           <Button
             size="sm"
             onClick={() => void downloadBillPdf(bill, {
-              pharmacyName: session?.pharmacyName,
-              pharmacyAddress: session?.pharmacyAddress,
+              pharmacyName,
+              pharmacyAddress,
               gstNumber: session?.gstNumber,
               drugLicNo: session?.drugLicNo,
               billColor: session?.billColor,
@@ -109,263 +119,240 @@ function BillDetailPage() {
             })}
             className="shadow-soft"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Download PDF</span>
             <span className="sm:hidden">PDF</span>
           </Button>
         </div>
       </div>
 
-      {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
-          <MiniStat label="Items sold" value={String(stats.itemCount)} icon={ReceiptText} />
-          <MiniStat
-            label="Payment"
-            value={bill.paymentMethod}
-            icon={PayIcon}
-            valueClass="capitalize"
-          />
-          <MiniStat
-            label="Profit"
-            value={formatMoney(stats.profit)}
-            icon={Wallet}
-            valueClass={stats.profit < 0 ? "text-destructive" : "text-success"}
-          />
-          <MiniStat
-            label="Margin"
-            value={`${stats.margin.toFixed(1)}%`}
-            icon={TrendingUp}
-          />
-        </div>
-      )}
-
-      <Card className="shadow-soft p-5 sm:p-8 animate-scale-in print:shadow-none print:border-0">
-        <div className="flex items-start justify-between border-b pb-5 gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Pill className="h-6 w-6 text-primary-foreground" />
+      {/* Invoice Document */}
+      <div className="bg-white text-black p-8 sm:p-10 shadow-lg print:shadow-none print:p-0 print:m-0 w-full min-h-[297mm] mx-auto border print:border-none relative">
+        {/* Header */}
+        <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+          <div className="flex gap-4">
+            <div className="h-16 w-16 rounded-xl bg-slate-900 flex items-center justify-center text-white print:border print:border-black print:bg-white print:text-black">
+              <Pill className="h-8 w-8" />
             </div>
             <div>
-              <div className="font-semibold text-lg leading-tight">{pharmacyName}</div>
-              {session?.pharmacyAddress && (
-                <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-snug mt-0">
-                  {session.pharmacyAddress}
-                </div>
-              )}
-              {session?.gstNumber && (
-                <div className="text-[10px] text-muted-foreground mt-1 font-mono">
-                  GSTIN: {session.gstNumber.toUpperCase()}
-                </div>
-              )}
-              {session?.drugLicNo && (
-                <div className="text-[10px] text-muted-foreground font-mono">
-                  D.L. No: {session.drugLicNo.toUpperCase()}
-                </div>
-              )}
+              <h1 className="text-2xl font-bold uppercase tracking-wide m-0 leading-tight">
+                {pharmacyName}
+              </h1>
+              <p className="text-sm max-w-xs leading-snug mt-1 whitespace-pre-wrap">
+                {pharmacyAddress}
+              </p>
+              <div className="flex flex-wrap gap-x-4 mt-2 text-xs font-mono">
+                {session?.gstNumber && <p><strong>GSTIN:</strong> {session.gstNumber.toUpperCase()}</p>}
+                {session?.drugLicNo && <p><strong>DL No:</strong> {session.drugLicNo.toUpperCase()}</p>}
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-semibold">{bill.number}</div>
-            <div className="text-xs text-muted-foreground">
-              {new Date(bill.createdAt).toLocaleString()}
+          <div className="text-right text-sm flex flex-col gap-1">
+            <h2 className="text-xl font-bold uppercase tracking-widest text-gray-500 mb-1 print:text-black">Invoice</h2>
+            <div className="flex justify-end gap-2">
+              <span className="text-gray-500 print:text-black">Inv No:</span>
+              <span className="font-bold font-mono">{bill.number}</span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <span className="text-gray-500 print:text-black">Date:</span>
+              <span>{new Date(bill.createdAt).toLocaleDateString('en-IN')}</span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <span className="text-gray-500 print:text-black">Time:</span>
+              <span>{new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div className="flex justify-end gap-2 mt-1">
+              <span className="text-gray-500 print:text-black">Cashier:</span>
+              <span>{bill.cashier || "Admin"}</span>
             </div>
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 py-5 text-sm">
-          <div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Billed to</div>
-            <div className="font-bold text-lg uppercase mt-1 flex items-center gap-1.5">
-              <User className="h-4 w-4 text-muted-foreground" />
-              {bill.customerName ?? "Walk-in customer"}
-            </div>
-            {bill.customerPhone && (
-              <div className="text-xs text-muted-foreground mt-0.5">Phone: {bill.customerPhone}</div>
-            )}
-            {bill.customerAddress && (
-              <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap leading-snug">
-                Address: {bill.customerAddress}
-              </div>
-            )}
-            {bill.customerDrugLicNo && (
-              <div className="text-xs text-muted-foreground mt-0.5 font-mono">
-                D.L. No: {bill.customerDrugLicNo.toUpperCase()}
-              </div>
-            )}
+        {/* Customer Details */}
+        <div className="border border-black p-3 mb-4 flex flex-col sm:flex-row justify-between text-sm gap-4">
+          <div className="sm:w-1/2">
+            <p className="font-semibold mb-1 uppercase text-xs text-gray-600 print:text-black">Customer Details</p>
+            <p className="font-bold uppercase text-base">{bill.customerName || "Walk-in Customer"}</p>
+            {bill.customerPhone && <p>Phone: {bill.customerPhone}</p>}
+            {bill.customerAddress && <p>Address: {bill.customerAddress}</p>}
+            {bill.customerDrugLicNo && <p className="font-mono text-xs mt-1">DL: {bill.customerDrugLicNo}</p>}
+          </div>
+          <div className="sm:w-1/2 sm:border-l border-black sm:pl-4">
+            <p className="font-semibold mb-1 uppercase text-xs text-gray-600 print:text-black">Prescription Info</p>
+            <p>Doctor: {bill.customerNotes ? "See Notes" : "N/A"}</p>
+            <p>Payment Mode: <span className="uppercase font-semibold">{bill.paymentMethod}</span></p>
             {bill.customerNotes && (
-              <div className="text-sm mt-2 whitespace-pre-wrap">
-                {bill.customerNotes}
-              </div>
+              <p className="mt-1 text-xs text-gray-700 print:text-black italic">{bill.customerNotes}</p>
             )}
-          </div>
-          <div className="sm:text-right">
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">Cashier</div>
-            <div className="font-medium mt-1">{bill.cashier ?? "—"}</div>
-            <div className="text-xs text-muted-foreground uppercase tracking-wide mt-2">Payment</div>
-            <div className="font-medium mt-1 capitalize inline-flex items-center gap-1.5 sm:justify-end">
-              <PayIcon className="h-3.5 w-3.5" />
-              {bill.paymentMethod}
-            </div>
           </div>
         </div>
 
-        {/* Items: table on sm+, stacked rows on mobile */}
-        {(() => {
-          const paidItems = bill.items;
-
-          return (
-            <>
-              {paidItems.length > 0 && (
-                <div className="rounded-lg overflow-hidden border hidden sm:block">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="w-10 text-center p-3 font-medium">#</th>
-                <th className="text-left p-3 font-medium">Item</th>
-                <th className="w-20 text-right p-3 font-medium whitespace-nowrap">Pack</th>
-                <th className="w-16 text-center p-3 font-medium whitespace-nowrap">Exp.</th>
-                <th className="w-16 text-right p-3 font-medium">MRP</th>
-                <th className="w-16 text-center p-3 font-medium whitespace-nowrap">Qty</th>
-                <th className="w-16 text-center p-3 font-medium whitespace-nowrap">Free</th>
-                <th className="w-20 text-right p-3 font-medium">Price</th>
-                <th className="w-24 text-center p-3 font-medium">Tax</th>
-                <th className="w-24 text-right p-3 font-medium">Total</th>
+        {/* Items Table */}
+        <div className="mb-6 w-full overflow-x-auto">
+          <table className="w-full text-xs border-collapse table-fixed min-w-[700px]">
+            <thead className="table-header-group">
+              <tr className="border-y-2 border-black bg-gray-50 print:bg-transparent">
+                <th className="py-2 px-1 text-center w-[4%]">#</th>
+                <th className="py-2 px-1 text-left w-[24%]">Medicine Name</th>
+                <th className="py-2 px-1 text-center w-[12%]">Batch No</th>
+                <th className="py-2 px-1 text-center w-[8%]">Expiry</th>
+                <th className="py-2 px-1 text-center w-[8%]">HSN</th>
+                <th className="py-2 px-1 text-right w-[8%]">Qty</th>
+                <th className="py-2 px-1 text-right w-[10%]">MRP</th>
+                <th className="py-2 px-1 text-center w-[6%]">GST%</th>
+                <th className="py-2 px-1 text-right w-[10%]">Rate</th>
+                <th className="py-2 px-1 text-right w-[10%]">Amount</th>
               </tr>
             </thead>
             <tbody>
-              {paidItems.map((it, idx) => {
-                const line = it.price * it.qty;
-                const tax = (line * it.taxPercent) / 100;
+              {bill.items.map((it, idx) => {
+                const lineAmount = it.price * it.qty;
+                const taxAmount = (lineAmount * it.taxPercent) / 100;
+                
+                const expFormatted = it.expiry ? (() => {
+                  const d = new Date(it.expiry);
+                  const m = String(d.getMonth() + 1).padStart(2, '0');
+                  const y = String(d.getFullYear()).slice(-2);
+                  return `${m}/${y}`;
+                })() : "-";
+
                 return (
-                  <tr key={it.productId || it.name} className="border-t">
-                    <td className="p-3 text-center text-muted-foreground">{idx + 1}</td>
-                    <td className="p-3">{it.name}</td>
-                    <td className="p-3 text-right tabular-nums whitespace-nowrap">{it.pack ? it.pack.replace(/[*x]/gi, "X") : "—"}</td>
-                    <td className="p-3 text-center text-xs tabular-nums whitespace-nowrap">{it.expiry ? (() => {
-                      const d = new Date(it.expiry);
-                      const m = String(d.getMonth() + 1).padStart(2, '0');
-                      const y = String(d.getFullYear()).slice(-2);
-                      return `${m}/${y}`;
-                    })() : "—"}</td>
-                    <td className="p-3 text-right tabular-nums">{it.mrp != null ? it.mrp.toFixed(2) : "—"}</td>
-                    <td className="p-3 text-center tabular-nums">{it.qty}</td>
-                    <td className="p-3 text-center tabular-nums text-primary font-medium">{it.freeQty || 0}</td>
-                    <td className="p-3 text-right tabular-nums">{it.price.toFixed(2)}</td>
-                    <td className="p-3 text-center tabular-nums">
-                      {it.taxPercent}% ({tax.toFixed(2)})
+                  <tr key={idx} className="border-b border-gray-300 print:border-black break-inside-avoid">
+                    <td className="py-2 px-1 text-center align-top">{idx + 1}</td>
+                    <td className="py-2 px-1 text-left align-top font-semibold truncate break-words whitespace-normal">
+                      {it.name}
+                      <div className="text-[10px] text-gray-500 font-normal mt-0.5 print:text-black">
+                        {it.pack ? `Pack: ${it.pack.replace(/[*x]/gi, "X")}` : ''}
+                        {it.freeQty ? ` + ${it.freeQty} Free` : ''}
+                      </div>
                     </td>
-                    <td className="p-3 text-right tabular-nums font-medium">
-                      {(line + tax).toFixed(2)}
-                    </td>
+                    <td className="py-2 px-1 text-center align-top font-mono text-[10px] uppercase">{it.batch || "-"}</td>
+                    <td className="py-2 px-1 text-center align-top font-mono text-[10px]">{expFormatted}</td>
+                    <td className="py-2 px-1 text-center align-top font-mono text-[10px]">-</td>
+                    <td className="py-2 px-1 text-right align-top font-medium">{it.qty}</td>
+                    <td className="py-2 px-1 text-right align-top font-mono">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
+                    <td className="py-2 px-1 text-center align-top">{it.taxPercent}%</td>
+                    <td className="py-2 px-1 text-right align-top font-mono">{it.price.toFixed(2)}</td>
+                    <td className="py-2 px-1 text-right align-top font-mono font-bold">{(lineAmount + taxAmount).toFixed(2)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-              )}
 
-        {paidItems.length > 0 && (
-          <div className="space-y-2 sm:hidden mt-4">
-            {paidItems.map((it, idx) => {
-              const line = it.price * it.qty;
-            const tax = (line * it.taxPercent) / 100;
-            return (
-              <div
-                key={it.productId || it.name}
-                className="border rounded-lg p-3 text-sm"
-              >
-                <div className="flex justify-between gap-2">
-                  <span className="font-medium">{idx + 1}. {it.name}</span>
-                  <span className="font-semibold tabular-nums">
-                    {(line + tax).toFixed(2)}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {it.qty} × {it.price.toFixed(2)} · Tax {it.taxPercent}% ({tax.toFixed(2)})
-                  {it.freeQty ? ` · Free ${it.freeQty}` : ""}
-                  {it.pack && ` · Pack ${it.pack.replace(/[*x]/gi, "X")}`}
-                  {it.expiry && ` · Exp ${(() => {
-                    const d = new Date(it.expiry);
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const y = String(d.getFullYear()).slice(-2);
-                    return `${m}/${y}`;
-                  })()}`}
-                  {it.mrp != null && ` · MRP ${it.mrp.toFixed(2)}`}
-                </div>
+        {/* Summary Area */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-6 border-t-2 border-black pt-4 break-inside-avoid">
+          
+          {/* Left Footer Area */}
+          <div className="w-full sm:w-[55%] flex flex-col gap-4">
+            <div className="flex gap-4 items-center">
+              <div className="p-2 border border-black bg-white inline-block">
+                <QRCode value={bill.number} size={64} level="M" />
               </div>
-            );
-          })}
-        </div>
-        )}
-        </>
-      );
-    })()}
-
-        <div className="mt-6 sm:ml-auto w-full sm:w-72 space-y-1.5 text-sm">
-          <Row label="Subtotal" value={bill.subtotal.toFixed(2)} />
-          <Row label="Tax" value={bill.tax.toFixed(2)} />
-          {(bill.discount || 0) > 0 && (
-            <Row label="Discount" value={`-${(bill.discount || 0).toFixed(2)}`} />
-          )}
-          <div className="border-t my-3 border-dashed" />
-          <div className="text-primary text-base">
-            <Row label="Grand total" value={bill.total.toFixed(2)} bold />
+              <div className="text-xs space-y-1">
+                <p><strong>Total Items:</strong> {bill.items.length}</p>
+                <p><strong>Total Qty:</strong> {totalQty} {totalFree > 0 ? `(+${totalFree} Free)` : ''}</p>
+              </div>
+            </div>
+            
+            <div className="text-xs">
+              <p className="font-semibold text-gray-600 uppercase print:text-black mb-1">Amount in Words:</p>
+              <p className="font-bold capitalize">{numberToWords(netPayable)}</p>
+            </div>
+            
+            <div className="text-[10px] text-gray-500 print:text-black mt-2 leading-relaxed">
+              <p className="font-bold uppercase text-gray-700 print:text-black mb-1">Terms & Conditions:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>Goods once sold will not be taken back or exchanged.</li>
+                <li>Please consult your doctor before using the medicines.</li>
+                <li>Keep medicines out of reach of children.</li>
+              </ul>
+            </div>
           </div>
-          {bill.paymentMethod === "credit" && (
-            <>
-              {bill.advanceAmount > 0 && (
-                <Row label="Advance Paid" value={bill.advanceAmount.toFixed(2)} />
+          
+          {/* Right Summary Area */}
+          <div className="w-full sm:w-[40%] text-sm">
+            <div className="space-y-1.5 w-full">
+              <div className="flex justify-between">
+                <span>Gross Amount</span>
+                <span className="font-mono">{(bill.subtotal + (bill.discount || 0)).toFixed(2)}</span>
+              </div>
+              {(bill.discount || 0) > 0 && (
+                <div className="flex justify-between text-green-700 print:text-black">
+                  <span>Discount</span>
+                  <span className="font-mono">-{bill.discount!.toFixed(2)}</span>
+                </div>
               )}
-              {bill.total >= bill.advanceAmount ? (
-                <div className="text-destructive font-semibold">
-                  <Row label="Balance Due" value={(bill.total - bill.advanceAmount).toFixed(2)} />
+              <div className="flex justify-between">
+                <span>Taxable Amount</span>
+                <span className="font-mono">{bill.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>CGST</span>
+                <span className="font-mono">{cgst.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-b border-dashed border-black pb-1.5">
+                <span>SGST</span>
+                <span className="font-mono">{sgst.toFixed(2)}</span>
+              </div>
+              {roundOff !== 0 && (
+                <div className="flex justify-between text-xs text-gray-600 print:text-black pt-1.5">
+                  <span>Round Off</span>
+                  <span className="font-mono">{roundOff > 0 ? '+' : ''}{roundOff.toFixed(2)}</span>
+                </div>
+              )}
+              
+              <div className="flex justify-between py-2 text-xl font-bold uppercase tracking-wide bg-gray-100 px-2 print:bg-transparent print:px-0">
+                <span>Net Payable</span>
+                <span className="font-mono">₹{netPayable.toFixed(2)}</span>
+              </div>
+              
+              {bill.paymentMethod === "credit" ? (
+                <div className="text-xs pt-2 space-y-1 border-t border-dashed border-black">
+                  <div className="flex justify-between">
+                    <span>Advance Paid</span>
+                    <span className="font-mono">₹{bill.advanceAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>Balance Due</span>
+                    <span className="font-mono">₹{(netPayable - bill.advanceAmount).toFixed(2)}</span>
+                  </div>
                 </div>
               ) : (
-                <div className="text-emerald-600 font-semibold">
-                  <Row label="Change / Credit" value={(bill.advanceAmount - bill.total).toFixed(2)} />
+                <div className="text-xs pt-2 space-y-1 border-t border-dashed border-black">
+                  <div className="flex justify-between">
+                    <span>Amount Paid</span>
+                    <span className="font-mono">₹{netPayable.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>Balance</span>
+                    <span className="font-mono">₹0.00</span>
+                  </div>
                 </div>
               )}
-            </>
-          )}
+            </div>
+          </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-8">
-          Thank you for choosing {pharmacyName} — get well soon!
-        </p>
-      </Card>
-    </div>
-  );
-}
+        {/* Signatures */}
+        <div className="mt-16 flex justify-between items-end text-sm break-inside-avoid px-2">
+          <div className="text-center">
+            <div className="border-t border-black w-40 pt-1">Customer Signature</div>
+          </div>
+          <div className="text-center">
+            <div className="h-10"></div> {/* Space for signature or stamp */}
+            <div className="font-bold text-xs uppercase text-gray-500 print:text-black mb-1">For {pharmacyName}</div>
+            <div className="border-t border-black w-48 pt-1">Authorized Signatory</div>
+          </div>
+        </div>
+        
+        {/* Absolute Footer message */}
+        <div className="mt-8 pt-4 border-t border-gray-200 print:border-black text-center text-[10px] font-semibold tracking-widest uppercase text-gray-400 print:text-black">
+          Thank you for your business. Get well soon!
+        </div>
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className={`flex justify-between ${bold ? "font-semibold text-base" : ""}`}>
-      <span className={bold ? "" : "text-muted-foreground"}>{label}</span>
-      <span className="tabular-nums">{value}</span>
+      </div>
     </div>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  icon: Icon,
-  valueClass,
-}: {
-  label: string;
-  value: string;
-  icon: React.ComponentType<{ className?: string }>;
-  valueClass?: string;
-}) {
-  return (
-    <Card className="shadow-soft p-3">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" /> {label}
-      </div>
-      <div className={`mt-1 text-base font-semibold ${valueClass ?? ""}`}>
-        {value}
-      </div>
-    </Card>
   );
 }
