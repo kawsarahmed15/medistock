@@ -48,8 +48,8 @@ export async function downloadBillPdf(
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const left = 40;
-  const right = pageWidth - 40;
+  const left = 20;
+  const right = pageWidth - 20;
 
   const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
   const pharmacyAddress = settings?.pharmacyAddress || "123 Health Ave, Medical District, City";
@@ -289,17 +289,17 @@ export async function downloadBillPdf(
   // 3. Items Table
   autoTable(doc, {
     startY: y + 16,
-    head: [["#", "Medicine Name", "Batch No", "Expiry", "HSN", "Qty", "MRP", "GST%", "Rate", "Amount"]],
+    head: [["#", "Medicine Name", "Pack", "Batch", "Exp", "HSN", "Qty", "MRP", "GST%", "Rate", "Amount"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const tax = (line * it.taxPercent) / 100;
       let nameStr = clean(it.name);
-      if (it.pack) nameStr += `\nPack: ${it.pack.replace(/[*x]/gi, "X")}`;
       if (it.freeQty) nameStr += `\n+ ${it.freeQty} Free`;
       
       return [
         String(idx + 1),
         nameStr,
+        clean(it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"),
         clean(it.batch || "-"),
         it.expiry ? (() => {
           const d = new Date(it.expiry);
@@ -332,16 +332,17 @@ export async function downloadBillPdf(
     columnStyles: {
       0: { cellWidth: 16, halign: "center" },
       1: { halign: "left" },
-      2: { halign: "center", cellWidth: 42 },
-      3: { halign: "center", cellWidth: 32 },
-      4: { halign: "center", cellWidth: 32 },
-      5: { halign: "right", cellWidth: 32 },
-      6: { halign: "right", cellWidth: 40 },
-      7: { halign: "center", cellWidth: 30 },
-      8: { halign: "right", cellWidth: 40 },
-      9: { halign: "right", cellWidth: 50, fontStyle: "bold", textColor: primaryRgb },
+      2: { halign: "center", cellWidth: 32 },
+      3: { halign: "center", cellWidth: 38 },
+      4: { halign: "center", cellWidth: 28 },
+      5: { halign: "center", cellWidth: 28 },
+      6: { halign: "right", cellWidth: 26 },
+      7: { halign: "right", cellWidth: 36 },
+      8: { halign: "center", cellWidth: 28 },
+      9: { halign: "right", cellWidth: 38 },
+      10: { halign: "right", cellWidth: 46, fontStyle: "bold", textColor: primaryRgb },
     },
-    margin: { left, right: 40 },
+    margin: { left, right: 20 },
     theme: "grid",
   });
 

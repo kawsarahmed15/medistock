@@ -212,13 +212,14 @@ function BillDetailPage() {
             <thead className="table-header-group bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider">
               <tr>
                 <th className="py-3 px-2 text-center w-[4%] font-medium">#</th>
-                <th className="py-3 px-2 text-left w-[24%] font-medium">Medicine Name</th>
-                <th className="py-3 px-2 text-center w-[12%] font-medium">Batch No</th>
+                <th className="py-3 px-2 text-left w-[20%] font-medium">Medicine Name</th>
+                <th className="py-3 px-2 text-center w-[8%] font-medium">Pack</th>
+                <th className="py-3 px-2 text-center w-[10%] font-medium">Batch No</th>
                 <th className="py-3 px-2 text-center w-[8%] font-medium">Expiry</th>
-                <th className="py-3 px-2 text-center w-[8%] font-medium">HSN</th>
+                <th className="py-3 px-2 text-center w-[6%] font-medium">HSN</th>
                 <th className="py-3 px-2 text-right w-[8%] font-medium">Qty</th>
-                <th className="py-3 px-4 text-right w-[10%] font-medium">MRP</th>
-                <th className="py-3 px-4 text-center w-[6%] font-medium">GST%</th>
+                <th className="py-3 px-2 text-right w-[10%] font-medium">MRP</th>
+                <th className="py-3 px-2 text-center w-[6%] font-medium">GST%</th>
                 <th className="py-3 px-2 text-right w-[10%] font-medium">Rate</th>
                 <th className="py-3 px-2 text-right w-[10%] font-medium">Amount</th>
               </tr>
@@ -240,17 +241,21 @@ function BillDetailPage() {
                     <td className="py-3 px-2 text-center align-top text-muted-foreground">{idx + 1}</td>
                     <td className="py-3 px-2 text-left align-top font-semibold truncate break-words whitespace-normal">
                       {it.name}
-                      <div className="text-[10px] text-muted-foreground font-normal mt-0.5">
-                        {it.pack ? `Pack: ${it.pack.replace(/[*x]/gi, "X")}` : ''}
-                        {it.freeQty ? <span className="text-primary font-medium"> + {it.freeQty} Free</span> : ''}
-                      </div>
+                      {it.freeQty ? (
+                        <div className="text-[10px] text-primary font-normal mt-0.5">
+                          + {it.freeQty} Free
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="py-3 px-2 text-center align-top text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                      {it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"}
                     </td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] uppercase text-muted-foreground">{it.batch || "-"}</td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">{expFormatted}</td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">-</td>
                     <td className="py-3 px-2 text-right align-top font-medium">{it.qty}</td>
-                    <td className="py-3 px-4 text-right align-top font-mono text-muted-foreground">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
-                    <td className="py-3 px-4 text-center align-top text-muted-foreground">{it.taxPercent}%</td>
+                    <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
+                    <td className="py-3 px-2 text-center align-top text-muted-foreground">{it.taxPercent}%</td>
                     <td className="py-3 px-2 text-right align-top font-mono">{it.price.toFixed(2)}</td>
                     <td className="py-3 px-2 text-right align-top font-mono font-bold text-primary">{(lineAmount + taxAmount).toFixed(2)}</td>
                   </tr>
