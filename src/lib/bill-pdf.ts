@@ -332,8 +332,8 @@ export async function downloadBillPdf(
     columnStyles: {
       0: { cellWidth: 16, halign: "center" },
       1: { halign: "left" },
-      2: { halign: "center", cellWidth: 32 },
-      3: { halign: "center", cellWidth: 38 },
+      2: { halign: "center", cellWidth: "wrap" },
+      3: { halign: "center", cellWidth: "wrap" },
       4: { halign: "center", cellWidth: 28 },
       5: { halign: "center", cellWidth: 28 },
       6: { halign: "right", cellWidth: 26 },

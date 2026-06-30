@@ -213,8 +213,8 @@ function BillDetailPage() {
               <tr>
                 <th className="py-3 px-2 text-center w-[4%] font-medium">#</th>
                 <th className="py-3 px-2 text-left w-[20%] font-medium">Medicine Name</th>
-                <th className="py-3 px-2 text-center w-[8%] font-medium">Pack</th>
-                <th className="py-3 px-2 text-center w-[10%] font-medium">Batch No</th>
+                <th className="py-3 px-2 text-center w-[8%] font-medium whitespace-nowrap">Pack</th>
+                <th className="py-3 px-2 text-center w-[10%] font-medium whitespace-nowrap">Batch No</th>
                 <th className="py-3 px-2 text-center w-[8%] font-medium">Expiry</th>
                 <th className="py-3 px-2 text-center w-[6%] font-medium">HSN</th>
                 <th className="py-3 px-2 text-right w-[8%] font-medium">Qty</th>
@@ -250,7 +250,7 @@ function BillDetailPage() {
                     <td className="py-3 px-2 text-center align-top text-[10px] font-mono text-muted-foreground whitespace-nowrap">
                       {it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"}
                     </td>
-                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] uppercase text-muted-foreground">{it.batch || "-"}</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] uppercase text-muted-foreground whitespace-nowrap">{it.batch || "-"}</td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">{expFormatted}</td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground">-</td>
                     <td className="py-3 px-2 text-right align-top font-medium">{it.qty}</td>
