@@ -193,7 +193,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   const main = (
-    <div className="h-full flex flex-col min-w-0 bg-gradient-soft">
+    <div className="h-full flex flex-col min-w-0 bg-gradient-soft print:block print:h-auto">
       <header className="h-14 flex items-center gap-2 sm:gap-3 md:gap-4 px-3 sm:px-4 md:px-8 border-b border-border bg-background/70 backdrop-blur-md sticky top-0 z-10 print:hidden">
         {/* Mobile hamburger -> opens sidebar sheet */}
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
@@ -235,23 +235,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="h-screen w-full bg-gradient-soft overflow-hidden">
+    <div className="h-screen w-full bg-gradient-soft overflow-hidden print:h-auto print:overflow-visible">
       {!isDesktop ? (
-        <div className="md:hidden h-full">{main}</div>
+        <div className="md:hidden h-full print:h-auto">{main}</div>
       ) : (
-        <div className="hidden md:block h-full">
-          <ResizablePanelGroup orientation="horizontal" id="medistock-shell" className="h-full">
+        <div className="hidden md:block h-full print:block print:h-auto">
+          <ResizablePanelGroup orientation="horizontal" id="medistock-shell" className="h-full print:h-auto print:block">
             <ResizablePanel
               id="sidebar"
               defaultSize={"256px" as any}
               minSize={"180px" as any}
               maxSize={"480px" as any}
-              className="h-full"
+              className="h-full print:hidden"
             >
               {sidebarBody()}
             </ResizablePanel>
-            <ResizableHandle className="pointer-events-none opacity-0" />
-            <ResizablePanel id="main" className="h-full">
+            <ResizableHandle className="pointer-events-none opacity-0 print:hidden" />
+            <ResizablePanel id="main" className="h-full print:h-auto">
               {main}
             </ResizablePanel>
           </ResizablePanelGroup>

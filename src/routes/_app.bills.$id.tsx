@@ -103,6 +103,7 @@ function BillDetailPage() {
               pharmacyName: session?.pharmacyName,
               pharmacyAddress: session?.pharmacyAddress,
               gstNumber: session?.gstNumber,
+              drugLicNo: session?.drugLicNo,
               billColor: session?.billColor,
               signature: session?.signature,
             })}
@@ -156,6 +157,11 @@ function BillDetailPage() {
                   GSTIN: {session.gstNumber.toUpperCase()}
                 </div>
               )}
+              {session?.drugLicNo && (
+                <div className="text-[10px] text-muted-foreground font-mono">
+                  D.L. No: {session.drugLicNo.toUpperCase()}
+                </div>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -179,6 +185,11 @@ function BillDetailPage() {
             {bill.customerAddress && (
               <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap leading-snug">
                 Address: {bill.customerAddress}
+              </div>
+            )}
+            {bill.customerDrugLicNo && (
+              <div className="text-xs text-muted-foreground mt-0.5 font-mono">
+                D.L. No: {bill.customerDrugLicNo.toUpperCase()}
               </div>
             )}
             {bill.customerNotes && (

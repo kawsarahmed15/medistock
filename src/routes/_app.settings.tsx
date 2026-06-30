@@ -29,6 +29,7 @@ function SettingsPage() {
   const [pharmacyName, setPharmacyName] = useState(session?.pharmacyName ?? "");
   const [pharmacyAddress, setPharmacyAddress] = useState(session?.pharmacyAddress ?? "");
   const [gstNumber, setGstNumber] = useState(session?.gstNumber ?? "");
+  const [drugLicNo, setDrugLicNo] = useState(session?.drugLicNo ?? "");
   const [billColor, setBillColor] = useState(session?.billColor ?? "#1a9890");
   const [signature, setSignature] = useState(session?.signature ?? "");
   const [expiryDays, setExpiryDays] = useState(session?.expiryDays ?? 60);
@@ -41,6 +42,7 @@ function SettingsPage() {
       if (session.pharmacyName) setPharmacyName(session.pharmacyName);
       if (session.pharmacyAddress) setPharmacyAddress(session.pharmacyAddress);
       if (session.gstNumber) setGstNumber(session.gstNumber);
+      if (session.drugLicNo) setDrugLicNo(session.drugLicNo);
       if (session.billColor) setBillColor(session.billColor);
       if (session.signature) setSignature(session.signature);
       if (session.expiryDays) setExpiryDays(session.expiryDays);
@@ -85,6 +87,7 @@ function SettingsPage() {
           pharmacyName: pharmacyName.trim() || null,
           pharmacyAddress: pharmacyAddress.trim() || null,
           gstNumber: gstNumber.trim() || null,
+          drugLicNo: drugLicNo.trim() || null,
           billColor: billColor,
           signature: signature || null,
           expiryDays: Number(expiryDays) || 60,
@@ -97,6 +100,7 @@ function SettingsPage() {
         pharmacyName: pharmacyName.trim() || undefined,
         pharmacyAddress: pharmacyAddress.trim() || undefined,
         gstNumber: gstNumber.trim() || undefined,
+        drugLicNo: drugLicNo.trim() || undefined,
         billColor: billColor,
         signature: signature || undefined,
         expiryDays: Number(expiryDays) || 60,
@@ -170,6 +174,17 @@ function SettingsPage() {
                   value={gstNumber}
                   onChange={(e) => setGstNumber(e.target.value)}
                   placeholder="e.g. 27AAAAA1111A1Z1"
+                  className="font-mono uppercase"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="drug-lic-no">Drug License Number</Label>
+                <Input
+                  id="drug-lic-no"
+                  value={drugLicNo}
+                  onChange={(e) => setDrugLicNo(e.target.value)}
+                  placeholder="e.g. DL-12345"
                   className="font-mono uppercase"
                 />
               </div>

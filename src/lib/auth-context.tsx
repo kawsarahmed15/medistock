@@ -8,6 +8,7 @@ export type Session = {
   pharmacyName?: string;
   pharmacyAddress?: string;
   gstNumber?: string;
+  drugLicNo?: string;
   billColor?: string;
   signature?: string;
   role?: string;

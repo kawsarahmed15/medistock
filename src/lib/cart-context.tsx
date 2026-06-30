@@ -7,6 +7,7 @@ export type Customer = {
   name: string;
   phone: string;
   address?: string;
+  drugLicNo?: string;
   notes: string;
   prescriptionRef?: string;
   /** Data URL (image/*) of an uploaded prescription photo. */

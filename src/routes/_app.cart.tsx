@@ -78,6 +78,7 @@ function CartPage() {
         customerName: cart.customer.name || undefined,
         customerPhone: cart.customer.phone || undefined,
         customerAddress: cart.customer.address || undefined,
+        customerDrugLicNo: cart.customer.drugLicNo || undefined,
         customerNotes: combinedNotes || undefined,
         cashier: session?.name,
         paymentMethod: cart.paymentMethod,
@@ -257,6 +258,11 @@ function CartPage() {
                   {cart.customer.address && (
                     <div className="text-muted-foreground whitespace-pre-wrap mt-0.5 leading-snug">
                       {cart.customer.address}
+                    </div>
+                  )}
+                  {cart.customer.drugLicNo && (
+                    <div className="text-muted-foreground text-xs mt-0.5">
+                      D.L. No: {cart.customer.drugLicNo}
                     </div>
                   )}
                   {cart.customer.notes && (

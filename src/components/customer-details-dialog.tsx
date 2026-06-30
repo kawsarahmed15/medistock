@@ -59,6 +59,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
       name: c.name,
       phone: c.phone || prev.phone,
       address: c.address || prev.address,
+      drugLicNo: c.drugLicNo || prev.drugLicNo,
       notes: c.notes || prev.notes,
     }));
     setShowPicker(false);
@@ -81,6 +82,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
       name: form.name.trim().slice(0, 100),
       phone: phone.slice(0, 20),
       address: (form.address || "").trim().slice(0, 300),
+      drugLicNo: (form.drugLicNo || "").trim().slice(0, 100),
       notes: form.notes.trim().slice(0, 300),
     };
     setCustomer(cleaned);
@@ -240,6 +242,18 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               rows={2}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               placeholder="Full address (optional)"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cd-drug-lic" className="text-xs">
+              Drug.lic.no
+            </Label>
+            <Input
+              id="cd-drug-lic"
+              value={form.drugLicNo || ""}
+              maxLength={100}
+              onChange={(e) => setForm({ ...form, drugLicNo: e.target.value })}
+              placeholder="e.g. DL-12345"
             />
           </div>
           <div className="space-y-1.5">

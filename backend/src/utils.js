@@ -48,6 +48,7 @@ export function sanitizeUser(row) {
     pharmacyName: row.pharmacy_name || undefined,
     pharmacyAddress: row.pharmacy_address || undefined,
     gstNumber: row.gst_number || undefined,
+    drugLicNo: row.drug_lic_no || undefined,
     billColor: row.bill_color || undefined,
     signature: row.signature || undefined,
     role: row.role || "user",

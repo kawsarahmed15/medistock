@@ -7,7 +7,7 @@ router.use(requireAuth);
 
 router.get("/", async (req, res, next) => {
   try {
-    let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_notes, payment_method, advance_amount, total, created_at
+    let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes, payment_method, advance_amount, total, created_at
        FROM bills
        WHERE user_id = ?`;
     let paymentsQuery = `SELECT customer_phone, customer_name, amount, created_at 
@@ -44,6 +44,7 @@ router.get("/", async (req, res, next) => {
           phone,
           name,
           address: row.customer_address || undefined,
+          drugLicNo: row.customer_drug_lic_no || undefined,
           notes: row.customer_notes || undefined,
           visits: 1,
           totalSpent: Number(row.total || 0),

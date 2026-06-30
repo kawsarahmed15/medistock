@@ -34,6 +34,7 @@ export async function downloadBillPdf(
     pharmacyName?: string;
     pharmacyAddress?: string;
     gstNumber?: string;
+    drugLicNo?: string;
     billColor?: string;
     signature?: string;
   }
@@ -48,6 +49,7 @@ export async function downloadBillPdf(
   const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
   const pharmacyAddress = settings?.pharmacyAddress || "";
   const gstNumber = settings?.gstNumber || "";
+  const drugLicNo = settings?.drugLicNo || "";
   const billColor = settings?.billColor || "#1a9890";
   const signature = settings?.signature || "";
 
@@ -102,6 +104,12 @@ export async function downloadBillPdf(
   if (gstNumber) {
     doc.setFontSize(9);
     doc.text(`GSTIN: ${clean(gstNumber.toUpperCase())}`, left, currentY);
+    currentY += 12;
+  }
+
+  if (drugLicNo) {
+    doc.setFontSize(9);
+    doc.text(`D.L. No: ${clean(drugLicNo.toUpperCase())}`, left, currentY);
   }
 
   doc.setFont("helvetica", "bold");
@@ -143,6 +151,11 @@ export async function downloadBillPdf(
     leftY += custAddrLines.length * 12;
   }
 
+  if (bill.customerDrugLicNo) {
+    doc.text(`D.L. No: ${clean(bill.customerDrugLicNo.toUpperCase())}`, left, leftY);
+    leftY += 14;
+  }
+
   let rightY = y + 14;
   if (bill.cashier) {
     doc.text(`Cashier: ${clean(bill.cashier)}`, right - 160, rightY);
@@ -160,7 +173,7 @@ export async function downloadBillPdf(
 
   // ===== Items table =====
   autoTable(doc, {
-    startY: 165,
+    startY: Math.max(165, y + 15),
     head: [["#", "Item", "Pack", "Exp.", "MRP", "Qty", "Free", "Price", "Tax %", "Total"]],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;

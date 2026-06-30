@@ -45,6 +45,7 @@ export type Bill = {
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
+  customerDrugLicNo?: string;
   customerNotes?: string;
   items: BillItem[];
   subtotal: number;
@@ -124,6 +125,7 @@ type BillRow = {
   customer_name: string | null;
   customer_phone: string | null;
   customer_address?: string | null;
+  customer_drug_lic_no?: string | null;
   customer_notes: string | null;
   cashier: string | null;
   payment_method: PaymentMethod;
@@ -155,6 +157,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     customerName: b.customer_name ?? undefined,
     customerPhone: b.customer_phone ?? undefined,
     customerAddress: b.customer_address ?? undefined,
+    customerDrugLicNo: b.customer_drug_lic_no ?? undefined,
     customerNotes: b.customer_notes ?? undefined,
     cashier: b.cashier ?? undefined,
     paymentMethod: b.payment_method,
@@ -201,6 +204,7 @@ export type Customer = {
   phone: string;
   name: string;
   address?: string;
+  drugLicNo?: string;
   notes?: string;
   visits: number;
   totalSpent: number;
@@ -231,7 +235,7 @@ export const customersStore = {
     const qs = params.toString() ? `?${params.toString()}` : "";
     return await apiRequest<any[]>(`/customers/payments/all${qs}`, { auth: true });
   },
-  async update(phone: string, data: { name?: string; phone?: string; address?: string; notes?: string }): Promise<{ success: boolean }> {
+  async update(phone: string, data: { name?: string; phone?: string; address?: string; drugLicNo?: string; notes?: string }): Promise<{ success: boolean }> {
     return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone)}`, { method: "PUT", body: data, auth: true });
   }
 };
