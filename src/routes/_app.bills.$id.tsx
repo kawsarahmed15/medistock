@@ -174,11 +174,11 @@ function BillDetailPage() {
               {bill.customerName ?? "Walk-in customer"}
             </div>
             {bill.customerPhone && (
-              <div className="text-xs text-muted-foreground mt-0.5">{bill.customerPhone}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Phone: {bill.customerPhone}</div>
             )}
             {bill.customerAddress && (
               <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap leading-snug">
-                {bill.customerAddress}
+                Address: {bill.customerAddress}
               </div>
             )}
             {bill.customerNotes && (

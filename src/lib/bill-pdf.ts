@@ -133,12 +133,12 @@ export async function downloadBillPdf(
 
   let leftY = y + 14;
   if (bill.customerPhone) {
-    doc.text(clean(bill.customerPhone), left, leftY);
+    doc.text(`Phone: ${clean(bill.customerPhone)}`, left, leftY);
     leftY += 14;
   }
   
   if (bill.customerAddress) {
-    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), 200);
+    const custAddrLines = doc.splitTextToSize(`Address: ${clean(bill.customerAddress)}`, 200);
     doc.text(custAddrLines, left, leftY);
     leftY += custAddrLines.length * 12;
   }
