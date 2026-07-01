@@ -191,6 +191,11 @@ function SellPage() {
                         Rx
                       </span>
                     )}
+                    {p.pack && (
+                      <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        {p.pack}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
                     {p.category} {p.manufacturer ? `· ${p.manufacturer}` : ""}
@@ -225,7 +230,12 @@ function SellPage() {
           {qtyProduct && (
             <div className="space-y-4">
               <div>
-                <div className="font-medium">{qtyProduct.name}</div>
+                <div className="font-medium flex items-center gap-2">
+                  {qtyProduct.name}
+                  {qtyProduct.pack && (
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded">{qtyProduct.pack}</span>
+                  )}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {formatMoney(qtyProduct.price)} per unit · {maxQty} available
                 </div>

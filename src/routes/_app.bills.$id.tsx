@@ -288,7 +288,7 @@ function BillDetailPage() {
               <p className="font-bold uppercase text-foreground mb-1">Terms & Conditions:</p>
               <ul className="list-disc pl-4 space-y-0.5">
                 <li>Goods once sold will not be taken back or exchanged.</li>
-                <li>Please consult your doctor before using the medicines.</li>
+                <li>verify the exp. date printed on the medicine strip.</li>
                 <li>Keep medicines out of reach of children.</li>
               </ul>
             </div>

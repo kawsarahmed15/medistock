@@ -694,6 +694,7 @@ function InventoryPage() {
                       <div className="text-xs text-muted-foreground">
                         {p.manufacturer ?? "—"} {p.batch ? `· Batch ${p.batch}` : ""}
                         {p.prescription ? " · Rx" : ""}
+                        {p.pack ? ` · Pack: ${p.pack}` : ""}
                       </div>
                     </TableCell>
                     <TableCell>{p.category}</TableCell>

@@ -268,7 +268,7 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`PHONE: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerPhone), left + 65, leftY);
+    doc.text(clean(bill.customerPhone), left + 45, leftY);
     leftY += 12;
   }
   
@@ -276,7 +276,7 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 65, leftY);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 45, leftY);
     leftY += 12;
   }
 
@@ -285,7 +285,7 @@ export async function downloadBillPdf(
     doc.text(`ADDRESS: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress).trim(), (pageWidth/2) - 75);
-    doc.text(custAddrLines, left + 65, leftY);
+    doc.text(custAddrLines, left + 57, leftY);
     leftY += custAddrLines.length * 12;
   }
   doc.setFontSize(9);
@@ -295,7 +295,7 @@ export async function downloadBillPdf(
   doc.text(`Payment Mode: `, rightColX, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 75, rightY);
+  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 65, rightY);
   doc.setFont("helvetica", "normal");
   rightY += 14;
 
@@ -435,8 +435,8 @@ export async function downloadBillPdf(
   doc.setFontSize(8);
   doc.setTextColor(110, 110, 110);
   doc.text("• Goods once sold will not be taken back or exchanged.", left + 6, leftSideY + 22);
-// doc.text("• Please consult your doctor before using the medicines.", left + 6, leftSideY + 34);
-  doc.text("• Keep medicines out of reach of children.", left + 6, leftSideY + 34);
+doc.text("• verify the exp. date printed on the medicine strip.", left + 6, leftSideY + 34);
+  doc.text("• Keep medicines out of reach of children.", left + 6, leftSideY + 46);
 
   const rightWidth = (pageWidth - 80) * 0.40;
   const rightBoxLeft = right - rightWidth;

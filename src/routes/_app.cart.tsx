@@ -168,6 +168,11 @@ function CartPage() {
                             Rx
                           </span>
                         )}
+                        {i.product.pack && (
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {i.product.pack}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {i.freeQty && i.freeQty === i.qty ? (
@@ -501,6 +506,9 @@ function CartAddDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v
                      {p.name}
                      {p.prescription && (
                        <span className="text-[10px] bg-destructive/10 text-destructive px-1 rounded font-bold">Rx</span>
+                     )}
+                     {p.pack && (
+                       <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded">{p.pack}</span>
                      )}
                    </div>
                    <div className="text-xs text-muted-foreground">{formatMoney(p.price)} · {p.stock} in stock</div>
