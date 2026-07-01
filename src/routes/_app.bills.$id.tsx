@@ -190,13 +190,13 @@ function BillDetailPage() {
         </div>
 
         {/* Customer Details */}
-        <div className="border border-border rounded-lg p-4 mb-4 flex flex-col sm:flex-row justify-between text-sm gap-4 bg-muted/20">
+        <div className="border border-border rounded-lg p-4 mb-4 flex flex-col sm:flex-row justify-between text-xs gap-4 bg-muted/20">
           <div className="sm:w-1/2">
             <p className="font-semibold mb-1 uppercase text-xs text-primary">CUSTOMER DETAILS</p>
             <p className="font-bold uppercase text-base">{bill.customerName || "Walk-in Customer"}</p>
             {bill.customerPhone && <p className="text-muted-foreground">PHONE: <span className="text-foreground">{bill.customerPhone}</span></p>}
-            {bill.customerDrugLicNo && <p className="text-muted-foreground mt-1">D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span></p>}
-            {bill.customerAddress && <p className="text-muted-foreground">ADDRESS: <span className="text-foreground">{bill.customerAddress}</span></p>}
+            {bill.customerDrugLicNo && <p className="text-muted-foreground">D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span></p>}
+            {bill.customerAddress && <p className="text-muted-foreground truncate">ADDRESS: <span className="text-foreground">{bill.customerAddress}</span></p>}
           </div>
           <div className="sm:w-1/2 sm:border-l border-border sm:pl-4">
             <p className="font-semibold mb-1 uppercase text-xs text-primary">DISPATCH & PAYMENT</p>
