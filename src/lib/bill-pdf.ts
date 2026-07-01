@@ -175,7 +175,8 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.text("CUSTOMER DETAILS", left + 12, y + 14);
-  doc.text("PRESCRIPTION INFO", left + (pageWidth/2) - 10, y + 14);
+  const rightColX = (pageWidth/2) - 8;
+  doc.text("DISPATCH & PAYMENT", rightColX, y + 14);
 
   let cy = y + 28;
   doc.setTextColor(35, 35, 35);
@@ -185,9 +186,9 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text("Doctor: ", left + (pageWidth/2) - 10, cy);
+  doc.text("Transport: ", rightColX, cy);
   doc.setTextColor(35, 35, 35);
-  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + (pageWidth/2) + 25, cy);
+  doc.text("Direct / By Hand", rightColX + 45, cy);
 
   let leftY = cy + 14;
   if (bill.customerPhone) {
@@ -217,10 +218,10 @@ export async function downloadBillPdf(
 
   rightY = cy + 14;
   doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, left + (pageWidth/2) - 10, rightY);
+  doc.text(`Payment Mode: `, rightColX, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), left + (pageWidth/2) + 60, rightY);
+  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 60, rightY);
   doc.setFont("helvetica", "normal");
   rightY += 14;
 
@@ -228,7 +229,7 @@ export async function downloadBillPdf(
     doc.setFont("helvetica", "italic");
     doc.setTextColor(110, 110, 110);
     const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
-    doc.text(splitNotes, left + (pageWidth/2) - 10, rightY);
+    doc.text(splitNotes, rightColX, rightY);
     rightY += splitNotes.length * 12;
     doc.setFont("helvetica", "normal");
   }
@@ -245,7 +246,7 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.text("CUSTOMER DETAILS", left + 12, custBoxTop + 14);
-  doc.text("DISPATCH & PAYMENT", left + (pageWidth/2) - 10, custBoxTop + 14);
+  doc.text("DISPATCH & PAYMENT", rightColX, custBoxTop + 14);
 
   cy = custBoxTop + 28;
   doc.setTextColor(35, 35, 35);
@@ -255,9 +256,9 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text("Transport: ", left + (pageWidth/2) - 10, cy);
+  doc.text("Transport: ", rightColX, cy);
   doc.setTextColor(35, 35, 35);
-  doc.text("Direct / By Hand", left + (pageWidth/2) + 35, cy);
+  doc.text("Direct / By Hand", rightColX + 45, cy);
 
   leftY = cy + 14;
   if (bill.customerPhone) {
@@ -287,10 +288,10 @@ export async function downloadBillPdf(
 
   rightY = cy + 14;
   doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, left + (pageWidth/2) - 10, rightY);
+  doc.text(`Payment Mode: `, rightColX, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), left + (pageWidth/2) + 60, rightY);
+  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 60, rightY);
   doc.setFont("helvetica", "normal");
   rightY += 14;
 
@@ -298,7 +299,7 @@ export async function downloadBillPdf(
     doc.setFont("helvetica", "italic");
     doc.setTextColor(110, 110, 110);
     const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
-    doc.text(splitNotes, left + (pageWidth/2) - 10, rightY);
+    doc.text(splitNotes, rightColX, rightY);
   }
 
   y = custBoxBottom;
