@@ -175,7 +175,7 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.text("CUSTOMER DETAILS", left + 12, y + 14);
-  const rightColX = (pageWidth/2) - 8;
+  const rightColX = (pageWidth/2) + 12;
   doc.text("DISPATCH & PAYMENT", rightColX, y + 14);
 
   let cy = y + 28;
@@ -228,7 +228,7 @@ export async function downloadBillPdf(
   if (bill.customerNotes) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(110, 110, 110);
-    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 40);
     doc.text(splitNotes, rightColX, rightY);
     rightY += splitNotes.length * 12;
     doc.setFont("helvetica", "normal");
@@ -240,7 +240,7 @@ export async function downloadBillPdf(
   doc.setLineWidth(0.5);
   doc.setFillColor(248, 250, 252); 
   doc.roundedRect(left, custBoxTop, pageWidth - (left * 2), custBoxBottom - custBoxTop, 6, 6, "FD");
-  doc.line(pageWidth/2 - 20, custBoxTop, pageWidth/2 - 20, custBoxBottom);
+  doc.line(pageWidth/2, custBoxTop, pageWidth/2, custBoxBottom);
   
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
@@ -298,7 +298,7 @@ export async function downloadBillPdf(
   if (bill.customerNotes) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(110, 110, 110);
-    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 40);
     doc.text(splitNotes, rightColX, rightY);
   }
 
