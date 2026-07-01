@@ -298,7 +298,14 @@ function InventoryPage() {
       mrp: p.mrp != null ? String(p.mrp) : "",
       stock: String(p.stock),
       ...parsePack(p.pack),
-      expiry: p.expiry.slice(0, 10),
+      expiry: (() => {
+        if (!p.expiry) return "";
+        const parts = p.expiry.split("-");
+        if (parts.length >= 2) {
+          return `${parts[1]}/${parts[0].substring(2)}`;
+        }
+        return p.expiry;
+      })(),
       batch: p.batch ?? "",
       manufacturer: p.manufacturer ?? "",
       sku: p.sku ?? "",
@@ -341,7 +348,17 @@ function InventoryPage() {
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
       stock: Number(form.stock) || 0,
       pack: packValue,
-      expiry: form.expiry,
+      expiry: (() => {
+        if (!form.expiry) return "";
+        const parts = form.expiry.split("/");
+        if (parts.length === 2) {
+          const month = parseInt(parts[0], 10);
+          const year = 2000 + parseInt(parts[1], 10);
+          const lastDay = new Date(year, month, 0).getDate();
+          return `${year}-${month.toString().padStart(2, "0")}-${lastDay.toString().padStart(2, "0")}`;
+        }
+        return form.expiry;
+      })(),
       batch: form.batch.trim() || undefined,
       manufacturer: form.manufacturer.trim() || undefined,
       sku: form.sku.trim() || undefined,
@@ -625,23 +642,16 @@ function InventoryPage() {
                 </Field>
                 <Field label="Expiry">
                   <Input
-                    type="month"
-                    value={form.expiry ? form.expiry.substring(0, 7) : ""}
+                    type="text"
+                    placeholder="MM/YY"
+                    maxLength={5}
+                    value={form.expiry}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      if (!val) {
-                        setForm({ ...form, expiry: "" });
-                        return;
+                      let val = e.target.value.replace(/[^\d/]/g, "");
+                      if (val.length === 2 && form.expiry.length !== 3 && !val.includes("/")) {
+                        val += "/";
                       }
-                      const parts = val.split('-');
-                      if (parts.length === 2) {
-                        const year = parseInt(parts[0], 10);
-                        const month = parseInt(parts[1], 10);
-                        const lastDay = new Date(year, month, 0).getDate();
-                        setForm({ ...form, expiry: `${val}-${lastDay.toString().padStart(2, '0')}` });
-                      } else {
-                        setForm({ ...form, expiry: val });
-                      }
+                      setForm({ ...form, expiry: val });
                     }}
                     required
                   />
