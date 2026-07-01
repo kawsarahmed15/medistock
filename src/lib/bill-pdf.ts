@@ -184,7 +184,7 @@ export async function downloadBillPdf(
     doc.setTextColor(35, 35, 35);
     const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
-    leftY += custAddrLines.length * 12;
+    leftY += (custAddrLines.length * 12) + 8;
   }
 
   if (bill.customerDrugLicNo) {
@@ -256,7 +256,7 @@ export async function downloadBillPdf(
     doc.setTextColor(35, 35, 35);
     const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
-    leftY += custAddrLines.length * 12;
+    leftY += (custAddrLines.length * 12) + 8;
   }
 
   if (bill.customerDrugLicNo) {
