@@ -178,23 +178,23 @@ export async function downloadBillPdf(
     leftY += 14;
   }
   
+  if (bill.customerDrugLicNo) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`D.L.No.: `, left + 12, leftY);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
+    doc.setFont("helvetica", "normal");
+    leftY += 14;
+  }
+
   if (bill.customerAddress) {
     doc.setTextColor(110, 110, 110);
     doc.text(`Address: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
-    leftY += (custAddrLines.length * 12) + 8;
-  }
-
-  if (bill.customerDrugLicNo) {
-    doc.setTextColor(110, 110, 110);
-    doc.text(`DL: `, left + 12, leftY);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 30, leftY);
-    doc.setFont("helvetica", "normal");
-    leftY += 14;
+    leftY += custAddrLines.length * 12;
   }
 
   rightY = cy + 14;
@@ -250,22 +250,23 @@ export async function downloadBillPdf(
     leftY += 14;
   }
   
+  if (bill.customerDrugLicNo) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`D.L.No.: `, left + 12, leftY);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
+    doc.setFont("helvetica", "normal");
+    leftY += 14;
+  }
+
   if (bill.customerAddress) {
     doc.setTextColor(110, 110, 110);
     doc.text(`Address: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
-    leftY += (custAddrLines.length * 12) + 8;
-  }
-
-  if (bill.customerDrugLicNo) {
-    doc.setTextColor(110, 110, 110);
-    doc.text(`DL: `, left + 12, leftY);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 30, leftY);
-    doc.setFont("helvetica", "normal");
+    leftY += custAddrLines.length * 12;
   }
 
   rightY = cy + 14;
