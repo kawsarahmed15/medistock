@@ -149,11 +149,11 @@ export async function downloadBillPdf(
   doc.setTextColor(35, 35, 35);
   doc.text(new Date(bill.createdAt).toLocaleDateString('en-IN'), right-20, rightY, { align: "right" });
   
-  // rightY += 12;
-  // doc.setTextColor(110, 110, 110);
-  // doc.text("Time:", right - 60, rightY);
-  // doc.setTextColor(35, 35, 35);
-  // doc.text(new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), right, rightY, { align: "right" });
+  rightY += 12;
+  doc.setTextColor(110, 110, 110);
+  doc.text("Time:", right - 100, rightY);
+  doc.setTextColor(35, 35, 35);
+  doc.text(new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), right-20, rightY, { align: "right" });
   
   // rightY += 12;
   // doc.setTextColor(110, 110, 110);
@@ -162,7 +162,7 @@ export async function downloadBillPdf(
   // doc.setFont("helvetica", "bold");
   // doc.text(clean(bill.cashier) || "Admin", right, rightY, { align: "right" });
   
-  let y = Math.max(headerBottomY - 12, rightY) + 16;
+  let y = Math.max(headerBottomY - 12, rightY) + 10;
   doc.setDrawColor(...primaryRgb);
   doc.setLineWidth(1.5);
   doc.line(left, y, right, y);
