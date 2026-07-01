@@ -109,14 +109,14 @@ function parsePack(packStr?: string) {
     return { stockType: "inj", stockPacks: val, stockUnits: "MG" };
   }
 
+  if (packStr.toUpperCase().endsWith(" GM")) {
+    const val = packStr.substring(0, packStr.length - 3).trim();
+    return { stockType: "cream", stockPacks: val, stockUnits: "GM" };
+  }
+
   if (packStr.toUpperCase().endsWith("GM")) {
     const val = packStr.substring(0, packStr.length - 2).trim();
     return { stockType: "inj", stockPacks: val, stockUnits: "GM" };
-  }
-  
-  if (packStr.toUpperCase().endsWith(" JAR") || packStr.toUpperCase().endsWith(" JARS")) {
-    const val = packStr.replace(/ JARS?/i, "").trim();
-    return { stockType: "jar", stockPacks: val, stockUnits: "Jar" };
   }
 
   if (packStr.includes("x") || packStr.includes("X") || packStr.includes("*") || packStr.toUpperCase() === "CAP") {
@@ -328,9 +328,9 @@ function InventoryPage() {
       if (form.stockPacks) {
         packValue = `${form.stockPacks}${form.stockUnits || "ML"}`;
       }
-    } else if (form.stockType === "jar") {
+    } else if (form.stockType === "cream") {
       if (form.stockPacks) {
-        packValue = `${form.stockPacks} Jar`;
+        packValue = `${form.stockPacks} GM`;
       }
     }
     const payload = {
@@ -523,7 +523,7 @@ function InventoryPage() {
                     <option value="cap">Capsule (Cap)</option>
                     <option value="syp">Syrup (Syp)</option>
                     <option value="inj">Injection (Inj)</option>
-                    <option value="jar">Jar</option>
+                    <option value="cream">Cream</option>
                   </select>
                 </Field>
                 {form.stockType === "other" && (
@@ -600,17 +600,17 @@ function InventoryPage() {
                     </div>
                   </Field>
                 )}
-                {form.stockType === "jar" && (
-                  <Field label="Pack (No. of Jars)">
+                {form.stockType === "cream" && (
+                  <Field label="Pack (Measure)">
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
-                        placeholder="Jars count"
+                        placeholder="Amount"
                         value={form.stockPacks}
                         onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
                         required
                       />
-                      <span className="text-muted-foreground text-sm font-medium">Jars</span>
+                      <span className="text-muted-foreground text-sm font-medium">GM</span>
                     </div>
                   </Field>
                 )}
