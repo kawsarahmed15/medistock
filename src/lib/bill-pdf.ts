@@ -245,7 +245,7 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.text("CUSTOMER DETAILS", left + 12, custBoxTop + 14);
-  doc.text("PRESCRIPTION INFO", left + (pageWidth/2) - 10, custBoxTop + 14);
+  doc.text("DISPATCH & PAYMENT", left + (pageWidth/2) - 10, custBoxTop + 14);
 
   cy = custBoxTop + 28;
   doc.setTextColor(35, 35, 35);
@@ -255,9 +255,9 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text("Doctor: ", left + (pageWidth/2) - 10, cy);
+  doc.text("Transport: ", left + (pageWidth/2) - 10, cy);
   doc.setTextColor(35, 35, 35);
-  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + (pageWidth/2) + 25, cy);
+  doc.text("Direct / By Hand", left + (pageWidth/2) + 35, cy);
 
   leftY = cy + 14;
   if (bill.customerPhone) {
@@ -381,7 +381,7 @@ export async function downloadBillPdf(
   doc.roundedRect(left, leftSideY, leftWidth, 50, 6, 6, "FD");
   
   try {
-    const qrDataUrl = await QRCode.toDataURL(bill.number, { margin: 1, width: 40 });
+    const qrDataUrl = await QRCode.toDataURL(`https://medistock.teklin.in/bills/${bill.id}`, { margin: 1, width: 40 });
     doc.addImage(qrDataUrl, "PNG", left + 6, leftSideY + 5, 40, 40);
   } catch(e) {}
   
