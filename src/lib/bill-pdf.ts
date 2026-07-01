@@ -190,40 +190,40 @@ export async function downloadBillPdf(
   doc.setTextColor(35, 35, 35);
   doc.text("Direct / By Hand", rightColX + 45, cy);
 
-  let leftY = cy + 14;
+  let leftY = cy + 12;
   if (bill.customerPhone) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Phone: `, left + 12, leftY);
+    doc.text(`PHONE: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerPhone), left + 45, leftY);
-    leftY += 14;
+    leftY += 12;
   }
   
   if (bill.customerDrugLicNo) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`D.L.No.: `, left + 12, leftY);
+    doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
-    leftY += 14;
+    leftY += 12;
   }
 
   if (bill.customerAddress) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Address: `, left + 12, leftY);
+    doc.text(`ADDRESS: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress).trim(), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
     leftY += custAddrLines.length * 12;
   }
 
-  rightY = cy + 14;
+  rightY = cy + 12;
   doc.setTextColor(110, 110, 110);
   doc.text(`Payment Mode: `, rightColX, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 60, rightY);
+  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 75, rightY);
   doc.setFont("helvetica", "normal");
-  rightY += 14;
+  rightY += 12;
 
   if (bill.customerNotes) {
     doc.setFont("helvetica", "italic");
@@ -260,38 +260,38 @@ export async function downloadBillPdf(
   doc.setTextColor(35, 35, 35);
   doc.text("Direct / By Hand", rightColX + 45, cy);
 
-  leftY = cy + 14;
+  leftY = cy + 12;
   if (bill.customerPhone) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Phone: `, left + 12, leftY);
+    doc.text(`PHONE: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerPhone), left + 45, leftY);
-    leftY += 14;
+    leftY += 12;
   }
   
   if (bill.customerDrugLicNo) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`D.L.No.: `, left + 12, leftY);
+    doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
-    leftY += 14;
+    leftY += 12;
   }
 
   if (bill.customerAddress) {
     doc.setTextColor(110, 110, 110);
-    doc.text(`Address: `, left + 12, leftY);
+    doc.text(`ADDRESS: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress).trim(), (pageWidth/2) - 60);
     doc.text(custAddrLines, left + 55, leftY);
     leftY += custAddrLines.length * 12;
   }
 
-  rightY = cy + 14;
+  rightY = cy + 12;
   doc.setTextColor(110, 110, 110);
   doc.text(`Payment Mode: `, rightColX, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 60, rightY);
+  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 75, rightY);
   doc.setFont("helvetica", "normal");
   rightY += 14;
 
