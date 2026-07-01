@@ -108,6 +108,11 @@ function parsePack(packStr?: string) {
     const val = packStr.substring(0, packStr.length - 2).trim();
     return { stockType: "inj", stockPacks: val, stockUnits: "MG" };
   }
+
+  if (packStr.toUpperCase().endsWith("GM")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "inj", stockPacks: val, stockUnits: "GM" };
+  }
   
   if (packStr.toUpperCase().endsWith(" JAR") || packStr.toUpperCase().endsWith(" JARS")) {
     const val = packStr.replace(/ JARS?/i, "").trim();
@@ -590,6 +595,7 @@ function InventoryPage() {
                       >
                         <option value="ML">ML</option>
                         <option value="MG">MG</option>
+                        <option value="GM">GM</option>
                       </select>
                     </div>
                   </Field>
@@ -692,7 +698,7 @@ function InventoryPage() {
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">MRP</TableHead>
-              <TableHead className="text-right">Buying Price</TableHead>
+              <TableHead className="text-right">Purchase</TableHead>
               <TableHead className="text-right">Price</TableHead>
               <TableHead className="text-right">Stock</TableHead>
               <TableHead>Expiry</TableHead>
