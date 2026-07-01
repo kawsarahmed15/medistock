@@ -101,7 +101,7 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "bold");
   let gstDlText = "";
   if (gstNumber) gstDlText += `GSTIN: ${clean(gstNumber.toUpperCase())}   `;
-  if (drugLicNo) gstDlText += `DL No: ${clean(drugLicNo.toUpperCase())}`;
+  if (drugLicNo) gstDlText += `D.L.No: ${clean(drugLicNo.toUpperCase())}`;
   if (gstDlText) {
     doc.text(gstDlText, headerLeftX, headerBottomY);
   }
@@ -413,8 +413,8 @@ export async function downloadBillPdf(
   doc.setFontSize(8);
   doc.setTextColor(110, 110, 110);
   doc.text("• Goods once sold will not be taken back or exchanged.", left + 6, leftSideY + 22);
-  doc.text("• Please consult your doctor before using the medicines.", left + 6, leftSideY + 34);
-  doc.text("• Keep medicines out of reach of children.", left + 6, leftSideY + 46);
+// doc.text("• Please consult your doctor before using the medicines.", left + 6, leftSideY + 34);
+  doc.text("• Keep medicines out of reach of children.", left + 6, leftSideY + 34);
 
   const rightWidth = (pageWidth - 80) * 0.40;
   const rightBoxLeft = right - rightWidth;
@@ -558,7 +558,7 @@ export async function downloadBillPdf(
 
   if (signature) {
     try {
-      doc.addImage(signature, "PNG", right - 120, sigY - 55, 100, 45);
+      doc.addImage(signature, "PNG", right - 120, sigY - 70, 100, 45);
     } catch (err) {}
   }
 

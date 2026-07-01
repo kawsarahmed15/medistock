@@ -166,6 +166,7 @@ function BillsPage() {
         pharmacyName: session?.pharmacyName,
         pharmacyAddress: session?.pharmacyAddress,
         gstNumber: session?.gstNumber,
+        drugLicNo: session?.drugLicNo,
         billColor: session?.billColor,
         signature: session?.signature,
       });
@@ -174,6 +175,7 @@ function BillsPage() {
         pharmacyName: session?.pharmacyName,
         pharmacyAddress: session?.pharmacyAddress,
         gstNumber: session?.gstNumber,
+        drugLicNo: session?.drugLicNo,
         billColor: session?.billColor,
         signature: session?.signature,
       });

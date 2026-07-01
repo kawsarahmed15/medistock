@@ -162,7 +162,7 @@ function BillDetailPage() {
               </p>
               <div className="flex flex-wrap gap-x-4 mt-2 text-xs font-mono text-muted-foreground">
                 {session?.gstNumber && <p><strong>GSTIN:</strong> {session.gstNumber.toUpperCase()}</p>}
-                {session?.drugLicNo && <p><strong>DL No:</strong> {session.drugLicNo.toUpperCase()}</p>}
+                {session?.drugLicNo && <p><strong>D.L.No:</strong> {session.drugLicNo.toUpperCase()}</p>}
               </div>
             </div>
           </div>
