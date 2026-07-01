@@ -483,7 +483,9 @@ function InventoryPage() {
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     required
+                    list="product-names"
                   />
+                  <RecentOptions id="product-names" options={Array.from(new Set(items.map(i => i.name)))} />
                 </Field>
                 <Field label="Category">
                   <Input
