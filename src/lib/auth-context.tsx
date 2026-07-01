@@ -25,7 +25,7 @@ type AuthCtx = {
   signup: (name: string, email: string, password: string, pharmacyName?: string) => Promise<void>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
-  updatePassword: (newPassword: string) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateSession: (patch: Partial<Session>) => void;
 };
 
@@ -106,10 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: { email },
       });
     },
-    updatePassword: async (newPassword) => {
+    updatePassword: async (currentPassword, newPassword) => {
       await apiRequest("/auth/change-password", {
         method: "POST",
-        body: { newPassword },
+        body: { currentPassword, newPassword },
         auth: true,
       });
     },

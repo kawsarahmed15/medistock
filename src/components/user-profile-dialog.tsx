@@ -24,6 +24,7 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
   const { session, logout, updatePassword, updateSession } = useAuth();
   const [name, setName] = useState(session?.name ?? "");
   const [savingName, setSavingName] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
   const [pwd, setPwd] = useState("");
   const [pwd2, setPwd2] = useState("");
   const [savingPwd, setSavingPwd] = useState(false);
@@ -31,6 +32,7 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (open) {
       setName(session?.name ?? "");
+      setCurrentPwd("");
       setPwd("");
       setPwd2("");
     }
@@ -71,10 +73,15 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
       toast.error("Passwords do not match");
       return;
     }
+    if (!currentPwd) {
+      toast.error("Current password is required");
+      return;
+    }
     setSavingPwd(true);
     try {
-      await updatePassword(pwd);
+      await updatePassword(currentPwd, pwd);
       toast.success("Password changed");
+      setCurrentPwd("");
       setPwd("");
       setPwd2("");
     } catch (e) {
@@ -140,6 +147,12 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
             </Label>
             <Input
               type="password"
+              value={currentPwd}
+              onChange={(e) => setCurrentPwd(e.target.value)}
+              placeholder="Current password"
+            />
+            <Input
+              type="password"
               value={pwd}
               onChange={(e) => setPwd(e.target.value)}
               placeholder="New password (min 8 chars)"
@@ -155,7 +168,7 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
               variant="outline"
               className="w-full"
               onClick={() => void savePassword()}
-              disabled={savingPwd || !pwd || !pwd2}
+              disabled={savingPwd || !currentPwd || !pwd || !pwd2}
             >
               {savingPwd ? "Updating…" : "Update password"}
             </Button>
