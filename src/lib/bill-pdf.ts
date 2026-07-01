@@ -162,7 +162,7 @@ export async function downloadBillPdf(
   // doc.setFont("helvetica", "bold");
   // doc.text(clean(bill.cashier) || "Admin", right, rightY, { align: "right" });
   
-  let y = Math.max(headerBottomY, rightY) + 16;
+  let y = Math.max(headerBottomY - 12, rightY) + 16;
   doc.setDrawColor(...primaryRgb);
   doc.setLineWidth(1.5);
   doc.line(left, y, right, y);
