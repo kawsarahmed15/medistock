@@ -195,7 +195,7 @@ function BillDetailPage() {
             <p className="font-semibold mb-1 uppercase text-xs text-primary">CUSTOMER DETAILS</p>
             <p className="font-bold uppercase text-base">{bill.customerName || "Walk-in Customer"}</p>
             {bill.customerPhone && <p className="text-muted-foreground">PHONE: <span className="text-foreground">{bill.customerPhone}</span></p>}
-            {bill.customerDrugLicNo && <p className="font-mono text-xs mt-1 text-muted-foreground">D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span></p>}
+            {bill.customerDrugLicNo && <p className="text-muted-foreground mt-1">D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span></p>}
             {bill.customerAddress && <p className="text-muted-foreground">ADDRESS: <span className="text-foreground">{bill.customerAddress}</span></p>}
           </div>
           <div className="sm:w-1/2 sm:border-l border-border sm:pl-4">
