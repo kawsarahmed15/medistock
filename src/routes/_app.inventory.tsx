@@ -625,9 +625,24 @@ function InventoryPage() {
                 </Field>
                 <Field label="Expiry">
                   <Input
-                    type="date"
-                    value={form.expiry}
-                    onChange={(e) => setForm({ ...form, expiry: e.target.value })}
+                    type="month"
+                    value={form.expiry ? form.expiry.substring(0, 7) : ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setForm({ ...form, expiry: "" });
+                        return;
+                      }
+                      const parts = val.split('-');
+                      if (parts.length === 2) {
+                        const year = parseInt(parts[0], 10);
+                        const month = parseInt(parts[1], 10);
+                        const lastDay = new Date(year, month, 0).getDate();
+                        setForm({ ...form, expiry: `${val}-${lastDay.toString().padStart(2, '0')}` });
+                      } else {
+                        setForm({ ...form, expiry: val });
+                      }
+                    }}
                     required
                   />
                 </Field>
