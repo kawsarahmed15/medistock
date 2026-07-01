@@ -79,11 +79,22 @@ export async function downloadBillPdf(
   doc.setFillColor(...primaryRgb);
   doc.roundedRect(left, currentY, iconSize, iconSize, 6, 6, "F");
   
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(4);
-  doc.roundedRect(left + 12, currentY + 12, 22, 22, 11, 11, "S");
-  doc.setLineWidth(2);
-  doc.line(left + 14, currentY + 32, left + 32, currentY + 14);
+  // Draw the Pill logo as PNG via SVG
+  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>`;
+  const pillBase64 = await new Promise<string>((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.src = "data:image/svg+xml;base64," + btoa(svgStr);
+  });
+  
+  doc.addImage(pillBase64, "PNG", left + 8, currentY + 8, 30, 30);
 
   let headerLeftX = left + iconSize + 12;
   
@@ -101,12 +112,18 @@ export async function downloadBillPdf(
   let headerBottomY = currentY + 30 + (addrLines.length * 12);
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  let gstDlText = "";
-  if (pharmacyPhone) gstDlText += `Phone: ${clean(pharmacyPhone)}   `;
-  if (gstNumber) gstDlText += `GSTIN: ${clean(gstNumber.toUpperCase())}   `;
-  if (drugLicNo) gstDlText += `D.L.No: ${clean(drugLicNo.toUpperCase())}`;
-  if (gstDlText) {
-    doc.text(gstDlText, headerLeftX, headerBottomY);
+  
+  if (pharmacyPhone) {
+    doc.text(`Phone: ${clean(pharmacyPhone)}`, headerLeftX, headerBottomY);
+    headerBottomY += 12;
+  }
+  if (gstNumber) {
+    doc.text(`GSTIN: ${clean(gstNumber.toUpperCase())}`, headerLeftX, headerBottomY);
+    headerBottomY += 12;
+  }
+  if (drugLicNo) {
+    doc.text(`D.L.No.: ${clean(drugLicNo.toUpperCase())}`, headerLeftX, headerBottomY);
+    headerBottomY += 12;
   }
 
   // Right Side Header
