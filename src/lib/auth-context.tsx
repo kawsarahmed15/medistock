@@ -26,6 +26,8 @@ type AuthCtx = {
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  requestEmailChange: (newEmail: string) => Promise<void>;
+  confirmEmailChange: (token: string) => Promise<void>;
   updateSession: (patch: Partial<Session>) => void;
 };
 
@@ -111,6 +113,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
         body: { currentPassword, newPassword },
         auth: true,
+      });
+    },
+    requestEmailChange: async (newEmail) => {
+      await apiRequest("/auth/request-email-change", {
+        method: "POST",
+        body: { newEmail },
+        auth: true,
+      });
+    },
+    confirmEmailChange: async (token) => {
+      await apiRequest("/auth/confirm-email-change", {
+        method: "POST",
+        body: { token },
       });
     },
     updateSession: (patch: Partial<Session>) => {

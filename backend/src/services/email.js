@@ -81,3 +81,24 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
 export async function verifySmtpConnection() {
   await transporter.verify();
 }
+
+export async function sendEmailChangeVerification({ to, name, verificationUrl }) {
+  const html = wrapTemplate({
+    heading: "Confirm your new email address",
+    body: `Hi ${name || "there"},<br>You requested to change your email address for your MediStock account. Click below to confirm this new email.`,
+    buttonLabel: "Confirm Email",
+    buttonUrl: verificationUrl,
+    footer: "If you did not request this change, please ignore this message.",
+  });
+
+  try {
+    await transporter.sendMail({
+      from: config.smtp.from,
+      to,
+      subject: "Confirm your new MediStock email",
+      html,
+    });
+  } catch (error) {
+    console.warn("Email change email could not be sent", error);
+  }
+}

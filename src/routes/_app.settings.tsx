@@ -25,7 +25,9 @@ const PRESETS = [
 ];
 
 function SettingsPage() {
-  const { session, updateSession } = useAuth();
+  const { session, updateSession, requestEmailChange } = useAuth();
+  const [newEmail, setNewEmail] = useState("");
+  const [requestingEmailChange, setRequestingEmailChange] = useState(false);
   const [pharmacyName, setPharmacyName] = useState(session?.pharmacyName ?? "");
   const [pharmacyPhone, setPharmacyPhone] = useState(session?.pharmacyPhone ?? "");
   const [pharmacyAddress, setPharmacyAddress] = useState(session?.pharmacyAddress ?? "");
@@ -125,6 +127,25 @@ function SettingsPage() {
       fileInputRef.current.value = "";
     }
     toast.info("Signature cleared. Remember to save changes.");
+  };
+
+  const handleRequestEmailChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail.trim()) return;
+    if (newEmail.trim() === session?.email) {
+      toast.error("This is already your current email.");
+      return;
+    }
+    setRequestingEmailChange(true);
+    try {
+      await requestEmailChange(newEmail.trim());
+      toast.success("A confirmation link has been sent to your new email. Please check your inbox.");
+      setNewEmail("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to request email change");
+    } finally {
+      setRequestingEmailChange(false);
+    }
   };
 
   return (
@@ -305,6 +326,48 @@ function SettingsPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Default tax percentage applied when adding new products.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-soft border-border/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Account Security
+              </CardTitle>
+              <CardDescription>
+                Change the email address associated with your account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Current Email</Label>
+                  <Input value={session?.email || ""} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-email">New Email Address</Label>
+                  <div className="flex gap-3">
+                    <Input
+                      id="new-email"
+                      type="email"
+                      placeholder="Enter new email address"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                    />
+                    <Button 
+                      type="button" 
+                      onClick={handleRequestEmailChange}
+                      disabled={requestingEmailChange || !newEmail.trim()}
+                      className="shrink-0"
+                    >
+                      {requestingEmailChange ? "Sending..." : "Request Change"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    We will send a confirmation link to your new email. After confirming, you will be logged out and asked to log in with the new email.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

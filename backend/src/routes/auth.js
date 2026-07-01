@@ -12,9 +12,9 @@ import {
 } from "../utils.js";
 import { requireAuth } from "../middleware/auth.js";
 import { config } from "../config.js";
-import {
   sendPasswordResetEmail,
   sendVerificationEmail,
+  sendEmailChangeVerification,
 } from "../services/email.js";
 
 const router = Router();
@@ -317,6 +317,63 @@ router.post("/change-password", requireAuth, async (req, res, next) => {
     await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.auth.userId]);
 
     res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/request-email-change", requireAuth, async (req, res, next) => {
+  try {
+    const newEmail = ensureEmail(req.body?.newEmail);
+
+    const [existing] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [newEmail]);
+    if (existing.length > 0) {
+      throw buildApiError(409, "An account already exists with this email");
+    }
+
+    const token = generateToken();
+    await pool.query(
+      `INSERT INTO email_change_tokens (id, user_id, new_email, token_hash, expires_at)
+       VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
+      [generateId(), req.auth.userId, newEmail, hashToken(token)]
+    );
+
+    const [rows] = await pool.query(`SELECT name FROM users WHERE id = ? LIMIT 1`, [req.auth.userId]);
+    const user = rows[0];
+
+    const verificationUrl = `${config.appBaseUrl}/confirm-email?token=${token}`;
+    await sendEmailChangeVerification({ to: newEmail, name: user?.name, verificationUrl });
+
+    res.json({ message: "A confirmation link has been sent to your new email." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/confirm-email-change", async (req, res, next) => {
+  try {
+    const token = String(req.body?.token || "").trim();
+    if (!token) {
+      throw buildApiError(400, "Token is required");
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, user_id, new_email FROM email_change_tokens
+       WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [hashToken(token)]
+    );
+    const row = rows[0];
+
+    if (!row) {
+      throw buildApiError(400, "Confirmation link is invalid or expired");
+    }
+
+    await pool.query("UPDATE users SET email = ?, is_verified = 1 WHERE id = ?", [row.new_email, row.user_id]);
+    await pool.query("UPDATE email_change_tokens SET used_at = NOW() WHERE id = ?", [row.id]);
+
+    res.json({ message: "Email changed successfully" });
   } catch (error) {
     next(error);
   }
