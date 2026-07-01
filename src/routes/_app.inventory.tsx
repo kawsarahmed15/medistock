@@ -459,15 +459,17 @@ function InventoryPage() {
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     placeholder="e.g. Antibiotic"
+                    list="category-recent"
                   />
-                  <RecentOptions options={recentCategories} onSelect={(val) => setForm({ ...form, category: val })} />
+                  <RecentOptions id="category-recent" options={recentCategories} onSelect={(val) => setForm({ ...form, category: val })} />
                 </Field>
                 <Field label="Manufacturer">
                   <Input
                     value={form.manufacturer}
                     onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
+                    list="manufacturer-recent"
                   />
-                  <RecentOptions options={recentManufacturers} onSelect={(val) => setForm({ ...form, manufacturer: val })} />
+                  <RecentOptions id="manufacturer-recent" options={recentManufacturers} onSelect={(val) => setForm({ ...form, manufacturer: val })} />
                 </Field>
                 <Field label="Buying price">
                   <Input
@@ -642,6 +644,7 @@ function InventoryPage() {
                       value={form.sku}
                       onChange={(e) => setForm({ ...form, sku: e.target.value })}
                       placeholder="Type or scan"
+                      list="hsn-recent"
                     />
                     <Button
                       type="button"
@@ -653,7 +656,7 @@ function InventoryPage() {
                       <ScanLine className="h-4 w-4" />
                     </Button>
                   </div>
-                  <RecentOptions options={recentHsns} onSelect={(val) => setForm({ ...form, sku: val })} />
+                  <RecentOptions id="hsn-recent" options={recentHsns} onSelect={(val) => setForm({ ...form, sku: val })} />
                 </Field>
                 <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
                   <div>
@@ -811,21 +814,30 @@ function Field({
   );
 }
 
-function RecentOptions({ options, onSelect }: { options: string[]; onSelect: (val: string) => void }) {
+function RecentOptions({ id, options, onSelect }: { id?: string; options: string[]; onSelect: (val: string) => void }) {
   if (!options || options.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-1.5 pt-1">
-      {options.map((opt) => (
-        <button
-          key={opt}
-          type="button"
-          onClick={() => onSelect(opt)}
-          className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors border border-transparent hover:border-primary"
-        >
-          {opt}
-        </button>
-      ))}
-    </div>
+    <>
+      {id && (
+        <datalist id={id}>
+          {options.map((opt) => (
+            <option key={opt} value={opt} />
+          ))}
+        </datalist>
+      )}
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onSelect(opt)}
+            className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors border border-transparent hover:border-primary"
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 
