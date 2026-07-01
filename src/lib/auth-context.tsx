@@ -6,6 +6,7 @@ export type Session = {
   name: string;
   email: string;
   pharmacyName?: string;
+  pharmacyPhone?: string;
   pharmacyAddress?: string;
   gstNumber?: string;
   drugLicNo?: string;
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: res.user.name,
             email: res.user.email,
             pharmacyName: res.user.pharmacyName,
+            pharmacyPhone: res.user.pharmacyPhone,
             pharmacyAddress: res.user.pharmacyAddress,
             gstNumber: res.user.gstNumber,
             drugLicNo: res.user.drugLicNo,
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: res.user.name,
         email: res.user.email,
         pharmacyName: res.user.pharmacyName,
+        pharmacyPhone: res.user.pharmacyPhone,
         pharmacyAddress: res.user.pharmacyAddress,
         gstNumber: res.user.gstNumber,
         drugLicNo: res.user.drugLicNo,

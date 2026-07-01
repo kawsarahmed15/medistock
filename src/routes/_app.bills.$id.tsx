@@ -130,6 +130,7 @@ function BillDetailPage() {
             size="sm"
             onClick={() => void downloadBillPdf(bill, {
               pharmacyName,
+              pharmacyPhone: session?.pharmacyPhone,
               pharmacyAddress,
               gstNumber: session?.gstNumber,
               drugLicNo: session?.drugLicNo,

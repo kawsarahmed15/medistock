@@ -164,6 +164,7 @@ function BillsPage() {
       const fresh = (await billsStore.get(b.id)) ?? b;
       await downloadBillPdf(fresh, {
         pharmacyName: session?.pharmacyName,
+        pharmacyPhone: session?.pharmacyPhone,
         pharmacyAddress: session?.pharmacyAddress,
         gstNumber: session?.gstNumber,
         drugLicNo: session?.drugLicNo,

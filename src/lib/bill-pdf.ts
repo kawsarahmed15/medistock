@@ -38,6 +38,7 @@ export async function downloadBillPdf(
   bill: Bill,
   settings?: {
     pharmacyName?: string;
+    pharmacyPhone?: string;
     pharmacyAddress?: string;
     gstNumber?: string;
     drugLicNo?: string;
@@ -52,6 +53,7 @@ export async function downloadBillPdf(
   const right = pageWidth - 20;
 
   const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
+  const pharmacyPhone = settings?.pharmacyPhone || "";
   const pharmacyAddress = settings?.pharmacyAddress || "123 Health Ave, Medical District, City";
   const gstNumber = settings?.gstNumber || "";
   const drugLicNo = settings?.drugLicNo || "";
@@ -100,6 +102,7 @@ export async function downloadBillPdf(
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   let gstDlText = "";
+  if (pharmacyPhone) gstDlText += `Phone: ${clean(pharmacyPhone)}   `;
   if (gstNumber) gstDlText += `GSTIN: ${clean(gstNumber.toUpperCase())}   `;
   if (drugLicNo) gstDlText += `D.L.No: ${clean(drugLicNo.toUpperCase())}`;
   if (gstDlText) {
@@ -181,10 +184,8 @@ export async function downloadBillPdf(
   if (bill.customerDrugLicNo) {
     doc.setTextColor(110, 110, 110);
     doc.text(`D.L.No.: `, left + 12, leftY);
-    doc.setFont("helvetica", "bold");
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
-    doc.setFont("helvetica", "normal");
     leftY += 14;
   }
 
@@ -253,10 +254,8 @@ export async function downloadBillPdf(
   if (bill.customerDrugLicNo) {
     doc.setTextColor(110, 110, 110);
     doc.text(`D.L.No.: `, left + 12, leftY);
-    doc.setFont("helvetica", "bold");
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
-    doc.setFont("helvetica", "normal");
     leftY += 14;
   }
 

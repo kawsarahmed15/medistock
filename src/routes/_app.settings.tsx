@@ -27,6 +27,7 @@ const PRESETS = [
 function SettingsPage() {
   const { session, updateSession } = useAuth();
   const [pharmacyName, setPharmacyName] = useState(session?.pharmacyName ?? "");
+  const [pharmacyPhone, setPharmacyPhone] = useState(session?.pharmacyPhone ?? "");
   const [pharmacyAddress, setPharmacyAddress] = useState(session?.pharmacyAddress ?? "");
   const [gstNumber, setGstNumber] = useState(session?.gstNumber ?? "");
   const [drugLicNo, setDrugLicNo] = useState(session?.drugLicNo ?? "");
@@ -40,6 +41,7 @@ function SettingsPage() {
   useEffect(() => {
     if (session) {
       if (session.pharmacyName) setPharmacyName(session.pharmacyName);
+      if (session.pharmacyPhone) setPharmacyPhone(session.pharmacyPhone);
       if (session.pharmacyAddress) setPharmacyAddress(session.pharmacyAddress);
       if (session.gstNumber) setGstNumber(session.gstNumber);
       if (session.drugLicNo) setDrugLicNo(session.drugLicNo);
@@ -85,6 +87,7 @@ function SettingsPage() {
         method: "PATCH",
         body: {
           pharmacyName: pharmacyName.trim() || null,
+          pharmacyPhone: pharmacyPhone.trim() || null,
           pharmacyAddress: pharmacyAddress.trim() || null,
           gstNumber: gstNumber.trim() || null,
           drugLicNo: drugLicNo.trim() || null,
@@ -98,6 +101,7 @@ function SettingsPage() {
 
       updateSession({
         pharmacyName: pharmacyName.trim() || undefined,
+        pharmacyPhone: pharmacyPhone.trim() || undefined,
         pharmacyAddress: pharmacyAddress.trim() || undefined,
         gstNumber: gstNumber.trim() || undefined,
         drugLicNo: drugLicNo.trim() || undefined,
@@ -164,6 +168,16 @@ function SettingsPage() {
                   value={pharmacyAddress}
                   onChange={(e) => setPharmacyAddress(e.target.value)}
                   placeholder="e.g. 123 Health Ave, Medical District, NY 10001"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pharmacy-phone">Pharmacy Phone Number</Label>
+                <Input
+                  id="pharmacy-phone"
+                  value={pharmacyPhone}
+                  onChange={(e) => setPharmacyPhone(e.target.value)}
+                  placeholder="e.g. +91 98765 43210"
                 />
               </div>
 

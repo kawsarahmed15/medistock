@@ -90,7 +90,7 @@ router.post("/login", async (req, res, next) => {
     const password = String(req.body?.password || "");
 
     const [rows] = await pool.query(
-      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, gst_number, drug_lic_no, bill_color, signature, role, account_status, default_tax
+      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, pharmacy_phone, gst_number, drug_lic_no, bill_color, signature, role, account_status, default_tax
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -243,7 +243,7 @@ router.post("/reset-password", async (req, res, next) => {
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -259,7 +259,7 @@ router.get("/me", requireAuth, async (req, res, next) => {
 router.patch("/profile", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -268,7 +268,8 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
     }
 
     const name = req.body.name !== undefined ? ensureName(req.body.name) : user.name;
-    const pharmacyName = req.body.pharmacyName !== undefined ? req.body.pharmacyName : user.pharmacy_name;
+    const pharmacyName = ensureName(req.body.pharmacyName || user.pharmacy_name);
+    const pharmacyPhone = req.body.pharmacyPhone !== undefined ? req.body.pharmacyPhone : user.pharmacy_phone;
     const pharmacyAddress = req.body.pharmacyAddress !== undefined ? req.body.pharmacyAddress : user.pharmacy_address;
     const gstNumber = req.body.gstNumber !== undefined ? req.body.gstNumber : user.gst_number;
     const drugLicNo = req.body.drugLicNo !== undefined ? req.body.drugLicNo : user.drug_lic_no;
@@ -278,12 +279,12 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
     const defaultTax = req.body.defaultTax !== undefined ? Number(req.body.defaultTax) : user.default_tax;
 
     await pool.query(
-      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_address = ?, gst_number = ?, drug_lic_no = ?, bill_color = ?, signature = ?, expiring_days = ?, default_tax = ? WHERE id = ?",
-      [name, pharmacyName, pharmacyAddress, gstNumber, drugLicNo, billColor, signature, expiryDays, defaultTax, req.auth.userId]
+      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_phone = ?, pharmacy_address = ?, gst_number = ?, drug_lic_no = ?, bill_color = ?, signature = ?, expiring_days = ?, default_tax = ? WHERE id = ?",
+      [name, pharmacyName, pharmacyPhone, pharmacyAddress, gstNumber, drugLicNo, billColor, signature, expiryDays, defaultTax, req.auth.userId]
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
 

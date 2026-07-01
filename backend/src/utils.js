@@ -46,6 +46,7 @@ export function sanitizeUser(row) {
     email: row.email,
     isVerified: Boolean(row.is_verified),
     pharmacyName: row.pharmacy_name || undefined,
+    pharmacyPhone: row.pharmacy_phone || undefined,
     pharmacyAddress: row.pharmacy_address || undefined,
     gstNumber: row.gst_number || undefined,
     drugLicNo: row.drug_lic_no || undefined,
