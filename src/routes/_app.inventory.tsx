@@ -158,9 +158,9 @@ function InventoryPage() {
     } catch (e) {}
   }, []);
 
-  const saveRecent = (key: string, value: string, current: string[], setter: (v: string[]) => void) => {
+  const saveRecent = (key: string, value: string, current: string[], setter: (v: string[]) => void, limit = 4) => {
     if (!value.trim()) return;
-    const updated = [value.trim(), ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase())].slice(0, 4);
+    const updated = [value.trim(), ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase())].slice(0, limit);
     setter(updated);
     localStorage.setItem(key, JSON.stringify(updated));
   };
@@ -360,9 +360,9 @@ function InventoryPage() {
         await productsStore.add(payload);
         toast.success("Product added");
       }
-      saveRecent("recentCategories", payload.category, recentCategories, setRecentCategories);
-      if (payload.manufacturer) saveRecent("recentManufacturers", payload.manufacturer, recentManufacturers, setRecentManufacturers);
-      if (payload.sku) saveRecent("recentHsns", payload.sku, recentHsns, setRecentHsns);
+      saveRecent("recentCategories", payload.category, recentCategories, setRecentCategories, 4);
+      if (payload.manufacturer) saveRecent("recentManufacturers", payload.manufacturer, recentManufacturers, setRecentManufacturers, 8);
+      if (payload.sku) saveRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
       
       refresh();
       setOpen(false);
@@ -461,7 +461,7 @@ function InventoryPage() {
                     placeholder="e.g. Antibiotic"
                     list="category-recent"
                   />
-                  <RecentOptions id="category-recent" options={recentCategories} onSelect={(val) => setForm({ ...form, category: val })} />
+                  <RecentOptions id="category-recent" options={recentCategories} />
                 </Field>
                 <Field label="Manufacturer">
                   <Input
@@ -469,7 +469,7 @@ function InventoryPage() {
                     onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
                     list="manufacturer-recent"
                   />
-                  <RecentOptions id="manufacturer-recent" options={recentManufacturers} onSelect={(val) => setForm({ ...form, manufacturer: val })} />
+                  <RecentOptions id="manufacturer-recent" options={recentManufacturers} />
                 </Field>
                 <Field label="Buying price">
                   <Input
@@ -656,7 +656,7 @@ function InventoryPage() {
                       <ScanLine className="h-4 w-4" />
                     </Button>
                   </div>
-                  <RecentOptions id="hsn-recent" options={recentHsns} onSelect={(val) => setForm({ ...form, sku: val })} />
+                  <RecentOptions id="hsn-recent" options={recentHsns} />
                 </Field>
                 <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
                   <div>
@@ -814,30 +814,14 @@ function Field({
   );
 }
 
-function RecentOptions({ id, options, onSelect }: { id?: string; options: string[]; onSelect: (val: string) => void }) {
-  if (!options || options.length === 0) return null;
+function RecentOptions({ id, options }: { id?: string; options: string[] }) {
+  if (!options || options.length === 0 || !id) return null;
   return (
-    <>
-      {id && (
-        <datalist id={id}>
-          {options.map((opt) => (
-            <option key={opt} value={opt} />
-          ))}
-        </datalist>
-      )}
-      <div className="flex flex-wrap gap-1.5 pt-1">
-        {options.map((opt) => (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => onSelect(opt)}
-            className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors border border-transparent hover:border-primary"
-          >
-            {opt}
-          </button>
-        ))}
-      </div>
-    </>
+    <datalist id={id}>
+      {options.map((opt) => (
+        <option key={opt} value={opt} />
+      ))}
+    </datalist>
   );
 }
 
