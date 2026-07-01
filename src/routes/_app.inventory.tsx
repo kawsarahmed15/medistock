@@ -690,11 +690,17 @@ function InventoryPage() {
                       {idx + 1}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{p.name}</div>
+                      <div className="font-medium flex items-center gap-1.5">
+                        {p.name}
+                        {p.pack && (
+                          <span className="text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {p.pack}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {p.manufacturer ?? "—"} {p.batch ? `· Batch ${p.batch}` : ""}
                         {p.prescription ? " · Rx" : ""}
-                        {p.pack ? ` · Pack: ${p.pack}` : ""}
                       </div>
                     </TableCell>
                     <TableCell>{p.category}</TableCell>
