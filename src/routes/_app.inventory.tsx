@@ -109,6 +109,11 @@ function parsePack(packStr?: string) {
     return { stockType: "inj", stockPacks: val, stockUnits: "MG" };
   }
 
+  if (packStr.toUpperCase().endsWith(" ML DROP")) {
+    const val = packStr.substring(0, packStr.length - 8).trim();
+    return { stockType: "drop", stockPacks: val, stockUnits: "ML" };
+  }
+
   if (packStr.toUpperCase().endsWith(" GM")) {
     const val = packStr.substring(0, packStr.length - 3).trim();
     return { stockType: "cream", stockPacks: val, stockUnits: "GM" };
@@ -339,6 +344,10 @@ function InventoryPage() {
       if (form.stockPacks) {
         packValue = `${form.stockPacks} GM`;
       }
+    } else if (form.stockType === "drop") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks} ML Drop`;
+      }
     }
     const payload = {
       name: form.name.trim(),
@@ -541,6 +550,7 @@ function InventoryPage() {
                     <option value="syp">Syrup (Syp)</option>
                     <option value="inj">Injection (Inj)</option>
                     <option value="cream">Cream</option>
+                    <option value="drop">Drop</option>
                   </select>
                 </Field>
                 {form.stockType === "other" && (
@@ -628,6 +638,20 @@ function InventoryPage() {
                         required
                       />
                       <span className="text-muted-foreground text-sm font-medium">GM</span>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "drop" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">ML</span>
                     </div>
                   </Field>
                 )}
