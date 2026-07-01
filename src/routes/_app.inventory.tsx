@@ -146,6 +146,25 @@ function InventoryPage() {
     }
   }, [defaultTax]);
 
+  const [recentCategories, setRecentCategories] = useState<string[]>([]);
+  const [recentManufacturers, setRecentManufacturers] = useState<string[]>([]);
+  const [recentHsns, setRecentHsns] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      setRecentCategories(JSON.parse(localStorage.getItem("recentCategories") || "[]"));
+      setRecentManufacturers(JSON.parse(localStorage.getItem("recentManufacturers") || "[]"));
+      setRecentHsns(JSON.parse(localStorage.getItem("recentHsns") || "[]"));
+    } catch (e) {}
+  }, []);
+
+  const saveRecent = (key: string, value: string, current: string[], setter: (v: string[]) => void) => {
+    if (!value.trim()) return;
+    const updated = [value.trim(), ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase())].slice(0, 4);
+    setter(updated);
+    localStorage.setItem(key, JSON.stringify(updated));
+  };
+
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const cart = useCart();
@@ -341,6 +360,10 @@ function InventoryPage() {
         await productsStore.add(payload);
         toast.success("Product added");
       }
+      saveRecent("recentCategories", payload.category, recentCategories, setRecentCategories);
+      if (payload.manufacturer) saveRecent("recentManufacturers", payload.manufacturer, recentManufacturers, setRecentManufacturers);
+      if (payload.sku) saveRecent("recentHsns", payload.sku, recentHsns, setRecentHsns);
+      
       refresh();
       setOpen(false);
     } catch (err) {
@@ -437,12 +460,14 @@ function InventoryPage() {
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                     placeholder="e.g. Antibiotic"
                   />
+                  <RecentOptions options={recentCategories} onSelect={(val) => setForm({ ...form, category: val })} />
                 </Field>
                 <Field label="Manufacturer">
                   <Input
                     value={form.manufacturer}
                     onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
                   />
+                  <RecentOptions options={recentManufacturers} onSelect={(val) => setForm({ ...form, manufacturer: val })} />
                 </Field>
                 <Field label="Buying price">
                   <Input
@@ -628,6 +653,7 @@ function InventoryPage() {
                       <ScanLine className="h-4 w-4" />
                     </Button>
                   </div>
+                  <RecentOptions options={recentHsns} onSelect={(val) => setForm({ ...form, sku: val })} />
                 </Field>
                 <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
                   <div>
@@ -784,3 +810,22 @@ function Field({
     </div>
   );
 }
+
+function RecentOptions({ options, onSelect }: { options: string[]; onSelect: (val: string) => void }) {
+  if (!options || options.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 pt-1">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onSelect(opt)}
+          className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors border border-transparent hover:border-primary"
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
