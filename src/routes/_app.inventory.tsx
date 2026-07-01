@@ -693,7 +693,7 @@ function InventoryPage() {
                       <div className="font-medium flex items-center gap-1.5">
                         {p.name}
                         {p.pack && (
-                          <span className="text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
                             {p.pack}
                           </span>
                         )}

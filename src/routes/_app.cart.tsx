@@ -169,7 +169,7 @@ function CartPage() {
                           </span>
                         )}
                         {i.product.pack && (
-                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
                             {i.product.pack}
                           </span>
                         )}
@@ -508,7 +508,7 @@ function CartAddDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v
                        <span className="text-[10px] bg-destructive/10 text-destructive px-1 rounded font-bold">Rx</span>
                      )}
                      {p.pack && (
-                       <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded">{p.pack}</span>
+                       <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">{p.pack}</span>
                      )}
                    </div>
                    <div className="text-xs text-muted-foreground">{formatMoney(p.price)} · {p.stock} in stock</div>
