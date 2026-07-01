@@ -691,6 +691,8 @@ function InventoryPage() {
               <TableHead className="w-12 text-center">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
+              <TableHead className="text-right">MRP</TableHead>
+              <TableHead className="text-right">Buying Price</TableHead>
               <TableHead className="text-right">Price</TableHead>
               <TableHead className="text-right">Stock</TableHead>
               <TableHead>Expiry</TableHead>
@@ -700,7 +702,7 @@ function InventoryPage() {
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
                   {items.length === 0
                     ? "No products yet. Add your first one to get started."
                     : "No products match your search."}
@@ -733,6 +735,12 @@ function InventoryPage() {
                       </div>
                     </TableCell>
                     <TableCell>{p.category}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {p.mrp ? p.mrp.toFixed(2) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {p.costPrice ? p.costPrice.toFixed(2) : "—"}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {p.price.toFixed(2)}
                       {p.taxPercent ? (
