@@ -161,114 +161,146 @@ export async function downloadBillPdf(
   // doc.setTextColor(35, 35, 35);
   // doc.setFont("helvetica", "bold");
   // doc.text(clean(bill.cashier) || "Admin", right, rightY, { align: "right" });
+  
   let y = Math.max(headerBottomY - 12, rightY) + 10;
   doc.setDrawColor(...primaryRgb);
   doc.setLineWidth(1.5);
   doc.line(left, y, right, y);
 
-  // 2. Customer & Dispatch Details Box
+  // 2. Customer Details Box
   y += 16;
   const custBoxTop = y;
   
-  // Calculate heights
-  let currentBoxY = custBoxTop + 14;
-  currentBoxY += 14; // Header text CUSTOMER DETAILS
-  if (bill.customerPhone) currentBoxY += 14;
-  if (bill.customerDrugLicNo) currentBoxY += 14;
-  let custAddrLines: string[] = [];
-  if (bill.customerAddress) {
-    custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), pageWidth - 80);
-    currentBoxY += custAddrLines.length * 12;
-  }
-  
-  currentBoxY += 12; // Gap
-  currentBoxY += 14; // Header text DISPATCH & PAYMENT
-  currentBoxY += 14; // Transport line
-  currentBoxY += 14; // Payment Mode line
-  let splitNotes: string[] = [];
-  if (bill.customerNotes) {
-    splitNotes = doc.splitTextToSize(clean(bill.customerNotes), pageWidth - 80);
-    currentBoxY += splitNotes.length * 12;
-  }
-  
-  let custBoxBottom = currentBoxY + 8;
-  
-  // Draw Background
-  doc.setDrawColor(220, 220, 220);
-  doc.setLineWidth(0.5);
-  doc.setFillColor(248, 250, 252); 
-  doc.roundedRect(left, custBoxTop, pageWidth - (left * 2), custBoxBottom - custBoxTop, 6, 6, "FD");
-  
-  // Draw Text
-  let cy = custBoxTop + 14;
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text("CUSTOMER DETAILS", left + 12, cy);
-  
-  cy += 14;
+  doc.text("CUSTOMER DETAILS", left + 12, y + 14);
+  doc.text("PRESCRIPTION INFO", left + (pageWidth/2) - 10, y + 14);
+
+  let cy = y + 28;
   doc.setTextColor(35, 35, 35);
   doc.setFontSize(11);
   doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 12, cy);
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text("Doctor: ", left + (pageWidth/2) - 10, cy);
+  doc.setTextColor(35, 35, 35);
+  doc.text(bill.customerNotes ? "See Notes" : "N/A", left + (pageWidth/2) + 25, cy);
+
+  let leftY = cy + 14;
   if (bill.customerPhone) {
-    cy += 14;
     doc.setTextColor(110, 110, 110);
-    doc.text(`Phone: `, left + 12, cy);
+    doc.text(`Phone: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerPhone), left + 45, cy);
+    doc.text(clean(bill.customerPhone), left + 45, leftY);
+    leftY += 14;
   }
   
   if (bill.customerDrugLicNo) {
-    cy += 14;
     doc.setTextColor(110, 110, 110);
-    doc.text(`D.L.No.: `, left + 12, cy);
+    doc.text(`D.L.No.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, cy);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
+    leftY += 14;
   }
-  
+
   if (bill.customerAddress) {
-    cy += 14;
     doc.setTextColor(110, 110, 110);
-    doc.text(`Address: `, left + 12, cy);
+    doc.text(`Address: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(custAddrLines, left + 55, cy);
-    cy += (custAddrLines.length - 1) * 12;
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
+    doc.text(custAddrLines, left + 55, leftY);
+    leftY += custAddrLines.length * 12;
   }
+
+  rightY = cy + 14;
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Payment Mode: `, left + (pageWidth/2) - 10, rightY);
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.text(bill.paymentMethod.toUpperCase(), left + (pageWidth/2) + 60, rightY);
+  doc.setFont("helvetica", "normal");
+  rightY += 14;
+
+  if (bill.customerNotes) {
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(110, 110, 110);
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
+    doc.text(splitNotes, left + (pageWidth/2) - 10, rightY);
+    rightY += splitNotes.length * 12;
+    doc.setFont("helvetica", "normal");
+  }
+
+  let custBoxBottom = Math.max(leftY, rightY) + 8;
   
-  cy += 12; // gap between sections
-  cy += 14;
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.5);
+  doc.setFillColor(248, 250, 252); 
+  doc.roundedRect(left, custBoxTop, pageWidth - (left * 2), custBoxBottom - custBoxTop, 6, 6, "FD");
+  doc.line(pageWidth/2 - 20, custBoxTop, pageWidth/2 - 20, custBoxBottom);
+  
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text("DISPATCH & PAYMENT", left + 12, cy);
-  
-  cy += 14;
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(110, 110, 110);
-  doc.text("Transport: ", left + 12, cy);
+  doc.text("CUSTOMER DETAILS", left + 12, custBoxTop + 14);
+  doc.text("DISPATCH & PAYMENT", left + (pageWidth/2) - 10, custBoxTop + 14);
+
+  cy = custBoxTop + 28;
   doc.setTextColor(35, 35, 35);
-  doc.text("Direct / By Hand", left + 60, cy);
+  doc.setFontSize(11);
+  doc.text((clean(bill.customerName) || "Walk-in customer").toUpperCase(), left + 12, cy);
   
-  cy += 14;
-  doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, left + 12, cy);
-  doc.setTextColor(...primaryRgb);
-  doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), left + 80, cy);
   doc.setFont("helvetica", "normal");
-  
-  if (bill.customerNotes) {
-    cy += 14;
-    doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text("Transport: ", left + (pageWidth/2) - 10, cy);
+  doc.setTextColor(35, 35, 35);
+  doc.text("Direct / By Hand", left + (pageWidth/2) + 35, cy);
+
+  leftY = cy + 14;
+  if (bill.customerPhone) {
     doc.setTextColor(110, 110, 110);
-    doc.text(splitNotes, left + 12, cy);
-    doc.setFont("helvetica", "normal");
+    doc.text(`Phone: `, left + 12, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerPhone), left + 45, leftY);
+    leftY += 14;
   }
   
+  if (bill.customerDrugLicNo) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`D.L.No.: `, left + 12, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
+    leftY += 14;
+  }
+
+  if (bill.customerAddress) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Address: `, left + 12, leftY);
+    doc.setTextColor(35, 35, 35);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress), (pageWidth/2) - 60);
+    doc.text(custAddrLines, left + 55, leftY);
+    leftY += custAddrLines.length * 12;
+  }
+
+  rightY = cy + 14;
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Payment Mode: `, left + (pageWidth/2) - 10, rightY);
+  doc.setTextColor(...primaryRgb);
+  doc.setFont("helvetica", "bold");
+  doc.text(bill.paymentMethod.toUpperCase(), left + (pageWidth/2) + 60, rightY);
+  doc.setFont("helvetica", "normal");
+  rightY += 14;
+
+  if (bill.customerNotes) {
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(110, 110, 110);
+    const splitNotes = doc.splitTextToSize(clean(bill.customerNotes), (pageWidth/2) - 30);
+    doc.text(splitNotes, left + (pageWidth/2) - 10, rightY);
+  }
+
   y = custBoxBottom;
 
   // 3. Items Table
