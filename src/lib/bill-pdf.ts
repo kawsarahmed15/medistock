@@ -190,12 +190,13 @@ export async function downloadBillPdf(
   doc.setTextColor(35, 35, 35);
   doc.text("Direct / By Hand", rightColX + 45, cy);
 
+  doc.setFontSize(8);
   let leftY = cy + 12;
   if (bill.customerPhone) {
     doc.setTextColor(110, 110, 110);
     doc.text(`PHONE: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerPhone), left + 45, leftY);
+    doc.text(clean(bill.customerPhone), left + 65, leftY);
     leftY += 12;
   }
   
@@ -203,7 +204,7 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 65, leftY);
     leftY += 12;
   }
 
@@ -211,10 +212,11 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`ADDRESS: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress).trim(), (pageWidth/2) - 60);
-    doc.text(custAddrLines, left + 55, leftY);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress).trim(), (pageWidth/2) - 75);
+    doc.text(custAddrLines, left + 65, leftY);
     leftY += custAddrLines.length * 12;
   }
+  doc.setFontSize(9);
 
   rightY = cy + 12;
   doc.setTextColor(110, 110, 110);
@@ -260,12 +262,13 @@ export async function downloadBillPdf(
   doc.setTextColor(35, 35, 35);
   doc.text("Direct / By Hand", rightColX + 45, cy);
 
+  doc.setFontSize(8);
   leftY = cy + 12;
   if (bill.customerPhone) {
     doc.setTextColor(110, 110, 110);
     doc.text(`PHONE: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerPhone), left + 45, leftY);
+    doc.text(clean(bill.customerPhone), left + 65, leftY);
     leftY += 12;
   }
   
@@ -273,7 +276,7 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 55, leftY);
+    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 65, leftY);
     leftY += 12;
   }
 
@@ -281,10 +284,11 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`ADDRESS: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress).trim(), (pageWidth/2) - 60);
-    doc.text(custAddrLines, left + 55, leftY);
+    const custAddrLines = doc.splitTextToSize(clean(bill.customerAddress).trim(), (pageWidth/2) - 75);
+    doc.text(custAddrLines, left + 65, leftY);
     leftY += custAddrLines.length * 12;
   }
+  doc.setFontSize(9);
 
   rightY = cy + 12;
   doc.setTextColor(110, 110, 110);

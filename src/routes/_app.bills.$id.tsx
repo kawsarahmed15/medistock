@@ -161,9 +161,10 @@ function BillDetailPage() {
               <p className="text-sm max-w-xs leading-snug mt-1 whitespace-pre-wrap text-muted-foreground">
                 {pharmacyAddress}
               </p>
-              <div className="flex flex-wrap gap-x-4 mt-2 text-xs font-mono text-muted-foreground">
+              <div className="flex flex-wrap flex-col gap-y-1 mt-2 text-xs font-mono text-muted-foreground">
+                {session?.pharmacyPhone && <p><strong>Phone:</strong> {session.pharmacyPhone}</p>}
                 {session?.gstNumber && <p><strong>GSTIN:</strong> {session.gstNumber.toUpperCase()}</p>}
-                {session?.drugLicNo && <p><strong>D.L.No:</strong> {session.drugLicNo.toUpperCase()}</p>}
+                {session?.drugLicNo && <p><strong>D.L.No.:</strong> {session.drugLicNo.toUpperCase()}</p>}
               </div>
             </div>
           </div>
@@ -191,15 +192,15 @@ function BillDetailPage() {
         {/* Customer Details */}
         <div className="border border-border rounded-lg p-4 mb-4 flex flex-col sm:flex-row justify-between text-sm gap-4 bg-muted/20">
           <div className="sm:w-1/2">
-            <p className="font-semibold mb-1 uppercase text-xs text-primary">Customer Details</p>
+            <p className="font-semibold mb-1 uppercase text-xs text-primary">CUSTOMER DETAILS</p>
             <p className="font-bold uppercase text-base">{bill.customerName || "Walk-in Customer"}</p>
-            {bill.customerPhone && <p className="text-muted-foreground">Phone: <span className="text-foreground">{bill.customerPhone}</span></p>}
-            {bill.customerAddress && <p className="text-muted-foreground">Address: <span className="text-foreground">{bill.customerAddress}</span></p>}
-            {bill.customerDrugLicNo && <p className="font-mono text-xs mt-1 text-muted-foreground">DL: <span className="text-foreground">{bill.customerDrugLicNo}</span></p>}
+            {bill.customerPhone && <p className="text-muted-foreground">PHONE: <span className="text-foreground">{bill.customerPhone}</span></p>}
+            {bill.customerDrugLicNo && <p className="font-mono text-xs mt-1 text-muted-foreground">D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span></p>}
+            {bill.customerAddress && <p className="text-muted-foreground">ADDRESS: <span className="text-foreground">{bill.customerAddress}</span></p>}
           </div>
           <div className="sm:w-1/2 sm:border-l border-border sm:pl-4">
-            <p className="font-semibold mb-1 uppercase text-xs text-primary">Prescription Info</p>
-            <p className="text-muted-foreground">Doctor: <span className="text-foreground">{bill.customerNotes ? "See Notes" : "N/A"}</span></p>
+            <p className="font-semibold mb-1 uppercase text-xs text-primary">DISPATCH & PAYMENT</p>
+            <p className="text-muted-foreground">Transport: <span className="text-foreground">Direct / By Hand</span></p>
             <p className="text-muted-foreground">Payment Mode: <span className="uppercase font-semibold text-primary">{bill.paymentMethod}</span></p>
             {bill.customerNotes && (
               <p className="mt-1 text-xs text-muted-foreground italic">{bill.customerNotes}</p>
