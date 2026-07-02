@@ -118,7 +118,16 @@ function BillDetailPage() {
   const roundOff = netPayable - bill.total;
 
   const handlePrint = () => {
-    window.print();
+    downloadBillPdf(bill, {
+      pharmacyName,
+      pharmacyPhone: session?.pharmacyPhone,
+      pharmacyAddress,
+      gstNumber: session?.gstNumber,
+      drugLicNo: session?.drugLicNo,
+      billColor: session?.billColor,
+      signature: session?.signature,
+      print: true,
+    });
   };
 
   return (

@@ -78,6 +78,7 @@ export async function downloadBillPdf(
     drugLicNo?: string;
     billColor?: string;
     signature?: string;
+    print?: boolean;
   },
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -636,8 +637,8 @@ export async function downloadBillPdf(
     try {
       const imgProps = doc.getImageProperties(signature);
       const imgRatio = imgProps.width / imgProps.height;
-      const maxWidth = 110;
-      const maxHeight = 50;
+      const maxWidth = 100;
+      const maxHeight = 40;
 
       let finalWidth = maxWidth;
       let finalHeight = finalWidth / imgRatio;
@@ -647,8 +648,8 @@ export async function downloadBillPdf(
         finalWidth = finalHeight * imgRatio;
       }
 
-      const x = (right - 120) + (110 - finalWidth) / 2;
-      const y = (sigY - 75) + (50 - finalHeight);
+      const x = (right - 120) + (100 - finalWidth) / 2;
+      const y = (sigY - 55) + (40 - finalHeight);
 
       doc.addImage(signature, "PNG", x, y, finalWidth, finalHeight);
     } catch (err) {}
@@ -672,5 +673,14 @@ export async function downloadBillPdf(
     doc.text(`Page ${i} of ${totalPages}`, right, pageHeight - 24, { align: "right" });
   }
 
-  doc.save(`${clean(bill.number) || "bill"}.pdf`);
+  if (settings?.print) {
+    doc.autoPrint();
+    const pdfUrl = doc.output("bloburl");
+    const newWindow = window.open(pdfUrl, "_blank");
+    if (!newWindow) {
+      alert("Please allow popups for this site to print the PDF.");
+    }
+  } else {
+    doc.save(`${clean(bill.number) || "bill"}.pdf`);
+  }
 }
