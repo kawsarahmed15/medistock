@@ -676,10 +676,19 @@ export async function downloadBillPdf(
   if (settings?.print) {
     doc.autoPrint();
     const pdfUrl = doc.output("bloburl");
-    const newWindow = window.open(pdfUrl, "_blank");
-    if (!newWindow) {
-      alert("Please allow popups for this site to print the PDF.");
-    }
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = pdfUrl;
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+        URL.revokeObjectURL(pdfUrl);
+      }, 60000); // Clean up after a minute
+    };
   } else {
     doc.save(`${clean(bill.number) || "bill"}.pdf`);
   }
