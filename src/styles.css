@@ -247,6 +247,175 @@
   animation: scale-in 0.3s ease-out both;
 }
 
+/* ==================== LANDING PAGE ANIMATIONS ==================== */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-12px) rotate(1deg); }
+  66% { transform: translateY(6px) rotate(-1deg); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes aurora-shift {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  25% { transform: translate(5%, -8%) scale(1.1); opacity: 0.6; }
+  50% { transform: translate(-3%, 5%) scale(0.95); opacity: 0.5; }
+  75% { transform: translate(8%, 3%) scale(1.05); opacity: 0.55; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+}
+@keyframes gradient-x {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px oklch(0.62 0.13 175 / 0.15), 0 0 60px oklch(0.62 0.13 175 / 0.05); }
+  50% { box-shadow: 0 0 30px oklch(0.62 0.13 175 / 0.3), 0 0 80px oklch(0.62 0.13 175 / 0.1); }
+}
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(40px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes reveal-left {
+  from { opacity: 0; transform: translateX(60px); filter: blur(4px); }
+  to { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+@keyframes reveal-right {
+  from { opacity: 0; transform: translateX(-60px); filter: blur(4px); }
+  to { opacity: 1; transform: translateX(0); filter: blur(0); }
+}
+@keyframes text-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes particle-drift {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  10% { opacity: 1; transform: translate(0, 0) scale(1); }
+  90% { opacity: 0.3; }
+  100% { transform: translate(var(--drift-x, 100px), var(--drift-y, -200px)) scale(0); opacity: 0; }
+}
+@keyframes border-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes count-up {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes morph-blob {
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50% { border-radius: 50% 60% 30% 60% / 30% 70% 50% 60%; }
+  75% { border-radius: 60% 40% 60% 30% / 40% 50% 60% 50%; }
+}
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+.animate-aurora { animation: aurora-shift 15s ease-in-out infinite; }
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 6s ease infinite;
+}
+.animate-glow-pulse { animation: glow-pulse 3s ease-in-out infinite; }
+.animate-reveal-up { animation: reveal-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-reveal-left { animation: reveal-left 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-reveal-right { animation: reveal-right 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-text-gradient {
+  background-size: 300% 300%;
+  animation: text-gradient-shift 4s ease infinite;
+}
+.animate-spin-slow { animation: spin-slow 20s linear infinite; }
+.animate-particle { animation: particle-drift var(--duration, 8s) ease-in-out infinite; }
+.animate-border-flow {
+  background-size: 200% 100%;
+  animation: border-flow 3s linear infinite;
+}
+.animate-count-up { animation: count-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-morph-blob { animation: morph-blob 12s ease-in-out infinite; }
+.animate-ripple { animation: ripple 2s ease-out infinite; }
+.animate-ticker { animation: ticker 30s linear infinite; }
+
+.glass {
+  background: oklch(1 0 0 / 0.06);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid oklch(1 0 0 / 0.1);
+}
+.dark .glass {
+  background: oklch(0 0 0 / 0.2);
+  border-color: oklch(1 0 0 / 0.06);
+}
+
+.text-shimmer {
+  background: linear-gradient(
+    110deg,
+    var(--foreground) 35%,
+    oklch(0.72 0.13 175) 50%,
+    var(--foreground) 65%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px -15px oklch(0 0 0 / 0.15);
+}
+.dark .hover-lift:hover {
+  box-shadow: 0 20px 40px -15px oklch(0 0 0 / 0.4);
+}
+
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, oklch(0.72 0.13 175 / 0.5), oklch(0.82 0.11 175 / 0.2), oklch(0.72 0.13 175 / 0.5));
+  background-size: 200% 100%;
+  animation: border-flow 3s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.noise-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  pointer-events: none;
+  z-index: 1;
+}
+
 @media print {
   @page {
     margin: 0.5cm;

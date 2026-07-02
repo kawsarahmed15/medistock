@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   gst_number VARCHAR(20) NULL,
   bill_color VARCHAR(20) NULL,
   signature VARCHAR(190) NULL,
-  role VARCHAR(50) NOT NULL DEFAULT 'user',
+  role VARCHAR(50) NOT NULL DEFAULT 'retailer',
   account_status VARCHAR(50) NOT NULL DEFAULT 'active',
   expiring_days INT NOT NULL DEFAULT 60,
   default_tax DECIMAL(5,2) NOT NULL DEFAULT 12,

@@ -55,6 +55,7 @@ router.post("/signup", async (req, res, next) => {
     const email = ensureEmail(req.body?.email);
     const password = ensurePassword(req.body?.password);
     const role = req.body?.role === "wholesaler" ? "wholesaler" : "retailer";
+    const pharmacyName = String(req.body?.pharmacyName || "").trim() || null;
 
     const [existing] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
     if (existing.length > 0) {
@@ -64,9 +65,9 @@ router.post("/signup", async (req, res, next) => {
     const userId = generateId();
     const passwordHash = await hashPassword(password);
     await pool.query(
-      `INSERT INTO users (id, name, email, password_hash, is_verified, role)
-       VALUES (?, ?, ?, ?, 0, ?)`,
-      [userId, name, email, passwordHash, role],
+      `INSERT INTO users (id, name, email, password_hash, is_verified, role, pharmacy_name)
+       VALUES (?, ?, ?, ?, 0, ?, ?)`,
+      [userId, name, email, passwordHash, role, pharmacyName],
     );
 
     const token = generateToken();

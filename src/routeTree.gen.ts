@@ -23,13 +23,17 @@ import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSellRouteImport } from './routes/_app.sell'
 import { Route as AppRevenueRouteImport } from './routes/_app.revenue'
+import { Route as AppPurchasesRouteImport } from './routes/_app.purchases'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCustomersRouteImport } from './routes/_app.customers'
 import { Route as AppCreditRouteImport } from './routes/_app.credit'
 import { Route as AppCartRouteImport } from './routes/_app.cart'
 import { Route as AppBillsRouteImport } from './routes/_app.bills'
+import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
 import { Route as AppBillsIndexRouteImport } from './routes/_app.bills.index'
+import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
+import { Route as AppPurchasesIdRouteImport } from './routes/_app.purchases.$id'
 import { Route as AppInventoryIdRouteImport } from './routes/_app.inventory_.$id'
 import { Route as AppBillsIdRouteImport } from './routes/_app.bills.$id'
 
@@ -102,6 +106,11 @@ const AppRevenueRoute = AppRevenueRouteImport.update({
   path: '/revenue',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPurchasesRoute = AppPurchasesRouteImport.update({
+  id: '/purchases',
+  path: '/purchases',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppInventoryRoute = AppInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -132,10 +141,25 @@ const AppBillsRoute = AppBillsRouteImport.update({
   path: '/bills',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
 const AppBillsIndexRoute = AppBillsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppBillsRoute,
+} as any)
+const AppPurchasesNewRoute = AppPurchasesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppPurchasesIdRoute = AppPurchasesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppPurchasesRoute,
 } as any)
 const AppInventoryIdRoute = AppInventoryIdRouteImport.update({
   id: '/inventory_/$id',
@@ -163,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
   '/inventory': typeof AppInventoryRoute
+  '/purchases': typeof AppPurchasesRouteWithChildren
   '/revenue': typeof AppRevenueRoute
   '/sell': typeof AppSellRoute
   '/settings': typeof AppSettingsRoute
@@ -170,7 +195,10 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/bills/$id': typeof AppBillsIdRoute
   '/inventory/$id': typeof AppInventoryIdRoute
+  '/purchases/$id': typeof AppPurchasesIdRoute
+  '/purchases/new': typeof AppPurchasesNewRoute
   '/bills/': typeof AppBillsIndexRoute
+  '/purchases/': typeof AppPurchasesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -193,7 +221,10 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/bills/$id': typeof AppBillsIdRoute
   '/inventory/$id': typeof AppInventoryIdRoute
+  '/purchases/$id': typeof AppPurchasesIdRoute
+  '/purchases/new': typeof AppPurchasesNewRoute
   '/bills': typeof AppBillsIndexRoute
+  '/purchases': typeof AppPurchasesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -212,6 +243,7 @@ export interface FileRoutesById {
   '/_app/customers': typeof AppCustomersRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/inventory': typeof AppInventoryRoute
+  '/_app/purchases': typeof AppPurchasesRouteWithChildren
   '/_app/revenue': typeof AppRevenueRoute
   '/_app/sell': typeof AppSellRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -219,7 +251,10 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/_app/bills/$id': typeof AppBillsIdRoute
   '/_app/inventory_/$id': typeof AppInventoryIdRoute
+  '/_app/purchases/$id': typeof AppPurchasesIdRoute
+  '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/bills/': typeof AppBillsIndexRoute
+  '/_app/purchases/': typeof AppPurchasesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -238,6 +273,7 @@ export interface FileRouteTypes {
     | '/customers'
     | '/dashboard'
     | '/inventory'
+    | '/purchases'
     | '/revenue'
     | '/sell'
     | '/settings'
@@ -245,7 +281,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/bills/$id'
     | '/inventory/$id'
+    | '/purchases/$id'
+    | '/purchases/new'
     | '/bills/'
+    | '/purchases/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -268,7 +307,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/bills/$id'
     | '/inventory/$id'
+    | '/purchases/$id'
+    | '/purchases/new'
     | '/bills'
+    | '/purchases'
   id:
     | '__root__'
     | '/'
@@ -286,6 +328,7 @@ export interface FileRouteTypes {
     | '/_app/customers'
     | '/_app/dashboard'
     | '/_app/inventory'
+    | '/_app/purchases'
     | '/_app/revenue'
     | '/_app/sell'
     | '/_app/settings'
@@ -293,7 +336,10 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/_app/bills/$id'
     | '/_app/inventory_/$id'
+    | '/_app/purchases/$id'
+    | '/_app/purchases/new'
     | '/_app/bills/'
+    | '/_app/purchases/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -408,6 +454,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRevenueRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/purchases': {
+      id: '/_app/purchases'
+      path: '/purchases'
+      fullPath: '/purchases'
+      preLoaderRoute: typeof AppPurchasesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/inventory': {
       id: '/_app/inventory'
       path: '/inventory'
@@ -450,12 +503,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBillsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/purchases/': {
+      id: '/_app/purchases/'
+      path: '/'
+      fullPath: '/purchases/'
+      preLoaderRoute: typeof AppPurchasesIndexRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
     '/_app/bills/': {
       id: '/_app/bills/'
       path: '/'
       fullPath: '/bills/'
       preLoaderRoute: typeof AppBillsIndexRouteImport
       parentRoute: typeof AppBillsRoute
+    }
+    '/_app/purchases/new': {
+      id: '/_app/purchases/new'
+      path: '/new'
+      fullPath: '/purchases/new'
+      preLoaderRoute: typeof AppPurchasesNewRouteImport
+      parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/purchases/$id': {
+      id: '/_app/purchases/$id'
+      path: '/$id'
+      fullPath: '/purchases/$id'
+      preLoaderRoute: typeof AppPurchasesIdRouteImport
+      parentRoute: typeof AppPurchasesRoute
     }
     '/_app/inventory_/$id': {
       id: '/_app/inventory_/$id'
@@ -488,6 +562,22 @@ const AppBillsRouteWithChildren = AppBillsRoute._addFileChildren(
   AppBillsRouteChildren,
 )
 
+interface AppPurchasesRouteChildren {
+  AppPurchasesIdRoute: typeof AppPurchasesIdRoute
+  AppPurchasesNewRoute: typeof AppPurchasesNewRoute
+  AppPurchasesIndexRoute: typeof AppPurchasesIndexRoute
+}
+
+const AppPurchasesRouteChildren: AppPurchasesRouteChildren = {
+  AppPurchasesIdRoute: AppPurchasesIdRoute,
+  AppPurchasesNewRoute: AppPurchasesNewRoute,
+  AppPurchasesIndexRoute: AppPurchasesIndexRoute,
+}
+
+const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
+  AppPurchasesRouteChildren,
+)
+
 interface AppRouteChildren {
   AppBillsRoute: typeof AppBillsRouteWithChildren
   AppCartRoute: typeof AppCartRoute
@@ -495,6 +585,7 @@ interface AppRouteChildren {
   AppCustomersRoute: typeof AppCustomersRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppInventoryRoute: typeof AppInventoryRoute
+  AppPurchasesRoute: typeof AppPurchasesRouteWithChildren
   AppRevenueRoute: typeof AppRevenueRoute
   AppSellRoute: typeof AppSellRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -508,6 +599,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCustomersRoute: AppCustomersRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppInventoryRoute: AppInventoryRoute,
+  AppPurchasesRoute: AppPurchasesRouteWithChildren,
   AppRevenueRoute: AppRevenueRoute,
   AppSellRoute: AppSellRoute,
   AppSettingsRoute: AppSettingsRoute,

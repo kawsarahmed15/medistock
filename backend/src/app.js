@@ -8,6 +8,7 @@ import { productsRouter } from "./routes/products.js";
 import { billsRouter } from "./routes/bills.js";
 import { customersRouter } from "./routes/customers.js";
 import { adminRouter } from "./routes/admin.js";
+import { purchasesRouter } from "./routes/purchases.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/api/products", productsRouter);
 app.use("/api/bills", billsRouter);
 app.use("/api/customers", customersRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/purchases", purchasesRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

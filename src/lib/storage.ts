@@ -277,3 +277,92 @@ export const themeStore = {
 };
 
 export function setStorageUser(_userId: string | null) {}
+
+export type PurchaseItem = {
+  id: string;
+  purchaseId: string;
+  productId: string;
+  name: string;
+  sku?: string;
+  qty: number;
+  freeQty: number;
+  costPrice: number;
+  mrp?: number;
+  taxPercent: number;
+  batch?: string;
+  expiry?: string;
+  pack?: string;
+};
+
+export type Purchase = {
+  id: string;
+  number: string;
+  supplierName?: string;
+  supplierPhone?: string;
+  supplierInvoice?: string;
+  notes?: string;
+  paymentStatus: "paid" | "unpaid" | "partial";
+  paymentMethod: "cash" | "online" | "credit" | "cheque" | "bank_transfer";
+  amountPaid: number;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  createdAt: string;
+  createdBy?: string;
+  items: PurchaseItem[];
+};
+
+function rowToPurchase(p: any, items: any[]): Purchase {
+  return {
+    id: p.id,
+    number: p.number,
+    supplierName: p.supplier_name ?? undefined,
+    supplierPhone: p.supplier_phone ?? undefined,
+    supplierInvoice: p.supplier_invoice ?? undefined,
+    notes: p.notes ?? undefined,
+    paymentStatus: p.payment_status,
+    paymentMethod: p.payment_method,
+    amountPaid: Number(p.amount_paid) || 0,
+    subtotal: Number(p.subtotal) || 0,
+    tax: Number(p.tax) || 0,
+    discount: Number(p.discount) || 0,
+    total: Number(p.total) || 0,
+    createdAt: p.created_at,
+    createdBy: p.created_by ?? undefined,
+    items: items.map((it: any) => ({
+      id: it.id,
+      purchaseId: it.purchase_id,
+      productId: it.product_id,
+      name: it.name,
+      sku: it.sku ?? undefined,
+      qty: Number(it.qty) || 0,
+      freeQty: Number(it.free_qty) || 0,
+      costPrice: Number(it.cost_price) || 0,
+      taxPercent: Number(it.tax_percent) || 0,
+      mrp: it.mrp ? Number(it.mrp) : undefined,
+      batch: it.batch ?? undefined,
+      pack: it.pack ?? undefined,
+      expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
+    }))
+  };
+}
+
+export const purchasesStore = {
+  async list(): Promise<Purchase[]> {
+    const data = await apiRequest<any[]>("/purchases", { auth: true });
+    return data.map((p) => rowToPurchase(p, p.items || []));
+  },
+  async get(id: string): Promise<Purchase> {
+    const data = await apiRequest<any>(`/purchases/${id}`, { auth: true });
+    return rowToPurchase(data, data.items || []);
+  },
+  async add(purchase: Omit<Purchase, "id" | "number" | "createdAt" | "items"> & { items: Omit<PurchaseItem, "id" | "purchaseId">[] }): Promise<Purchase> {
+    const data = await apiRequest<any>("/purchases", {
+      method: "POST",
+      body: purchase,
+      auth: true,
+    });
+    return rowToPurchase(data, data.items || []);
+  }
+};
