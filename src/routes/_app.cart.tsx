@@ -93,8 +93,6 @@ function CartPage() {
           costPrice: i.product.costPrice,
           qty: i.qty - (i.freeQty || 0),
           freeQty: i.freeQty || 0,
-          unitSold: i.unitSold || "Tablet",
-          convertedQty: i.convertedQty || i.qty,
           taxPercent: i.product.taxPercent ?? 0,
           mrp: i.product.mrp,
           batch: i.product.batch,
@@ -106,7 +104,7 @@ function CartPage() {
         total: cart.total,
       });
       // Decrement stock for each line (sequential to keep RLS-safe simple writes)
-      await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.convertedQty || i.qty)));
+      await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)));
       cart.clear();
       toast.success(`Bill ${bill.number} generated`);
       navigate({ to: "/bills/$id", params: { id: bill.id } });
@@ -203,17 +201,17 @@ function CartPage() {
                         variant="outline"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => cart.setQty(i.product.id, i.qty - 1, i.unitSold)}
+                        onClick={() => cart.setQty(i.product.id, i.qty - 1)}
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="w-16 text-center text-sm tabular-nums">{i.qty} {i.unitSold}</span>
+                      <span className="w-8 text-center text-sm tabular-nums">{i.qty}</span>
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => cart.setQty(i.product.id, i.qty + 1, i.unitSold)}
-                        disabled={false} /* Stock check handled in context */
+                        onClick={() => cart.setQty(i.product.id, i.qty + 1)}
+                        disabled={i.qty >= i.product.stock}
                       >
                         <Plus className="h-3 w-3" />
                       </Button>
@@ -221,7 +219,7 @@ function CartPage() {
                     <div className="w-24 text-right tabular-nums font-medium">
                       {i.freeQty === i.qty
                         ? "₹0.00"
-                        : formatMoney(i.product.price * ((i.convertedQty || i.qty) - (i.freeQty || 0)))}
+                        : formatMoney(i.product.price * (i.qty - (i.freeQty || 0)))}
                     </div>
                     <Button
                       variant="ghost"

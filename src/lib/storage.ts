@@ -22,12 +22,6 @@ export type Product = {
   conversionFactor?: number;
   packPrice?: number;
   packCostPrice?: number;
-  medicineType?: string;
-  tabletsPerStrip?: number;
-  stripsPerBox?: number;
-  mrpPerTablet?: number;
-  mrpPerStrip?: number;
-  mrpPerBox?: number;
   createdAt: string;
 };
 
@@ -44,8 +38,6 @@ export type BillItem = {
   pack?: string;
   expiry?: string;
   freeQty?: number;
-  unitSold?: string;
-  convertedQty?: number;
 };
 
 export type Bill = {
@@ -82,12 +74,6 @@ type ProductRow = {
   sku: string | null;
   prescription: boolean | number;
   tax_percent: number | string;
-  medicine_type: string | null;
-  tablets_per_strip: number | string | null;
-  strips_per_box: number | string | null;
-  mrp_per_tablet: number | string | null;
-  mrp_per_strip: number | string | null;
-  mrp_per_box: number | string | null;
   created_at: string;
 };
 
@@ -110,12 +96,6 @@ function rowToProduct(r: ProductRow): Product {
     sku: r.sku ?? undefined,
     prescription: Boolean(r.prescription),
     taxPercent: Number(r.tax_percent) || 0,
-    medicineType: r.medicine_type ?? undefined,
-    tabletsPerStrip: num(r.tablets_per_strip),
-    stripsPerBox: num(r.strips_per_box),
-    mrpPerTablet: num(r.mrp_per_tablet),
-    mrpPerStrip: num(r.mrp_per_strip),
-    mrpPerBox: num(r.mrp_per_box),
     createdAt: r.created_at,
   };
 }
@@ -170,8 +150,6 @@ type BillItemRow = {
   pack: string | null;
   expiry: string | null;
   free_qty: number;
-  unit_sold: string | null;
-  converted_qty: number;
 };
 
 function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
@@ -204,8 +182,6 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       pack: it.pack ?? undefined,
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
       freeQty: Number(it.free_qty) || 0,
-      unitSold: it.unit_sold ?? undefined,
-      convertedQty: Number(it.converted_qty) || 0,
     })),
   };
 }

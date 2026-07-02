@@ -30,7 +30,6 @@ import { SkuScanner } from "@/components/sku-scanner";
 import { toast } from "sonner";
 
 import { TableSkeleton } from "@/components/loading-skeleton";
-import { calculateSmallestUnits, formatStock } from "@/lib/inventory-utils";
 
 type InventorySearch = {
   add?: number;
@@ -54,53 +53,88 @@ export const Route = createFileRoute("/_app/inventory")({
 type FormState = {
   name: string;
   category: string;
-  manufacturer: string;
-  batch: string;
-  sku: string;
+  costPrice: string;
+  price: string;
+  mrp: string;
+  stock: string;
+  stockType: string;
+  stockPacks: string;
+  stockUnits: string;
   expiry: string;
+  batch: string;
+  manufacturer: string;
+  sku: string;
   taxPercent: string;
   prescription: boolean;
-
-  medicineType: string;
-  tabletsPerStrip: string;
-  stripsPerBox: string;
-
-  purchaseQuantity: string;
-  purchaseUnit: string;
-  purchasePrice: string;
-
-  mrpPerTablet: string;
-  mrpPerStrip: string;
-  mrpPerBox: string;
-
-  pricePerTablet: string;
-  pricePerStrip: string;
-  pricePerBox: string;
+  baseUnit: string;
+  packUnit: string;
+  conversionFactor: string;
+  packPrice: string;
+  packCostPrice: string;
 };
 
 const empty: FormState = {
   name: "",
   category: "",
-  manufacturer: "",
-  batch: "",
-  sku: "",
+  costPrice: "",
+  price: "",
+  mrp: "",
+  stock: "",
+  stockType: "other",
+  stockPacks: "",
+  stockUnits: "",
   expiry: "",
+  batch: "",
+  manufacturer: "",
+  sku: "",
   taxPercent: "12",
   prescription: false,
-  medicineType: "Tablet",
-  tabletsPerStrip: "10",
-  stripsPerBox: "10",
-  purchaseQuantity: "1",
-  purchaseUnit: "Box",
-  purchasePrice: "",
-  mrpPerTablet: "",
-  mrpPerStrip: "",
-  mrpPerBox: "",
-  pricePerTablet: "",
-  pricePerStrip: "",
-  pricePerBox: "",
+  baseUnit: "Unit",
+  packUnit: "Pack",
+  conversionFactor: "1",
+  packPrice: "",
+  packCostPrice: "",
 };
 
+function parsePack(packStr?: string) {
+  if (!packStr) return { stockType: "other", stockPacks: "", stockUnits: "" };
+
+  if (packStr.toUpperCase().endsWith("ML") && !packStr.includes("x") && !packStr.includes("X")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "syp", stockPacks: val, stockUnits: "ML" };
+  }
+
+  if (packStr.toUpperCase().endsWith("MG")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "inj", stockPacks: val, stockUnits: "MG" };
+  }
+
+  if (packStr.toUpperCase().endsWith(" ML DROP")) {
+    const val = packStr.substring(0, packStr.length - 8).trim();
+    return { stockType: "drop", stockPacks: val, stockUnits: "ML" };
+  }
+
+  if (packStr.toUpperCase().endsWith(" GM")) {
+    const val = packStr.substring(0, packStr.length - 3).trim();
+    return { stockType: "cream", stockPacks: val, stockUnits: "GM" };
+  }
+
+  if (packStr.toUpperCase().endsWith("GM")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "inj", stockPacks: val, stockUnits: "GM" };
+  }
+
+  if (
+    packStr.includes("x") ||
+    packStr.includes("X") ||
+    packStr.includes("*") ||
+    packStr.toUpperCase() === "CAP"
+  ) {
+    return { stockType: "tab", stockPacks: packStr, stockUnits: "" };
+  }
+
+  return { stockType: "other", stockPacks: packStr, stockUnits: "" };
+}
 
 function InventoryPage() {
   const { q: qParam } = Route.useSearch();
@@ -279,59 +313,65 @@ function InventoryPage() {
     setForm({
       name: p.name,
       category: p.category,
-      manufacturer: p.manufacturer ?? "",
+      costPrice: p.costPrice != null ? String(p.costPrice) : "",
+      price: String(p.price),
+      mrp: p.mrp != null ? String(p.mrp) : "",
+      stock: String(p.stock),
+      ...parsePack(p.pack),
+      expiry: (() => {
+        if (!p.expiry) return "";
+        const parts = p.expiry.split("-");
+        if (parts.length >= 2) {
+          return `${parts[1]}/${parts[0].substring(2)}`;
+        }
+        return p.expiry;
+      })(),
       batch: p.batch ?? "",
+      manufacturer: p.manufacturer ?? "",
       sku: p.sku ?? "",
-      expiry: p.expiry ? (p.expiry.split("-").length >= 2 ? `${p.expiry.split("-")[1]}/${p.expiry.split("-")[0].substring(2)}` : p.expiry) : "",
       taxPercent: String(p.taxPercent ?? 0),
       prescription: !!p.prescription,
-
-      medicineType: p.medicineType || "Tablet",
-      tabletsPerStrip: String(p.tabletsPerStrip || 10),
-      stripsPerBox: String(p.stripsPerBox || 10),
-
-      purchaseQuantity: "1",
-      purchaseUnit: p.medicineType === "Tablet" || p.medicineType === "Capsule" ? "Box" : "Unit",
-      purchasePrice: p.costPrice ? String(p.costPrice * calculateSmallestUnits(1, p.medicineType === "Tablet" || p.medicineType === "Capsule" ? "Box" : "Unit", p.medicineType || "Tablet", Number(p.tabletsPerStrip || 10), Number(p.stripsPerBox || 10))) : "",
-
-      mrpPerTablet: p.mrpPerTablet ? String(p.mrpPerTablet) : p.mrp ? String(p.mrp) : "",
-      mrpPerStrip: p.mrpPerStrip ? String(p.mrpPerStrip) : "",
-      mrpPerBox: p.mrpPerBox ? String(p.mrpPerBox) : "",
-
-      pricePerTablet: p.price ? String(p.price) : "",
-      pricePerStrip: "",
-      pricePerBox: "",
+      baseUnit: p.baseUnit ?? "Unit",
+      packUnit: p.packUnit ?? "Pack",
+      conversionFactor: String(p.conversionFactor ?? 1),
+      packPrice: p.packPrice != null ? String(p.packPrice) : "",
+      packCostPrice: p.packCostPrice != null ? String(p.packCostPrice) : "",
     });
     setOpen(true);
   };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    
-    const tps = Number(form.tabletsPerStrip) || 10;
-    const spb = Number(form.stripsPerBox) || 10;
-    
-    // Calculate base quantities
-    const addedStock = calculateSmallestUnits(Number(form.purchaseQuantity) || 0, form.purchaseUnit, form.medicineType, tps, spb);
-    let finalStock = editing ? editing.stock + addedStock : addedStock;
-
-    // Price calculation
-    let costPerUnit = 0;
-    if (addedStock > 0 && Number(form.purchasePrice)) {
-      costPerUnit = Number(form.purchasePrice) / addedStock;
+    let packValue: string | undefined = undefined;
+    if (form.stockType === "tab" || form.stockType === "cap" || form.stockType === "other") {
+      if (form.stockPacks) {
+        packValue = form.stockPacks;
+      }
+    } else if (form.stockType === "syp") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks}ML`;
+      }
+    } else if (form.stockType === "inj") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks}${form.stockUnits || "ML"}`;
+      }
+    } else if (form.stockType === "cream") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks} GM`;
+      }
+    } else if (form.stockType === "drop") {
+      if (form.stockPacks) {
+        packValue = `${form.stockPacks} ML Drop`;
+      }
     }
-
-    let pricePerUnit = Number(form.pricePerTablet) || 0;
-    let mrpPerUnit = Number(form.mrpPerTablet) || 0;
-
     const payload = {
       name: form.name.trim(),
       category: form.category.trim() || "General",
-      manufacturer: form.manufacturer.trim() || undefined,
-      batch: form.batch.trim() || undefined,
-      sku: form.sku.trim() || undefined,
-      taxPercent: Number(form.taxPercent) || 0,
-      prescription: form.prescription,
+      costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
+      price: Number(form.price),
+      mrp: form.mrp === "" ? undefined : Number(form.mrp),
+      stock: Number(form.stock) || 0,
+      pack: packValue,
       expiry: (() => {
         if (!form.expiry) return "";
         const parts = form.expiry.split("/");
@@ -343,26 +383,28 @@ function InventoryPage() {
         }
         return form.expiry;
       })(),
-
-      medicineType: form.medicineType,
-      tabletsPerStrip: form.medicineType === "Tablet" || form.medicineType === "Capsule" ? tps : undefined,
-      stripsPerBox: form.medicineType === "Tablet" || form.medicineType === "Capsule" ? spb : undefined,
-
-      mrpPerTablet: Number(form.mrpPerTablet) || undefined,
-      mrpPerStrip: Number(form.mrpPerStrip) || undefined,
-      mrpPerBox: Number(form.mrpPerBox) || undefined,
-
-      stock: finalStock,
-      costPrice: costPerUnit || (editing ? editing.costPrice : 0),
-      price: pricePerUnit,
-      mrp: mrpPerUnit || undefined,
+      batch: form.batch.trim() || undefined,
+      manufacturer: form.manufacturer.trim() || undefined,
+      sku: form.sku.trim() || undefined,
+      taxPercent: Number(form.taxPercent) || 0,
+      prescription: form.prescription,
+      baseUnit: form.baseUnit.trim() || "Unit",
+      packUnit: form.packUnit.trim() || "Pack",
+      conversionFactor: Number(form.conversionFactor) || 1,
+      packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
+      packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
     };
-
-    if (!payload.name || !payload.expiry || isNaN(payload.price)) {
-      toast.error("Please fill required fields (Name, Price, Expiry).");
+    if (
+      !payload.name ||
+      !payload.expiry ||
+      isNaN(payload.price) ||
+      isNaN(payload.stock) ||
+      payload.costPrice === undefined ||
+      isNaN(payload.costPrice)
+    ) {
+      toast.error("Please fill name, buying price, selling price, stock and expiry.");
       return;
     }
-
     try {
       if (editing) {
         await productsStore.update(editing.id, payload);
@@ -372,7 +414,14 @@ function InventoryPage() {
         toast.success("Product added");
       }
       saveRecent("recentCategories", payload.category, recentCategories, setRecentCategories, 4);
-      if (payload.manufacturer) saveRecent("recentManufacturers", payload.manufacturer, recentManufacturers, setRecentManufacturers, 8);
+      if (payload.manufacturer)
+        saveRecent(
+          "recentManufacturers",
+          payload.manufacturer,
+          recentManufacturers,
+          setRecentManufacturers,
+          8,
+        );
       if (payload.sku) saveRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
 
       refresh();
@@ -453,191 +502,268 @@ function InventoryPage() {
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={submit} className="flex flex-col gap-6">
-  {/* Basic Information */}
-  <div className="space-y-4">
-    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Basic Information</h3>
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Name" className="col-span-2">
-        <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-      </Field>
-      <Field label="Category">
-        <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Antibiotic" />
-      </Field>
-      <Field label="Manufacturer">
-        <Input value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} />
-      </Field>
-      <Field label="Batch">
-        <Input value={form.batch} onChange={(e) => setForm({ ...form, batch: e.target.value })} />
-      </Field>
-      <Field label="Expiry (MM/YY)">
-        <Input value={form.expiry} onChange={(e) => {
-          let val = e.target.value.replace(/[^\d/]/g, "");
-          if (val.length === 2 && form.expiry.length !== 3 && !val.includes("/")) val += "/";
-          setForm({ ...form, expiry: val });
-        }} required />
-      </Field>
-      <Field label="HSN Code">
-        <div className="flex gap-2">
-          <Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
-          <Button type="button" variant="outline" size="icon" onClick={(e) => { e.preventDefault(); setScannerOpen(true); }}><ScanLine className="h-4 w-4" /></Button>
-        </div>
-      </Field>
-      <Field label="Tax %">
-        <Input type="number" value={form.taxPercent} onChange={(e) => setForm({ ...form, taxPercent: e.target.value })} />
-      </Field>
-      <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
-        <div>
-          <div className="text-sm font-medium">Prescription required</div>
-          <div className="text-xs text-muted-foreground">Mark this product as Rx-only.</div>
-        </div>
-        <Switch checked={form.prescription} onCheckedChange={(v) => setForm({ ...form, prescription: v })} />
-      </div>
-    </div>
-  </div>
-
-  {/* Packaging */}
-  <div className="space-y-4 pt-2 border-t border-border/50">
-    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Packaging</h3>
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Medicine Type">
-        <select className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={form.medicineType} onChange={(e) => setForm({ ...form, medicineType: e.target.value })}>
-          {["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Ointment", "Drops", "Other"].map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-      </Field>
-      {(form.medicineType === "Tablet" || form.medicineType === "Capsule") && (
-        <>
-          <Field label="Tablets/Capsules Per Strip">
-            <Input type="number" value={form.tabletsPerStrip} onChange={(e) => setForm({ ...form, tabletsPerStrip: e.target.value })} required />
-          </Field>
-          <Field label="Strips Per Box">
-            <Input type="number" value={form.stripsPerBox} onChange={(e) => setForm({ ...form, stripsPerBox: e.target.value })} required />
-          </Field>
-        </>
-      )}
-    </div>
-  </div>
-
-  {/* Purchase */}
-  <div className="space-y-4 pt-2 border-t border-border/50">
-    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Purchase (Adding Stock)</h3>
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Purchase Quantity">
-        <Input type="number" value={form.purchaseQuantity} onChange={(e) => setForm({ ...form, purchaseQuantity: e.target.value })} />
-      </Field>
-      <Field label="Purchase Unit">
-        <select className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={form.purchaseUnit} onChange={(e) => setForm({ ...form, purchaseUnit: e.target.value })}>
-          {form.medicineType === "Tablet" || form.medicineType === "Capsule" ? (
-            <>
-              <option value="Box">Box</option>
-              <option value="Strip">Strip</option>
-              <option value="Tablet">Tablet/Capsule</option>
-            </>
-          ) : (
-            <option value="Unit">Unit / Bottle / Tube</option>
-          )}
-        </select>
-      </Field>
-      <Field label="Total Purchase Price">
-        <Input type="number" step="0.01" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} />
-      </Field>
-    </div>
-  </div>
-
-  {/* Pricing */}
-  <div className="space-y-4 pt-2 border-t border-border/50">
-    <h3 className="text-sm font-semibold text-primary uppercase tracking-wider">Selling Price & MRP</h3>
-    <div className="grid grid-cols-2 gap-4">
-      <Field label="Price (Smallest Unit)">
-        <Input type="number" step="0.01" value={form.pricePerTablet} onChange={(e) => {
-          const v = e.target.value;
-          const tps = Number(form.tabletsPerStrip) || 10;
-          const spb = Number(form.stripsPerBox) || 10;
-          setForm({
-            ...form, 
-            pricePerTablet: v, 
-            pricePerStrip: v ? String(Number(v) * tps) : "",
-            pricePerBox: v ? String(Number(v) * tps * spb) : ""
-          });
-        }} required />
-      </Field>
-      <Field label="MRP (Smallest Unit)">
-        <Input type="number" step="0.01" value={form.mrpPerTablet} onChange={(e) => {
-          const v = e.target.value;
-          const tps = Number(form.tabletsPerStrip) || 10;
-          const spb = Number(form.stripsPerBox) || 10;
-          setForm({
-            ...form, 
-            mrpPerTablet: v, 
-            mrpPerStrip: v ? String(Number(v) * tps) : "",
-            mrpPerBox: v ? String(Number(v) * tps * spb) : ""
-          });
-        }} />
-      </Field>
-      {(form.medicineType === "Tablet" || form.medicineType === "Capsule") && (
-        <>
-          <Field label="Price Per Strip">
-            <Input type="number" step="0.01" value={form.pricePerStrip} onChange={(e) => {
-              const v = e.target.value;
-              const tps = Number(form.tabletsPerStrip) || 10;
-              const spb = Number(form.stripsPerBox) || 10;
-              setForm({
-                ...form, 
-                pricePerStrip: v, 
-                pricePerTablet: v ? String(Number(v) / tps) : "",
-                pricePerBox: v ? String(Number(v) * spb) : ""
-              });
-            }} />
-          </Field>
-          <Field label="MRP Per Strip">
-            <Input type="number" step="0.01" value={form.mrpPerStrip} onChange={(e) => {
-              const v = e.target.value;
-              const tps = Number(form.tabletsPerStrip) || 10;
-              const spb = Number(form.stripsPerBox) || 10;
-              setForm({
-                ...form, 
-                mrpPerStrip: v, 
-                mrpPerTablet: v ? String(Number(v) / tps) : "",
-                mrpPerBox: v ? String(Number(v) * spb) : ""
-              });
-            }} />
-          </Field>
-          <Field label="Price Per Box">
-            <Input type="number" step="0.01" value={form.pricePerBox} onChange={(e) => {
-              const v = e.target.value;
-              const tps = Number(form.tabletsPerStrip) || 10;
-              const spb = Number(form.stripsPerBox) || 10;
-              setForm({
-                ...form, 
-                pricePerBox: v, 
-                pricePerStrip: v ? String(Number(v) / spb) : "",
-                pricePerTablet: v ? String(Number(v) / (tps * spb)) : ""
-              });
-            }} />
-          </Field>
-          <Field label="MRP Per Box">
-            <Input type="number" step="0.01" value={form.mrpPerBox} onChange={(e) => {
-              const v = e.target.value;
-              const tps = Number(form.tabletsPerStrip) || 10;
-              const spb = Number(form.stripsPerBox) || 10;
-              setForm({
-                ...form, 
-                mrpPerBox: v, 
-                mrpPerStrip: v ? String(Number(v) / spb) : "",
-                mrpPerTablet: v ? String(Number(v) / (tps * spb)) : ""
-              });
-            }} />
-          </Field>
-        </>
-      )}
-    </div>
-  </div>
-
-  <DialogFooter className="mt-4">
-    <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-    <Button type="submit" className="shadow-soft">{editing ? "Save changes" : "Add product"}</Button>
-  </DialogFooter>
-</form>
+              <form onSubmit={submit} className="grid grid-cols-2 gap-4">
+                <Field label="Name" className="col-span-2">
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                    list="product-names"
+                  />
+                  <RecentOptions
+                    id="product-names"
+                    options={Array.from(new Set(items.map((i) => i.name)))}
+                  />
+                </Field>
+                <Field label="Category">
+                  <Input
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    placeholder="e.g. Antibiotic"
+                    list="category-recent"
+                  />
+                  <RecentOptions id="category-recent" options={recentCategories} />
+                </Field>
+                <Field label="Manufacturer">
+                  <Input
+                    value={form.manufacturer}
+                    onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
+                    list="manufacturer-recent"
+                  />
+                  <RecentOptions id="manufacturer-recent" options={recentManufacturers} />
+                </Field>
+                <Field label="Buying price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.costPrice}
+                    onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                    placeholder="Cost per unit"
+                    required
+                  />
+                </Field>
+                <Field label="Selling price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    required
+                  />
+                </Field>
+                <Field label="MRP">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.mrp}
+                    onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                    placeholder="Printed price"
+                  />
+                </Field>
+                <Field label="Stock Type">
+                  <select
+                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={form.stockType}
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      setForm({
+                        ...form,
+                        stockType: type,
+                        stockPacks: "",
+                        stockUnits: type === "inj" ? "ML" : "",
+                      });
+                    }}
+                  >
+                    <option value="other">General / Other</option>
+                    <option value="tab">Tablet (Tab)</option>
+                    <option value="cap">Capsule (Cap)</option>
+                    <option value="syp">Syrup (Syp)</option>
+                    <option value="inj">Injection (Inj)</option>
+                    <option value="cream">Cream</option>
+                    <option value="drop">Drop</option>
+                  </select>
+                </Field>
+                {form.stockType === "other" && (
+                  <Field label="Pack Options">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        list="general-options"
+                        placeholder="e.g. 10X10, ML, GM..."
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                      />
+                      <datalist id="general-options">
+                        <option value="10X10" />
+                        <option value="10X1X10" />
+                        <option value="ML" />
+                        <option value="MG" />
+                        <option value="GM" />
+                        <option value="CAP" />
+                      </datalist>
+                    </div>
+                  </Field>
+                )}
+                {(form.stockType === "tab" || form.stockType === "cap") && (
+                  <Field label="Pack Format">
+                    <div className="flex items-center gap-2 w-full">
+                      <Input
+                        list="tab-cap-pack-options"
+                        placeholder="e.g. 10x10, 10X1X10, CAP"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <datalist id="tab-cap-pack-options">
+                        <option value="10X10" />
+                        <option value="10X1X10" />
+                        <option value="CAP" />
+                      </datalist>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "syp" && (
+                  <Field label="Pack (ML)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="ML Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">ML</span>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "inj" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <select
+                        className="flex h-9 w-24 items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={form.stockUnits || "ML"}
+                        onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
+                      >
+                        <option value="ML">ML</option>
+                        <option value="MG">MG</option>
+                        <option value="GM">GM</option>
+                      </select>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "cream" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">GM</span>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "drop" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">ML</span>
+                    </div>
+                  </Field>
+                )}
+                <Field label="Stock Quantity">
+                  <Input
+                    type="number"
+                    placeholder="Total qty"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                    required
+                  />
+                </Field>
+                <Field label="Expiry">
+                  <Input
+                    type="text"
+                    placeholder="MM/YY"
+                    maxLength={5}
+                    value={form.expiry}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^\d/]/g, "");
+                      if (val.length === 2 && form.expiry.length !== 3 && !val.includes("/")) {
+                        val += "/";
+                      }
+                      setForm({ ...form, expiry: val });
+                    }}
+                    required
+                  />
+                </Field>
+                <Field label="Tax %">
+                  <Input
+                    type="number"
+                    value={form.taxPercent}
+                    onChange={(e) => setForm({ ...form, taxPercent: e.target.value })}
+                  />
+                </Field>
+                <Field label="Batch">
+                  <Input
+                    value={form.batch}
+                    onChange={(e) => setForm({ ...form, batch: e.target.value })}
+                  />
+                </Field>
+                <Field label="HSN Code">
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.sku}
+                      onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                      placeholder="Type or scan"
+                      list="hsn-recent"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setScannerOpen(true)}
+                      title="Scan barcode"
+                    >
+                      <ScanLine className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <RecentOptions id="hsn-recent" options={recentHsns} />
+                </Field>
+                <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <div className="text-sm font-medium">Prescription required</div>
+                    <div className="text-xs text-muted-foreground">
+                      Mark this product as Rx-only.
+                    </div>
+                  </div>
+                  <Switch
+                    checked={form.prescription}
+                    onCheckedChange={(v) => setForm({ ...form, prescription: v })}
+                  />
+                </div>
+                <DialogFooter className="col-span-2">
+                  <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="shadow-soft">
+                    {editing ? "Save changes" : "Add product"}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -714,7 +840,7 @@ function InventoryPage() {
                             : "tabular-nums"
                         }
                       >
-                        {formatStock(p.stock, p.medicineType || "Tablet", Number(p.tabletsPerStrip || 10), Number(p.stripsPerBox || 10))}
+                        {p.stock}
                       </span>
                     </TableCell>
                     <TableCell>{new Date(p.expiry).toLocaleDateString()}</TableCell>
