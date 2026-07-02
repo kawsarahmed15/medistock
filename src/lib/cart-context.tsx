@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import type { PaymentMethod, Product } from "./storage";
+import { calculateSmallestUnits } from "./inventory-utils";
 
-export type CartItem = { product: Product; qty: number; freeQty?: number };
+export type CartItem = { product: Product; qty: number; freeQty?: number; unitSold?: string; convertedQty?: number };
 
 export type Customer = {
   name: string;
@@ -25,9 +26,9 @@ const emptyCustomer: Customer = {
 
 type CartCtx = {
   items: CartItem[];
-  add: (product: Product, qty?: number) => { isFirst: boolean };
+  add: (product: Product, qty?: number, unitSold?: string) => { isFirst: boolean };
   remove: (productId: string) => void;
-  setQty: (productId: string, qty: number) => void;
+  setQty: (productId: string, qty: number, unitSold?: string) => void;
   setFreeQty: (productId: string, freeQty: number) => void;
   clear: () => void;
   subtotal: number;
@@ -60,16 +61,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [discountValue, setDiscountValue] = useState(0);
   const [discountType, setDiscountType] = useState<"percentage" | "flat">("percentage");
 
-  const add: CartCtx["add"] = (product, qty = 1) => {
+  const add: CartCtx["add"] = (product, qty = 1, unitSold = "Tablet") => {
     const isFirst = items.length === 0;
+    const unit = product.medicineType === "Tablet" || product.medicineType === "Capsule" ? unitSold : "Unit";
+    const convertedQty = calculateSmallestUnits(qty, unit, product.medicineType || "Tablet", Number(product.tabletsPerStrip || 10), Number(product.stripsPerBox || 10));
+    
     setItems((prev) => {
-      const existing = prev.find((i) => i.product.id === product.id);
-      if (existing) {
-        return prev.map((i) =>
-          i.product.id === product.id ? { ...i, qty: Math.min(product.stock, i.qty + qty) } : i,
-        );
+      // Find if we already have this product with the SAME unitSold.
+      // If we do, increment. If not, add as new line item.
+      const existingIdx = prev.findIndex((i) => i.product.id === product.id && (i.unitSold || "Tablet") === unit);
+      if (existingIdx >= 0) {
+        const i = prev[existingIdx];
+        const newQty = i.qty + qty;
+        const newConverted = calculateSmallestUnits(newQty, unit, product.medicineType || "Tablet", Number(product.tabletsPerStrip || 10), Number(product.stripsPerBox || 10));
+        
+        // We only allow if total converted doesn't exceed stock (very rough check, as there could be multiple lines of same product, but good enough for now)
+        const totalOtherConverted = prev.filter((_, idx) => idx !== existingIdx && _.product.id === product.id).reduce((sum, item) => sum + (item.convertedQty || 0), 0);
+        
+        if (newConverted + totalOtherConverted > product.stock) {
+            // Cannot add
+            return prev;
+        }
+
+        const newItems = [...prev];
+        newItems[existingIdx] = { ...i, qty: newQty, convertedQty: newConverted };
+        return newItems;
       }
-      return [...prev, { product, qty: Math.min(product.stock, qty) }];
+      
+      const totalOtherConverted = prev.filter(i => i.product.id === product.id).reduce((sum, item) => sum + (item.convertedQty || 0), 0);
+      if (convertedQty + totalOtherConverted > product.stock) {
+          return prev;
+      }
+
+      return [...prev, { product, qty, unitSold: unit, convertedQty }];
     });
     return { isFirst };
   };
@@ -77,12 +101,27 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const remove: CartCtx["remove"] = (id) =>
     setItems((prev) => prev.filter((i) => i.product.id !== id));
 
-  const setQty: CartCtx["setQty"] = (id, qty) =>
+  const setQty: CartCtx["setQty"] = (id, qty, unitSold) =>
     setItems((prev) =>
       prev.map((i) => {
-        if (i.product.id !== id) return i;
-        const newQty = Math.max(1, Math.min(i.product.stock, qty));
-        return { ...i, qty: newQty, freeQty: Math.min(i.freeQty || 0, newQty) };
+        if (i.product.id !== id || (unitSold && i.unitSold !== unitSold)) return i;
+        
+        // Calculate the requested converted qty
+        const requestedConverted = calculateSmallestUnits(qty, i.unitSold || "Tablet", i.product.medicineType || "Tablet", Number(i.product.tabletsPerStrip || 10), Number(i.product.stripsPerBox || 10));
+        
+        // Count other converted items
+        const totalOtherConverted = prev.filter(item => item.product.id === id && item !== i).reduce((sum, item) => sum + (item.convertedQty || 0), 0);
+        
+        // Check if we exceed stock
+        if (requestedConverted + totalOtherConverted > i.product.stock) {
+          // Keep old qty
+          return i;
+        }
+        
+        const newQty = Math.max(1, qty);
+        const newConverted = calculateSmallestUnits(newQty, i.unitSold || "Tablet", i.product.medicineType || "Tablet", Number(i.product.tabletsPerStrip || 10), Number(i.product.stripsPerBox || 10));
+
+        return { ...i, qty: newQty, convertedQty: newConverted, freeQty: Math.min(i.freeQty || 0, newQty) };
       }),
     );
 
@@ -103,10 +142,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setDiscountType("percentage");
   };
 
-  const subtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * i.product.price, 0);
+  const subtotal = items.reduce((s, i) => s + ((i.convertedQty || i.qty) - (i.freeQty || 0)) * i.product.price, 0);
   const tax = items.reduce(
     (s, i) =>
-      s + ((i.qty - (i.freeQty || 0)) * i.product.price * (i.product.taxPercent ?? 0)) / 100,
+      s + (((i.convertedQty || i.qty) - (i.freeQty || 0)) * i.product.price * (i.product.taxPercent ?? 0)) / 100,
     0,
   );
 

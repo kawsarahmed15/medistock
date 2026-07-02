@@ -6,11 +6,14 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 router.use(requireAuth);
 
+const selectColumns = `id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
+                       prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price,
+                       medicine_type, tablets_per_strip, strips_per_box, mrp_per_tablet, mrp_per_strip, mrp_per_box`;
+
 router.get("/", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
-              prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
+      `SELECT ${selectColumns}
        FROM products
        WHERE user_id = ?
        ORDER BY created_at DESC`,
@@ -27,9 +30,11 @@ router.post("/", async (req, res, next) => {
     const body = req.body || {};
     const id = generateId();
     await pool.query(
-      `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, mrp, pack, batch,
-         manufacturer, sku, prescription, tax_percent, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO products (
+         id, user_id, name, category, price, cost_price, stock, expiry, mrp, pack, batch,
+         manufacturer, sku, prescription, tax_percent, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price,
+         medicine_type, tablets_per_strip, strips_per_box, mrp_per_tablet, mrp_per_strip, mrp_per_box
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         req.auth.userId,
@@ -51,12 +56,17 @@ router.post("/", async (req, res, next) => {
         Number(body.conversionFactor || 1) || 1,
         body.packPrice == null ? null : Number(body.packPrice),
         body.packCostPrice == null ? null : Number(body.packCostPrice),
+        String(body.medicineType || "Tablet").trim(),
+        Number(body.tabletsPerStrip || 10),
+        Number(body.stripsPerBox || 10),
+        body.mrpPerTablet == null ? null : Number(body.mrpPerTablet),
+        body.mrpPerStrip == null ? null : Number(body.mrpPerStrip),
+        body.mrpPerBox == null ? null : Number(body.mrpPerBox),
       ],
     );
 
     const [rows] = await pool.query(
-      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
-              prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
+      `SELECT ${selectColumns}
        FROM products
        WHERE id = ? AND user_id = ?
        LIMIT 1`,
@@ -71,8 +81,7 @@ router.post("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
-              prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
+      `SELECT ${selectColumns}
        FROM products
        WHERE id = ? AND user_id = ?
        LIMIT 1`,
@@ -174,6 +183,12 @@ router.patch("/:id", async (req, res, next) => {
       conversionFactor: "conversion_factor",
       packPrice: "pack_price",
       packCostPrice: "pack_cost_price",
+      medicineType: "medicine_type",
+      tabletsPerStrip: "tablets_per_strip",
+      stripsPerBox: "strips_per_box",
+      mrpPerTablet: "mrp_per_tablet",
+      mrpPerStrip: "mrp_per_strip",
+      mrpPerBox: "mrp_per_box",
     };
 
     for (const [inputKey, dbKey] of Object.entries(map)) {
@@ -189,6 +204,11 @@ router.patch("/:id", async (req, res, next) => {
             "packPrice",
             "packCostPrice",
             "conversionFactor",
+            "tabletsPerStrip",
+            "stripsPerBox",
+            "mrpPerTablet",
+            "mrpPerStrip",
+            "mrpPerBox",
           ].includes(inputKey) &&
           value != null
         )
@@ -205,6 +225,10 @@ router.patch("/:id", async (req, res, next) => {
             "mrp",
             "packPrice",
             "packCostPrice",
+            "medicineType",
+            "mrpPerTablet",
+            "mrpPerStrip",
+            "mrpPerBox",
           ].includes(inputKey) &&
           (value === "" || value == null)
         ) {

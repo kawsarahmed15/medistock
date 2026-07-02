@@ -336,7 +336,7 @@ function BillDetailPage() {
                       {it.sku || "-"}
                     </td>
                     <td className="py-3 px-2 text-right align-top font-medium whitespace-nowrap">
-                      {it.qty}
+                      {it.qty} {it.unitSold && it.unitSold !== "Tablet" && it.unitSold !== "Unit" ? (it.qty > 1 ? it.unitSold + "es" : it.unitSold).replace("es", "s").replace("Boxs", "Boxes") : ""}
                       {it.freeQty ? `+${it.freeQty}` : ""}
                     </td>
                     <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">

@@ -17,6 +17,7 @@ import {
 import { Minus, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { SellSkeleton } from "@/components/loading-skeleton";
+import { calculateSmallestUnits, formatStock } from "@/lib/inventory-utils";
 
 type SellSearch = { add?: string; new?: number };
 
@@ -39,6 +40,8 @@ function SellPage() {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [qtyProduct, setQtyProduct] = useState<Product | null>(null);
   const [qtyValue, setQtyValue] = useState(1);
+  const [unitSold, setUnitSold] = useState("Tablet");
+  const { calculateSmallestUnits } = require("@/lib/inventory-utils");
   const cart = useCart();
   const navigate = useNavigate();
 
@@ -109,11 +112,12 @@ function SellPage() {
   const openQtyPicker = (p: Product) => {
     setQtyProduct(p);
     setQtyValue(1);
+    setUnitSold(p.medicineType === "Tablet" || p.medicineType === "Capsule" ? "Tablet" : "Unit");
   };
 
   const confirmAdd = () => {
     if (!qtyProduct) return;
-    const { isFirst } = cart.add(qtyProduct, qtyValue);
+    const { isFirst } = cart.add(qtyProduct, qtyValue, unitSold);
     toast.success(`${qtyProduct.name} × ${qtyValue} added`);
     setQtyProduct(null);
     if (isFirst && !cart.customerSubmitted) {
@@ -121,9 +125,16 @@ function SellPage() {
     }
   };
 
-  const maxQty = qtyProduct
-    ? qtyProduct.stock - (cart.items.find((i) => i.product.id === qtyProduct.id)?.qty ?? 0)
-    : 1;
+  const maxQty = qtyProduct ? (() => {
+    const totalOtherConverted = cart.items.filter(i => i.product.id === qtyProduct.id).reduce((sum, item) => sum + (item.convertedQty || 0), 0);
+    const availableConverted = qtyProduct.stock - totalOtherConverted;
+    const isTabCap = qtyProduct.medicineType === "Tablet" || qtyProduct.medicineType === "Capsule";
+    const tps = Number(qtyProduct.tabletsPerStrip) || 10;
+    const spb = Number(qtyProduct.stripsPerBox) || 10;
+    if (unitSold === "Box") return Math.floor(availableConverted / (tps * spb));
+    if (unitSold === "Strip") return Math.floor(availableConverted / tps);
+    return availableConverted;
+  })() : 1;
 
   return (
     <div className="space-y-6 pb-24">
@@ -202,7 +213,7 @@ function SellPage() {
                   </div>
                 </div>
                 <span className="text-xs px-2 py-0.5 rounded bg-accent text-accent-foreground shrink-0">
-                  {p.stock} in stock
+                  {formatStock(p.stock, p.medicineType || "Tablet", Number(p.tabletsPerStrip || 10), Number(p.stripsPerBox || 10))} in stock
                 </span>
               </div>
               <div className="mt-3 flex items-center justify-between">
@@ -243,6 +254,16 @@ function SellPage() {
                 </div>
               </div>
 
+              <div className="flex flex-col items-center gap-4">
+              {(qtyProduct.medicineType === "Tablet" || qtyProduct.medicineType === "Capsule") && (
+                <div className="flex gap-2">
+                  <select className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm" value={unitSold} onChange={(e) => setUnitSold(e.target.value)}>
+                    <option value="Tablet">Tablet</option>
+                    <option value="Strip">Strip</option>
+                    <option value="Box">Box</option>
+                  </select>
+                </div>
+              )}
               <div className="flex items-center justify-center gap-4">
                 <Button
                   variant="outline"
@@ -288,11 +309,12 @@ function SellPage() {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+              </div>
 
               <div className="text-center text-sm text-muted-foreground">
                 Total:{" "}
                 <span className="font-semibold text-foreground">
-                  {formatMoney(qtyProduct.price * qtyValue)}
+                  {formatMoney(qtyProduct.price * calculateSmallestUnits(qtyValue, unitSold, qtyProduct.medicineType || "Tablet", Number(qtyProduct.tabletsPerStrip || 10), Number(qtyProduct.stripsPerBox || 10)))}
                 </span>
               </div>
 
