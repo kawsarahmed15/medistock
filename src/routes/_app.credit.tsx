@@ -6,10 +6,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_app/credit")({
@@ -39,14 +53,18 @@ function CreditPage() {
 
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [history, setHistory] = useState<any[] | null>(null);
-  
+
   const [focusedIdx, setFocusedIdx] = useState(0);
   const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
 
   const loadData = () => {
     customersStore
       .list() // Load all time to get accurate credit balances
-      .then((c) => setCustomers(c.filter(cust => cust.totalCredit !== 0 || cust.totalPaid > 0 || cust.balance !== 0)))
+      .then((c) =>
+        setCustomers(
+          c.filter((cust) => cust.totalCredit !== 0 || cust.totalPaid > 0 || cust.balance !== 0),
+        ),
+      )
       .catch((e) => toast.error((e as Error).message || "Failed to load credit customers"));
   };
 
@@ -59,9 +77,7 @@ function CreditPage() {
     const needle = q.trim().toLowerCase();
     if (!needle) return customers;
     return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(needle) ||
-        c.phone.toLowerCase().includes(needle),
+      (c) => c.name.toLowerCase().includes(needle) || c.phone.toLowerCase().includes(needle),
     );
   }, [customers, q]);
 
@@ -182,9 +198,7 @@ function CreditPage() {
       <Card className="shadow-soft">
         <CardHeader>
           <CardTitle className="text-base">
-            {customers === null
-              ? "Loading…"
-              : `${filtered.length} customers with credit history`}
+            {customers === null ? "Loading…" : `${filtered.length} customers with credit history`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -196,9 +210,7 @@ function CreditPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 space-y-2">
-              <p className="text-sm text-muted-foreground">
-                No credit history found.
-              </p>
+              <p className="text-sm text-muted-foreground">No credit history found.</p>
             </div>
           ) : (
             <ul className="divide-y">
@@ -233,9 +245,19 @@ function CreditPage() {
                         <span>Total Paid:</span> <span>{formatMoney(c.totalPaid)}</span>
                       </div>
                       <div className="flex justify-between gap-3 font-semibold mt-0.5">
-                        <span>Balance:</span> 
-                        <span className={c.balance < 0 ? "text-emerald-500" : c.balance > 0 ? "text-destructive" : "text-foreground"}>
-                          {c.balance < 0 ? `+${formatMoney(Math.abs(c.balance))} (Credit)` : formatMoney(c.balance)}
+                        <span>Balance:</span>
+                        <span
+                          className={
+                            c.balance < 0
+                              ? "text-emerald-500"
+                              : c.balance > 0
+                                ? "text-destructive"
+                                : "text-foreground"
+                          }
+                        >
+                          {c.balance < 0
+                            ? `+${formatMoney(Math.abs(c.balance))} (Credit)`
+                            : formatMoney(c.balance)}
                         </span>
                       </div>
                     </div>
@@ -268,7 +290,9 @@ function CreditPage() {
             <div className="space-y-1.5">
               <Label>Amount</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  ₹
+                </span>
                 <Input
                   type="number"
                   step="0.01"
@@ -319,11 +343,9 @@ function CreditPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Credit History</DialogTitle>
-            <DialogDescription>
-              {historyCustomer?.name || historyCustomer?.phone}
-            </DialogDescription>
+            <DialogDescription>{historyCustomer?.name || historyCustomer?.phone}</DialogDescription>
           </DialogHeader>
-          
+
           {!history ? (
             <div className="space-y-3 py-4">
               <Skeleton className="h-10 w-full" />
@@ -331,9 +353,7 @@ function CreditPage() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : history.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              No history found.
-            </div>
+            <div className="py-8 text-center text-muted-foreground text-sm">No history found.</div>
           ) : (
             <div className="max-h-[60vh] overflow-auto">
               <Table>
@@ -349,23 +369,39 @@ function CreditPage() {
                     <TableRow key={i}>
                       <TableCell>{formatDate(h.created_at)}</TableCell>
                       <TableCell>
-                        {h.type === 'bill' ? (
+                        {h.type === "bill" ? (
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/10">Credit Bill</Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-destructive border-destructive/20 bg-destructive/10"
+                            >
+                              Credit Bill
+                            </Badge>
                             <span className="text-xs text-muted-foreground">{h.number}</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-emerald-600 border-emerald-600/20 bg-emerald-600/10">Payment</Badge>
-                            <span className="text-xs text-muted-foreground capitalize">{h.method}</span>
+                            <Badge
+                              variant="outline"
+                              className="text-emerald-600 border-emerald-600/20 bg-emerald-600/10"
+                            >
+                              Payment
+                            </Badge>
+                            <span className="text-xs text-muted-foreground capitalize">
+                              {h.method}
+                            </span>
                           </div>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium tabular-nums">
-                        {h.type === 'bill' ? (
-                          h.amount >= 0 
-                            ? <span className="text-destructive">-{formatMoney(h.amount)}</span>
-                            : <span className="text-emerald-600">+{formatMoney(Math.abs(h.amount))}</span>
+                        {h.type === "bill" ? (
+                          h.amount >= 0 ? (
+                            <span className="text-destructive">-{formatMoney(h.amount)}</span>
+                          ) : (
+                            <span className="text-emerald-600">
+                              +{formatMoney(Math.abs(h.amount))}
+                            </span>
+                          )
                         ) : (
                           <span className="text-emerald-600">+{formatMoney(h.amount)}</span>
                         )}
@@ -378,7 +414,6 @@ function CreditPage() {
           )}
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

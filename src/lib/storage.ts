@@ -225,22 +225,44 @@ export const customersStore = {
     const qs = params.toString() ? `?${params.toString()}` : "";
     return await apiRequest<Customer[]>(`/customers${qs}`, { auth: true });
   },
-  async addPayment(data: { phone: string; name: string; amount: number; method: PaymentMethod; notes?: string }): Promise<{ success: boolean; id: string }> {
-    return await apiRequest<{ success: boolean; id: string }>("/customers/pay", { method: "POST", body: data, auth: true });
+  async addPayment(data: {
+    phone: string;
+    name: string;
+    amount: number;
+    method: PaymentMethod;
+    notes?: string;
+  }): Promise<{ success: boolean; id: string }> {
+    return await apiRequest<{ success: boolean; id: string }>("/customers/pay", {
+      method: "POST",
+      body: data,
+      auth: true,
+    });
   },
   async getCreditHistory(phone: string): Promise<any[]> {
-    return await apiRequest<any[]>(`/customers/${encodeURIComponent(phone)}/credit-history`, { auth: true });
+    return await apiRequest<any[]>(`/customers/${encodeURIComponent(phone)}/credit-history`, {
+      auth: true,
+    });
   },
-  async getAllPayments(from?: string, to?: string): Promise<{ id: string, amount: number, method: string, created_at: string }[]> {
+  async getAllPayments(
+    from?: string,
+    to?: string,
+  ): Promise<{ id: string; amount: number; method: string; created_at: string }[]> {
     const params = new URLSearchParams();
     if (from) params.append("from", from);
     if (to) params.append("to", to);
     const qs = params.toString() ? `?${params.toString()}` : "";
     return await apiRequest<any[]>(`/customers/payments/all${qs}`, { auth: true });
   },
-  async update(phone: string, data: { name?: string; phone?: string; address?: string; drugLicNo?: string; notes?: string }): Promise<{ success: boolean }> {
-    return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone)}`, { method: "PUT", body: data, auth: true });
-  }
+  async update(
+    phone: string,
+    data: { name?: string; phone?: string; address?: string; drugLicNo?: string; notes?: string },
+  ): Promise<{ success: boolean }> {
+    return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone)}`, {
+      method: "PUT",
+      body: data,
+      auth: true,
+    });
+  },
 };
 
 const THEME_KEY = "pharma.theme";

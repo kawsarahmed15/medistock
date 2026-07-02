@@ -7,7 +7,16 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Settings, ShieldCheck, FileText, Palette, FileImage, Trash2, Edit, Clock } from "lucide-react";
+import {
+  Settings,
+  ShieldCheck,
+  FileText,
+  Palette,
+  FileImage,
+  Trash2,
+  Edit,
+  Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/settings")({
@@ -139,7 +148,9 @@ function SettingsPage() {
     setRequestingEmailChange(true);
     try {
       await requestEmailChange(newEmail.trim());
-      toast.success("A confirmation link has been sent to your new email. Please check your inbox.");
+      toast.success(
+        "A confirmation link has been sent to your new email. Please check your inbox.",
+      );
       setNewEmail("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to request email change");
@@ -247,7 +258,7 @@ function SettingsPage() {
                       "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all duration-200",
                       billColor === p.hex
                         ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/20 scale-105"
-                        : "border-border hover:bg-muted text-muted-foreground"
+                        : "border-border hover:bg-muted text-muted-foreground",
                     )}
                   >
                     <span
@@ -355,8 +366,8 @@ function SettingsPage() {
                       value={newEmail}
                       onChange={(e) => setNewEmail(e.target.value)}
                     />
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       onClick={handleRequestEmailChange}
                       disabled={requestingEmailChange || !newEmail.trim()}
                       className="shrink-0"
@@ -365,7 +376,8 @@ function SettingsPage() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    We will send a confirmation link to your new email. After confirming, you will be logged out and asked to log in with the new email.
+                    We will send a confirmation link to your new email. After confirming, you will
+                    be logged out and asked to log in with the new email.
                   </p>
                 </div>
               </div>
@@ -434,7 +446,9 @@ function SettingsPage() {
                 >
                   <FileImage className="h-8 w-8 text-muted-foreground mb-2 stroke-[1.5]" />
                   <span className="text-xs font-semibold text-foreground">Upload Signature</span>
-                  <span className="text-[10px] text-muted-foreground mt-1">PNG, JPG, SVG up to 800KB</span>
+                  <span className="text-[10px] text-muted-foreground mt-1">
+                    PNG, JPG, SVG up to 800KB
+                  </span>
                   <span className="text-[10px] text-primary/80 font-medium mt-3 border rounded-md px-2 py-0.5 bg-primary/10">
                     Manual sign space left if blank
                   </span>

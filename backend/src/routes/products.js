@@ -129,10 +129,11 @@ router.post("/:id/stock", async (req, res, next) => {
     const diff = nextStock - currentStock;
 
     // Update product stock
-    await pool.query(
-      "UPDATE products SET stock = ? WHERE id = ? AND user_id = ?",
-      [nextStock, req.params.id, req.auth.userId],
-    );
+    await pool.query("UPDATE products SET stock = ? WHERE id = ? AND user_id = ?", [
+      nextStock,
+      req.params.id,
+      req.auth.userId,
+    ]);
 
     // Insert history
     await pool.query(
@@ -179,10 +180,34 @@ router.patch("/:id", async (req, res, next) => {
       if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
         fields.push(`${dbKey} = ?`);
         let value = body[inputKey];
-        if (["price", "taxPercent", "costPrice", "mrp", "packPrice", "packCostPrice", "conversionFactor"].includes(inputKey) && value != null) value = Number(value);
+        if (
+          [
+            "price",
+            "taxPercent",
+            "costPrice",
+            "mrp",
+            "packPrice",
+            "packCostPrice",
+            "conversionFactor",
+          ].includes(inputKey) &&
+          value != null
+        )
+          value = Number(value);
         if (["stock"].includes(inputKey) && value != null) value = Number(value);
         if (inputKey === "prescription") value = value ? 1 : 0;
-        if (["pack", "batch", "manufacturer", "sku", "costPrice", "mrp", "packPrice", "packCostPrice"].includes(inputKey) && (value === "" || value == null)) {
+        if (
+          [
+            "pack",
+            "batch",
+            "manufacturer",
+            "sku",
+            "costPrice",
+            "mrp",
+            "packPrice",
+            "packCostPrice",
+          ].includes(inputKey) &&
+          (value === "" || value == null)
+        ) {
           value = null;
         }
         values.push(value);
@@ -194,10 +219,11 @@ router.patch("/:id", async (req, res, next) => {
     }
 
     const validFields = fields.filter(Boolean);
-    await pool.query(
-      `UPDATE products SET ${validFields.join(", ")} WHERE id = ? AND user_id = ?`,
-      [...values, id, req.auth.userId],
-    );
+    await pool.query(`UPDATE products SET ${validFields.join(", ")} WHERE id = ? AND user_id = ?`, [
+      ...values,
+      id,
+      req.auth.userId,
+    ]);
 
     res.json({ message: "Product updated" });
   } catch (error) {
@@ -207,7 +233,10 @@ router.patch("/:id", async (req, res, next) => {
 
 router.delete("/:id", async (req, res, next) => {
   try {
-    await pool.query("DELETE FROM products WHERE id = ? AND user_id = ?", [req.params.id, req.auth.userId]);
+    await pool.query("DELETE FROM products WHERE id = ? AND user_id = ?", [
+      req.params.id,
+      req.auth.userId,
+    ]);
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -229,10 +258,11 @@ router.post("/:id/decrement", async (req, res, next) => {
       throw buildApiError(404, "Product not found");
     }
     const nextStock = Math.max(0, Number(row.stock || 0) - qty);
-    await pool.query(
-      "UPDATE products SET stock = ? WHERE id = ? AND user_id = ?",
-      [nextStock, req.params.id, req.auth.userId],
-    );
+    await pool.query("UPDATE products SET stock = ? WHERE id = ? AND user_id = ?", [
+      nextStock,
+      req.params.id,
+      req.auth.userId,
+    ]);
     res.json({ stock: nextStock });
   } catch (error) {
     next(error);

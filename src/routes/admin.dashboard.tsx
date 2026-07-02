@@ -81,7 +81,9 @@ function AdminDashboard() {
             <CircleDollarSign className="w-4 h-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">₹{metrics?.totalRevenue?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold text-white">
+              ₹{metrics?.totalRevenue?.toLocaleString() || 0}
+            </div>
             <p className="text-xs text-slate-500 mt-1">Total revenue processed</p>
           </CardContent>
         </Card>

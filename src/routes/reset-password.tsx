@@ -99,11 +99,7 @@ function ResetPasswordPage() {
             />
           </div>
 
-          <Button
-            type="submit"
-            className="w-full shadow-soft"
-            disabled={loading || !hasToken}
-          >
+          <Button type="submit" className="w-full shadow-soft" disabled={loading || !hasToken}>
             {loading ? "Updating…" : "Update password"}
           </Button>
 

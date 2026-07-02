@@ -41,11 +41,31 @@ export const Route = createRootRoute({
       },
       { property: "og:title", content: "MediStock — Pharma Inventory & Billing" },
       { name: "twitter:title", content: "MediStock — Pharma Inventory & Billing" },
-      { name: "description", content: "PharmaFlow Billing manages pharmaceutical inventory and generates bills for sales." },
-      { property: "og:description", content: "PharmaFlow Billing manages pharmaceutical inventory and generates bills for sales." },
-      { name: "twitter:description", content: "PharmaFlow Billing manages pharmaceutical inventory and generates bills for sales." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/840841f5-23dd-4f7f-9ce9-411135c4119f/id-preview-4107455b--0d42f69c-e64c-47b3-9998-0b7c4309c7e2.lovable.app-1776455478215.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/840841f5-23dd-4f7f-9ce9-411135c4119f/id-preview-4107455b--0d42f69c-e64c-47b3-9998-0b7c4309c7e2.lovable.app-1776455478215.png" },
+      {
+        name: "description",
+        content:
+          "PharmaFlow Billing manages pharmaceutical inventory and generates bills for sales.",
+      },
+      {
+        property: "og:description",
+        content:
+          "PharmaFlow Billing manages pharmaceutical inventory and generates bills for sales.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "PharmaFlow Billing manages pharmaceutical inventory and generates bills for sales.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/840841f5-23dd-4f7f-9ce9-411135c4119f/id-preview-4107455b--0d42f69c-e64c-47b3-9998-0b7c4309c7e2.lovable.app-1776455478215.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/840841f5-23dd-4f7f-9ce9-411135c4119f/id-preview-4107455b--0d42f69c-e64c-47b3-9998-0b7c4309c7e2.lovable.app-1776455478215.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],

@@ -93,16 +93,15 @@ function RevenuePage() {
 
   const [loading, setLoading] = useState(true);
 
-  const [payments, setPayments] = useState<{ amount: number; method: string; created_at: string }[]>([]);
+  const [payments, setPayments] = useState<
+    { amount: number; method: string; created_at: string }[]
+  >([]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    
-    Promise.all([
-      billsStore.list(),
-      customersStore.getAllPayments()
-    ])
+
+    Promise.all([billsStore.list(), customersStore.getAllPayments()])
       .then(([b, p]) => {
         if (!cancelled) {
           setBills(b);
@@ -142,7 +141,7 @@ function RevenuePage() {
         const t = new Date(p.created_at).getTime();
         return t >= start.getTime() && t <= end.getTime();
       }),
-    [payments, start, end]
+    [payments, start, end],
   );
 
   const stats = useMemo(() => {
@@ -151,7 +150,7 @@ function RevenuePage() {
     const totalRevenue = filteredBills.reduce((s, b) => s + (b.subtotal || 0), 0) - totalDiscount;
     const totalTax = filteredBills.reduce((s, b) => s + (b.tax || 0), 0);
     const avgBill = filteredBills.length ? totalRevenue / filteredBills.length : 0;
-    
+
     // Cost must include free quantities given away
     const cost = filteredBills.reduce(
       (s, b) =>
@@ -159,18 +158,29 @@ function RevenuePage() {
       0,
     );
     const profit = totalRevenue - cost;
-    
-    const cash = filteredBills
-      .reduce((s, b) => s + (b.paymentMethod === "cash" ? (b.total || 0) : (b.paymentMethod === "credit" ? (b.advanceAmount || 0) : 0)), 0) +
-      filteredPayments.reduce((s, p) => s + (p.method === "cash" ? (Number(p.amount) || 0) : 0), 0);
-      
-    const online = filteredBills
-      .reduce((s, b) => s + (b.paymentMethod === "online" ? (b.total || 0) : 0), 0) +
-      filteredPayments.reduce((s, p) => s + (p.method === "online" ? (Number(p.amount) || 0) : 0), 0);
-      
-    const pendingCredit = filteredBills
-      .reduce((s, b) => s + (b.paymentMethod === "credit" ? ((b.total || 0) - (b.advanceAmount || 0)) : 0), 0) -
-      filteredPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+
+    const cash =
+      filteredBills.reduce(
+        (s, b) =>
+          s +
+          (b.paymentMethod === "cash"
+            ? b.total || 0
+            : b.paymentMethod === "credit"
+              ? b.advanceAmount || 0
+              : 0),
+        0,
+      ) +
+      filteredPayments.reduce((s, p) => s + (p.method === "cash" ? Number(p.amount) || 0 : 0), 0);
+
+    const online =
+      filteredBills.reduce((s, b) => s + (b.paymentMethod === "online" ? b.total || 0 : 0), 0) +
+      filteredPayments.reduce((s, p) => s + (p.method === "online" ? Number(p.amount) || 0 : 0), 0);
+
+    const pendingCredit =
+      filteredBills.reduce(
+        (s, b) => s + (b.paymentMethod === "credit" ? (b.total || 0) - (b.advanceAmount || 0) : 0),
+        0,
+      ) - filteredPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
     return { totalRevenue, totalTax, avgBill, profit, cash, online, pendingCredit };
   }, [filteredBills, filteredPayments]);
@@ -320,8 +330,7 @@ function RevenuePage() {
           </Button>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Revenue analytics</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {rangeLabel[range]} ·{" "}
-            {start.toLocaleDateString()} – {end.toLocaleDateString()}
+            {rangeLabel[range]} · {start.toLocaleDateString()} – {end.toLocaleDateString()}
           </p>
         </div>
       </div>
@@ -349,7 +358,11 @@ function RevenuePage() {
                   value={search.from ?? ""}
                   onChange={(e) =>
                     navigate({
-                      search: (prev: RevenueSearch) => ({ ...prev, range: "custom", from: e.target.value }),
+                      search: (prev: RevenueSearch) => ({
+                        ...prev,
+                        range: "custom",
+                        from: e.target.value,
+                      }),
                       replace: true,
                     })
                   }
@@ -362,7 +375,11 @@ function RevenuePage() {
                   value={search.to ?? ""}
                   onChange={(e) =>
                     navigate({
-                      search: (prev: RevenueSearch) => ({ ...prev, range: "custom", to: e.target.value }),
+                      search: (prev: RevenueSearch) => ({
+                        ...prev,
+                        range: "custom",
+                        to: e.target.value,
+                      }),
                       replace: true,
                     })
                   }
@@ -374,7 +391,11 @@ function RevenuePage() {
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total revenue" value={formatMoney(stats.totalRevenue)} icon={IndianRupee} />
+        <StatCard
+          label="Total revenue"
+          value={formatMoney(stats.totalRevenue)}
+          icon={IndianRupee}
+        />
         <StatCard label="Estimated profit" value={formatMoney(stats.profit)} icon={Wallet} />
         <StatCard label="Tax collected" value={formatMoney(stats.totalTax)} icon={TrendingUp} />
         <StatCard label="Avg bill value" value={formatMoney(stats.avgBill)} icon={ReceiptText} />
@@ -383,20 +404,32 @@ function RevenuePage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="shadow-soft border-l-4 border-l-success">
           <CardContent className="p-5">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Cash collection</div>
-            <div className="mt-1 text-2xl font-semibold text-success">{formatMoney(stats.cash)}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Cash collection
+            </div>
+            <div className="mt-1 text-2xl font-semibold text-success">
+              {formatMoney(stats.cash)}
+            </div>
           </CardContent>
         </Card>
         <Card className="shadow-soft border-l-4 border-l-primary">
           <CardContent className="p-5">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Online collection</div>
-            <div className="mt-1 text-2xl font-semibold text-primary">{formatMoney(stats.online)}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Online collection
+            </div>
+            <div className="mt-1 text-2xl font-semibold text-primary">
+              {formatMoney(stats.online)}
+            </div>
           </CardContent>
         </Card>
         <Card className="shadow-soft border-l-4 border-l-amber-500">
           <CardContent className="p-5">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Pending credit</div>
-            <div className="mt-1 text-2xl font-semibold text-amber-500">{formatMoney(stats.pendingCredit)}</div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Pending credit
+            </div>
+            <div className="mt-1 text-2xl font-semibold text-amber-500">
+              {formatMoney(stats.pendingCredit)}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -428,10 +461,7 @@ function RevenuePage() {
                 interval="preserveStartEnd"
               />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                formatter={(v) => formatMoney(Number(v))}
-              />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatMoney(Number(v))} />
               <Area
                 type="monotone"
                 dataKey="revenue"
@@ -499,10 +529,7 @@ function RevenuePage() {
                       <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(v) => formatMoney(Number(v))}
-                  />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatMoney(Number(v))} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>

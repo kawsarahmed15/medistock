@@ -47,9 +47,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
     if (!needle) return saved.slice(0, 6);
     return saved
       .filter(
-        (c) =>
-          c.name.toLowerCase().includes(needle) ||
-          c.phone.toLowerCase().includes(needle),
+        (c) => c.name.toLowerCase().includes(needle) || c.phone.toLowerCase().includes(needle),
       )
       .slice(0, 6);
   }, [saved, pickQuery]);
@@ -138,9 +136,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                 </div>
                 <div className="max-h-40 overflow-y-auto space-y-1">
                   {matches.length === 0 ? (
-                    <p className="text-xs text-muted-foreground px-2 py-2">
-                      No matches.
-                    </p>
+                    <p className="text-xs text-muted-foreground px-2 py-2">No matches.</p>
                   ) : (
                     matches.map((c) => (
                       <button
@@ -154,16 +150,12 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                         )}
                       >
                         <div className="font-medium truncate">
-                          {c.name || (
-                            <span className="italic text-muted-foreground">
-                              No name
-                            </span>
-                          )}
+                          {c.name || <span className="italic text-muted-foreground">No name</span>}
                         </div>
                         {c.phone && (
                           <div className="text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Phone className="h-3 w-3" /> {c.phone} ·{" "}
-                            {c.visits} {c.visits === 1 ? "visit" : "visits"}
+                            <Phone className="h-3 w-3" /> {c.phone} · {c.visits}{" "}
+                            {c.visits === 1 ? "visit" : "visits"}
                           </div>
                         )}
                         {c.address && (

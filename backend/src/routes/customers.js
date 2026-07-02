@@ -48,7 +48,10 @@ router.get("/", async (req, res, next) => {
           notes: row.customer_notes || undefined,
           visits: 1,
           totalSpent: Number(row.total || 0),
-          totalCredit: row.payment_method === 'credit' ? Number(row.total || 0) - Number(row.advance_amount || 0) : 0,
+          totalCredit:
+            row.payment_method === "credit"
+              ? Number(row.total || 0) - Number(row.advance_amount || 0)
+              : 0,
           totalPaid: 0,
           balance: 0,
           lastVisit: row.created_at,
@@ -57,7 +60,7 @@ router.get("/", async (req, res, next) => {
         const current = map.get(key);
         current.visits += 1;
         current.totalSpent += Number(row.total || 0);
-        if (row.payment_method === 'credit') {
+        if (row.payment_method === "credit") {
           current.totalCredit += Number(row.total || 0) - Number(row.advance_amount || 0);
         }
       }
@@ -124,8 +127,8 @@ router.post("/pay", async (req, res, next) => {
         name || null,
         Number(amount),
         ["cash", "online"].includes(method) ? method : "cash",
-        notes || null
-      ]
+        notes || null,
+      ],
     );
     res.status(201).json({ success: true, id });
   } catch (err) {
@@ -136,14 +139,14 @@ router.post("/pay", async (req, res, next) => {
 router.get("/:phone/credit-history", async (req, res, next) => {
   try {
     const phone = req.params.phone;
-    
+
     // Get credit bills
     const [bills] = await pool.query(
       `SELECT id, number, (total - advance_amount) as amount, created_at, 'bill' as type 
        FROM bills 
        WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit'
        ORDER BY created_at DESC`,
-      [req.auth.userId, phone]
+      [req.auth.userId, phone],
     );
 
     // Get payments
@@ -152,10 +155,12 @@ router.get("/:phone/credit-history", async (req, res, next) => {
        FROM customer_payments 
        WHERE user_id = ? AND customer_phone = ?
        ORDER BY created_at DESC`,
-      [req.auth.userId, phone]
+      [req.auth.userId, phone],
     );
 
-    const history = [...bills, ...payments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const history = [...bills, ...payments].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
     res.json(history);
   } catch (err) {
     next(err);
@@ -166,17 +171,17 @@ router.put("/:phone", async (req, res, next) => {
   try {
     const oldPhone = req.params.phone;
     const { name, phone, address, notes } = req.body;
-    
+
     // Update bills
     await pool.query(
       `UPDATE bills SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_notes = ? WHERE user_id = ? AND customer_phone = ?`,
-      [name || null, phone || null, address || null, notes || null, req.auth.userId, oldPhone]
+      [name || null, phone || null, address || null, notes || null, req.auth.userId, oldPhone],
     );
 
     // Update payments
     await pool.query(
       `UPDATE customer_payments SET customer_name = ?, customer_phone = ? WHERE user_id = ? AND customer_phone = ?`,
-      [name || null, phone || null, req.auth.userId, oldPhone]
+      [name || null, phone || null, req.auth.userId, oldPhone],
     );
 
     res.json({ success: true });

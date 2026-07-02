@@ -50,17 +50,18 @@ function CartPage() {
   const checkout = async () => {
     if (cart.items.length === 0 || submitting) return;
     if (rxBlocked) {
-      toast.error(
-        "Prescription reference is required for Rx items. Add it below.",
-      );
+      toast.error("Prescription reference is required for Rx items. Add it below.");
       return;
     }
-    
+
     if (cart.customer.name && !cart.customer.phone?.trim()) {
       toast.error("Phone number is mandatory when adding a customer.");
       return;
     }
-    if (cart.paymentMethod === "credit" && (!cart.customer.name?.trim() || !cart.customer.phone?.trim())) {
+    if (
+      cart.paymentMethod === "credit" &&
+      (!cart.customer.name?.trim() || !cart.customer.phone?.trim())
+    ) {
       toast.error("Customer name and phone number are mandatory for credit payments.");
       return;
     }
@@ -103,9 +104,7 @@ function CartPage() {
         total: cart.total,
       });
       // Decrement stock for each line (sequential to keep RLS-safe simple writes)
-      await Promise.all(
-        cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)),
-      );
+      await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)));
       cart.clear();
       toast.success(`Bill ${bill.number} generated`);
       navigate({ to: "/bills/$id", params: { id: bill.id } });
@@ -153,10 +152,7 @@ function CartPage() {
             ) : (
               <div className="divide-y">
                 {cart.items.map((i) => (
-                  <div
-                    key={i.product.id}
-                    className="flex items-center gap-3 py-3 animate-fade-in"
-                  >
+                  <div key={i.product.id} className="flex items-center gap-3 py-3 animate-fade-in">
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate flex items-center gap-1.5">
                         {i.product.name}
@@ -178,20 +174,26 @@ function CartPage() {
                         {i.freeQty && i.freeQty === i.qty ? (
                           <span className="font-semibold text-primary">Free</span>
                         ) : (
-                          <>{formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax</>
+                          <>
+                            {formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax
+                          </>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
-                        <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">Free</span>
+                        <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">
+                          Free
+                        </span>
                         <select
                           className="text-xs bg-transparent outline-none cursor-pointer"
                           value={i.freeQty || 0}
                           onChange={(e) => cart.setFreeQty(i.product.id, Number(e.target.value))}
                         >
                           {Array.from({ length: i.qty + 1 }, (_, k) => (
-                            <option key={k} value={k}>{k}</option>
+                            <option key={k} value={k}>
+                              {k}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -215,7 +217,9 @@ function CartPage() {
                       </Button>
                     </div>
                     <div className="w-24 text-right tabular-nums font-medium">
-                      {i.freeQty === i.qty ? "₹0.00" : formatMoney(i.product.price * (i.qty - (i.freeQty || 0)))}
+                      {i.freeQty === i.qty
+                        ? "₹0.00"
+                        : formatMoney(i.product.price * (i.qty - (i.freeQty || 0)))}
                     </div>
                     <Button
                       variant="ghost"
@@ -228,7 +232,12 @@ function CartPage() {
                   </div>
                 ))}
                 <div className="pt-4 pb-1">
-                  <Button variant="outline" className="w-full border-dashed" size="sm" onClick={() => setAddOpen(true)}>
+                  <Button
+                    variant="outline"
+                    className="w-full border-dashed"
+                    size="sm"
+                    onClick={() => setAddOpen(true)}
+                  >
                     <Plus className="h-4 w-4 mr-2" /> Browse & Add Item
                   </Button>
                 </div>
@@ -255,9 +264,7 @@ function CartPage() {
             <CardContent className="text-sm">
               {hasCustomer ? (
                 <div className="space-y-1">
-                  {cart.customer.name && (
-                    <div className="font-medium">{cart.customer.name}</div>
-                  )}
+                  {cart.customer.name && <div className="font-medium">{cart.customer.name}</div>}
                   {cart.customer.phone && (
                     <div className="text-muted-foreground">{cart.customer.phone}</div>
                   )}
@@ -294,13 +301,19 @@ function CartPage() {
                   label="Cash"
                   Icon={Banknote}
                   active={cart.paymentMethod === "cash"}
-                  onClick={() => { cart.setPaymentMethod("cash"); cart.setAdvanceAmount(0); }}
+                  onClick={() => {
+                    cart.setPaymentMethod("cash");
+                    cart.setAdvanceAmount(0);
+                  }}
                 />
                 <PayChoice
                   label="Online"
                   Icon={Smartphone}
                   active={cart.paymentMethod === "online"}
-                  onClick={() => { cart.setPaymentMethod("online"); cart.setAdvanceAmount(0); }}
+                  onClick={() => {
+                    cart.setPaymentMethod("online");
+                    cart.setAdvanceAmount(0);
+                  }}
                 />
                 <PayChoice
                   label="Credit"
@@ -309,12 +322,14 @@ function CartPage() {
                   onClick={() => cart.setPaymentMethod("credit")}
                 />
               </div>
-              
+
               {cart.paymentMethod === "credit" && (
                 <div className="mt-4 space-y-1.5 animate-fade-in">
                   <Label className="text-xs">Advance Payment (Optional)</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      ₹
+                    </span>
                     <Input
                       type="number"
                       step="0.01"
@@ -344,7 +359,7 @@ function CartPage() {
                     "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
                     cart.discountType === "percentage"
                       ? "bg-primary/10 border-primary text-primary shadow-soft"
-                      : "border-border hover:bg-accent/40"
+                      : "border-border hover:bg-accent/40",
                   )}
                 >
                   % Percentage
@@ -356,7 +371,7 @@ function CartPage() {
                     "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
                     cart.discountType === "flat"
                       ? "bg-primary/10 border-primary text-primary shadow-soft"
-                      : "border-border hover:bg-accent/40"
+                      : "border-border hover:bg-accent/40",
                   )}
                 >
                   ₹ Flat Amount
@@ -400,15 +415,12 @@ function CartPage() {
                   <span className="font-medium text-foreground">
                     {rxItems.map((i) => i.product.name).join(", ")}
                   </span>
-                  . Provide the prescription as a photo <em>or</em> reference
-                  text to continue.
+                  . Provide the prescription as a photo <em>or</em> reference text to continue.
                 </p>
                 <RxInput
                   refValue={cart.customer.prescriptionRef ?? ""}
                   photoValue={cart.customer.prescriptionPhoto ?? ""}
-                  onChange={(patch) =>
-                    cart.setCustomer({ ...cart.customer, ...patch })
-                  }
+                  onChange={(patch) => cart.setCustomer({ ...cart.customer, ...patch })}
                 />
               </CardContent>
             </Card>
@@ -422,7 +434,11 @@ function CartPage() {
               <Row label="Subtotal" value={formatMoney(cart.subtotal)} />
               <Row label="Tax" value={formatMoney(cart.tax)} />
               {cart.discount > 0 && (
-                <Row label="Discount" value={`-${formatMoney(cart.discount)}`} className="text-emerald-500" />
+                <Row
+                  label="Discount"
+                  value={`-${formatMoney(cart.discount)}`}
+                  className="text-emerald-500"
+                />
               )}
               <div className="border-t pt-2">
                 <Row label="Total" value={formatMoney(cart.total)} bold />
@@ -450,11 +466,17 @@ function CartPage() {
   );
 }
 
-function CartAddDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v: boolean) => void }) {
+function CartAddDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const [products, setProducts] = useState<Product[]>([]);
   const [query, setQuery] = useState("");
   const cart = useCart();
-  
+
   useEffect(() => {
     if (open) {
       productsStore.list().then(setProducts);
@@ -463,61 +485,70 @@ function CartAddDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v
     }
   }, [open]);
 
-  const filtered = useMemo(() => 
-    products.filter(p => p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
-  [products, query]);
+  const filtered = useMemo(
+    () => products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
+    [products, query],
+  );
 
   const onAdd = (p: Product) => {
     cart.add(p, 1);
     toast.success(`${p.name} added to cart`);
     onOpenChange(false);
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 overflow-hidden gap-0">
-         <div className="flex items-center px-3 border-b">
-           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-           <Input 
-             autoFocus
-             placeholder="Search product to add..." 
-             className="border-0 focus-visible:ring-0 shadow-none text-base"
-             value={query} 
-             onChange={e => setQuery(e.target.value)} 
-           />
-         </div>
-         <div className="max-h-[300px] overflow-y-auto p-1">
-           {filtered.length === 0 ? (
-             <div className="p-4 text-center text-sm text-muted-foreground">No matching products found.</div>
-           ) : (
-             filtered.map(p => (
-               <button 
-                 key={p.id} 
-                 onClick={() => p.stock > 0 && onAdd(p)}
-                 disabled={p.stock <= 0}
-                 className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors text-left ${
-                   p.stock > 0 
-                     ? "hover:bg-accent hover:text-accent-foreground" 
-                     : "opacity-50 cursor-not-allowed"
-                 }`}
-               >
-                 <div className="min-w-0 flex-1">
-                   <div className="font-medium truncate flex items-center gap-2">
-                     {p.name}
-                     {p.prescription && (
-                       <span className="text-[10px] bg-destructive/10 text-destructive px-1 rounded font-bold">Rx</span>
-                     )}
-                     {p.pack && (
-                       <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">{p.pack}</span>
-                     )}
-                   </div>
-                   <div className="text-xs text-muted-foreground">{formatMoney(p.price)} · {p.stock} in stock</div>
-                 </div>
-                 <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-               </button>
-             ))
-           )}
-         </div>
+        <div className="flex items-center px-3 border-b">
+          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+          <Input
+            autoFocus
+            placeholder="Search product to add..."
+            className="border-0 focus-visible:ring-0 shadow-none text-base"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="max-h-[300px] overflow-y-auto p-1">
+          {filtered.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              No matching products found.
+            </div>
+          ) : (
+            filtered.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => p.stock > 0 && onAdd(p)}
+                disabled={p.stock <= 0}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors text-left ${
+                  p.stock > 0
+                    ? "hover:bg-accent hover:text-accent-foreground"
+                    : "opacity-50 cursor-not-allowed"
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium truncate flex items-center gap-2">
+                    {p.name}
+                    {p.prescription && (
+                      <span className="text-[10px] bg-destructive/10 text-destructive px-1 rounded font-bold">
+                        Rx
+                      </span>
+                    )}
+                    {p.pack && (
+                      <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                        {p.pack}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatMoney(p.price)} · {p.stock} in stock
+                  </div>
+                </div>
+                <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+              </button>
+            ))
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,11 +1,6 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  Download,
-  Printer,
-  Pill,
-} from "lucide-react";
+import { ArrowLeft, Download, Printer, Pill } from "lucide-react";
 import QRCode from "react-qr-code";
 import { billsStore, type Bill } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -18,22 +13,56 @@ export const Route = createFileRoute("/_app/bills/$id")({
 });
 
 function numberToWords(num: number): string {
-  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
-  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-  
-  const val = Math.floor(num);
-  if (val === 0) return 'Zero Rupees Only';
-  
-  const n = ('000000000' + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-  if (!n) return '';
+  const a = [
+    "",
+    "One ",
+    "Two ",
+    "Three ",
+    "Four ",
+    "Five ",
+    "Six ",
+    "Seven ",
+    "Eight ",
+    "Nine ",
+    "Ten ",
+    "Eleven ",
+    "Twelve ",
+    "Thirteen ",
+    "Fourteen ",
+    "Fifteen ",
+    "Sixteen ",
+    "Seventeen ",
+    "Eighteen ",
+    "Nineteen ",
+  ];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
-  let str = '';
-  str += (n[1] != '00') ? (a[Number(n[1])] || b[n[1][0] as any] + ' ' + a[n[1][1] as any]) + 'Crore ' : '';
-  str += (n[2] != '00') ? (a[Number(n[2])] || b[n[2][0] as any] + ' ' + a[n[2][1] as any]) + 'Lakh ' : '';
-  str += (n[3] != '00') ? (a[Number(n[3])] || b[n[3][0] as any] + ' ' + a[n[3][1] as any]) + 'Thousand ' : '';
-  str += (n[4] != '0') ? (a[Number(n[4])] || b[n[4][0] as any] + ' ' + a[n[4][1] as any]) + 'Hundred ' : '';
-  str += (n[5] != '00') ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0] as any] + ' ' + a[n[5][1] as any]) + 'Rupees ' : 'Rupees ';
-  return str.trim() + ' Only';
+  const val = Math.floor(num);
+  if (val === 0) return "Zero Rupees Only";
+
+  const n = ("000000000" + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  if (!n) return "";
+
+  let str = "";
+  str +=
+    n[1] != "00" ? (a[Number(n[1])] || b[n[1][0] as any] + " " + a[n[1][1] as any]) + "Crore " : "";
+  str +=
+    n[2] != "00" ? (a[Number(n[2])] || b[n[2][0] as any] + " " + a[n[2][1] as any]) + "Lakh " : "";
+  str +=
+    n[3] != "00"
+      ? (a[Number(n[3])] || b[n[3][0] as any] + " " + a[n[3][1] as any]) + "Thousand "
+      : "";
+  str +=
+    n[4] != "0"
+      ? (a[Number(n[4])] || b[n[4][0] as any] + " " + a[n[4][1] as any]) + "Hundred "
+      : "";
+  str +=
+    n[5] != "00"
+      ? (str != "" ? "and " : "") +
+        (a[Number(n[5])] || b[n[5][0] as any] + " " + a[n[5][1] as any]) +
+        "Rupees "
+      : "Rupees ";
+  return str.trim() + " Only";
 }
 
 function BillDetailPage() {
@@ -41,7 +70,7 @@ function BillDetailPage() {
   const [bill, setBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
-  
+
   const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
   const pharmacyAddress = session?.pharmacyAddress || "123 Health Ave, Medical District, City";
 
@@ -84,7 +113,7 @@ function BillDetailPage() {
   const totalFree = bill.items.reduce((acc, item) => acc + (item.freeQty || 0), 0);
   const cgst = bill.tax / 2;
   const sgst = bill.tax / 2;
-  
+
   const netPayable = Math.round(bill.total);
   const roundOff = netPayable - bill.total;
 
@@ -94,7 +123,9 @@ function BillDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
-      <style dangerouslySetInnerHTML={{__html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @media print {
           @page {
             margin: 1.5cm;
@@ -112,7 +143,9 @@ function BillDetailPage() {
             }
           }
         }
-      `}} />
+      `,
+        }}
+      />
 
       {/* Action Bar (Hidden in Print) */}
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background sticky top-0 z-10 py-4">
@@ -128,15 +161,17 @@ function BillDetailPage() {
           </Button>
           <Button
             size="sm"
-            onClick={() => void downloadBillPdf(bill, {
-              pharmacyName,
-              pharmacyPhone: session?.pharmacyPhone,
-              pharmacyAddress,
-              gstNumber: session?.gstNumber,
-              drugLicNo: session?.drugLicNo,
-              billColor: session?.billColor,
-              signature: session?.signature,
-            })}
+            onClick={() =>
+              void downloadBillPdf(bill, {
+                pharmacyName,
+                pharmacyPhone: session?.pharmacyPhone,
+                pharmacyAddress,
+                gstNumber: session?.gstNumber,
+                drugLicNo: session?.drugLicNo,
+                billColor: session?.billColor,
+                signature: session?.signature,
+              })
+            }
             className="shadow-soft"
           >
             <Download className="h-4 w-4 mr-2" />
@@ -162,25 +197,44 @@ function BillDetailPage() {
                 {pharmacyAddress}
               </p>
               <div className="flex flex-wrap flex-col gap-y-1 mt-2 text-xs font-mono text-muted-foreground">
-                {session?.pharmacyPhone && <p><strong>Phone:</strong> {session.pharmacyPhone}</p>}
-                {session?.gstNumber && <p><strong>GSTIN:</strong> {session.gstNumber.toUpperCase()}</p>}
-                {session?.drugLicNo && <p><strong>D.L.No.:</strong> {session.drugLicNo.toUpperCase()}</p>}
+                {session?.pharmacyPhone && (
+                  <p>
+                    <strong>Phone:</strong> {session.pharmacyPhone}
+                  </p>
+                )}
+                {session?.gstNumber && (
+                  <p>
+                    <strong>GSTIN:</strong> {session.gstNumber.toUpperCase()}
+                  </p>
+                )}
+                {session?.drugLicNo && (
+                  <p>
+                    <strong>D.L.No.:</strong> {session.drugLicNo.toUpperCase()}
+                  </p>
+                )}
               </div>
             </div>
           </div>
           <div className="text-right text-sm flex flex-col gap-1">
-            <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">Tax Invoice</h2>
+            <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">
+              Tax Invoice
+            </h2>
             <div className="flex justify-end gap-2">
               <span className="text-muted-foreground">Inv No:</span>
               <span className="font-bold font-mono text-primary">{bill.number}</span>
             </div>
             <div className="flex justify-end gap-2">
               <span className="text-muted-foreground">Date:</span>
-              <span>{new Date(bill.createdAt).toLocaleDateString('en-IN')}</span>
+              <span>{new Date(bill.createdAt).toLocaleDateString("en-IN")}</span>
             </div>
             <div className="flex justify-end gap-2">
               <span className="text-muted-foreground">Time:</span>
-              <span>{new Date(bill.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>
+                {new Date(bill.createdAt).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
             </div>
             <div className="flex justify-end gap-2 mt-1">
               <span className="text-muted-foreground">Cashier:</span>
@@ -193,15 +247,34 @@ function BillDetailPage() {
         <div className="border border-border rounded-lg p-4 mb-4 flex flex-col sm:flex-row justify-between text-xs gap-4 bg-muted/20">
           <div className="sm:w-1/2">
             <p className="font-semibold mb-1 uppercase text-xs text-primary">CUSTOMER DETAILS</p>
-            <p className="font-bold uppercase text-base">{bill.customerName || "Walk-in Customer"}</p>
-            {bill.customerPhone && <p className="text-muted-foreground">PHONE: <span className="text-foreground">{bill.customerPhone}</span></p>}
-            {bill.customerDrugLicNo && <p className="text-muted-foreground">D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span></p>}
-            {bill.customerAddress && <p className="text-muted-foreground truncate">ADDRESS: <span className="text-foreground">{bill.customerAddress}</span></p>}
+            <p className="font-bold uppercase text-base">
+              {bill.customerName || "Walk-in Customer"}
+            </p>
+            {bill.customerPhone && (
+              <p className="text-muted-foreground">
+                PHONE: <span className="text-foreground">{bill.customerPhone}</span>
+              </p>
+            )}
+            {bill.customerDrugLicNo && (
+              <p className="text-muted-foreground">
+                D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span>
+              </p>
+            )}
+            {bill.customerAddress && (
+              <p className="text-muted-foreground truncate">
+                ADDRESS: <span className="text-foreground">{bill.customerAddress}</span>
+              </p>
+            )}
           </div>
           <div className="sm:w-1/2 sm:border-l border-border sm:pl-4">
             <p className="font-semibold mb-1 uppercase text-xs text-primary">DISPATCH & PAYMENT</p>
-            <p className="text-muted-foreground">Transport: <span className="text-foreground">Direct / By Hand</span></p>
-            <p className="text-muted-foreground">Payment Mode: <span className="uppercase font-semibold text-primary">{bill.paymentMethod}</span></p>
+            <p className="text-muted-foreground">
+              Transport: <span className="text-foreground">Direct / By Hand</span>
+            </p>
+            <p className="text-muted-foreground">
+              Payment Mode:{" "}
+              <span className="uppercase font-semibold text-primary">{bill.paymentMethod}</span>
+            </p>
             {bill.customerNotes && (
               <p className="mt-1 text-xs text-muted-foreground italic">{bill.customerNotes}</p>
             )}
@@ -216,7 +289,9 @@ function BillDetailPage() {
                 <th className="py-3 px-2 text-center w-[4%] font-medium">#</th>
                 <th className="py-3 px-2 text-left w-[20%] font-medium">Medicine Name</th>
                 <th className="py-3 px-2 text-center w-[8%] font-medium whitespace-nowrap">Pack</th>
-                <th className="py-3 px-2 text-left w-[10%] font-medium whitespace-nowrap">Batch No</th>
+                <th className="py-3 px-2 text-left w-[10%] font-medium whitespace-nowrap">
+                  Batch No
+                </th>
                 <th className="py-3 px-2 text-center w-[8%] font-medium">Expiry</th>
                 <th className="py-3 px-2 text-left w-[6%] font-medium">HSN</th>
                 <th className="py-3 px-2 text-right w-[8%] font-medium">Qty</th>
@@ -230,33 +305,52 @@ function BillDetailPage() {
               {bill.items.map((it, idx) => {
                 const lineAmount = it.price * it.qty;
                 const taxAmount = (lineAmount * it.taxPercent) / 100;
-                
-                const expFormatted = it.expiry ? (() => {
-                  const d = new Date(it.expiry);
-                  const m = String(d.getMonth() + 1).padStart(2, '0');
-                  const y = String(d.getFullYear()).slice(-2);
-                  return `${m}/${y}`;
-                })() : "-";
+
+                const expFormatted = it.expiry
+                  ? (() => {
+                      const d = new Date(it.expiry);
+                      const m = String(d.getMonth() + 1).padStart(2, "0");
+                      const y = String(d.getFullYear()).slice(-2);
+                      return `${m}/${y}`;
+                    })()
+                  : "-";
 
                 return (
                   <tr key={idx} className="break-inside-avoid hover:bg-muted/30 transition-colors">
-                    <td className="py-3 px-2 text-center align-top text-muted-foreground">{idx + 1}</td>
+                    <td className="py-3 px-2 text-center align-top text-muted-foreground">
+                      {idx + 1}
+                    </td>
                     <td className="py-3 px-2 text-left align-top font-semibold truncate break-words whitespace-normal">
                       {it.name}
                     </td>
                     <td className="py-3 px-2 text-center align-top text-[10px] font-mono text-muted-foreground whitespace-nowrap">
                       {it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"}
                     </td>
-                    <td className="py-3 px-2 text-left align-top font-mono text-[10px] uppercase text-muted-foreground whitespace-nowrap">{it.batch || "-"}</td>
-                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">{expFormatted}</td>
-                    <td className="py-3 px-2 text-left align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">{it.sku || "-"}</td>
-                    <td className="py-3 px-2 text-right align-top font-medium whitespace-nowrap">
-                      {it.qty}{it.freeQty ? `+${it.freeQty}` : ""}
+                    <td className="py-3 px-2 text-left align-top font-mono text-[10px] uppercase text-muted-foreground whitespace-nowrap">
+                      {it.batch || "-"}
                     </td>
-                    <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">{it.mrp != null ? it.mrp.toFixed(2) : "-"}</td>
-                    <td className="py-3 px-2 text-center align-top text-muted-foreground">{it.taxPercent}%</td>
-                    <td className="py-3 px-2 text-right align-top font-mono">{it.price.toFixed(2)}</td>
-                    <td className="py-3 px-2 text-right align-top font-mono font-bold text-primary">{(lineAmount + taxAmount).toFixed(2)}</td>
+                    <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">
+                      {expFormatted}
+                    </td>
+                    <td className="py-3 px-2 text-left align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">
+                      {it.sku || "-"}
+                    </td>
+                    <td className="py-3 px-2 text-right align-top font-medium whitespace-nowrap">
+                      {it.qty}
+                      {it.freeQty ? `+${it.freeQty}` : ""}
+                    </td>
+                    <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">
+                      {it.mrp != null ? it.mrp.toFixed(2) : "-"}
+                    </td>
+                    <td className="py-3 px-2 text-center align-top text-muted-foreground">
+                      {it.taxPercent}%
+                    </td>
+                    <td className="py-3 px-2 text-right align-top font-mono">
+                      {it.price.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-2 text-right align-top font-mono font-bold text-primary">
+                      {(lineAmount + taxAmount).toFixed(2)}
+                    </td>
                   </tr>
                 );
               })}
@@ -266,7 +360,6 @@ function BillDetailPage() {
 
         {/* Summary Area */}
         <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4 break-inside-avoid">
-          
           {/* Left Footer Area */}
           <div className="w-full sm:w-[55%] flex flex-col gap-4">
             <div className="flex gap-4 items-center p-3 border border-border rounded-lg bg-muted/10">
@@ -274,16 +367,27 @@ function BillDetailPage() {
                 <QRCode value={bill.number} size={56} level="M" />
               </div>
               <div className="text-sm space-y-1">
-                <p><strong className="text-muted-foreground font-medium">Total Items:</strong> {bill.items.length}</p>
-                <p><strong className="text-muted-foreground font-medium">Total Qty:</strong> {totalQty} {totalFree > 0 ? <span className="text-primary font-medium">(+{totalFree} Free)</span> : ''}</p>
+                <p>
+                  <strong className="text-muted-foreground font-medium">Total Items:</strong>{" "}
+                  {bill.items.length}
+                </p>
+                <p>
+                  <strong className="text-muted-foreground font-medium">Total Qty:</strong>{" "}
+                  {totalQty}{" "}
+                  {totalFree > 0 ? (
+                    <span className="text-primary font-medium">(+{totalFree} Free)</span>
+                  ) : (
+                    ""
+                  )}
+                </p>
               </div>
             </div>
-            
+
             <div className="text-xs p-3 bg-primary/5 border border-primary/10 rounded-lg">
               <p className="font-semibold text-primary uppercase mb-1">Amount in Words:</p>
               <p className="font-bold capitalize">{numberToWords(netPayable)}</p>
             </div>
-            
+
             <div className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
               <p className="font-bold uppercase text-foreground mb-1">Terms & Conditions:</p>
               <ul className="list-disc pl-4 space-y-0.5">
@@ -293,13 +397,15 @@ function BillDetailPage() {
               </ul>
             </div>
           </div>
-          
+
           {/* Right Summary Area */}
           <div className="w-full sm:w-[40%] text-sm">
             <div className="space-y-2 w-full p-4 border border-border rounded-lg bg-muted/10">
               <div className="flex justify-between text-muted-foreground">
                 <span>Gross Amount</span>
-                <span className="font-mono text-foreground">{(bill.subtotal + (bill.discount || 0)).toFixed(2)}</span>
+                <span className="font-mono text-foreground">
+                  {(bill.subtotal + (bill.discount || 0)).toFixed(2)}
+                </span>
               </div>
               {(bill.discount || 0) > 0 && (
                 <div className="flex justify-between text-success">
@@ -322,24 +428,31 @@ function BillDetailPage() {
               {roundOff !== 0 && (
                 <div className="flex justify-between text-xs text-muted-foreground pt-1">
                   <span>Round Off</span>
-                  <span className="font-mono">{roundOff > 0 ? '+' : ''}{roundOff.toFixed(2)}</span>
+                  <span className="font-mono">
+                    {roundOff > 0 ? "+" : ""}
+                    {roundOff.toFixed(2)}
+                  </span>
                 </div>
               )}
-              
+
               <div className="flex justify-between py-2 text-xl font-bold uppercase tracking-wide text-primary">
                 <span>Net Payable</span>
                 <span className="font-mono">₹{netPayable.toFixed(2)}</span>
               </div>
-              
+
               {bill.paymentMethod === "credit" ? (
                 <div className="text-xs pt-2 space-y-1.5 border-t border-border">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Advance Paid</span>
-                    <span className="font-mono text-foreground">₹{bill.advanceAmount.toFixed(2)}</span>
+                    <span className="font-mono text-foreground">
+                      ₹{bill.advanceAmount.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between font-bold text-destructive">
                     <span>Balance Due</span>
-                    <span className="font-mono">₹{(netPayable - bill.advanceAmount).toFixed(2)}</span>
+                    <span className="font-mono">
+                      ₹{(netPayable - bill.advanceAmount).toFixed(2)}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -361,22 +474,24 @@ function BillDetailPage() {
         {/* Signatures */}
         <div className="mt-16 flex justify-between items-end text-sm break-inside-avoid px-4">
           <div className="text-center">
-            <div className="border-t border-border w-40 pt-2 text-muted-foreground">Customer Signature</div>
+            <div className="border-t border-border w-40 pt-2 text-muted-foreground">
+              Customer Signature
+            </div>
           </div>
           <div className="text-center">
             <div className="h-12"></div> {/* Space for signature or stamp */}
             <div className="font-bold text-xs uppercase text-primary mb-2">For {pharmacyName}</div>
-            <div className="border-t border-border w-48 pt-2 text-muted-foreground">Authorized Signatory</div>
+            <div className="border-t border-border w-48 pt-2 text-muted-foreground">
+              Authorized Signatory
+            </div>
           </div>
         </div>
-        
+
         {/* Absolute Footer message */}
         <div className="mt-10 pt-4 border-t border-border text-center text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
           Thank you for your business. Get well soon!
         </div>
-
       </div>
     </div>
   );
 }
-

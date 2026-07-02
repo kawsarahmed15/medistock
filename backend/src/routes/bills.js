@@ -90,26 +90,26 @@ router.post("/", async (req, res, next) => {
 
       const id = generateId();
       await conn.query(
-          `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes,
+        `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes,
              cashier, payment_method, advance_amount, subtotal, tax, discount, total)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            id,
-            req.auth.userId,
-            invoiceNo,
-            body.customerName || null,
-            body.customerPhone || null,
-            body.customerAddress || null,
-            body.customerDrugLicNo || null,
-            body.customerNotes || null,
-            body.cashier || null,
-            ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
-            Number(body.advanceAmount || 0),
-            Number(body.subtotal || 0),
-            Number(body.tax || 0),
-            Number(body.discount || 0),
-            Number(body.total || 0),
-          ],
+        [
+          id,
+          req.auth.userId,
+          invoiceNo,
+          body.customerName || null,
+          body.customerPhone || null,
+          body.customerAddress || null,
+          body.customerDrugLicNo || null,
+          body.customerNotes || null,
+          body.cashier || null,
+          ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
+          Number(body.advanceAmount || 0),
+          Number(body.subtotal || 0),
+          Number(body.tax || 0),
+          Number(body.discount || 0),
+          Number(body.total || 0),
+        ],
       );
 
       for (const item of items) {

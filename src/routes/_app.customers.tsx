@@ -8,8 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -38,7 +51,7 @@ function CustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [editForm, setEditForm] = useState({ name: "", phone: "", address: "", notes: "" });
   const [isSaving, setIsSaving] = useState(false);
-  
+
   const navigate = useNavigate();
   const cart = useCart();
 
@@ -46,7 +59,7 @@ function CustomersPage() {
     let alive = true;
     let from, to;
     const now = new Date();
-    
+
     if (period === "today") {
       from = now.toISOString().slice(0, 10);
       to = now.toISOString().slice(0, 10);
@@ -81,9 +94,7 @@ function CustomersPage() {
     const needle = q.trim().toLowerCase();
     if (!needle) return customers;
     return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(needle) ||
-        c.phone.toLowerCase().includes(needle),
+      (c) => c.name.toLowerCase().includes(needle) || c.phone.toLowerCase().includes(needle),
     );
   }, [customers, q]);
 
@@ -137,7 +148,7 @@ function CustomersPage() {
           </p>
         </div>
       </div>
-      
+
       <Card className="shadow-soft">
         <CardContent className="p-4 flex flex-wrap gap-4 items-end">
           <div className="space-y-1.5 flex-1 min-w-[200px]">
@@ -171,7 +182,11 @@ function CustomersPage() {
             <div className="flex gap-2 items-end w-full sm:w-auto">
               <div className="space-y-1.5 flex-1 sm:w-36">
                 <div className="text-xs font-medium text-muted-foreground">From</div>
-                <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                <Input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5 flex-1 sm:w-36">
                 <div className="text-xs font-medium text-muted-foreground">To</div>
@@ -219,9 +234,7 @@ function CustomersPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">
-                      {c.name || (
-                        <span className="text-muted-foreground italic">No name</span>
-                      )}
+                      {c.name || <span className="text-muted-foreground italic">No name</span>}
                     </div>
                     <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 mt-0.5">
                       {c.phone && (
@@ -240,11 +253,7 @@ function CustomersPage() {
                     <div className="text-sm">Total: {formatMoney(c.totalSpent)}</div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => useForNextSale(c)}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => useForNextSale(c)}>
                       <ShoppingCart className="h-3.5 w-3.5" /> Use
                     </Button>
                     <Button
@@ -252,7 +261,12 @@ function CustomersPage() {
                       variant="outline"
                       onClick={() => {
                         setEditingCustomer(c);
-                        setEditForm({ name: c.name, phone: c.phone, address: c.address || "", notes: c.notes || "" });
+                        setEditForm({
+                          name: c.name,
+                          phone: c.phone,
+                          address: c.address || "",
+                          notes: c.notes || "",
+                        });
                       }}
                     >
                       <Pencil className="h-3.5 w-3.5" /> Edit
@@ -306,7 +320,9 @@ function CustomersPage() {
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setEditingCustomer(null)}>Cancel</Button>
+              <Button type="button" variant="ghost" onClick={() => setEditingCustomer(null)}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={isSaving}>
                 {isSaving ? "Saving..." : "Save Changes"}
               </Button>

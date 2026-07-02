@@ -2,7 +2,15 @@ import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { toast } from "sonner";
-import { ArrowLeft, Package, History, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, IndianRupee } from "lucide-react";
+import {
+  ArrowLeft,
+  Package,
+  History,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ShoppingCart,
+  IndianRupee,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -38,7 +46,7 @@ function ProductDetails() {
     try {
       const pRes = await apiRequest(`/products/${id}`, { auth: true });
       setProduct(pRes);
-      
+
       const hRes = await apiRequest(`/products/${id}/history`, { auth: true });
       setHistory(hRes);
     } catch (err) {
@@ -62,7 +70,7 @@ function ProductDetails() {
     if (unitType === "pack" && product.conversion_factor > 1) {
       finalQty = qty * product.conversion_factor;
       const unitText = actionType === "stock_out" ? "Removed" : "Added";
-      finalNotes = `(${unitText} ${qty} ${product.pack_unit || 'Pack'}s) ${notes}`.trim();
+      finalNotes = `(${unitText} ${qty} ${product.pack_unit || "Pack"}s) ${notes}`.trim();
     }
 
     setSubmitting(true);
@@ -165,21 +173,40 @@ function ProductDetails() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold">{product.stock} <span className="text-sm font-normal text-muted-foreground">{product.base_unit || 'Unit'}s</span></div>
+              <div className="text-4xl font-bold">
+                {product.stock}{" "}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {product.base_unit || "Unit"}s
+                </span>
+              </div>
               {product.conversion_factor > 1 && (
                 <div className="text-sm text-muted-foreground mt-1">
-                  ({Math.floor(product.stock / product.conversion_factor)} {product.pack_unit || 'Pack'}s, {product.stock % product.conversion_factor} {product.base_unit || 'Unit'}s)
+                  ({Math.floor(product.stock / product.conversion_factor)}{" "}
+                  {product.pack_unit || "Pack"}s, {product.stock % product.conversion_factor}{" "}
+                  {product.base_unit || "Unit"}s)
                 </div>
               )}
               <div className="mt-6 flex flex-col gap-2">
-                <Button onClick={() => openAction("purchase")} variant="default" className="w-full gap-2">
+                <Button
+                  onClick={() => openAction("purchase")}
+                  variant="default"
+                  className="w-full gap-2"
+                >
                   <ShoppingCart className="w-4 h-4" /> Add Purchase
                 </Button>
                 <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Button onClick={() => openAction("stock_in")} variant="outline" className="gap-2">
+                  <Button
+                    onClick={() => openAction("stock_in")}
+                    variant="outline"
+                    className="gap-2"
+                  >
                     <ArrowDownToLine className="w-4 h-4 text-emerald-500" /> Stock In
                   </Button>
-                  <Button onClick={() => openAction("stock_out")} variant="outline" className="gap-2">
+                  <Button
+                    onClick={() => openAction("stock_out")}
+                    variant="outline"
+                    className="gap-2"
+                  >
                     <ArrowUpFromLine className="w-4 h-4 text-rose-500" /> Stock Out
                   </Button>
                 </div>
@@ -197,21 +224,30 @@ function ProductDetails() {
             <CardContent className="space-y-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Price (MRP)</span>
-                <span className="font-medium">₹{Number(product.price).toFixed(2)} / {product.base_unit || 'Unit'}</span>
+                <span className="font-medium">
+                  ₹{Number(product.price).toFixed(2)} / {product.base_unit || "Unit"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Cost Price</span>
-                <span className="font-medium">₹{Number(product.cost_price || 0).toFixed(2)} / {product.base_unit || 'Unit'}</span>
+                <span className="font-medium">
+                  ₹{Number(product.cost_price || 0).toFixed(2)} / {product.base_unit || "Unit"}
+                </span>
               </div>
               {product.conversion_factor > 1 && (
                 <>
                   <div className="flex justify-between border-t pt-2 mt-2">
                     <span className="text-muted-foreground">Pack Price</span>
-                    <span className="font-medium">₹{Number(product.pack_price || 0).toFixed(2)} / {product.pack_unit || 'Pack'}</span>
+                    <span className="font-medium">
+                      ₹{Number(product.pack_price || 0).toFixed(2)} / {product.pack_unit || "Pack"}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Pack Cost</span>
-                    <span className="font-medium">₹{Number(product.pack_cost_price || 0).toFixed(2)} / {product.pack_unit || 'Pack'}</span>
+                    <span className="font-medium">
+                      ₹{Number(product.pack_cost_price || 0).toFixed(2)} /{" "}
+                      {product.pack_unit || "Pack"}
+                    </span>
                   </div>
                 </>
               )}
@@ -244,16 +280,23 @@ function ProductDetails() {
                 <div className="relative border-l border-border ml-3 space-y-6 pb-4">
                   {history.map((record: any) => (
                     <div key={record.id} className="relative pl-6">
-                      <div className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background ${
-                        record.action === 'sale' || record.action === 'stock_out' ? 'bg-rose-500' : 'bg-emerald-500'
-                      }`} />
+                      <div
+                        className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background ${
+                          record.action === "sale" || record.action === "stock_out"
+                            ? "bg-rose-500"
+                            : "bg-emerald-500"
+                        }`}
+                      />
                       <div className="flex justify-between items-start mb-1">
                         <div>
                           <span className="font-medium capitalize text-sm">
-                            {record.action.replace('_', ' ')}
+                            {record.action.replace("_", " ")}
                           </span>
-                          <span className={`ml-2 text-xs font-bold ${record.quantity > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {record.quantity > 0 ? '+' : ''}{record.quantity}
+                          <span
+                            className={`ml-2 text-xs font-bold ${record.quantity > 0 ? "text-emerald-500" : "text-rose-500"}`}
+                          >
+                            {record.quantity > 0 ? "+" : ""}
+                            {record.quantity}
                           </span>
                         </div>
                         <span className="text-xs text-muted-foreground">
@@ -262,7 +305,9 @@ function ProductDetails() {
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Balance after: {record.balance}
-                        {record.notes && <p className="mt-1 text-foreground italic">"{record.notes}"</p>}
+                        {record.notes && (
+                          <p className="mt-1 text-foreground italic">"{record.notes}"</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -276,53 +321,62 @@ function ProductDetails() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="capitalize">
-              {actionType.replace("_", " ")}
-            </DialogTitle>
+            <DialogTitle className="capitalize">{actionType.replace("_", " ")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleStockAction} className="space-y-4 mt-4">
             {product?.conversion_factor > 1 && (
               <div className="flex gap-4 mb-4">
-                <Button 
+                <Button
                   type="button"
                   variant={unitType === "base" ? "default" : "outline"}
                   onClick={() => setUnitType("base")}
                   className="flex-1"
                 >
-                  By {product.base_unit || 'Unit'}
+                  By {product.base_unit || "Unit"}
                 </Button>
-                <Button 
+                <Button
                   type="button"
                   variant={unitType === "pack" ? "default" : "outline"}
                   onClick={() => setUnitType("pack")}
                   className="flex-1"
                 >
-                  By {product.pack_unit || 'Pack'}
+                  By {product.pack_unit || "Pack"}
                 </Button>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Quantity ({unitType === "pack" ? product?.pack_unit || 'Pack' : product?.base_unit || 'Unit'})</Label>
-              <Input 
-                type="number" 
-                min="1" 
-                value={quantity} 
-                onChange={(e) => setQuantity(e.target.value)} 
-                required 
-                placeholder={`Enter number of ${unitType === "pack" ? product?.pack_unit + 's' || 'Packs' : product?.base_unit + 's' || 'Units'}...`}
+              <Label>
+                Quantity (
+                {unitType === "pack" ? product?.pack_unit || "Pack" : product?.base_unit || "Unit"})
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                required
+                placeholder={`Enter number of ${unitType === "pack" ? product?.pack_unit + "s" || "Packs" : product?.base_unit + "s" || "Units"}...`}
               />
             </div>
             <div className="space-y-2">
               <Label>Notes (Optional)</Label>
-              <Input 
-                value={notes} 
-                onChange={(e) => setNotes(e.target.value)} 
-                placeholder={actionType === "purchase" ? "Invoice #, Supplier info..." : "Reason for adjustment..."}
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={
+                  actionType === "purchase"
+                    ? "Invoice #, Supplier info..."
+                    : "Reason for adjustment..."
+                }
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>Confirm</Button>
+              <Button type="button" variant="ghost" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                Confirm
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -336,56 +390,60 @@ function ProductDetails() {
           <form onSubmit={handlePriceAction} className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Selling Price (per {product?.base_unit || 'Unit'})</Label>
-                <Input 
-                  type="number" 
+                <Label>Selling Price (per {product?.base_unit || "Unit"})</Label>
+                <Input
+                  type="number"
                   step="0.01"
                   min="0"
-                  value={newPrice} 
-                  onChange={(e) => setNewPrice(e.target.value)} 
-                  required 
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(e.target.value)}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label>Cost Price (per {product?.base_unit || 'Unit'})</Label>
-                <Input 
-                  type="number" 
+                <Label>Cost Price (per {product?.base_unit || "Unit"})</Label>
+                <Input
+                  type="number"
                   step="0.01"
                   min="0"
-                  value={newCostPrice} 
-                  onChange={(e) => setNewCostPrice(e.target.value)} 
+                  value={newCostPrice}
+                  onChange={(e) => setNewCostPrice(e.target.value)}
                 />
               </div>
             </div>
-            
+
             {product?.conversion_factor > 1 && (
               <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
                 <div className="space-y-2">
-                  <Label>Pack Price (per {product?.pack_unit || 'Pack'})</Label>
-                  <Input 
-                    type="number" 
+                  <Label>Pack Price (per {product?.pack_unit || "Pack"})</Label>
+                  <Input
+                    type="number"
                     step="0.01"
                     min="0"
-                    value={newPackPrice} 
-                    onChange={(e) => setNewPackPrice(e.target.value)} 
+                    value={newPackPrice}
+                    onChange={(e) => setNewPackPrice(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Pack Cost Price (per {product?.pack_unit || 'Pack'})</Label>
-                  <Input 
-                    type="number" 
+                  <Label>Pack Cost Price (per {product?.pack_unit || "Pack"})</Label>
+                  <Input
+                    type="number"
                     step="0.01"
                     min="0"
-                    value={newPackCostPrice} 
-                    onChange={(e) => setNewPackCostPrice(e.target.value)} 
+                    value={newPackCostPrice}
+                    onChange={(e) => setNewPackCostPrice(e.target.value)}
                   />
                 </div>
               </div>
             )}
-            
+
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="ghost" onClick={() => setPriceDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={submitting}>Save Prices</Button>
+              <Button type="button" variant="ghost" onClick={() => setPriceDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                Save Prices
+              </Button>
             </div>
           </form>
         </DialogContent>

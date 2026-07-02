@@ -32,9 +32,7 @@ export function CartFab() {
           {count}
         </span>
       </span>
-      <span className="text-sm font-medium tabular-nums">
-        Go to cart · ₹{total.toFixed(0)}
-      </span>
+      <span className="text-sm font-medium tabular-nums">Go to cart · ₹{total.toFixed(0)}</span>
     </Link>
   );
 }

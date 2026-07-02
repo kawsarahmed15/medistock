@@ -14,7 +14,7 @@ async function runAlter() {
     await connection.query("ALTER TABLE bill_items ADD COLUMN batch VARCHAR(120) NULL AFTER mrp;");
     console.log("MySQL alter completed successfully.");
   } catch (err) {
-    if (err.code === 'ER_DUP_FIELDNAME') {
+    if (err.code === "ER_DUP_FIELDNAME") {
       console.log("Column batch already exists.");
     } else {
       throw err;

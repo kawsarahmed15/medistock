@@ -24,17 +24,8 @@ import { useCart } from "@/lib/cart-context";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/global-search";
 import { CartFab } from "@/components/cart-fab";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -125,9 +116,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="text-xs font-medium text-sidebar-foreground truncate">
               {session?.name}
             </div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              {session?.email}
-            </div>
+            <div className="text-[11px] text-muted-foreground truncate">{session?.email}</div>
           </div>
           <UserCog className="h-4 w-4 text-muted-foreground shrink-0" />
         </button>
@@ -164,17 +153,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sun
         className={cn(
           "h-4 w-4 absolute transition-all duration-500",
-          theme === "light"
-            ? "rotate-0 scale-100 opacity-100"
-            : "-rotate-90 scale-0 opacity-0",
+          theme === "light" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0",
         )}
       />
       <Moon
         className={cn(
           "h-4 w-4 absolute transition-all duration-500",
-          theme === "dark"
-            ? "rotate-0 scale-100 opacity-100"
-            : "rotate-90 scale-0 opacity-0",
+          theme === "dark" ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0",
         )}
       />
     </Button>
@@ -240,7 +225,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="md:hidden h-full print:h-auto">{main}</div>
       ) : (
         <div className="hidden md:block h-full print:block print:h-auto">
-          <ResizablePanelGroup orientation="horizontal" id="medistock-shell" className="h-full print:h-auto print:block">
+          <ResizablePanelGroup
+            orientation="horizontal"
+            id="medistock-shell"
+            className="h-full print:h-auto print:block"
+          >
             <ResizablePanel
               id="sidebar"
               defaultSize={"256px" as any}

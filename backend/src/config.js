@@ -29,5 +29,5 @@ export const config = {
     from: process.env.SMTP_FROM || "MediStock <no-reply@medistock.teklin.in>",
   },
   corsOrigin: process.env.CORS_ORIGIN || "*",
-  ssl:false,
+  ssl: false,
 };

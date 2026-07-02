@@ -183,7 +183,9 @@
       color 0.35s ease;
   }
   @media (prefers-reduced-motion: reduce) {
-    body { transition: none; }
+    body {
+      transition: none;
+    }
   }
 }
 
@@ -206,20 +208,44 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes slide-in {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-.animate-fade-in { animation: fade-in 0.4s ease-out both; }
-.animate-slide-in { animation: slide-in 0.35s ease-out both; }
-.animate-scale-in { animation: scale-in 0.3s ease-out both; }
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+.animate-slide-in {
+  animation: slide-in 0.35s ease-out both;
+}
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out both;
+}
 
 @media print {
   @page {

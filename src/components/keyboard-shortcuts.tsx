@@ -36,12 +36,7 @@ const SHORTCUTS = [
 function isTypingTarget(t: EventTarget | null) {
   if (!(t instanceof HTMLElement)) return false;
   const tag = t.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT" ||
-    t.isContentEditable
-  );
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || t.isContentEditable;
 }
 
 export function KeyboardShortcuts() {
@@ -57,11 +52,15 @@ export function KeyboardShortcuts() {
         e.preventDefault();
         navigate({ to });
       };
-      if (e.altKey && e.key.toLowerCase() === 'n') {
+      if (e.altKey && e.key.toLowerCase() === "n") {
         e.preventDefault();
         e.stopPropagation();
         if (cart.items.length > 0) {
-          if (!window.confirm("You have a pending bill. Are you sure you want to clear it and start a new one?")) {
+          if (
+            !window.confirm(
+              "You have a pending bill. Are you sure you want to clear it and start a new one?",
+            )
+          ) {
             return;
           }
         }
@@ -75,8 +74,8 @@ export function KeyboardShortcuts() {
         }
         return;
       }
-      
-      if (e.altKey && e.key.toLowerCase() === 'c') {
+
+      if (e.altKey && e.key.toLowerCase() === "c") {
         e.preventDefault();
         e.stopPropagation();
         if (routerState.location.pathname !== "/cart") {
@@ -84,8 +83,8 @@ export function KeyboardShortcuts() {
         }
         return;
       }
-      
-      if (e.altKey && e.key.toLowerCase() === 'a') {
+
+      if (e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
         e.stopPropagation();
         if (!routerState.location.pathname.startsWith("/inventory")) {
@@ -163,9 +162,7 @@ export function KeyboardShortcuts() {
               total: cart.total,
             });
             await Promise.all(
-              cart.items.map((i) =>
-                productsStore.decrementStock(i.product.id, i.qty),
-              ),
+              cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)),
             );
             cart.clear();
             toast.success(`Bill ${bill.number} generated`);
@@ -180,10 +177,10 @@ export function KeyboardShortcuts() {
       }
     };
     const openHandler = () => setOpen(true);
-    
+
     window.addEventListener("keydown", handler);
     window.addEventListener("open-shortcuts", openHandler);
-    
+
     return () => {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("open-shortcuts", openHandler);
@@ -197,16 +194,11 @@ export function KeyboardShortcuts() {
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-5 w-5 text-primary" /> Keyboard shortcuts
           </DialogTitle>
-          <DialogDescription>
-            Marg-style quick keys for fast billing.
-          </DialogDescription>
+          <DialogDescription>Marg-style quick keys for fast billing.</DialogDescription>
         </DialogHeader>
         <ul className="divide-y rounded-lg border">
           {SHORTCUTS.map((s) => (
-            <li
-              key={s.keys}
-              className="flex items-center justify-between px-3 py-2.5 text-sm"
-            >
+            <li key={s.keys} className="flex items-center justify-between px-3 py-2.5 text-sm">
               <span>{s.label}</span>
               <kbd className="rounded-md border bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums">
                 {s.keys}

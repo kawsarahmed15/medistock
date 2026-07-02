@@ -325,18 +325,18 @@ function LandingPage() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
-              {/* Basic Plan */}
+              {/* Retailer Plan */}
               <div className="p-8 rounded-3xl border border-white/5 bg-background/50 backdrop-blur-lg flex flex-col">
-                <h3 className="text-2xl font-bold mb-2">Basic</h3>
+                <h3 className="text-2xl font-bold mb-2">Retailer</h3>
                 <p className="text-muted-foreground mb-6 h-12">
                   Perfect for single small pharmacies getting started.
                 </p>
                 <div className="mb-6">
-                  <span className="text-4xl font-extrabold">${isAnnual ? "129" : "149"}</span>
+                  <span className="text-4xl font-extrabold">₹{isAnnual ? "129" : "149"}</span>
                   <span className="text-muted-foreground">/mo</span>
                 </div>
                 {isAnnual ? (
-                  <p className="text-sm text-green-500 font-medium mb-6">Billed $1,548 yearly</p>
+                  <p className="text-sm text-green-500 font-medium mb-6">Billed ₹1,548 yearly</p>
                 ) : (
                   <p className="text-sm text-primary font-medium mb-6">1 Month Free included</p>
                 )}
@@ -357,22 +357,22 @@ function LandingPage() {
                 </Link>
               </div>
 
-              {/* Pro Plan */}
+              {/* Wholesaler Plan */}
               <div className="p-8 rounded-3xl border-2 border-primary bg-primary/5 backdrop-blur-lg flex flex-col relative transform md:-translate-y-4 shadow-glow">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-bold shadow-lg">
                   Most Popular
                 </div>
-                <h3 className="text-2xl font-bold mb-2">Pro</h3>
+                <h3 className="text-2xl font-bold mb-2">Wholesaler</h3>
                 <p className="text-muted-foreground mb-6 h-12">
                   For growing medical stores with high volume.
                 </p>
                 <div className="mb-6">
-                  <span className="text-4xl font-extrabold">${isAnnual ? "239" : "299"}</span>
+                  <span className="text-4xl font-extrabold">₹{isAnnual ? "239" : "299"}</span>
                   <span className="text-muted-foreground">/mo</span>
                 </div>
                 {isAnnual ? (
                   <p className="text-sm text-green-500 font-medium mb-6">
-                    20% Off (Billed $2,868 yearly)
+                    20% Off (Billed ₹2,868 yearly)
                   </p>
                 ) : (
                   <p className="text-sm text-primary font-medium mb-6">1 Week Free Trial</p>

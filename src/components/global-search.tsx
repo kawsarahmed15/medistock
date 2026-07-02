@@ -35,7 +35,10 @@ export function GlobalSearch() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       const inField = tag === "INPUT" || tag === "TEXTAREA";
-      if ((e.key === "/" && !inField) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")) {
+      if (
+        (e.key === "/" && !inField) ||
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")
+      ) {
         e.preventDefault();
         inputRef.current?.focus();
       }
@@ -188,7 +191,9 @@ export function GlobalSearch() {
           )}
           <div className="border-t border-border bg-muted/40 px-3 py-1.5 text-[10px] text-muted-foreground flex items-center justify-between">
             <span>↑ ↓ navigate · ↵ open · esc close</span>
-            <span>{results.length} result{results.length === 1 ? "" : "s"}</span>
+            <span>
+              {results.length} result{results.length === 1 ? "" : "s"}
+            </span>
           </div>
         </div>
       )}

@@ -21,7 +21,9 @@ import {
 const router = Router();
 
 function ensureEmail(value) {
-  const email = String(value || "").trim().toLowerCase();
+  const email = String(value || "")
+    .trim()
+    .toLowerCase();
   if (!email || !email.includes("@")) {
     throw buildApiError(400, "Valid email is required");
   }
@@ -52,6 +54,7 @@ router.post("/signup", async (req, res, next) => {
     const name = ensureName(req.body?.name);
     const email = ensureEmail(req.body?.email);
     const password = ensurePassword(req.body?.password);
+    const role = req.body?.role === "wholesaler" ? "wholesaler" : "retailer";
 
     const [existing] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
     if (existing.length > 0) {
@@ -61,9 +64,9 @@ router.post("/signup", async (req, res, next) => {
     const userId = generateId();
     const passwordHash = await hashPassword(password);
     await pool.query(
-      `INSERT INTO users (id, name, email, password_hash, is_verified)
-       VALUES (?, ?, ?, ?, 0)`,
-      [userId, name, email, passwordHash],
+      `INSERT INTO users (id, name, email, password_hash, is_verified, role)
+       VALUES (?, ?, ?, ?, 0, ?)`,
+      [userId, name, email, passwordHash, role],
     );
 
     const token = generateToken();
@@ -183,10 +186,9 @@ router.post("/forgot-password", async (req, res, next) => {
   try {
     const email = ensureEmail(req.body?.email);
 
-    const [rows] = await pool.query(
-      `SELECT id, name, email FROM users WHERE email = ? LIMIT 1`,
-      [email],
-    );
+    const [rows] = await pool.query(`SELECT id, name, email FROM users WHERE email = ? LIMIT 1`, [
+      email,
+    ]);
     const user = rows[0];
 
     if (!user) {
@@ -232,7 +234,10 @@ router.post("/reset-password", async (req, res, next) => {
     }
 
     const passwordHash = await hashPassword(newPassword);
-    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, row.user_id]);
+    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [
+      passwordHash,
+      row.user_id,
+    ]);
     await pool.query("UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?", [row.id]);
 
     res.json({ message: "Password updated successfully" });
@@ -270,18 +275,34 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
 
     const name = req.body.name !== undefined ? ensureName(req.body.name) : user.name;
     const pharmacyName = ensureName(req.body.pharmacyName || user.pharmacy_name);
-    const pharmacyPhone = req.body.pharmacyPhone !== undefined ? req.body.pharmacyPhone : user.pharmacy_phone;
-    const pharmacyAddress = req.body.pharmacyAddress !== undefined ? req.body.pharmacyAddress : user.pharmacy_address;
+    const pharmacyPhone =
+      req.body.pharmacyPhone !== undefined ? req.body.pharmacyPhone : user.pharmacy_phone;
+    const pharmacyAddress =
+      req.body.pharmacyAddress !== undefined ? req.body.pharmacyAddress : user.pharmacy_address;
     const gstNumber = req.body.gstNumber !== undefined ? req.body.gstNumber : user.gst_number;
     const drugLicNo = req.body.drugLicNo !== undefined ? req.body.drugLicNo : user.drug_lic_no;
     const billColor = req.body.billColor !== undefined ? req.body.billColor : user.bill_color;
     const signature = req.body.signature !== undefined ? req.body.signature : user.signature;
-    const expiryDays = req.body.expiryDays !== undefined ? Number(req.body.expiryDays) || 60 : user.expiring_days;
-    const defaultTax = req.body.defaultTax !== undefined ? Number(req.body.defaultTax) : user.default_tax;
+    const expiryDays =
+      req.body.expiryDays !== undefined ? Number(req.body.expiryDays) || 60 : user.expiring_days;
+    const defaultTax =
+      req.body.defaultTax !== undefined ? Number(req.body.defaultTax) : user.default_tax;
 
     await pool.query(
       "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_phone = ?, pharmacy_address = ?, gst_number = ?, drug_lic_no = ?, bill_color = ?, signature = ?, expiring_days = ?, default_tax = ? WHERE id = ?",
-      [name, pharmacyName, pharmacyPhone, pharmacyAddress, gstNumber, drugLicNo, billColor, signature, expiryDays, defaultTax, req.auth.userId]
+      [
+        name,
+        pharmacyName,
+        pharmacyPhone,
+        pharmacyAddress,
+        gstNumber,
+        drugLicNo,
+        billColor,
+        signature,
+        expiryDays,
+        defaultTax,
+        req.auth.userId,
+      ],
     );
 
     const [updatedRows] = await pool.query(
@@ -300,10 +321,9 @@ router.post("/change-password", requireAuth, async (req, res, next) => {
     const currentPassword = String(req.body?.currentPassword || "");
     const newPassword = ensurePassword(req.body?.newPassword, "New password");
 
-    const [rows] = await pool.query(
-      `SELECT id, password_hash FROM users WHERE id = ? LIMIT 1`,
-      [req.auth.userId],
-    );
+    const [rows] = await pool.query(`SELECT id, password_hash FROM users WHERE id = ? LIMIT 1`, [
+      req.auth.userId,
+    ]);
     const user = rows[0];
     if (!user) {
       throw buildApiError(401, "Unauthorized");
@@ -315,7 +335,10 @@ router.post("/change-password", requireAuth, async (req, res, next) => {
     }
 
     const passwordHash = await hashPassword(newPassword);
-    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, req.auth.userId]);
+    await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [
+      passwordHash,
+      req.auth.userId,
+    ]);
 
     res.json({ message: "Password changed successfully" });
   } catch (error) {
@@ -336,10 +359,12 @@ router.post("/request-email-change", requireAuth, async (req, res, next) => {
     await pool.query(
       `INSERT INTO email_change_tokens (id, user_id, new_email, token_hash, expires_at)
        VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))`,
-      [generateId(), req.auth.userId, newEmail, hashToken(token)]
+      [generateId(), req.auth.userId, newEmail, hashToken(token)],
     );
 
-    const [rows] = await pool.query(`SELECT name FROM users WHERE id = ? LIMIT 1`, [req.auth.userId]);
+    const [rows] = await pool.query(`SELECT name FROM users WHERE id = ? LIMIT 1`, [
+      req.auth.userId,
+    ]);
     const user = rows[0];
 
     const verificationUrl = `${config.appBaseUrl}/confirm-email?token=${token}`;
@@ -363,7 +388,7 @@ router.post("/confirm-email-change", async (req, res, next) => {
        WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
        ORDER BY created_at DESC
        LIMIT 1`,
-      [hashToken(token)]
+      [hashToken(token)],
     );
     const row = rows[0];
 
@@ -371,7 +396,10 @@ router.post("/confirm-email-change", async (req, res, next) => {
       throw buildApiError(400, "Confirmation link is invalid or expired");
     }
 
-    await pool.query("UPDATE users SET email = ?, is_verified = 1 WHERE id = ?", [row.new_email, row.user_id]);
+    await pool.query("UPDATE users SET email = ?, is_verified = 1 WHERE id = ?", [
+      row.new_email,
+      row.user_id,
+    ]);
     await pool.query("UPDATE email_change_tokens SET used_at = NOW() WHERE id = ?", [row.id]);
 
     res.json({ message: "Email changed successfully" });

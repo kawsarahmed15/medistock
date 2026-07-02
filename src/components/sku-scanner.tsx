@@ -82,15 +82,11 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
 
     if (typeof window === "undefined") return;
     if (!window.isSecureContext) {
-      setError(
-        "Camera needs HTTPS. Open the site over https:// (or use the manual entry below).",
-      );
+      setError("Camera needs HTTPS. Open the site over https:// (or use the manual entry below).");
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError(
-        "This browser doesn't support camera access. Type the HSN manually below.",
-      );
+      setError("This browser doesn't support camera access. Type the HSN manually below.");
       return;
     }
 
@@ -168,8 +164,8 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
             <Camera className="h-4 w-4" /> Scan HSN / barcode
           </DialogTitle>
           <DialogDescription>
-            Point the camera at the product barcode. We&apos;ll auto-fill the HSN
-            and match an existing product.
+            Point the camera at the product barcode. We&apos;ll auto-fill the HSN and match an
+            existing product.
           </DialogDescription>
         </DialogHeader>
 
@@ -201,11 +197,8 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
                 }
               `}
             </style>
-            <div
-              id={containerId}
-              className="absolute inset-0 w-full h-full"
-            />
-            
+            <div id={containerId} className="absolute inset-0 w-full h-full" />
+
             {!running && !starting && (
               <Button
                 type="button"
@@ -215,7 +208,7 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
                 <Camera className="h-4 w-4" /> Start camera
               </Button>
             )}
-            
+
             {starting && (
               <div className="text-xs text-muted-foreground animate-pulse z-10">
                 Requesting camera…
@@ -247,22 +240,14 @@ export function SkuScanner({ open, onOpenChange, onDetected }: Props) {
                   }
                 }}
               />
-              <Button
-                type="button"
-                onClick={submitManual}
-                disabled={!manual.trim()}
-              >
+              <Button type="button" onClick={submitManual} disabled={!manual.trim()}>
                 Use
               </Button>
             </div>
           </div>
 
           <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" /> Close
             </Button>
           </div>

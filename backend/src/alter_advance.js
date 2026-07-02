@@ -11,7 +11,9 @@ async function main() {
   });
 
   try {
-    await db.query("ALTER TABLE bills ADD COLUMN advance_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER payment_method");
+    await db.query(
+      "ALTER TABLE bills ADD COLUMN advance_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER payment_method",
+    );
     console.log("Added advance_amount to bills");
   } catch (e) {
     console.error(e);

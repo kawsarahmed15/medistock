@@ -66,9 +66,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const existing = prev.find((i) => i.product.id === product.id);
       if (existing) {
         return prev.map((i) =>
-          i.product.id === product.id
-            ? { ...i, qty: Math.min(product.stock, i.qty + qty) }
-            : i,
+          i.product.id === product.id ? { ...i, qty: Math.min(product.stock, i.qty + qty) } : i,
         );
       }
       return [...prev, { product, qty: Math.min(product.stock, qty) }];
@@ -105,15 +103,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setDiscountType("percentage");
   };
 
-  const subtotal = items.reduce((s, i) => s + ((i.qty - (i.freeQty || 0)) * i.product.price), 0);
+  const subtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * i.product.price, 0);
   const tax = items.reduce(
-    (s, i) => s + (((i.qty - (i.freeQty || 0)) * i.product.price * (i.product.taxPercent ?? 0)) / 100),
+    (s, i) =>
+      s + ((i.qty - (i.freeQty || 0)) * i.product.price * (i.product.taxPercent ?? 0)) / 100,
     0,
   );
-  
-  const discount = discountType === "percentage" 
-    ? ((subtotal + tax) * discountValue) / 100
-    : discountValue;
+
+  const discount =
+    discountType === "percentage" ? ((subtotal + tax) * discountValue) / 100 : discountValue;
 
   const total = Math.max(0, subtotal + tax - discount);
   const count = items.reduce((s, i) => s + i.qty, 0);

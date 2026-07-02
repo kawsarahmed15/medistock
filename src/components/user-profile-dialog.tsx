@@ -98,9 +98,7 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
           <DialogTitle className="flex items-center gap-2">
             <UserCog className="h-5 w-5 text-primary" /> Your profile
           </DialogTitle>
-          <DialogDescription>
-            Update your display name and account password.
-          </DialogDescription>
+          <DialogDescription>Update your display name and account password.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">

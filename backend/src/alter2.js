@@ -14,7 +14,7 @@ async function runAlter() {
     await connection.query("ALTER TABLE bill_items ADD COLUMN mrp DECIMAL(12,2) NULL;");
     console.log("MySQL alter bill_items completed successfully.");
   } catch (err) {
-    if (err.code === 'ER_DUP_FIELDNAME') {
+    if (err.code === "ER_DUP_FIELDNAME") {
       console.log("Column mrp already exists in bill_items.");
     } else {
       throw err;

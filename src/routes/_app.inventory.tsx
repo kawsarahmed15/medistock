@@ -98,12 +98,12 @@ const empty: FormState = {
 
 function parsePack(packStr?: string) {
   if (!packStr) return { stockType: "other", stockPacks: "", stockUnits: "" };
-  
+
   if (packStr.toUpperCase().endsWith("ML") && !packStr.includes("x") && !packStr.includes("X")) {
     const val = packStr.substring(0, packStr.length - 2).trim();
     return { stockType: "syp", stockPacks: val, stockUnits: "ML" };
   }
-  
+
   if (packStr.toUpperCase().endsWith("MG")) {
     const val = packStr.substring(0, packStr.length - 2).trim();
     return { stockType: "inj", stockPacks: val, stockUnits: "MG" };
@@ -124,7 +124,12 @@ function parsePack(packStr?: string) {
     return { stockType: "inj", stockPacks: val, stockUnits: "GM" };
   }
 
-  if (packStr.includes("x") || packStr.includes("X") || packStr.includes("*") || packStr.toUpperCase() === "CAP") {
+  if (
+    packStr.includes("x") ||
+    packStr.includes("X") ||
+    packStr.includes("*") ||
+    packStr.toUpperCase() === "CAP"
+  ) {
     return { stockType: "tab", stockPacks: packStr, stockUnits: "" };
   }
 
@@ -144,7 +149,9 @@ function InventoryPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<FormState>(empty);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">("date_desc");
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">(
+    "date_desc",
+  );
   const { session } = useAuth();
   const expiryDays = session?.expiryDays ?? 60;
   const defaultTax = session?.defaultTax ?? 12;
@@ -168,9 +175,18 @@ function InventoryPage() {
     } catch (e) {}
   }, []);
 
-  const saveRecent = (key: string, value: string, current: string[], setter: (v: string[]) => void, limit = 4) => {
+  const saveRecent = (
+    key: string,
+    value: string,
+    current: string[],
+    setter: (v: string[]) => void,
+    limit = 4,
+  ) => {
     if (!value.trim()) return;
-    const updated = [value.trim(), ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase())].slice(0, limit);
+    const updated = [
+      value.trim(),
+      ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase()),
+    ].slice(0, limit);
     setter(updated);
     localStorage.setItem(key, JSON.stringify(updated));
   };
@@ -192,9 +208,7 @@ function InventoryPage() {
     const trimmed = code.trim();
     if (!trimmed) return;
     // Match an existing product by SKU
-    const match = items.find(
-      (p) => (p.sku ?? "").trim().toLowerCase() === trimmed.toLowerCase(),
-    );
+    const match = items.find((p) => (p.sku ?? "").trim().toLowerCase() === trimmed.toLowerCase());
     if (match) {
       // Edit flow with all existing info pre-filled
       setEditing(match);
@@ -270,7 +284,8 @@ function InventoryPage() {
     return [...filtered].sort((a, b) => {
       if (sortBy === "name_asc") return a.name.localeCompare(b.name);
       if (sortBy === "name_desc") return b.name.localeCompare(a.name);
-      if (sortBy === "date_asc") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === "date_asc")
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [filtered, sortBy]);
@@ -379,7 +394,14 @@ function InventoryPage() {
       packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
       packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
     };
-    if (!payload.name || !payload.expiry || isNaN(payload.price) || isNaN(payload.stock) || payload.costPrice === undefined || isNaN(payload.costPrice)) {
+    if (
+      !payload.name ||
+      !payload.expiry ||
+      isNaN(payload.price) ||
+      isNaN(payload.stock) ||
+      payload.costPrice === undefined ||
+      isNaN(payload.costPrice)
+    ) {
       toast.error("Please fill name, buying price, selling price, stock and expiry.");
       return;
     }
@@ -392,9 +414,16 @@ function InventoryPage() {
         toast.success("Product added");
       }
       saveRecent("recentCategories", payload.category, recentCategories, setRecentCategories, 4);
-      if (payload.manufacturer) saveRecent("recentManufacturers", payload.manufacturer, recentManufacturers, setRecentManufacturers, 8);
+      if (payload.manufacturer)
+        saveRecent(
+          "recentManufacturers",
+          payload.manufacturer,
+          recentManufacturers,
+          setRecentManufacturers,
+          8,
+        );
       if (payload.sku) saveRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
-      
+
       refresh();
       setOpen(false);
     } catch (err) {
@@ -449,7 +478,7 @@ function InventoryPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <select 
+          <select
             className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
@@ -459,11 +488,7 @@ function InventoryPage() {
             <option value="name_asc">Name (A-Z)</option>
             <option value="name_desc">Name (Z-A)</option>
           </select>
-          <Button
-            variant="outline"
-            onClick={() => setScannerOpen(true)}
-            title="Scan HSN / barcode"
-          >
+          <Button variant="outline" onClick={() => setScannerOpen(true)} title="Scan HSN / barcode">
             <ScanLine className="h-4 w-4" />
             <span className="hidden sm:inline">Scan HSN</span>
           </Button>
@@ -485,7 +510,10 @@ function InventoryPage() {
                     required
                     list="product-names"
                   />
-                  <RecentOptions id="product-names" options={Array.from(new Set(items.map(i => i.name)))} />
+                  <RecentOptions
+                    id="product-names"
+                    options={Array.from(new Set(items.map((i) => i.name)))}
+                  />
                 </Field>
                 <Field label="Category">
                   <Input
@@ -769,8 +797,8 @@ function InventoryPage() {
               sorted.map((p, idx) => {
                 const lowStock = p.stock <= 10;
                 return (
-                  <TableRow 
-                    key={p.id} 
+                  <TableRow
+                    key={p.id}
                     className="animate-fade-in cursor-pointer hover:bg-muted/50"
                     onClick={() => navigate({ to: "/inventory/$id", params: { id: p.id } })}
                   >
@@ -820,25 +848,43 @@ function InventoryPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={(e) => { e.stopPropagation(); quickAdd(p); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          quickAdd(p);
+                        }}
                         disabled={p.stock <= 0}
                         className="text-primary hover:text-primary"
                         title="Add to cart"
                       >
                         <ShoppingCart className="h-4 w-4" />
                       </Button>
-                      <Link to="/inventory/$id" params={{ id: p.id }} onClick={(e) => e.stopPropagation()}>
+                      <Link
+                        to="/inventory/$id"
+                        params={{ id: p.id }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Button variant="ghost" size="icon" title="View Details">
                           <Eye className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); startEdit(p); }} title="Edit">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEdit(p);
+                        }}
+                        title="Edit"
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={(e) => { e.stopPropagation(); remove(p); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          remove(p);
+                        }}
                         className="text-destructive hover:text-destructive"
                         title="Delete"
                       >
@@ -853,11 +899,7 @@ function InventoryPage() {
         </Table>
       </Card>
 
-      <SkuScanner
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onDetected={handleScan}
-      />
+      <SkuScanner open={scannerOpen} onOpenChange={setScannerOpen} onDetected={handleScan} />
     </div>
   );
 }
@@ -889,4 +931,3 @@ function RecentOptions({ id, options }: { id?: string; options: string[] }) {
     </datalist>
   );
 }
-

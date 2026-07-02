@@ -12,7 +12,9 @@ async function main() {
 
   try {
     // Modify ENUM in bills
-    await db.query("ALTER TABLE bills MODIFY COLUMN payment_method ENUM('cash', 'online', 'credit') NOT NULL DEFAULT 'cash'");
+    await db.query(
+      "ALTER TABLE bills MODIFY COLUMN payment_method ENUM('cash', 'online', 'credit') NOT NULL DEFAULT 'cash'",
+    );
     console.log("Updated payment_method ENUM in bills");
 
     // Create customer_payments table

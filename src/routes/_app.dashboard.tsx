@@ -1,7 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { Package, ReceiptText, ShoppingCart, AlertTriangle, IndianRupee, TrendingUp } from "lucide-react";
+import {
+  Package,
+  ReceiptText,
+  ShoppingCart,
+  AlertTriangle,
+  IndianRupee,
+  TrendingUp,
+} from "lucide-react";
 import { productsStore, billsStore, type Product, type Bill } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,25 +66,23 @@ function DashboardPage() {
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
     return { monthStart: start, monthEnd: end };
   }, []);
-  
+
   const billsThisMonth = useMemo(
-    () => bills.filter((b) => {
-      const t = new Date(b.createdAt).getTime();
-      return t >= monthStart && t <= monthEnd;
-    }),
+    () =>
+      bills.filter((b) => {
+        const t = new Date(b.createdAt).getTime();
+        return t >= monthStart && t <= monthEnd;
+      }),
     [bills, monthStart, monthEnd],
   );
-  
+
   const totalSales = billsThisMonth.reduce((s, b) => s + b.total, 0);
-  
+
   // Stock value = buying price × quantity (fallback to selling price if no cost set)
-  const stockValue = products.reduce(
-    (s, p) => s + (p.costPrice ?? p.price) * p.stock,
-    0,
-  );
-  
+  const stockValue = products.reduce((s, p) => s + (p.costPrice ?? p.price) * p.stock, 0);
+
   const lowStock = products.filter((p) => p.stock <= 10);
-  
+
   const expiringSoon = products
     .filter((p) => {
       const d = new Date(p.expiry).getTime();
@@ -85,7 +90,7 @@ function DashboardPage() {
       return days <= expiryDays && days >= 0;
     })
     .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime());
-    
+
   const expired = products.filter((p) => new Date(p.expiry).getTime() < Date.now());
 
   // Last 14 days revenue trend for the dashboard graph
@@ -188,7 +193,9 @@ function DashboardPage() {
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link to="/inventory" search={{ add: 1 }}>Add product</Link>
+            <Link to="/inventory" search={{ add: 1 }}>
+              Add product
+            </Link>
           </Button>
           <Button asChild className="shadow-soft">
             <Link to="/sell">
@@ -200,22 +207,21 @@ function DashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((s, i) => (
-          <Link
-            key={s.label}
-            to={s.to}
-            search={s.search ?? {}}
-            className="block group"
-          >
+          <Link key={s.label} to={s.to} search={s.search ?? {}} className="block group">
             <Card
               className="shadow-soft border-border/60 animate-fade-in transition-smooth hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer h-full"
               style={{ animationDelay: `${i * 60}ms` }}
             >
               <CardContent className="p-5">
-                <div className={`inline-flex h-10 w-10 rounded-xl items-center justify-center ${s.tint}`}>
+                <div
+                  className={`inline-flex h-10 w-10 rounded-xl items-center justify-center ${s.tint}`}
+                >
                   <s.icon className="h-5 w-5" />
                 </div>
                 <div className="mt-4 text-2xl font-semibold">{s.value}</div>
-                <div className="text-xs text-muted-foreground mt-1 group-hover:text-foreground transition-smooth">{s.label}</div>
+                <div className="text-xs text-muted-foreground mt-1 group-hover:text-foreground transition-smooth">
+                  {s.label}
+                </div>
               </CardContent>
             </Card>
           </Link>
@@ -238,9 +244,7 @@ function DashboardPage() {
                 : "bg-destructive/10 text-destructive")
             }
           >
-            <TrendingUp
-              className={"h-3.5 w-3.5 " + (trendDelta < 0 ? "rotate-180" : "")}
-            />
+            <TrendingUp className={"h-3.5 w-3.5 " + (trendDelta < 0 ? "rotate-180" : "")} />
             {trendDelta >= 0 ? "+" : ""}
             {trendDelta.toFixed(1)}%
           </div>

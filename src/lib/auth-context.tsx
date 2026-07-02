@@ -22,7 +22,13 @@ type AuthCtx = {
   session: Session | null;
   ready: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, pharmacyName?: string) => Promise<void>;
+  signup: (
+    name: string,
+    email: string,
+    password: string,
+    pharmacyName?: string,
+    role?: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -92,10 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         defaultTax: res.user.defaultTax,
       });
     },
-    signup: async (name, email, password, pharmacyName) => {
+    signup: async (name, email, password, pharmacyName, role) => {
       await apiRequest("/auth/signup", {
         method: "POST",
-        body: { name, email, password, pharmacyName },
+        body: { name, email, password, pharmacyName, role },
       });
     },
     logout: async () => {
@@ -130,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     updateSession: (patch: Partial<Session>) => {
       if (session) setSession({ ...session, ...patch });
-    }
+    },
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

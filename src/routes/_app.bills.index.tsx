@@ -1,14 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Banknote,
-  Download,
-  Eye,
-  ReceiptText,
-  Search,
-  Smartphone,
-  CreditCard,
-} from "lucide-react";
+import { Banknote, Download, Eye, ReceiptText, Search, Smartphone, CreditCard } from "lucide-react";
 import { billsStore, type Bill } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -192,12 +184,7 @@ function BillsPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
-      if (
-        tgt &&
-        (tgt.tagName === "INPUT" ||
-          tgt.tagName === "TEXTAREA" ||
-          tgt.isContentEditable)
-      ) {
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
         return;
       }
       if (filtered.length === 0) return;
@@ -301,9 +288,7 @@ function BillsPage() {
           <div className="text-xs text-muted-foreground">
             {filtered.length} bill{filtered.length === 1 ? "" : "s"}
           </div>
-          <div className="text-lg font-semibold tabular-nums">
-            {formatMoney(totalForRange)}
-          </div>
+          <div className="text-lg font-semibold tabular-nums">{formatMoney(totalForRange)}</div>
         </div>
       </Card>
 
@@ -359,14 +344,10 @@ function BillsPage() {
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {new Date(b.createdAt).toLocaleString()}
                   </div>
-                  <div className="text-sm mt-1.5 truncate">
-                    {b.customerName ?? "Walk-in"}
-                  </div>
+                  <div className="text-sm mt-1.5 truncate">{b.customerName ?? "Walk-in"}</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="font-semibold tabular-nums">
-                    {formatMoney(b.total)}
-                  </div>
+                  <div className="font-semibold tabular-nums">{formatMoney(b.total)}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {b.items.length} item{b.items.length === 1 ? "" : "s"}
                   </div>

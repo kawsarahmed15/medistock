@@ -43,7 +43,12 @@ function AdminUsers() {
   };
 
   const deleteUser = async (id: string) => {
-    if (!confirm("Are you sure you want to completely delete this user and all their data? This action cannot be undone.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to completely delete this user and all their data? This action cannot be undone.",
+      )
+    )
+      return;
     try {
       await apiRequest(`/admin/users/${id}`, {
         method: "DELETE",
@@ -68,7 +73,9 @@ function AdminUsers() {
     <div className="space-y-6 max-w-6xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-white">Manage Users</h1>
-        <p className="text-sm text-slate-400">View and manage all registered accounts on the platform.</p>
+        <p className="text-sm text-slate-400">
+          View and manage all registered accounts on the platform.
+        </p>
       </div>
 
       <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900">
@@ -93,16 +100,24 @@ function AdminUsers() {
                   </td>
                   <td className="px-6 py-4">{u.pharmacy_name || "—"}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-[10px] rounded border ${
-                      u.role === "superadmin" ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-slate-800 text-slate-300 border-slate-700"
-                    }`}>
+                    <span
+                      className={`px-2 py-1 text-[10px] rounded border ${
+                        u.role === "superadmin"
+                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                          : "bg-slate-800 text-slate-300 border-slate-700"
+                      }`}
+                    >
                       {u.role}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-[10px] rounded border ${
-                      u.account_status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                    }`}>
+                    <span
+                      className={`px-2 py-1 text-[10px] rounded border ${
+                        u.account_status === "active"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      }`}
+                    >
                       {u.account_status}
                     </span>
                   </td>
@@ -111,15 +126,30 @@ function AdminUsers() {
                   </td>
                   <td className="px-6 py-4 text-right space-x-2">
                     {u.account_status === "active" ? (
-                      <Button variant="outline" size="sm" onClick={() => updateStatus(u.id, "suspended")} className="h-8 border-slate-700 hover:bg-slate-800 text-amber-500 hover:text-amber-400">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateStatus(u.id, "suspended")}
+                        className="h-8 border-slate-700 hover:bg-slate-800 text-amber-500 hover:text-amber-400"
+                      >
                         <Ban className="w-3 h-3 mr-1" /> Suspend
                       </Button>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={() => updateStatus(u.id, "active")} className="h-8 border-slate-700 hover:bg-slate-800 text-emerald-500 hover:text-emerald-400">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateStatus(u.id, "active")}
+                        className="h-8 border-slate-700 hover:bg-slate-800 text-emerald-500 hover:text-emerald-400"
+                      >
                         <ShieldCheck className="w-3 h-3 mr-1" /> Activate
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => deleteUser(u.id)} className="h-8 border-slate-700 hover:bg-slate-800 text-rose-500 hover:text-rose-400">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteUser(u.id)}
+                      className="h-8 border-slate-700 hover:bg-slate-800 text-rose-500 hover:text-rose-400"
+                    >
                       <Trash2 className="w-3 h-3 mr-1" /> Delete
                     </Button>
                   </td>

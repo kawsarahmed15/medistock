@@ -27,7 +27,6 @@ function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      toast.success("Welcome back");
       navigate({ to: "/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
@@ -37,88 +36,81 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen grid md:grid-cols-2 bg-gradient-soft">
-      <div className="hidden md:flex flex-col justify-between p-10 bg-gradient-primary text-primary-foreground">
-        <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
-            <Pill className="h-5 w-5" />
+    <div className="min-h-screen flex bg-background">
+      {/* Left side - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+        <div className="w-full max-w-md space-y-8 animate-scale-in">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight mb-2">Welcome back</h2>
+            <p className="text-muted-foreground">Sign in to continue to your dashboard.</p>
           </div>
-          <span className="font-semibold text-lg">MediStock</span>
+
+          <form onSubmit={onSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-12"
+                  placeholder="john@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-12"
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 text-md shadow-glow transition-smooth"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign in"}
+            </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <Link to="/signup" className="font-semibold text-primary hover:underline">
+                Sign up here
+              </Link>
+            </p>
+          </form>
         </div>
-        <div className="space-y-3 animate-fade-in">
-          <h1 className="text-4xl font-bold leading-tight">
-            Run your pharmacy with calm, modern tools.
-          </h1>
-          <p className="text-primary-foreground/85 max-w-sm">
-            Manage stock, expiries, and instant billing — all from one gentle, focused interface.
-          </p>
-        </div>
-        <p className="text-xs text-primary-foreground/70">
-          © {new Date().getFullYear()} MediStock
-        </p>
       </div>
 
-      <div className="flex items-center justify-center p-6">
-        <form
-          onSubmit={onSubmit}
-          className="w-full max-w-sm space-y-5 animate-scale-in"
-          aria-label="Sign in"
-        >
-          <div className="md:hidden flex items-center gap-2 mb-2">
-            <div className="h-9 w-9 rounded-xl bg-gradient-primary flex items-center justify-center">
-              <Pill className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">MediStock</span>
+      {/* Right side - Image/Branding */}
+      <div className="hidden lg:flex w-1/2 bg-primary/5 relative items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-tl from-primary/20 via-background to-secondary/20"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://images.unsplash.com/photo-1555661530-68c8e98db4e6?auto=format&fit=crop&w=1000&q=80')] bg-cover bg-center opacity-10 mix-blend-luminosity"></div>
+        <div className="relative z-10 max-w-lg p-12 text-center animate-fade-in">
+          <div className="w-20 h-20 bg-primary/10 rounded-3xl mx-auto flex items-center justify-center mb-8 shadow-glow">
+            <Pill className="w-10 h-10 text-primary" />
           </div>
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">Welcome back</h2>
-            <p className="text-sm text-muted-foreground">
-              Sign in to continue to your dashboard.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@pharmacy.com"
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-primary font-medium hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-
-          <Button type="submit" className="w-full shadow-soft" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
-          </Button>
-
-          <p className="text-sm text-center text-muted-foreground">
-            New here?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:underline">
-              Create an account
-            </Link>
+          <h1 className="text-4xl font-bold mb-6 tracking-tight">Your Pharmacy, Elevated.</h1>
+          <p className="text-lg text-muted-foreground">
+            Log in to track your performance, manage stocks, and serve your customers better.
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );

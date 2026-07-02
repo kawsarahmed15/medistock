@@ -8,10 +8,9 @@ const router = Router();
 // Middleware to protect admin routes
 async function requireSuperAdmin(req, res, next) {
   try {
-    const [rows] = await pool.query(
-      "SELECT role, account_status FROM users WHERE id = ?",
-      [req.auth.userId]
-    );
+    const [rows] = await pool.query("SELECT role, account_status FROM users WHERE id = ?", [
+      req.auth.userId,
+    ]);
     const user = rows[0];
 
     if (!user || user.role !== "superadmin") {
@@ -37,7 +36,9 @@ router.get("/metrics", async (req, res, next) => {
     const [userCountRows] = await pool.query("SELECT COUNT(*) as total FROM users");
     const totalUsers = userCountRows[0].total;
 
-    const [activeUserRows] = await pool.query("SELECT COUNT(*) as total FROM users WHERE account_status = 'active'");
+    const [activeUserRows] = await pool.query(
+      "SELECT COUNT(*) as total FROM users WHERE account_status = 'active'",
+    );
     const activeUsers = activeUserRows[0].total;
 
     const [billsCountRows] = await pool.query("SELECT COUNT(*) as total FROM bills");
@@ -51,8 +52,8 @@ router.get("/metrics", async (req, res, next) => {
         totalUsers,
         activeUsers,
         totalBills,
-        totalRevenue
-      }
+        totalRevenue,
+      },
     });
   } catch (error) {
     next(error);
@@ -65,7 +66,7 @@ router.get("/users", async (req, res, next) => {
     const [rows] = await pool.query(
       `SELECT id, name, email, is_verified, created_at, pharmacy_name, gst_number, role, account_status, last_login 
        FROM users 
-       ORDER BY created_at DESC`
+       ORDER BY created_at DESC`,
     );
 
     res.json({ users: rows });
@@ -82,10 +83,7 @@ router.patch("/users/:id/status", async (req, res, next) => {
       throw buildApiError(400, "Invalid status");
     }
 
-    await pool.query(
-      "UPDATE users SET account_status = ? WHERE id = ?",
-      [status, req.params.id]
-    );
+    await pool.query("UPDATE users SET account_status = ? WHERE id = ?", [status, req.params.id]);
 
     res.json({ message: "User status updated successfully" });
   } catch (error) {
@@ -97,11 +95,14 @@ router.patch("/users/:id/status", async (req, res, next) => {
 router.delete("/users/:id", async (req, res, next) => {
   try {
     // Delete user's data first
-    await pool.query("DELETE FROM bill_items WHERE bill_id IN (SELECT id FROM bills WHERE user_id = ?)", [req.params.id]);
+    await pool.query(
+      "DELETE FROM bill_items WHERE bill_id IN (SELECT id FROM bills WHERE user_id = ?)",
+      [req.params.id],
+    );
     await pool.query("DELETE FROM bills WHERE user_id = ?", [req.params.id]);
     await pool.query("DELETE FROM inventory WHERE user_id = ?", [req.params.id]);
     await pool.query("DELETE FROM customers WHERE user_id = ?", [req.params.id]);
-    
+
     // Delete user
     await pool.query("DELETE FROM users WHERE id = ?", [req.params.id]);
 

@@ -14,9 +14,10 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/_app'
-import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
@@ -57,6 +58,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -66,10 +72,10 @@ const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppIndexRoute = AppIndexRouteImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AppRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/users',
@@ -143,8 +149,9 @@ const AppBillsIdRoute = AppBillsIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AppIndexRoute
+  '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -166,7 +173,9 @@ export interface FileRoutesByFullPath {
   '/bills/': typeof AppBillsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -182,15 +191,16 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
-  '/': typeof AppIndexRoute
   '/bills/$id': typeof AppBillsIdRoute
   '/inventory/$id': typeof AppInventoryIdRoute
   '/bills': typeof AppBillsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/admin': typeof AdminRouteWithChildren
+  '/confirm-email': typeof ConfirmEmailRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -207,7 +217,6 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
-  '/_app/': typeof AppIndexRoute
   '/_app/bills/$id': typeof AppBillsIdRoute
   '/_app/inventory_/$id': typeof AppInventoryIdRoute
   '/_app/bills/': typeof AppBillsIndexRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/confirm-email'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -238,7 +248,9 @@ export interface FileRouteTypes {
     | '/bills/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/admin'
+    | '/confirm-email'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -254,14 +266,15 @@ export interface FileRouteTypes {
     | '/settings'
     | '/admin/dashboard'
     | '/admin/users'
-    | '/'
     | '/bills/$id'
     | '/inventory/$id'
     | '/bills'
   id:
     | '__root__'
+    | '/'
     | '/_app'
     | '/admin'
+    | '/confirm-email'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -278,15 +291,16 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/admin/dashboard'
     | '/admin/users'
-    | '/_app/'
     | '/_app/bills/$id'
     | '/_app/inventory_/$id'
     | '/_app/bills/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AdminRoute: typeof AdminRouteWithChildren
+  ConfirmEmailRoute: typeof ConfirmEmailRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -331,6 +345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/confirm-email': {
+      id: '/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof ConfirmEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -345,12 +366,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/': {
-      id: '/_app/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
       id: '/admin/users'
@@ -477,7 +498,6 @@ interface AppRouteChildren {
   AppRevenueRoute: typeof AppRevenueRoute
   AppSellRoute: typeof AppSellRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppIndexRoute: typeof AppIndexRoute
   AppInventoryIdRoute: typeof AppInventoryIdRoute
 }
 
@@ -491,7 +511,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppRevenueRoute: AppRevenueRoute,
   AppSellRoute: AppSellRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppIndexRoute: AppIndexRoute,
   AppInventoryIdRoute: AppInventoryIdRoute,
 }
 
@@ -510,8 +529,10 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AdminRoute: AdminRouteWithChildren,
+  ConfirmEmailRoute: ConfirmEmailRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,

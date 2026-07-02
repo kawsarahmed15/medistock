@@ -30,13 +30,10 @@ function ConfirmEmailPage() {
       }
 
       try {
-        const response = await apiRequest<{ message: string }>(
-          "/auth/confirm-email-change",
-          {
-            method: "POST",
-            body: { token }
-          }
-        );
+        const response = await apiRequest<{ message: string }>("/auth/confirm-email-change", {
+          method: "POST",
+          body: { token },
+        });
         if (!mounted) return;
         setStatus("success");
         setMessage(response.message || "Email confirmed successfully.");
@@ -70,7 +67,9 @@ function ConfirmEmailPage() {
           <div className="space-y-3">
             <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
             <h1 className="text-2xl font-semibold">Email Confirmed</h1>
-            <p className="text-sm text-muted-foreground">{message} Please log in with your new email.</p>
+            <p className="text-sm text-muted-foreground">
+              {message} Please log in with your new email.
+            </p>
             <Button asChild className="w-full shadow-soft">
               <Link to="/login">Continue to sign in</Link>
             </Button>

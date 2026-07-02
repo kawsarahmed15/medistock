@@ -39,7 +39,9 @@ export function DashboardSkeleton() {
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Card className="shadow-soft">
-          <CardHeader><Skeleton className="h-5 w-24" /></CardHeader>
+          <CardHeader>
+            <Skeleton className="h-5 w-24" />
+          </CardHeader>
           <CardContent className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex justify-between items-center">
@@ -53,7 +55,9 @@ export function DashboardSkeleton() {
           </CardContent>
         </Card>
         <Card className="shadow-soft">
-          <CardHeader><Skeleton className="h-5 w-24" /></CardHeader>
+          <CardHeader>
+            <Skeleton className="h-5 w-24" />
+          </CardHeader>
           <CardContent className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex justify-between items-center">
@@ -111,7 +115,7 @@ export function BillDetailSkeleton() {
           <Skeleton className="h-8 w-32" />
         </div>
       </div>
-      
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i} className="shadow-soft p-3 space-y-2">
@@ -156,9 +160,18 @@ export function BillDetailSkeleton() {
         </div>
 
         <div className="sm:ml-auto w-full sm:w-64 space-y-3 pt-4 border-t">
-          <div className="flex justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-24" /></div>
-          <div className="flex justify-between"><Skeleton className="h-4 w-20" /><Skeleton className="h-4 w-24" /></div>
-          <div className="flex justify-between pt-2 border-t"><Skeleton className="h-6 w-24" /><Skeleton className="h-6 w-28" /></div>
+          <div className="flex justify-between">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="flex justify-between">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="flex justify-between pt-2 border-t">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-6 w-28" />
+          </div>
         </div>
       </Card>
     </div>

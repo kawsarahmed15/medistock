@@ -83,7 +83,7 @@ function SellPage() {
     return () => {
       cancelled = true;
     };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.add]);
 
   // Handle Alt+N shortcut via custom event
@@ -233,7 +233,9 @@ function SellPage() {
                 <div className="font-medium flex items-center gap-2">
                   {qtyProduct.name}
                   {qtyProduct.pack && (
-                    <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">{qtyProduct.pack}</span>
+                    <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                      {qtyProduct.pack}
+                    </span>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
@@ -307,10 +309,7 @@ function SellPage() {
         </DialogContent>
       </Dialog>
 
-      <CustomerDetailsDialog 
-        open={customerOpen} 
-        onOpenChange={setCustomerOpen} 
-      />
+      <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
     </div>
   );
 }
