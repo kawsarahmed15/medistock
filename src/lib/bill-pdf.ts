@@ -634,7 +634,23 @@ export async function downloadBillPdf(
 
   if (signature) {
     try {
-      doc.addImage(signature, "PNG", right - 120, sigY - 70, 100, 45);
+      const imgProps = doc.getImageProperties(signature);
+      const imgRatio = imgProps.width / imgProps.height;
+      const maxWidth = 110;
+      const maxHeight = 50;
+
+      let finalWidth = maxWidth;
+      let finalHeight = finalWidth / imgRatio;
+
+      if (finalHeight > maxHeight) {
+        finalHeight = maxHeight;
+        finalWidth = finalHeight * imgRatio;
+      }
+
+      const x = (right - 120) + (110 - finalWidth) / 2;
+      const y = (sigY - 75) + (50 - finalHeight);
+
+      doc.addImage(signature, "PNG", x, y, finalWidth, finalHeight);
     } catch (err) {}
   }
 
