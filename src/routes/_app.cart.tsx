@@ -311,11 +311,14 @@ function CartPage() {
     };
 
     const cartAddHandler = () => setAddOpen(true);
+    const cartCheckoutHandler = () => void checkoutRef.current?.();
     window.addEventListener("keydown", handler);
     window.addEventListener("trigger-cart-add", cartAddHandler);
+    window.addEventListener("trigger-cart-checkout", cartCheckoutHandler);
     return () => {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("trigger-cart-add", cartAddHandler);
+      window.removeEventListener("trigger-cart-checkout", cartCheckoutHandler);
     };
   }, []); // ← empty deps: listener added once, refs always hold latest values
 

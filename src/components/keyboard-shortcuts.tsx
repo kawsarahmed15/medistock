@@ -48,7 +48,6 @@ export function KeyboardShortcuts() {
   const navigate = useNavigate();
   const routerState = useRouterState();
   const cart = useCart();
-  const { session } = useAuth();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -157,37 +156,19 @@ export function KeyboardShortcuts() {
           return;
         case "F9": {
           e.preventDefault();
-          if (cart.items.length === 0) {
-            toast.error("Cart is empty");
-            return;
-          }
-          try {
-            const bill = await billsStore.add({
-              customerName: cart.customer.name || undefined,
-              customerPhone: cart.customer.phone || undefined,
-              customerNotes: cart.customer.notes || undefined,
-              cashier: session?.name,
-              paymentMethod: cart.paymentMethod,
-              items: cart.items.map((i) => ({
-                productId: i.product.id,
-                name: i.product.name,
-                price: i.product.price,
-                costPrice: i.product.costPrice,
-                qty: i.qty,
-                taxPercent: i.product.taxPercent ?? 0,
-              })),
-              subtotal: cart.subtotal,
-              tax: cart.tax,
-              total: cart.total,
+          // Delegate to the cart page's own validated checkout.
+          // If already on cart, dispatch the event; the cart page's stable
+          // keyboard handler calls checkoutRef which has all validation.
+          if (routerState.location.pathname === "/cart") {
+            window.dispatchEvent(new CustomEvent("trigger-cart-checkout"));
+          } else {
+            // Navigate to cart first, then trigger checkout after mount
+            navigate({ to: "/cart" }).then(() => {
+              setTimeout(
+                () => window.dispatchEvent(new CustomEvent("trigger-cart-checkout")),
+                150,
+              );
             });
-            await Promise.all(
-              cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)),
-            );
-            cart.clear();
-            toast.success(`Bill ${bill.number} generated`);
-            navigate({ to: "/bills/$id", params: { id: bill.id } });
-          } catch (err) {
-            toast.error((err as Error).message || "Failed to generate bill");
           }
           return;
         }
