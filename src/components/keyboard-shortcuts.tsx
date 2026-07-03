@@ -22,11 +22,13 @@ const SHORTCUTS = [
   { keys: "F6", label: "Customers" },
   { keys: "F7", label: "Revenue" },
   { keys: "Alt + C", label: "Open cart" },
+  { keys: "Alt + B", label: "Browse & Add Item (on Cart page)" },
   { keys: "Alt + N", label: "New bill (Clear cart)" },
   { keys: "Alt + A", label: "Add new product" },
   { keys: "F9", label: "Checkout (generate bill from cart)" },
+  { keys: "↑ ↓", label: "Navigate products in cart product selector" },
+  { keys: "Enter", label: "Select highlighted product / Open focused bill" },
   { keys: "↑ ↓ / J K", label: "Move between bills (on Bills page)" },
-  { keys: "Enter", label: "Open focused bill" },
   { keys: "D", label: "Download focused bill PDF" },
   { keys: "/", label: "Focus the global search" },
   { keys: "?", label: "Show this cheatsheet" },
@@ -80,6 +82,20 @@ export function KeyboardShortcuts() {
         e.stopPropagation();
         if (routerState.location.pathname !== "/cart") {
           navigate({ to: "/cart" });
+        }
+        return;
+      }
+
+      // Alt+B → Browse & Add Item on cart page
+      if (e.altKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (routerState.location.pathname !== "/cart") {
+          navigate({ to: "/cart" }).then(() => {
+            setTimeout(() => window.dispatchEvent(new CustomEvent("trigger-cart-add")), 100);
+          });
+        } else {
+          window.dispatchEvent(new CustomEvent("trigger-cart-add"));
         }
         return;
       }

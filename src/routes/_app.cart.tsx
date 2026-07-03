@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type FormEvent } from "react";
 import {
   Banknote,
   FileWarning,
@@ -12,6 +12,9 @@ import {
   UserRound,
   Pencil,
   Search,
+  PackagePlus,
+  ScanLine,
+  Keyboard,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +22,17 @@ import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { billsStore, productsStore, type Product } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerDetailsDialog } from "@/components/customer-details-dialog";
+import { Switch } from "@/components/ui/switch";
+import { SkuScanner } from "@/components/sku-scanner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -33,6 +44,56 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "INR" }).format(n);
 }
 
+// ─── Cart Add Dialog – Product Form State ─────────────────────────────────────
+
+type FormState = {
+  name: string;
+  category: string;
+  costPrice: string;
+  price: string;
+  mrp: string;
+  stock: string;
+  stockType: string;
+  stockPacks: string;
+  stockUnits: string;
+  expiry: string;
+  batch: string;
+  manufacturer: string;
+  sku: string;
+  taxPercent: string;
+  prescription: boolean;
+  baseUnit: string;
+  packUnit: string;
+  conversionFactor: string;
+  packPrice: string;
+  packCostPrice: string;
+};
+
+const emptyForm: FormState = {
+  name: "",
+  category: "",
+  costPrice: "",
+  price: "",
+  mrp: "",
+  stock: "",
+  stockType: "other",
+  stockPacks: "",
+  stockUnits: "",
+  expiry: "",
+  batch: "",
+  manufacturer: "",
+  sku: "",
+  taxPercent: "12",
+  prescription: false,
+  baseUnit: "Unit",
+  packUnit: "Pack",
+  conversionFactor: "1",
+  packPrice: "",
+  packCostPrice: "",
+};
+
+// ─── Main Cart Page ───────────────────────────────────────────────────────────
+
 function CartPage() {
   const cart = useCart();
   const { session } = useAuth();
@@ -40,12 +101,48 @@ function CartPage() {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const browseButtonRef = useRef<HTMLButtonElement>(null);
 
   const rxItems = cart.items.filter((i) => i.product.prescription);
   const hasRx = rxItems.length > 0;
   const prescriptionRef = (cart.customer.prescriptionRef ?? "").trim();
   const prescriptionPhoto = (cart.customer.prescriptionPhoto ?? "").trim();
   const rxBlocked = hasRx && !prescriptionRef && !prescriptionPhoto;
+
+  // Cart-page keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isTyping =
+        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
+        (e.target as HTMLElement)?.isContentEditable;
+
+      // Alt+B → Browse & Add Item
+      if (e.altKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        e.stopPropagation();
+        setAddOpen(true);
+        return;
+      }
+
+      // F9 → Generate bill (handled globally too, but also here for focus)
+      if (e.key === "F9" && !isTyping) {
+        e.preventDefault();
+        void checkout();
+        return;
+      }
+    };
+
+    // Also listen for the custom event dispatched from global keyboard-shortcuts.tsx
+    const cartAddHandler = () => setAddOpen(true);
+
+    window.addEventListener("keydown", handler);
+    window.addEventListener("trigger-cart-add", cartAddHandler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("trigger-cart-add", cartAddHandler);
+    };
+  }, [cart.items, submitting]);
 
   const checkout = async () => {
     if (cart.items.length === 0 || submitting) return;
@@ -68,7 +165,6 @@ function CartPage() {
 
     setSubmitting(true);
     try {
-      // Persist Rx info into the bill notes so it appears on invoices.
       const baseNotes = (cart.customer.notes || "").trim();
       const rxParts: string[] = [];
       if (hasRx && prescriptionRef) rxParts.push(`Rx ref: ${prescriptionRef}`);
@@ -103,7 +199,6 @@ function CartPage() {
         tax: cart.tax,
         total: cart.total,
       });
-      // Decrement stock for each line (sequential to keep RLS-safe simple writes)
       await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)));
       cart.clear();
       toast.success(`Bill ${bill.number} generated`);
@@ -129,9 +224,24 @@ function CartPage() {
             Review items, choose payment, and finalize the sale.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link to="/sell">Add more products</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            ref={browseButtonRef}
+            variant="outline"
+            onClick={() => setAddOpen(true)}
+            title="Browse & Add Item (Alt+B)"
+            id="cart-browse-btn"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            Browse &amp; Add Item
+            <kbd className="ml-2 hidden sm:inline-flex items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+              Alt+B
+            </kbd>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/sell">Sell page</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-6">
@@ -145,9 +255,12 @@ function CartPage() {
             {cart.items.length === 0 ? (
               <div className="text-center py-12 space-y-3">
                 <p className="text-sm text-muted-foreground">Your cart is empty.</p>
-                <Button size="sm" onClick={() => setAddOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" /> Browse & Add Item
+                <Button size="sm" onClick={() => setAddOpen(true)} id="cart-browse-empty-btn">
+                  <Plus className="h-4 w-4 mr-2" /> Browse &amp; Add Item
                 </Button>
+                <p className="text-xs text-muted-foreground">
+                  Press <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-semibold">Alt+B</kbd> to open the product selector
+                </p>
               </div>
             ) : (
               <div className="divide-y">
@@ -237,8 +350,13 @@ function CartPage() {
                     className="w-full border-dashed"
                     size="sm"
                     onClick={() => setAddOpen(true)}
+                    id="cart-browse-add-btn"
+                    title="Browse & Add Item (Alt+B)"
                   >
-                    <Plus className="h-4 w-4 mr-2" /> Browse & Add Item
+                    <Plus className="h-4 w-4 mr-2" /> Browse &amp; Add Item
+                    <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                      Alt+B
+                    </kbd>
                   </Button>
                 </div>
               </div>
@@ -448,6 +566,8 @@ function CartPage() {
                 size="lg"
                 onClick={() => void checkout()}
                 disabled={cart.items.length === 0 || submitting || rxBlocked}
+                id="cart-checkout-btn"
+                title="Generate Bill (F9)"
               >
                 {submitting
                   ? "Generating…"
@@ -455,6 +575,9 @@ function CartPage() {
                     ? "Add Rx photo or reference"
                     : "Generate bill"}
               </Button>
+              <p className="text-xs text-center text-muted-foreground">
+                Press <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-semibold">F9</kbd> to generate bill
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -466,6 +589,8 @@ function CartPage() {
   );
 }
 
+// ─── CartAddDialog – Product Selector Modal ───────────────────────────────────
+
 function CartAddDialog({
   open,
   onOpenChange,
@@ -475,18 +600,41 @@ function CartAddDialog({
 }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [query, setQuery] = useState("");
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [addProductOpen, setAddProductOpen] = useState(false);
   const cart = useCart();
+  const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const loadProducts = useCallback(() => {
+    productsStore.list().then(setProducts);
+  }, []);
 
   useEffect(() => {
     if (open) {
-      productsStore.list().then(setProducts);
-    } else {
+      loadProducts();
       setQuery("");
+      setActiveIdx(0);
     }
-  }, [open]);
+  }, [open, loadProducts]);
+
+  // Reset active index when query changes
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [query]);
 
   const filtered = useMemo(
-    () => products.filter((p) => p.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8),
+    () =>
+      products
+        .filter((p) => {
+          const q = query.toLowerCase();
+          return (
+            p.name.toLowerCase().includes(q) ||
+            (p.sku ?? "").toLowerCase().includes(q) ||
+            (p.category ?? "").toLowerCase().includes(q)
+          );
+        })
+        .slice(0, 12),
     [products, query],
   );
 
@@ -496,61 +644,610 @@ function CartAddDialog({
     onOpenChange(false);
   };
 
+  // Scroll active item into view
+  useEffect(() => {
+    if (!listRef.current) return;
+    const items = listRef.current.querySelectorAll<HTMLElement>("[data-product-item]");
+    const el = items[activeIdx];
+    if (el) {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIdx, filtered]);
+
+  // Keyboard navigation inside the dialog
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const p = filtered[activeIdx];
+      if (p && p.stock > 0) onAdd(p);
+    } else if (e.key === "Escape") {
+      onOpenChange(false);
+    }
+  };
+
+  // After add product dialog closes → refresh products list
+  const handleAddProductClose = (open: boolean) => {
+    setAddProductOpen(open);
+    if (!open) {
+      loadProducts();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 overflow-hidden gap-0">
-        <div className="flex items-center px-3 border-b">
-          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-          <Input
-            autoFocus
-            placeholder="Search product to add..."
-            className="border-0 focus-visible:ring-0 shadow-none text-base"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <div className="max-h-[300px] overflow-y-auto p-1">
-          {filtered.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              No matching products found.
-            </div>
-          ) : (
-            filtered.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => p.stock > 0 && onAdd(p)}
-                disabled={p.stock <= 0}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors text-left ${
-                  p.stock > 0
-                    ? "hover:bg-accent hover:text-accent-foreground"
-                    : "opacity-50 cursor-not-allowed"
-                }`}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md p-0 overflow-hidden gap-0" onKeyDown={handleKeyDown}>
+          {/* Header bar */}
+          <div className="flex items-center px-3 border-b">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Input
+              ref={searchRef}
+              autoFocus
+              placeholder="Search product to add…"
+              className="border-0 focus-visible:ring-0 shadow-none text-base"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+
+          {/* Keyboard hint bar */}
+          <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Keyboard className="h-3 w-3" />
+              <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">↑↓</kbd> navigate
+              <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">↵</kbd> select
+              <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">Esc</kbd> close
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[11px] text-primary gap-1"
+              onClick={() => setAddProductOpen(true)}
+              title="Add new product to inventory"
+            >
+              <PackagePlus className="h-3 w-3" />
+              New product
+            </Button>
+          </div>
+
+          {/* Product list */}
+          <div ref={listRef} className="max-h-[340px] overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <div className="p-6 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {query ? `No products matching "${query}"` : "No products in inventory."}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setAddProductOpen(true)}
+                >
+                  <PackagePlus className="h-3.5 w-3.5" />
+                  Add new product
+                </Button>
+              </div>
+            ) : (
+              filtered.map((p, idx) => {
+                const isActive = idx === activeIdx;
+                const outOfStock = p.stock <= 0;
+                return (
+                  <button
+                    key={p.id}
+                    data-product-item
+                    onClick={() => !outOfStock && onAdd(p)}
+                    disabled={outOfStock}
+                    onMouseEnter={() => setActiveIdx(idx)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm transition-colors text-left",
+                      outOfStock
+                        ? "opacity-40 cursor-not-allowed"
+                        : isActive
+                          ? "bg-primary/10 text-primary ring-1 ring-primary/30"
+                          : "hover:bg-accent hover:text-accent-foreground",
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate flex items-center gap-2">
+                        {p.name}
+                        {p.prescription && (
+                          <span className="text-[10px] bg-destructive/10 text-destructive px-1 rounded font-bold shrink-0">
+                            Rx
+                          </span>
+                        )}
+                        {p.pack && (
+                          <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 shrink-0">
+                            {p.pack}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatMoney(p.price)} ·{" "}
+                        <span className={outOfStock ? "text-destructive font-medium" : ""}>
+                          {outOfStock ? "Out of stock" : `${p.stock} in stock`}
+                        </span>
+                        {p.category && ` · ${p.category}`}
+                      </div>
+                    </div>
+                    {isActive && !outOfStock ? (
+                      <span className="text-xs text-primary font-semibold ml-2 shrink-0">↵ Add</span>
+                    ) : (
+                      <Plus className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-3 py-2 border-t bg-muted/30 text-xs text-muted-foreground flex items-center justify-between">
+            <span>{filtered.length} product{filtered.length !== 1 ? "s" : ""} found</span>
+            <span>{products.length} total in inventory</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nested Add Product Dialog */}
+      <AddProductDialog
+        open={addProductOpen}
+        onOpenChange={handleAddProductClose}
+        defaultName={query}
+      />
+    </>
+  );
+}
+
+// ─── Add Product Dialog – Inline inventory form ────────────────────────────────
+
+function AddProductDialog({
+  open,
+  onOpenChange,
+  defaultName = "",
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  defaultName?: string;
+}) {
+  const { session } = useAuth();
+  const defaultTax = session?.defaultTax ?? 12;
+  const [form, setForm] = useState<FormState>({ ...emptyForm, taxPercent: String(defaultTax) });
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [items, setItems] = useState<Product[]>([]);
+  const [recentCategories, setRecentCategories] = useState<string[]>([]);
+  const [recentManufacturers, setRecentManufacturers] = useState<string[]>([]);
+  const [recentHsns, setRecentHsns] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      setForm({ ...emptyForm, taxPercent: String(defaultTax), name: defaultName });
+      productsStore.list().then(setItems);
+      try {
+        setRecentCategories(JSON.parse(localStorage.getItem("recentCategories") || "[]"));
+        setRecentManufacturers(JSON.parse(localStorage.getItem("recentManufacturers") || "[]"));
+        setRecentHsns(JSON.parse(localStorage.getItem("recentHsns") || "[]"));
+      } catch {}
+    }
+  }, [open, defaultTax, defaultName]);
+
+  const saveRecent = (
+    key: string,
+    value: string,
+    current: string[],
+    setter: (v: string[]) => void,
+    limit = 4,
+  ) => {
+    if (!value.trim()) return;
+    const updated = [
+      value.trim(),
+      ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase()),
+    ].slice(0, limit);
+    setter(updated);
+    localStorage.setItem(key, JSON.stringify(updated));
+  };
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    let packValue: string | undefined = undefined;
+    if (form.stockType === "tab" || form.stockType === "cap" || form.stockType === "other") {
+      if (form.stockPacks) packValue = form.stockPacks;
+    } else if (form.stockType === "syp") {
+      if (form.stockPacks) packValue = `${form.stockPacks}ML`;
+    } else if (form.stockType === "inj") {
+      if (form.stockPacks) packValue = `${form.stockPacks}${form.stockUnits || "ML"}`;
+    } else if (form.stockType === "cream") {
+      if (form.stockPacks) packValue = `${form.stockPacks} GM`;
+    } else if (form.stockType === "drop") {
+      if (form.stockPacks) packValue = `${form.stockPacks} ML Drop`;
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      category: form.category.trim() || "General",
+      costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
+      price: Number(form.price),
+      mrp: form.mrp === "" ? undefined : Number(form.mrp),
+      stock: Number(form.stock) || 0,
+      pack: packValue,
+      expiry: (() => {
+        if (!form.expiry) return "";
+        const parts = form.expiry.split("/");
+        if (parts.length === 2) {
+          const month = parseInt(parts[0], 10);
+          const year = 2000 + parseInt(parts[1], 10);
+          const lastDay = new Date(year, month, 0).getDate();
+          return `${year}-${month.toString().padStart(2, "0")}-${lastDay.toString().padStart(2, "0")}`;
+        }
+        return form.expiry;
+      })(),
+      batch: form.batch.trim() || undefined,
+      manufacturer: form.manufacturer.trim() || undefined,
+      sku: form.sku.trim() || undefined,
+      taxPercent: Number(form.taxPercent) || 0,
+      prescription: form.prescription,
+      baseUnit: form.baseUnit.trim() || "Unit",
+      packUnit: form.packUnit.trim() || "Pack",
+      conversionFactor: Number(form.conversionFactor) || 1,
+      packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
+      packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
+    };
+
+    if (
+      !payload.name ||
+      !payload.expiry ||
+      isNaN(payload.price) ||
+      isNaN(payload.stock) ||
+      payload.costPrice === undefined ||
+      isNaN(payload.costPrice)
+    ) {
+      toast.error("Please fill name, buying price, selling price, stock and expiry.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await productsStore.add(payload);
+      toast.success(`${payload.name} added to inventory`);
+      saveRecent("recentCategories", payload.category, recentCategories, setRecentCategories, 4);
+      if (payload.manufacturer)
+        saveRecent("recentManufacturers", payload.manufacturer, recentManufacturers, setRecentManufacturers, 8);
+      if (payload.sku) saveRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to add product");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleScan = (code: string) => {
+    setScannerOpen(false);
+    setForm((f) => ({ ...f, sku: code.trim() }));
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackagePlus className="h-5 w-5 text-primary" />
+              Add new product
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={submit} className="grid grid-cols-2 gap-4">
+            <FieldInline label="Name" className="col-span-2">
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+                autoFocus
+                list="add-product-names"
+                placeholder="Product name"
+              />
+              <datalist id="add-product-names">
+                {Array.from(new Set(items.map((i) => i.name))).map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+            </FieldInline>
+
+            <FieldInline label="Category">
+              <Input
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                placeholder="e.g. Antibiotic"
+                list="add-category-recent"
+              />
+              <datalist id="add-category-recent">
+                {recentCategories.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </FieldInline>
+
+            <FieldInline label="Manufacturer">
+              <Input
+                value={form.manufacturer}
+                onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
+                list="add-manufacturer-recent"
+              />
+              <datalist id="add-manufacturer-recent">
+                {recentManufacturers.map((m) => <option key={m} value={m} />)}
+              </datalist>
+            </FieldInline>
+
+            <FieldInline label="Buying price">
+              <Input
+                type="number"
+                step="0.01"
+                value={form.costPrice}
+                onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                placeholder="Cost per unit"
+                required
+              />
+            </FieldInline>
+
+            <FieldInline label="Selling price">
+              <Input
+                type="number"
+                step="0.01"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                required
+              />
+            </FieldInline>
+
+            <FieldInline label="MRP">
+              <Input
+                type="number"
+                step="0.01"
+                value={form.mrp}
+                onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                placeholder="Printed price"
+              />
+            </FieldInline>
+
+            <FieldInline label="Stock Type">
+              <select
+                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={form.stockType}
+                onChange={(e) => {
+                  const type = e.target.value;
+                  setForm({ ...form, stockType: type, stockPacks: "", stockUnits: type === "inj" ? "ML" : "" });
+                }}
               >
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium truncate flex items-center gap-2">
-                    {p.name}
-                    {p.prescription && (
-                      <span className="text-[10px] bg-destructive/10 text-destructive px-1 rounded font-bold">
-                        Rx
-                      </span>
-                    )}
-                    {p.pack && (
-                      <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-                        {p.pack}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatMoney(p.price)} · {p.stock} in stock
-                  </div>
+                <option value="other">General / Other</option>
+                <option value="tab">Tablet (Tab)</option>
+                <option value="cap">Capsule (Cap)</option>
+                <option value="syp">Syrup (Syp)</option>
+                <option value="inj">Injection (Inj)</option>
+                <option value="cream">Cream</option>
+                <option value="drop">Drop</option>
+              </select>
+            </FieldInline>
+
+            {form.stockType === "other" && (
+              <FieldInline label="Pack Options">
+                <div className="flex items-center gap-2">
+                  <Input
+                    list="add-general-options"
+                    placeholder="e.g. 10X10, ML, GM..."
+                    value={form.stockPacks}
+                    onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                  />
+                  <datalist id="add-general-options">
+                    <option value="10X10" />
+                    <option value="10X1X10" />
+                    <option value="ML" />
+                    <option value="MG" />
+                    <option value="GM" />
+                    <option value="CAP" />
+                  </datalist>
                 </div>
-                <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-              </button>
-            ))
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+              </FieldInline>
+            )}
+
+            {(form.stockType === "tab" || form.stockType === "cap") && (
+              <FieldInline label="Pack Format">
+                <Input
+                  list="add-tab-cap-pack-options"
+                  placeholder="e.g. 10x10, 10X1X10, CAP"
+                  value={form.stockPacks}
+                  onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                  required
+                />
+                <datalist id="add-tab-cap-pack-options">
+                  <option value="10X10" />
+                  <option value="10X1X10" />
+                  <option value="CAP" />
+                </datalist>
+              </FieldInline>
+            )}
+
+            {form.stockType === "syp" && (
+              <FieldInline label="Pack (ML)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="ML Amount"
+                    value={form.stockPacks}
+                    onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                    required
+                  />
+                  <span className="text-muted-foreground text-sm font-medium">ML</span>
+                </div>
+              </FieldInline>
+            )}
+
+            {form.stockType === "inj" && (
+              <FieldInline label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={form.stockPacks}
+                    onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                    required
+                  />
+                  <select
+                    className="flex h-9 w-24 items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    value={form.stockUnits || "ML"}
+                    onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
+                  >
+                    <option value="ML">ML</option>
+                    <option value="MG">MG</option>
+                    <option value="GM">GM</option>
+                  </select>
+                </div>
+              </FieldInline>
+            )}
+
+            {form.stockType === "cream" && (
+              <FieldInline label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={form.stockPacks}
+                    onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                    required
+                  />
+                  <span className="text-muted-foreground text-sm font-medium">GM</span>
+                </div>
+              </FieldInline>
+            )}
+
+            {form.stockType === "drop" && (
+              <FieldInline label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={form.stockPacks}
+                    onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                    required
+                  />
+                  <span className="text-muted-foreground text-sm font-medium">ML</span>
+                </div>
+              </FieldInline>
+            )}
+
+            <FieldInline label="Stock Quantity">
+              <Input
+                type="number"
+                placeholder="Total qty"
+                value={form.stock}
+                onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                required
+              />
+            </FieldInline>
+
+            <FieldInline label="Expiry">
+              <Input
+                type="text"
+                placeholder="MM/YY"
+                maxLength={5}
+                value={form.expiry}
+                onChange={(e) => {
+                  let val = e.target.value.replace(/[^\d/]/g, "");
+                  if (val.length === 2 && form.expiry.length !== 3 && !val.includes("/")) {
+                    val += "/";
+                  }
+                  setForm({ ...form, expiry: val });
+                }}
+                required
+              />
+            </FieldInline>
+
+            <FieldInline label="Tax %">
+              <Input
+                type="number"
+                value={form.taxPercent}
+                onChange={(e) => setForm({ ...form, taxPercent: e.target.value })}
+              />
+            </FieldInline>
+
+            <FieldInline label="Batch">
+              <Input
+                value={form.batch}
+                onChange={(e) => setForm({ ...form, batch: e.target.value })}
+              />
+            </FieldInline>
+
+            <FieldInline label="HSN Code">
+              <div className="flex gap-2">
+                <Input
+                  value={form.sku}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                  placeholder="Type or scan"
+                  list="add-hsn-recent"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setScannerOpen(true)}
+                  title="Scan barcode"
+                >
+                  <ScanLine className="h-4 w-4" />
+                </Button>
+              </div>
+              <datalist id="add-hsn-recent">
+                {recentHsns.map((h) => <option key={h} value={h} />)}
+              </datalist>
+            </FieldInline>
+
+            <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <div className="text-sm font-medium">Prescription required</div>
+                <div className="text-xs text-muted-foreground">Mark this product as Rx-only.</div>
+              </div>
+              <Switch
+                checked={form.prescription}
+                onCheckedChange={(v) => setForm({ ...form, prescription: v })}
+              />
+            </div>
+
+            <DialogFooter className="col-span-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="shadow-soft" disabled={submitting}>
+                {submitting ? "Adding…" : "Add product"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <SkuScanner open={scannerOpen} onOpenChange={setScannerOpen} onDetected={handleScan} />
+    </>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function FieldInline({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
   );
 }
 
@@ -583,9 +1280,19 @@ function PayChoice({
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function Row({
+  label,
+  value,
+  bold,
+  className,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  className?: string;
+}) {
   return (
-    <div className={`flex justify-between ${bold ? "font-semibold text-base" : ""}`}>
+    <div className={`flex justify-between ${bold ? "font-semibold text-base" : ""} ${className ?? ""}`}>
       <span className={bold ? "" : "text-muted-foreground"}>{label}</span>
       <span className="tabular-nums">{value}</span>
     </div>
