@@ -178,6 +178,28 @@ function CartPage() {
         return;
       }
 
+      // Ctrl+Left / Ctrl+Right: adjust FREE qty of selected row
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey && selectedIdx >= 0) {
+        e.preventDefault();
+        const item = items[selectedIdx];
+        if (!item) return;
+        const current = item.freeQty || 0;
+        if (e.key === "ArrowLeft") {
+          // Decrease free qty (min 0)
+          if (current > 0) {
+            cart.setFreeQty(item.product.id, current - 1);
+          }
+        } else {
+          // Increase free qty (max = total qty)
+          if (current < item.qty) {
+            cart.setFreeQty(item.product.id, current + 1);
+          } else {
+            toast.warning("Free qty cannot exceed total qty");
+          }
+        }
+        return;
+      }
+
       // Left/Right: adjust qty of selected row
       if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && selectedIdx >= 0) {
         e.preventDefault();
@@ -345,7 +367,12 @@ function CartPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">←→</kbd>
-                    change qty
+                    qty
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">Ctrl</kbd>
+                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">←→</kbd>
+                    free qty
                   </span>
                   <span className="flex items-center gap-1">
                     <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">Del</kbd>
@@ -354,6 +381,16 @@ function CartPage() {
                   {selectedIdx >= 0 && (
                     <span className="ml-auto text-primary font-medium">
                       Row {selectedIdx + 1} selected
+                      {cart.items[selectedIdx] && (
+                        <span className="ml-2 text-muted-foreground font-normal">
+                          · qty <span className="font-semibold text-foreground">{cart.items[selectedIdx].qty}</span>
+                          {(cart.items[selectedIdx].freeQty ?? 0) > 0 && (
+                            <span className="ml-1 text-primary font-semibold">
+                              ({cart.items[selectedIdx].freeQty} free)
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>

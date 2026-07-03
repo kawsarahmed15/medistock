@@ -28,6 +28,7 @@ const SHORTCUTS = [
   { keys: "F9", label: "Checkout (generate bill from cart)" },
   { keys: "↑ ↓  (Cart items)", label: "Select previous / next cart item row" },
   { keys: "← →  (Cart items)", label: "Decrease / increase qty of selected row" },
+  { keys: "Ctrl+←→ (Cart items)", label: "Decrease / increase free qty of selected row" },
   { keys: "Del  (Cart items)", label: "Open remove-item confirmation for selected row" },
   { keys: "Enter (in confirm)", label: "Confirm remove / select highlighted product" },
   { keys: "↑ ↓ / J K", label: "Move between bills (on Bills page)" },
