@@ -131,113 +131,20 @@ function CartPage() {
     }
   }, [selectedIdx]);
 
-  // Cart-page keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      const isTyping =
-        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
-        (e.target as HTMLElement)?.isContentEditable;
+  // ── Refs to keep stable handler closure with always-fresh values ────────────
+  const selectedIdxRef = useRef(selectedIdx);
+  const addOpenRef = useRef(addOpen);
+  const customerOpenRef = useRef(customerOpen);
+  const deleteTargetRef = useRef(deleteTarget);
+  const cartRef = useRef(cart);
+  const checkoutRef = useRef<() => Promise<void>>();
 
-      // Alt+B → Browse & Add Item (always)
-      if (e.altKey && e.key.toLowerCase() === "b") {
-        e.preventDefault();
-        e.stopPropagation();
-        setAddOpen(true);
-        return;
-      }
-
-      // F9 → Generate bill
-      if (e.key === "F9" && !isTyping) {
-        e.preventDefault();
-        void checkout();
-        return;
-      }
-
-      // ── Item list navigation (only when not typing, no modal open) ──────
-      if (isTyping || addOpen || customerOpen || deleteTarget !== null) return;
-
-      const items = cart.items;
-      if (items.length === 0) return;
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIdx((prev) => {
-          const next = prev < items.length - 1 ? prev + 1 : 0;
-          return next;
-        });
-        return;
-      }
-
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIdx((prev) => {
-          const next = prev > 0 ? prev - 1 : items.length - 1;
-          return next;
-        });
-        return;
-      }
-
-      // Ctrl+Left / Ctrl+Right: adjust FREE qty of selected row
-      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey && selectedIdx >= 0) {
-        e.preventDefault();
-        const item = items[selectedIdx];
-        if (!item) return;
-        const current = item.freeQty || 0;
-        if (e.key === "ArrowLeft") {
-          // Decrease free qty (min 0)
-          if (current > 0) {
-            cart.setFreeQty(item.product.id, current - 1);
-          }
-        } else {
-          // Increase free qty (max = total qty)
-          if (current < item.qty) {
-            cart.setFreeQty(item.product.id, current + 1);
-          } else {
-            toast.warning("Free qty cannot exceed total qty");
-          }
-        }
-        return;
-      }
-
-      // Left/Right: adjust qty of selected row
-      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && selectedIdx >= 0) {
-        e.preventDefault();
-        const item = items[selectedIdx];
-        if (!item) return;
-        if (e.key === "ArrowLeft") {
-          // Decrease qty — setQty(id, 0) removes it via cart logic
-          cart.setQty(item.product.id, item.qty - 1);
-        } else {
-          // Increase qty — cap at stock
-          if (item.qty < item.product.stock) {
-            cart.setQty(item.product.id, item.qty + 1);
-          } else {
-            toast.warning(`Only ${item.product.stock} in stock`);
-          }
-        }
-        return;
-      }
-
-      // Delete / Backspace: open delete confirm for selected row
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedIdx >= 0) {
-        e.preventDefault();
-        const item = items[selectedIdx];
-        if (item) setDeleteTarget(item.product.id);
-        return;
-      }
-    };
-
-    // Listen for the custom event dispatched from global keyboard-shortcuts.tsx
-    const cartAddHandler = () => setAddOpen(true);
-
-    window.addEventListener("keydown", handler);
-    window.addEventListener("trigger-cart-add", cartAddHandler);
-    return () => {
-      window.removeEventListener("keydown", handler);
-      window.removeEventListener("trigger-cart-add", cartAddHandler);
-    };
-  }, [cart.items, cart.setQty, submitting, addOpen, customerOpen, deleteTarget, selectedIdx]);
+  // Keep refs in sync every render (no re-subscription needed)
+  useEffect(() => { selectedIdxRef.current = selectedIdx; });
+  useEffect(() => { addOpenRef.current = addOpen; });
+  useEffect(() => { customerOpenRef.current = customerOpen; });
+  useEffect(() => { deleteTargetRef.current = deleteTarget; });
+  useEffect(() => { cartRef.current = cart; });
 
   const checkout = async () => {
     if (cart.items.length === 0 || submitting) return;
@@ -305,8 +212,116 @@ function CartPage() {
     }
   };
 
+  // Keep checkoutRef in sync so the stable keyboard handler can call it
+  checkoutRef.current = checkout;
+
+  // ── Cart keyboard handler — registered once, reads live values via refs ──────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isTyping =
+        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
+        (e.target as HTMLElement)?.isContentEditable;
+
+      // Alt+B → Browse & Add Item (always)
+      if (e.altKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        e.stopPropagation();
+        setAddOpen(true);
+        return;
+      }
+
+      // F9 → Generate bill
+      if (e.key === "F9" && !isTyping) {
+        e.preventDefault();
+        void checkoutRef.current?.();
+        return;
+      }
+
+      // ── Item list navigation (only when not typing, no modal open) ──────
+      if (
+        isTyping ||
+        addOpenRef.current ||
+        customerOpenRef.current ||
+        deleteTargetRef.current !== null
+      ) return;
+
+      const items = cartRef.current.items;
+      if (items.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev < items.length - 1 ? prev + 1 : 0));
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev > 0 ? prev - 1 : items.length - 1));
+        return;
+      }
+
+      const idx = selectedIdxRef.current;
+
+      // Ctrl+Left / Ctrl+Right: adjust FREE qty of selected row
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey) {
+        e.preventDefault();
+        if (idx < 0) return;
+        const item = items[idx];
+        if (!item) return;
+        const current = item.freeQty || 0;
+        if (e.key === "ArrowLeft") {
+          if (current > 0) cartRef.current.setFreeQty(item.product.id, current - 1);
+        } else {
+          if (current < item.qty) {
+            cartRef.current.setFreeQty(item.product.id, current + 1);
+          } else {
+            toast.warning("Free qty cannot exceed total qty");
+          }
+        }
+        return;
+      }
+
+      // Left/Right: adjust qty of selected row
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        if (idx < 0) return;
+        e.preventDefault();
+        const item = items[idx];
+        if (!item) return;
+        if (e.key === "ArrowLeft") {
+          cartRef.current.setQty(item.product.id, item.qty - 1);
+        } else {
+          if (item.qty < item.product.stock) {
+            cartRef.current.setQty(item.product.id, item.qty + 1);
+          } else {
+            toast.warning(`Only ${item.product.stock} in stock`);
+          }
+        }
+        return;
+      }
+
+      // Delete / Backspace: open delete confirm for selected row
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (idx < 0) return;
+        e.preventDefault();
+        const item = items[idx];
+        if (item) setDeleteTarget(item.product.id);
+        return;
+      }
+    };
+
+    const cartAddHandler = () => setAddOpen(true);
+    window.addEventListener("keydown", handler);
+    window.addEventListener("trigger-cart-add", cartAddHandler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("trigger-cart-add", cartAddHandler);
+    };
+  }, []); // ← empty deps: listener added once, refs always hold latest values
+
   const hasCustomer =
     cart.customer.name.trim() || cart.customer.phone.trim() || cart.customer.notes.trim();
+
 
   return (
     <div className="space-y-6">
