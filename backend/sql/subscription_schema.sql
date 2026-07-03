@@ -56,10 +56,10 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
   CONSTRAINT fk_sp_sub FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Seed default subscription plans
+-- Seed default subscription plans (matching landing page)
 INSERT INTO subscription_plans (id, name, description, price, duration_days, trial_days, features, is_active, sort_order)
 VALUES
-  (UUID(), 'Monthly', 'Full access to MediStock for 30 days', 499.00, 30, 14, '["Unlimited products","Unlimited bills","Customer management","Purchase tracking","Revenue reports","Email support"]', 1, 1),
-  (UUID(), 'Quarterly', 'Full access to MediStock for 90 days', 1299.00, 90, 14, '["Unlimited products","Unlimited bills","Customer management","Purchase tracking","Revenue reports","Priority support","20% savings"]', 1, 2),
-  (UUID(), 'Yearly', 'Full access to MediStock for 365 days', 4499.00, 365, 14, '["Unlimited products","Unlimited bills","Customer management","Purchase tracking","Revenue reports","Priority support","Data export","25% savings"]', 1, 3)
-ON DUPLICATE KEY UPDATE id=id;
+  (UUID(), 'Retailer', 'Perfect for single small pharmacies getting started.', 149.00, 30, 14, '["Up to 5,000 SKUs","1 User Account","Basic Billing","Standard Support"]', 1, 1),
+  (UUID(), 'Wholesaler', 'For growing medical stores with high volume.', 299.00, 30, 7, '["Unlimited SKUs","Up to 5 User Accounts","Advanced Analytics","Batch & Expiry Tracking","Priority 24/7 Support"]', 1, 2),
+  (UUID(), 'Enterprise', 'Multi-store chains requiring maximum control.', 599.00, 30, 14, '["Unlimited Everything","Custom Integrations","Dedicated Account Manager","API Access","99.9% Uptime SLA"]', 1, 3)
+ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description), price=VALUES(price), features=VALUES(features);

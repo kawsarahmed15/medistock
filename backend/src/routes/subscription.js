@@ -196,6 +196,9 @@ router.post("/create-order", requireAuth, async (req, res, next) => {
       subscriptionId: subId,
     });
   } catch (error) {
+    if (error.message) {
+      return next(buildApiError(400, error.message));
+    }
     next(error);
   }
 });
