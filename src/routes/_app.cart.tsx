@@ -103,11 +103,33 @@ function CartPage() {
   const [addOpen, setAddOpen] = useState(false);
   const browseButtonRef = useRef<HTMLButtonElement>(null);
 
+  // ── Cart item keyboard selection state ─────────────────────────────────────
+  const [selectedIdx, setSelectedIdx] = useState<number>(-1);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null); // product id to delete
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const itemsContainerRef = useRef<HTMLDivElement>(null);
+
   const rxItems = cart.items.filter((i) => i.product.prescription);
   const hasRx = rxItems.length > 0;
   const prescriptionRef = (cart.customer.prescriptionRef ?? "").trim();
   const prescriptionPhoto = (cart.customer.prescriptionPhoto ?? "").trim();
   const rxBlocked = hasRx && !prescriptionRef && !prescriptionPhoto;
+
+  // Keep selectedIdx in bounds when items change (e.g. after deletion)
+  useEffect(() => {
+    if (cart.items.length === 0) {
+      setSelectedIdx(-1);
+    } else if (selectedIdx >= cart.items.length) {
+      setSelectedIdx(cart.items.length - 1);
+    }
+  }, [cart.items.length]);
+
+  // Scroll selected row into view
+  useEffect(() => {
+    if (selectedIdx >= 0 && itemRefs.current[selectedIdx]) {
+      itemRefs.current[selectedIdx]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [selectedIdx]);
 
   // Cart-page keyboard shortcuts
   useEffect(() => {
@@ -117,7 +139,7 @@ function CartPage() {
         tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
         (e.target as HTMLElement)?.isContentEditable;
 
-      // Alt+B → Browse & Add Item
+      // Alt+B → Browse & Add Item (always)
       if (e.altKey && e.key.toLowerCase() === "b") {
         e.preventDefault();
         e.stopPropagation();
@@ -125,15 +147,66 @@ function CartPage() {
         return;
       }
 
-      // F9 → Generate bill (handled globally too, but also here for focus)
+      // F9 → Generate bill
       if (e.key === "F9" && !isTyping) {
         e.preventDefault();
         void checkout();
         return;
       }
+
+      // ── Item list navigation (only when not typing, no modal open) ──────
+      if (isTyping || addOpen || customerOpen || deleteTarget !== null) return;
+
+      const items = cart.items;
+      if (items.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIdx((prev) => {
+          const next = prev < items.length - 1 ? prev + 1 : 0;
+          return next;
+        });
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIdx((prev) => {
+          const next = prev > 0 ? prev - 1 : items.length - 1;
+          return next;
+        });
+        return;
+      }
+
+      // Left/Right: adjust qty of selected row
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && selectedIdx >= 0) {
+        e.preventDefault();
+        const item = items[selectedIdx];
+        if (!item) return;
+        if (e.key === "ArrowLeft") {
+          // Decrease qty — setQty(id, 0) removes it via cart logic
+          cart.setQty(item.product.id, item.qty - 1);
+        } else {
+          // Increase qty — cap at stock
+          if (item.qty < item.product.stock) {
+            cart.setQty(item.product.id, item.qty + 1);
+          } else {
+            toast.warning(`Only ${item.product.stock} in stock`);
+          }
+        }
+        return;
+      }
+
+      // Delete / Backspace: open delete confirm for selected row
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedIdx >= 0) {
+        e.preventDefault();
+        const item = items[selectedIdx];
+        if (item) setDeleteTarget(item.product.id);
+        return;
+      }
     };
 
-    // Also listen for the custom event dispatched from global keyboard-shortcuts.tsx
+    // Listen for the custom event dispatched from global keyboard-shortcuts.tsx
     const cartAddHandler = () => setAddOpen(true);
 
     window.addEventListener("keydown", handler);
@@ -142,7 +215,7 @@ function CartPage() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("trigger-cart-add", cartAddHandler);
     };
-  }, [cart.items, submitting]);
+  }, [cart.items, cart.setQty, submitting, addOpen, customerOpen, deleteTarget, selectedIdx]);
 
   const checkout = async () => {
     if (cart.items.length === 0 || submitting) return;
@@ -251,9 +324,9 @@ function CartPage() {
               Items {cart.count > 0 ? `(${cart.count})` : ""}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-0 pb-0">
             {cart.items.length === 0 ? (
-              <div className="text-center py-12 space-y-3">
+              <div className="text-center py-12 space-y-3 px-6">
                 <p className="text-sm text-muted-foreground">Your cart is empty.</p>
                 <Button size="sm" onClick={() => setAddOpen(true)} id="cart-browse-empty-btn">
                   <Plus className="h-4 w-4 mr-2" /> Browse &amp; Add Item
@@ -263,88 +336,147 @@ function CartPage() {
                 </p>
               </div>
             ) : (
-              <div className="divide-y">
-                {cart.items.map((i) => (
-                  <div key={i.product.id} className="flex items-center gap-3 py-3 animate-fade-in">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate flex items-center gap-1.5">
-                        {i.product.name}
-                        {i.product.prescription && (
-                          <span
-                            className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-destructive/10 text-destructive shrink-0"
-                            title="Prescription required"
+              <div>
+                {/* Keyboard hint bar */}
+                <div className="flex items-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">↑↓</kbd>
+                    select row
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">←→</kbd>
+                    change qty
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">Del</kbd>
+                    remove
+                  </span>
+                  {selectedIdx >= 0 && (
+                    <span className="ml-auto text-primary font-medium">
+                      Row {selectedIdx + 1} selected
+                    </span>
+                  )}
+                </div>
+
+                {/* Items list */}
+                <div ref={itemsContainerRef} className="divide-y px-2">
+                  {cart.items.map((i, idx) => {
+                    const isSelected = idx === selectedIdx;
+                    return (
+                      <div
+                        key={i.product.id}
+                        ref={(el) => { itemRefs.current[idx] = el; }}
+                        onClick={() => setSelectedIdx(idx)}
+                        tabIndex={0}
+                        aria-selected={isSelected}
+                        className={cn(
+                          "flex items-center gap-3 py-3 px-2 rounded-lg animate-fade-in cursor-pointer transition-colors outline-none",
+                          isSelected
+                            ? "bg-primary/8 ring-1 ring-primary/30"
+                            : "hover:bg-muted/40",
+                        )}
+                      >
+                        {/* Row selection indicator */}
+                        <div className={cn(
+                          "w-1 self-stretch rounded-full shrink-0 transition-colors",
+                          isSelected ? "bg-primary" : "bg-transparent",
+                        )} />
+
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate flex items-center gap-1.5">
+                            {i.product.name}
+                            {i.product.prescription && (
+                              <span
+                                className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-destructive/10 text-destructive shrink-0"
+                                title="Prescription required"
+                              >
+                                Rx
+                              </span>
+                            )}
+                            {i.product.pack && (
+                              <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                                {i.product.pack}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {i.freeQty && i.freeQty === i.qty ? (
+                              <span className="font-semibold text-primary">Free</span>
+                            ) : (
+                              <>
+                                {formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
+                            <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">
+                              Free
+                            </span>
+                            <select
+                              className="text-xs bg-transparent outline-none cursor-pointer"
+                              value={i.freeQty || 0}
+                              onChange={(e) => cart.setFreeQty(i.product.id, Number(e.target.value))}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {Array.from({ length: i.qty + 1 }, (_, k) => (
+                                <option key={k} value={k}>{k}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty - 1); }}
+                            title="Decrease qty (← when row selected)"
                           >
-                            Rx
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className={cn(
+                            "w-8 text-center text-sm tabular-nums font-semibold transition-colors",
+                            isSelected ? "text-primary" : "",
+                          )}>
+                            {i.qty}
                           </span>
-                        )}
-                        {i.product.pack && (
-                          <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-                            {i.product.pack}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {i.freeQty && i.freeQty === i.qty ? (
-                          <span className="font-semibold text-primary">Free</span>
-                        ) : (
-                          <>
-                            {formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
-                        <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">
-                          Free
-                        </span>
-                        <select
-                          className="text-xs bg-transparent outline-none cursor-pointer"
-                          value={i.freeQty || 0}
-                          onChange={(e) => cart.setFreeQty(i.product.id, Number(e.target.value))}
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty + 1); }}
+                            disabled={i.qty >= i.product.stock}
+                            title="Increase qty (→ when row selected)"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+
+                        <div className="w-24 text-right tabular-nums font-medium">
+                          {i.freeQty === i.qty
+                            ? "₹0.00"
+                            : formatMoney(i.product.price * (i.qty - (i.freeQty || 0)))}
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "h-8 w-8 transition-colors",
+                            isSelected ? "text-destructive hover:bg-destructive/10" : "text-muted-foreground hover:text-destructive",
+                          )}
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(i.product.id); }}
+                          title="Remove item (Del when row selected)"
                         >
-                          {Array.from({ length: i.qty + 1 }, (_, k) => (
-                            <option key={k} value={k}>
-                              {k}
-                            </option>
-                          ))}
-                        </select>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => cart.setQty(i.product.id, i.qty - 1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center text-sm tabular-nums">{i.qty}</span>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => cart.setQty(i.product.id, i.qty + 1)}
-                        disabled={i.qty >= i.product.stock}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="w-24 text-right tabular-nums font-medium">
-                      {i.freeQty === i.qty
-                        ? "₹0.00"
-                        : formatMoney(i.product.price * (i.qty - (i.freeQty || 0)))}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => cart.remove(i.product.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <div className="pt-4 pb-1">
+                    );
+                  })}
+                </div>
+
+                <div className="pt-3 pb-2 px-4">
                   <Button
                     variant="outline"
                     className="w-full border-dashed"
@@ -585,7 +717,105 @@ function CartPage() {
 
       <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
       <CartAddDialog open={addOpen} onOpenChange={setAddOpen} />
+
+      {/* Delete confirmation dialog */}
+      <CartDeleteConfirm
+        productId={deleteTarget}
+        items={cart.items}
+        onConfirm={(id) => {
+          cart.remove(id);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
+  );
+}
+
+// ─── Delete Confirmation Dialog ───────────────────────────────────────────────
+
+function CartDeleteConfirm({
+  productId,
+  items,
+  onConfirm,
+  onCancel,
+}: {
+  productId: string | null;
+  items: Array<{ product: Product; qty: number }>;
+  onConfirm: (id: string) => void;
+  onCancel: () => void;
+}) {
+  const open = productId !== null;
+  const item = items.find((i) => i.product.id === productId);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-focus the confirm button so Enter key works immediately
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => confirmBtnRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  // Handle Enter / Escape on the dialog
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (productId) onConfirm(productId);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, productId, onConfirm, onCancel]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <Trash2 className="h-5 w-5" />
+            Remove from cart?
+          </DialogTitle>
+        </DialogHeader>
+        {item && (
+          <div className="py-2">
+            <p className="text-sm">
+              Remove{" "}
+              <span className="font-semibold">{item.product.name}</span>
+              {item.product.pack && (
+                <span className="ml-1 text-[11px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                  {item.product.pack}
+                </span>
+              )}{" "}
+              (qty&nbsp;<span className="font-semibold">{item.qty}</span>) from the cart?
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              This action cannot be undone. Press{" "}
+              <kbd className="rounded border bg-muted px-1 py-0.5 font-semibold">Enter</kbd> to confirm,{" "}
+              <kbd className="rounded border bg-muted px-1 py-0.5 font-semibold">Esc</kbd> to cancel.
+            </p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            ref={confirmBtnRef}
+            variant="destructive"
+            onClick={() => productId && onConfirm(productId)}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Remove item
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
