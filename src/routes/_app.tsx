@@ -3,6 +3,8 @@ import { useEffect } from "react";
 import { AppShell } from "@/components/app-shell";
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { useAuth } from "@/lib/auth-context";
+import { SubscriptionProvider } from "@/lib/subscription-context";
+import { SubscriptionGuard } from "@/components/subscription-guard";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -27,9 +29,13 @@ function AppLayout() {
   }
 
   return (
-    <AppShell>
-      <Outlet />
-      <KeyboardShortcuts />
-    </AppShell>
+    <SubscriptionProvider>
+      <SubscriptionGuard>
+        <AppShell>
+          <Outlet />
+          <KeyboardShortcuts />
+        </AppShell>
+      </SubscriptionGuard>
+    </SubscriptionProvider>
   );
 }

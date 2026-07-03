@@ -10,5 +10,7 @@ export function errorHandler(err, _req, res, _next) {
   if (status >= 500) {
     console.error(err);
   }
-  res.status(status).json({ message });
+  const body = { message };
+  if (err.code) body.code = err.code;
+  res.status(status).json(body);
 }

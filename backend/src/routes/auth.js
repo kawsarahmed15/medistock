@@ -78,6 +78,26 @@ router.post("/signup", async (req, res, next) => {
       [generateId(), userId, tokenHash],
     );
 
+    // Auto-create trial subscription
+    try {
+      const [planRows] = await pool.query(
+        `SELECT id, trial_days FROM subscription_plans WHERE is_active = 1 ORDER BY sort_order ASC LIMIT 1`,
+      );
+      if (planRows.length > 0) {
+        const plan = planRows[0];
+        const trialDays = plan.trial_days || 14;
+        const now = new Date();
+        const trialEndsAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+        await pool.query(
+          `INSERT INTO subscriptions (id, user_id, plan_id, status, starts_at, ends_at, trial_ends_at)
+           VALUES (?, ?, ?, 'trial', ?, ?, ?)`,
+          [generateId(), userId, plan.id, now, trialEndsAt, trialEndsAt],
+        );
+      }
+    } catch (trialErr) {
+      console.warn("Could not create trial subscription:", trialErr.message);
+    }
+
     const verificationUrl = `${config.appBaseUrl}/verify-email?token=${token}`;
     await sendVerificationEmail({ to: email, name, verificationUrl });
 

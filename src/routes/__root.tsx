@@ -93,6 +93,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <body>
         {children}
         <Scripts />
+        <script src="https://sdk.cashfree.com/js/v3/cashfree.js" />
       </body>
     </html>
   );

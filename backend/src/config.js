@@ -30,4 +30,10 @@ export const config = {
   },
   corsOrigin: process.env.CORS_ORIGIN || "*",
   ssl: false,
+  cashfree: {
+    appId: process.env.CASHFREE_APP_ID || "",
+    secretKey: process.env.CASHFREE_SECRET_KEY || "",
+    env: process.env.CASHFREE_ENV || "sandbox",
+    apiVersion: process.env.CASHFREE_API_VERSION || "2023-08-01",
+  },
 };

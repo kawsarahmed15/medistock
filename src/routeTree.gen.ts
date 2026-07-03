@@ -20,6 +20,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSellRouteImport } from './routes/_app.sell'
 import { Route as AppRevenueRouteImport } from './routes/_app.revenue'
@@ -90,6 +91,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AdminRoute,
+} as any)
+const AppSubscriptionRoute = AppSubscriptionRouteImport.update({
+  id: '/subscription',
+  path: '/subscription',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
@@ -191,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/revenue': typeof AppRevenueRoute
   '/sell': typeof AppSellRoute
   '/settings': typeof AppSettingsRoute
+  '/subscription': typeof AppSubscriptionRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
   '/bills/$id': typeof AppBillsIdRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/revenue': typeof AppRevenueRoute
   '/sell': typeof AppSellRoute
   '/settings': typeof AppSettingsRoute
+  '/subscription': typeof AppSubscriptionRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
   '/bills/$id': typeof AppBillsIdRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/_app/revenue': typeof AppRevenueRoute
   '/_app/sell': typeof AppSellRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/subscription': typeof AppSubscriptionRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
   '/_app/bills/$id': typeof AppBillsIdRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/revenue'
     | '/sell'
     | '/settings'
+    | '/subscription'
     | '/admin/dashboard'
     | '/admin/users'
     | '/bills/$id'
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/revenue'
     | '/sell'
     | '/settings'
+    | '/subscription'
     | '/admin/dashboard'
     | '/admin/users'
     | '/bills/$id'
@@ -332,6 +343,7 @@ export interface FileRouteTypes {
     | '/_app/revenue'
     | '/_app/sell'
     | '/_app/settings'
+    | '/_app/subscription'
     | '/admin/dashboard'
     | '/admin/users'
     | '/_app/bills/$id'
@@ -432,6 +444,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/_app/subscription': {
+      id: '/_app/subscription'
+      path: '/subscription'
+      fullPath: '/subscription'
+      preLoaderRoute: typeof AppSubscriptionRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/settings': {
       id: '/_app/settings'
@@ -589,6 +608,7 @@ interface AppRouteChildren {
   AppRevenueRoute: typeof AppRevenueRoute
   AppSellRoute: typeof AppSellRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppSubscriptionRoute: typeof AppSubscriptionRoute
   AppInventoryIdRoute: typeof AppInventoryIdRoute
 }
 
@@ -603,6 +623,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRevenueRoute: AppRevenueRoute,
   AppSellRoute: AppSellRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppSubscriptionRoute: AppSubscriptionRoute,
   AppInventoryIdRoute: AppInventoryIdRoute,
 }
 

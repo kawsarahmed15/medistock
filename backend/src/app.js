@@ -9,7 +9,10 @@ import { billsRouter } from "./routes/bills.js";
 import { customersRouter } from "./routes/customers.js";
 import { adminRouter } from "./routes/admin.js";
 import { purchasesRouter } from "./routes/purchases.js";
+import { subscriptionRouter } from "./routes/subscription.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
+import { requireAuth } from "./middleware/auth.js";
+import { requireActiveSubscription } from "./middleware/subscription.js";
 
 const app = express();
 
@@ -35,11 +38,12 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authLimiter, authRouter);
-app.use("/api/products", productsRouter);
-app.use("/api/bills", billsRouter);
-app.use("/api/customers", customersRouter);
+app.use("/api/subscription", subscriptionRouter);
+app.use("/api/products", requireAuth, requireActiveSubscription, productsRouter);
+app.use("/api/bills", requireAuth, requireActiveSubscription, billsRouter);
+app.use("/api/customers", requireAuth, requireActiveSubscription, customersRouter);
 app.use("/api/admin", adminRouter);
-app.use("/api/purchases", purchasesRouter);
+app.use("/api/purchases", requireAuth, requireActiveSubscription, purchasesRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
