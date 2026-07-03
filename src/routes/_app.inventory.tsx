@@ -5,6 +5,7 @@ import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye } from "lucid
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { productsStore, type Product } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
