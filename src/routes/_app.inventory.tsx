@@ -795,11 +795,37 @@ function InventoryPage() {
               </TableRow>
             ) : (
               sorted.map((p, idx) => {
-                const lowStock = p.stock <= 10;
+                const now = Date.now();
+                const expTime = new Date(p.expiry).getTime();
+                const daysToExpiry = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
+                
+                const isExpired = daysToExpiry < 0;
+                const isNearExpiryRed = daysToExpiry >= 0 && daysToExpiry <= 30; // 1 month prior
+                const isNearExpiryOrange = daysToExpiry > 30 && daysToExpiry <= 90; // 3 months prior
+
+                const isOutOfStock = p.stock <= 0;
+                const isLowStock = p.stock > 0 && p.stock <= 10;
+
+                // Priority: Red row if Expired, Expiring in 1 month, or Out of stock
+                // Orange row if Expiring in 3 months or Low stock
+                const isRed = isExpired || isNearExpiryRed || isOutOfStock;
+                const isOrange = !isRed && (isNearExpiryOrange || isLowStock);
+
+                let rowBg = "hover:bg-muted/50";
+                if (isRed) {
+                  rowBg = "bg-red-50/50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30";
+                } else if (isOrange) {
+                  rowBg = "bg-amber-50/50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30";
+                }
+
                 return (
                   <TableRow
                     key={p.id}
-                    className="animate-fade-in cursor-pointer hover:bg-muted/50"
+                    className={cn(
+                      "animate-fade-in cursor-pointer transition-colors border-l-2",
+                      rowBg,
+                      isRed ? "border-l-red-500" : isOrange ? "border-l-amber-500" : "border-l-transparent"
+                    )}
                     onClick={() => navigate({ to: "/inventory/$id", params: { id: p.id } })}
                   >
                     <TableCell className="text-center font-medium text-muted-foreground">
@@ -834,16 +860,42 @@ function InventoryPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <span
-                        className={
-                          lowStock
-                            ? "inline-block bg-warning/30 text-warning-foreground px-2 py-0.5 rounded-md text-xs"
-                            : "tabular-nums"
-                        }
+                        className={cn(
+                          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums",
+                          isOutOfStock
+                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                            : isLowStock
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                              : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                        )}
                       >
-                        {p.stock}
+                        {p.stock} {isOutOfStock ? "Out" : isLowStock ? "Low" : ""}
                       </span>
                     </TableCell>
-                    <TableCell>{new Date(p.expiry).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold",
+                          isExpired
+                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                            : isNearExpiryRed
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                              : isNearExpiryOrange
+                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                : "text-muted-foreground"
+                        )}
+                      >
+                        {new Date(p.expiry).toLocaleDateString()}
+                        {isExpired
+                          ? " (Expired)"
+                          : isNearExpiryRed
+                            ? " (<30d)"
+                            : isNearExpiryOrange
+                              ? " (<90d)"
+                              : ""}
+                      </span>
+                    </TableCell>
+
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"

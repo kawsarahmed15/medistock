@@ -1021,7 +1021,32 @@ function CartAddDialog({
             ) : (
               filtered.map((p, idx) => {
                 const isActive = idx === activeIdx;
+                
+                const now = Date.now();
+                const expTime = new Date(p.expiry).getTime();
+                const daysToExpiry = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
+                
+                const isExpired = daysToExpiry < 0;
+                const isNearExpiryRed = daysToExpiry >= 0 && daysToExpiry <= 30;
+                const isNearExpiryOrange = daysToExpiry > 30 && daysToExpiry <= 90;
+
                 const outOfStock = p.stock <= 0;
+                const isLowStock = p.stock > 0 && p.stock <= 10;
+
+                const isRed = isExpired || isNearExpiryRed || outOfStock;
+                const isOrange = !isRed && (isNearExpiryOrange || isLowStock);
+
+                let statusBg = "";
+                let hoverBg = "hover:bg-accent hover:text-accent-foreground";
+                
+                if (isRed) {
+                  statusBg = "bg-red-50/70 dark:bg-red-950/20";
+                  hoverBg = "hover:bg-red-100/70 dark:hover:bg-red-950/35";
+                } else if (isOrange) {
+                  statusBg = "bg-amber-50/70 dark:bg-amber-950/20";
+                  hoverBg = "hover:bg-amber-100/70 dark:hover:bg-amber-950/35";
+                }
+
                 return (
                   <button
                     key={p.id}
@@ -1030,12 +1055,14 @@ function CartAddDialog({
                     disabled={outOfStock}
                     onMouseEnter={() => setActiveIdx(idx)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm transition-colors text-left",
-                      outOfStock
-                        ? "opacity-40 cursor-not-allowed"
-                        : isActive
-                          ? "bg-primary/10 text-primary ring-1 ring-primary/30"
-                          : "hover:bg-accent hover:text-accent-foreground",
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-md text-sm transition-colors text-left border-l-2",
+                      statusBg,
+                      isActive
+                        ? "bg-primary/10 text-primary ring-1 ring-primary/30 border-l-primary"
+                        : cn(
+                            hoverBg,
+                            isRed ? "border-l-red-500" : isOrange ? "border-l-amber-500" : "border-l-transparent"
+                          )
                     )}
                   >
                     <div className="min-w-0 flex-1">
@@ -1052,12 +1079,30 @@ function CartAddDialog({
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatMoney(p.price)} ·{" "}
-                        <span className={outOfStock ? "text-destructive font-medium" : ""}>
+                      <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span>{formatMoney(p.price)}</span>
+                        <span>·</span>
+                        <span className={cn(
+                          "font-semibold",
+                          outOfStock
+                            ? "text-red-600 dark:text-red-400"
+                            : isLowStock
+                              ? "text-amber-600 dark:text-amber-400"
+                              : ""
+                        )}>
                           {outOfStock ? "Out of stock" : `${p.stock} in stock`}
                         </span>
-                        {p.category && ` · ${p.category}`}
+                        <span>·</span>
+                        <span className={cn(
+                          isExpired || isNearExpiryRed
+                            ? "text-red-600 dark:text-red-400 font-semibold"
+                            : isNearExpiryOrange
+                              ? "text-amber-600 dark:text-amber-400 font-semibold"
+                              : ""
+                        )}>
+                          Exp: {new Date(p.expiry).toLocaleDateString()}
+                          {isExpired ? " (Expired)" : isNearExpiryRed ? " (<30d)" : isNearExpiryOrange ? " (<90d)" : ""}
+                        </span>
                       </div>
                     </div>
                     {isActive && !outOfStock ? (
@@ -1068,6 +1113,7 @@ function CartAddDialog({
                   </button>
                 );
               })
+
             )}
           </div>
 
