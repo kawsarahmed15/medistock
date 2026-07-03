@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, Printer, Pill } from "lucide-react";
 import QRCode from "react-qr-code";
@@ -67,12 +67,29 @@ function numberToWords(num: number): string {
 
 function BillDetailPage() {
   const { id } = useParams({ from: "/_app/bills/$id" });
+  const navigate = useNavigate();
   const [bill, setBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
 
   const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
   const pharmacyAddress = session?.pharmacyAddress || "123 Health Ave, Medical District, City";
+
+  // Backspace → go back to bills list (guarded when typing)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Backspace") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isTyping =
+        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
+        (e.target as HTMLElement)?.isContentEditable;
+      if (isTyping) return;
+      e.preventDefault();
+      void navigate({ to: "/bills" });
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +178,9 @@ function BillDetailPage() {
         <Button asChild variant="ghost" size="sm">
           <Link to="/bills">
             <ArrowLeft className="h-4 w-4 mr-2" /> All bills
+            <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+              Backspace
+            </kbd>
           </Link>
         </Button>
         <div className="flex gap-2">
