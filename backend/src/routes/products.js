@@ -6,6 +6,136 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 router.use(requireAuth);
 
+// ─── Validation helpers ───────────────────────────────────────────────────────
+
+const FIELD_LIMITS = {
+  name: { max: 255, label: "Product name" },
+  category: { max: 120, label: "Category" },
+  batch: { max: 120, label: "Batch" },
+  manufacturer: { max: 180, label: "Manufacturer" },
+  sku: { max: 120, label: "HSN / SKU code" },
+  pack: { max: 50, label: "Pack" },
+  baseUnit: { max: 50, label: "Base unit" },
+  packUnit: { max: 50, label: "Pack unit" },
+};
+
+/**
+ * Validates a YYYY-MM-DD date string and returns a friendly error if invalid.
+ */
+function validateDate(value, fieldLabel = "Expiry date") {
+  if (!value || typeof value !== "string") {
+    return `${fieldLabel} is required.`;
+  }
+  const parts = value.split("-");
+  if (parts.length !== 3) {
+    return `${fieldLabel} must be in YYYY-MM-DD format (got "${value}").`;
+  }
+  const [y, m, d] = parts.map(Number);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) {
+    return `${fieldLabel} contains non-numeric parts (got "${value}").`;
+  }
+  if (m < 1 || m > 12) {
+    return `${fieldLabel} has an invalid month "${m}" (must be 01–12).`;
+  }
+  if (d < 1 || d > 31) {
+    return `${fieldLabel} has an invalid day "${d}" (must be 01–31).`;
+  }
+  // Use the Date constructor as final check
+  const dt = new Date(value);
+  if (isNaN(dt.getTime()) || dt.getMonth() + 1 !== m) {
+    return `${fieldLabel} "${value}" is not a valid calendar date.`;
+  }
+  return null;
+}
+
+/**
+ * Validates numeric fields and returns a friendly error if out-of-range.
+ */
+function validateNumber(value, fieldLabel, { min = null, max = null, decimals = 2 } = {}) {
+  if (value == null || value === "") return null; // nullable fields are OK
+  const n = Number(value);
+  if (isNaN(n) || !isFinite(n)) {
+    return `${fieldLabel} must be a valid number (got "${value}").`;
+  }
+  if (min !== null && n < min) {
+    return `${fieldLabel} must be at least ${min} (got ${n}).`;
+  }
+  if (max !== null && n > max) {
+    return `${fieldLabel} must be at most ${max} (got ${n}).`;
+  }
+  // Check decimal places for DECIMAL(12,2) → max value = 9999999999.99
+  const maxDecimalVal = 10 ** (12 - decimals) - 0.01;
+  if (Math.abs(n) > maxDecimalVal) {
+    return `${fieldLabel} is too large (max ${maxDecimalVal}).`;
+  }
+  return null;
+}
+
+/**
+ * Validates string field lengths.
+ */
+function validateStringLength(value, fieldLabel, maxLen) {
+  if (!value) return null;
+  const str = String(value);
+  if (str.length > maxLen) {
+    return `${fieldLabel} is too long — max ${maxLen} characters (got ${str.length}).`;
+  }
+  return null;
+}
+
+/**
+ * Run all product field validations and return an array of error messages.
+ */
+function validateProductBody(body, isCreate = false) {
+  const errors = [];
+
+  // Required fields on create
+  if (isCreate) {
+    if (!body.name || !String(body.name).trim()) errors.push("Product name is required.");
+    if (body.price == null || body.price === "") errors.push("Selling price is required.");
+    if (body.costPrice == null || body.costPrice === "") errors.push("Buying price (cost price) is required.");
+    if (body.stock == null || body.stock === "") errors.push("Stock quantity is required.");
+    if (!body.expiry) errors.push("Expiry date is required.");
+  }
+
+  // String length limits
+  for (const [key, { max, label }] of Object.entries(FIELD_LIMITS)) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      const err = validateStringLength(body[key], label, max);
+      if (err) errors.push(err);
+    }
+  }
+
+  // Numeric ranges
+  const numericFields = [
+    { key: "price", label: "Selling price", min: 0 },
+    { key: "costPrice", label: "Buying price", min: 0 },
+    { key: "mrp", label: "MRP", min: 0 },
+    { key: "stock", label: "Stock quantity", min: 0, max: 2147483647, decimals: 0 },
+    { key: "taxPercent", label: "Tax %", min: 0, max: 999.99 },
+    { key: "packPrice", label: "Pack selling price", min: 0 },
+    { key: "packCostPrice", label: "Pack buying price", min: 0 },
+    { key: "conversionFactor", label: "Conversion factor", min: 0.0001 },
+  ];
+
+  for (const { key, label, min, max, decimals } of numericFields) {
+    if (Object.prototype.hasOwnProperty.call(body, key) && body[key] != null && body[key] !== "") {
+      const err = validateNumber(body[key], label, { min, max, decimals: decimals ?? 2 });
+      if (err) errors.push(err);
+    }
+  }
+
+  // Date validation for expiry
+  if (Object.prototype.hasOwnProperty.call(body, "expiry") && body.expiry) {
+    const dateErr = validateDate(String(body.expiry).slice(0, 10), "Expiry date");
+    if (dateErr) errors.push(dateErr);
+  }
+
+  return errors;
+}
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+
 router.get("/", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
@@ -25,6 +155,13 @@ router.get("/", async (req, res, next) => {
 router.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
+
+    // Validate input before touching the DB
+    const validationErrors = validateProductBody(body, true);
+    if (validationErrors.length > 0) {
+      return next(buildApiError(400, validationErrors.join(" | ")));
+    }
+
     const id = generateId();
     await pool.query(
       `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, mrp, pack, batch,
@@ -128,14 +265,12 @@ router.post("/:id/stock", async (req, res, next) => {
 
     const diff = nextStock - currentStock;
 
-    // Update product stock
     await pool.query("UPDATE products SET stock = ? WHERE id = ? AND user_id = ?", [
       nextStock,
       req.params.id,
       req.auth.userId,
     ]);
 
-    // Insert history
     await pool.query(
       `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -152,6 +287,13 @@ router.patch("/:id", async (req, res, next) => {
   try {
     const id = String(req.params.id || "");
     const body = req.body || {};
+
+    // Validate input before touching the DB
+    const validationErrors = validateProductBody(body, false);
+    if (validationErrors.length > 0) {
+      return next(buildApiError(400, validationErrors.join(" | ")));
+    }
+
     const fields = [];
     const values = [];
 
