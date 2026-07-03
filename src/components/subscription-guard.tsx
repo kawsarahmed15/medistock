@@ -152,7 +152,7 @@ function SubscriptionRequiredScreen() {
         return;
       }
 
-      const cashfree = window.Cashfree({ mode: "production" });
+      const cashfree = window.Cashfree({ mode: "sandbox" });
       const result = await cashfree.checkout({
         paymentSessionId: res.paymentSessionId,
         returnUrl: `${window.location.origin}/subscription?order_id=${res.orderId}`,
