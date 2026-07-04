@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import type { PaymentMethod, Product } from "./storage";
 
-export type CartItem = { product: Product; qty: number; freeQty?: number };
+export type CartItem = { product: Product; qty: number; freeQty?: number; customPrice?: number };
 
 export type Customer = {
   name: string;
@@ -29,6 +29,7 @@ type CartCtx = {
   remove: (productId: string) => void;
   setQty: (productId: string, qty: number) => void;
   setFreeQty: (productId: string, freeQty: number) => void;
+  setCustomPrice: (productId: string, price: number) => void;
   clear: () => void;
   subtotal: number;
   tax: number;
@@ -93,6 +94,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       ),
     );
 
+  const setCustomPrice: CartCtx["setCustomPrice"] = (id, price) =>
+    setItems((prev) =>
+      prev.map((i) =>
+        i.product.id === id ? { ...i, customPrice: price } : i,
+      ),
+    );
+
   const clear = () => {
     setItems([]);
     setCustomer(emptyCustomer);
@@ -103,10 +111,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setDiscountType("percentage");
   };
 
-  const subtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * i.product.price, 0);
+  const subtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
   const tax = items.reduce(
     (s, i) =>
-      s + ((i.qty - (i.freeQty || 0)) * i.product.price * (i.product.taxPercent ?? 0)) / 100,
+      s + ((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price) * (i.product.taxPercent ?? 0)) / 100,
     0,
   );
 
@@ -124,6 +132,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         remove,
         setQty,
         setFreeQty,
+        setCustomPrice,
         clear,
         subtotal,
         tax,

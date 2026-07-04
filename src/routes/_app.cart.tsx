@@ -187,7 +187,7 @@ function CartPage() {
           productId: i.product.id,
           name: i.product.name,
           sku: i.product.sku,
-          price: i.product.price,
+          price: i.customPrice ?? i.product.price,
           costPrice: i.product.costPrice,
           qty: i.qty - (i.freeQty || 0),
           freeQty: i.freeQty || 0,
@@ -454,12 +454,43 @@ function CartPage() {
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
                             {i.freeQty && i.freeQty === i.qty ? (
                               <span className="font-semibold text-primary">Free</span>
                             ) : (
                               <>
-                                {formatMoney(i.product.price)} · {i.product.taxPercent ?? 0}% tax
+                                <span className="flex items-center gap-1">
+                                  <span>Price: ₹</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    key={`${i.product.id}-${i.customPrice ?? i.product.price}`}
+                                    className="w-16 h-6 px-1.5 border rounded bg-background text-foreground outline-none font-medium focus:ring-1 focus:ring-primary text-xs"
+                                    defaultValue={i.customPrice !== undefined ? i.customPrice : i.product.price}
+                                    onBlur={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      const cost = i.product.costPrice ?? 0;
+                                      if (isNaN(val) || val <= cost) {
+                                        toast.error(`Price must be higher than buying price (${formatMoney(cost)}). Please fix the price.`);
+                                        e.target.value = String(i.customPrice !== undefined ? i.customPrice : i.product.price);
+                                      } else {
+                                        cart.setCustomPrice(i.product.id, val);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </span>
+                                <span>· {i.product.taxPercent ?? 0}% tax</span>
+                                {i.product.costPrice ? (
+                                  <span className="text-[10px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
+                                    Buying: {formatMoney(i.product.costPrice)}
+                                  </span>
+                                ) : null}
                               </>
                             )}
                           </div>
@@ -511,7 +542,7 @@ function CartPage() {
                         <div className="w-24 text-right tabular-nums font-medium">
                           {i.freeQty === i.qty
                             ? "₹0.00"
-                            : formatMoney(i.product.price * (i.qty - (i.freeQty || 0)))}
+                            : formatMoney((i.customPrice ?? i.product.price) * (i.qty - (i.freeQty || 0)))}
                         </div>
 
                         <Button
