@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { FileWarning, Plus, Search } from "lucide-react";
 import { productsStore, type Product } from "@/lib/storage";
 import { useCart } from "@/lib/cart-context";
@@ -41,6 +41,72 @@ function SellPage() {
   const [qtyValue, setQtyValue] = useState(1);
   const cart = useCart();
   const navigate = useNavigate();
+
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    setFocusedIdx(0);
+  }, [query]);
+
+  useEffect(() => {
+    if (buttonRefs.current[focusedIdx]) {
+      buttonRefs.current[focusedIdx]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [focusedIdx]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (qtyProduct || customerOpen) return;
+
+      const activeEl = document.activeElement;
+      const isSearchFocused = activeEl && activeEl.id === "sell-search-input";
+
+      if (isSearchFocused) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          document.getElementById("sell-search-input")?.blur();
+          setFocusedIdx(0);
+        }
+        return;
+      }
+
+      const colCount = (() => {
+        if (typeof window === "undefined") return 1;
+        const w = window.innerWidth;
+        if (w >= 1280) return 4;
+        if (w >= 1024) return 3;
+        if (w >= 640) return 2;
+        return 1;
+      })();
+
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.min(filtered.length - 1, prev + 1));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.max(0, prev - 1));
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.min(filtered.length - 1, prev + colCount));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIdx((prev) => Math.max(0, prev - colCount));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const p = filtered[focusedIdx];
+        if (p && p.stock > 0) {
+          openQtyPicker(p);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        document.getElementById("sell-search-input")?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [filtered, qtyProduct, customerOpen, focusedIdx]);
 
   const refresh = async () => {
     try {
@@ -170,12 +236,17 @@ function SellPage() {
           {filtered.slice(0, 50).map((p, i) => (
             <button
               key={p.id}
+              ref={(el) => (buttonRefs.current[i] = el)}
               onClick={() => p.stock > 0 && openQtyPicker(p)}
               disabled={p.stock <= 0}
-              className={`text-left rounded-xl border p-4 shadow-soft transition-smooth animate-fade-in ${
+              className={`text-left rounded-xl border p-4 shadow-soft transition-smooth animate-fade-in outline-none ${
                 p.stock > 0
-                  ? "bg-card hover:shadow-glow hover:-translate-y-0.5"
-                  : "bg-muted opacity-50 cursor-not-allowed"
+                  ? `bg-card hover:shadow-glow hover:-translate-y-0.5 ${
+                      focusedIdx === i
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "border-border"
+                    }`
+                  : "bg-muted opacity-50 cursor-not-allowed border-border"
               }`}
               style={{ animationDelay: `${i * 30}ms` }}
             >
