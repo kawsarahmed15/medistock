@@ -1,28 +1,27 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search,
-  ShoppingCart,
-  User,
-  Phone,
-  UserPlus,
-  CreditCard,
+  Banknote,
+  FileWarning,
+  Minus,
   Plus,
+  Smartphone,
+  CreditCard,
+  ShoppingCart,
   Trash2,
-  AlertTriangle,
-  FolderOpen,
-  Save,
-  Printer,
-  History,
-  FileText,
-  ScanLine,
+  UserRound,
+  Pencil,
+  Search,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { billsStore, productsStore, type Product } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CustomerDetailsDialog } from "@/components/customer-details-dialog";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -56,30 +55,10 @@ function CartPage() {
   const [customMrps, setCustomMrps] = useState<Record<string, number>>({});
   const [itemDiscounts, setItemDiscounts] = useState<Record<string, number>>({});
 
-  // Customer Panel inputs
-  const [custName, setCustName] = useState(cart.customer.name || "");
-  const [custPhone, setCustPhone] = useState(cart.customer.phone || "");
-  const [custDoctor, setCustDoctor] = useState("");
-  const [custGst, setCustGst] = useState("");
-  const [custLoyalty, setCustLoyalty] = useState("Regular Member");
-
   // Dialog States
-  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
-  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
-  const [recallOpen, setRecallOpen] = useState(false);
-  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
-
-  // Hold / Recall Bills state (In-memory for POS speed)
-  const [heldBills, setHeldBills] = useState<{ id: string; customerName: string; items: any[]; time: string }[]>([]);
-
-  // Payment Calculation variables
-  const [amountPaid, setAmountPaid] = useState("");
-
-  // Keep customer input fields synced with cart context
-  useEffect(() => {
-    setCustName(cart.customer.name || "");
-    setCustPhone(cart.customer.phone || "");
-  }, [cart.customer.name, cart.customer.phone]);
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   // Load products list on mount
   useEffect(() => {
@@ -99,93 +78,13 @@ function CartPage() {
     ).slice(0, 10);
   }, [products, query]);
 
-  // Handle auto-save of draft every 10 seconds
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (cart.items.length > 0) {
-        localStorage.setItem("medistock_cart_draft", JSON.stringify({
-          items: cart.items,
-          customer: cart.customer,
-          discountValue: cart.discountValue,
-          discountType: cart.discountType,
-          paymentMethod: cart.paymentMethod,
-        }));
-        setDraftSavedAt(new Date().toLocaleTimeString());
-      }
-    }, 10000);
-    return () => clearInterval(timer);
-  }, [cart]);
-
-  // Restore draft if exists
-  useEffect(() => {
-    const draft = localStorage.getItem("medistock_cart_draft");
-    if (draft) {
-      try {
-        const parsed = JSON.parse(draft);
-        if (parsed.items && parsed.items.length > 0 && cart.items.length === 0) {
-          parsed.items.forEach((item: any) => {
-            cart.add(item.product, item.qty);
-            if (item.freeQty) cart.setFreeQty(item.product.id, item.freeQty);
-            if (item.customPrice) cart.setCustomPrice(item.product.id, item.customPrice);
-          });
-          if (parsed.customer) cart.setCustomer(parsed.customer);
-          if (parsed.discountValue) cart.setDiscountValue(parsed.discountValue);
-          if (parsed.discountType) cart.setDiscountType(parsed.discountType);
-          if (parsed.paymentMethod) cart.setPaymentMethod(parsed.paymentMethod);
-          toast.success("Restored previous cart draft");
-        }
-      } catch (e) {
-        console.error("Failed to restore draft", e);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // calculations
-  const totalItemLines = cart.items.length;
-  const totalQty = cart.items.reduce((s, i) => s + i.qty, 0);
-
-  // Subtotal with overrides applied
-  const subtotalWithOverrides = useMemo(() => {
-    return cart.items.reduce((sum, item) => {
-      const price = item.customPrice ?? item.product.price;
-      const billableQty = Math.max(0, item.qty - (item.freeQty || 0));
-      return sum + (price * billableQty);
-    }, 0);
-  }, [cart.items]);
-
-  // GST with overrides
-  const taxWithOverrides = useMemo(() => {
-    return cart.items.reduce((sum, item) => {
-      const price = item.customPrice ?? item.product.price;
-      const billableQty = Math.max(0, item.qty - (item.freeQty || 0));
-      const taxRate = item.product.taxPercent ?? 0;
-      const discount = itemDiscounts[item.product.id] || 0;
-      const discountedPrice = price * (1 - discount / 100);
-      return sum + ((discountedPrice * billableQty * taxRate) / 100);
-    }, 0);
-  }, [cart.items, itemDiscounts]);
-
-  // Item discounts sum
-  const itemDiscountsTotal = useMemo(() => {
-    return cart.items.reduce((sum, item) => {
-      const price = item.customPrice ?? item.product.price;
-      const billableQty = Math.max(0, item.qty - (item.freeQty || 0));
-      const discount = itemDiscounts[item.product.id] || 0;
-      return sum + (price * billableQty * (discount / 100));
-    }, 0);
-  }, [cart.items, itemDiscounts]);
-
-  const grossAmount = subtotalWithOverrides;
-  const discountTotal = cart.discount + itemDiscountsTotal;
-  const rawNetTotal = Math.max(0, grossAmount + taxWithOverrides - discountTotal);
-  const roundedNetTotal = Math.round(rawNetTotal);
-  const roundOffValue = roundedNetTotal - rawNetTotal;
-
-  // Paid and change fields
-  const parsedPaid = parseFloat(amountPaid) || 0;
-  const changeValue = Math.max(0, parsedPaid - roundedNetTotal);
-  const balanceValue = Math.max(0, roundedNetTotal - parsedPaid);
+  // Calculations
+  const hasCustomer = !!(cart.customer.name || cart.customer.phone || cart.customer.address);
+  const rxItems = cart.items.filter((i) => i.product.prescription);
+  const hasRx = rxItems.length > 0;
+  const prescriptionRef = (cart.customer.prescriptionRef ?? "").trim();
+  const prescriptionPhoto = (cart.customer.prescriptionPhoto ?? "").trim();
+  const rxBlocked = hasRx && !prescriptionRef && !prescriptionPhoto;
 
   const confirmAdd = (p: Product) => {
     // Check if expired
@@ -207,7 +106,6 @@ function CartPage() {
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      // SKUs or exact search
       const exactMatch = products.find(p => p.sku === query || p.id === query);
       if (exactMatch) {
         confirmAdd(exactMatch);
@@ -241,58 +139,47 @@ function CartPage() {
     }
   };
 
-  // Hold Bill
-  const handleHoldBill = () => {
-    if (cart.items.length === 0) {
-      toast.error("Cart is empty");
-      return;
-    }
-    const newHold = {
-      id: Math.random().toString(),
-      customerName: custName || "Walk-in Customer",
-      items: [...cart.items],
-      time: new Date().toLocaleTimeString(),
-    };
-    setHeldBills([newHold, ...heldBills]);
-    cart.clear();
-    toast.success("Current bill put on hold");
-  };
-
-  // Recall Bill
-  const handleRecallBill = (bill: any) => {
-    cart.clear();
-    bill.items.forEach((item: any) => {
-      cart.add(item.product, item.qty);
-      if (item.freeQty) cart.setFreeQty(item.product.id, item.freeQty);
-      if (item.customPrice) cart.setCustomPrice(item.product.id, item.customPrice);
-    });
-    setHeldBills(heldBills.filter(b => b.id !== bill.id));
-    setRecallOpen(false);
-    toast.success(`Recalled bill for ${bill.customerName}`);
-  };
+  const [submitting, setSubmitting] = useState(false);
 
   // Save / Print Bill Checkout
-  const checkout = async (shouldPrint = false) => {
-    if (cart.items.length === 0) {
-      toast.error("Cart is empty");
-      return;
-    }
-    if (cart.paymentMethod === "credit" && (!custName.trim() || !custPhone.trim())) {
-      toast.error("Customer details (name & phone) are mandatory for credit sales.");
+  const checkout = async () => {
+    if (cart.items.length === 0 || submitting) return;
+    if (rxBlocked) {
+      toast.error("Prescription reference is required for Rx items. Add it below.");
       return;
     }
 
+    if (cart.customer.name && !cart.customer.phone?.trim()) {
+      toast.error("Phone number is mandatory when adding a customer.");
+      return;
+    }
+    if (
+      cart.paymentMethod === "credit" &&
+      (!cart.customer.name?.trim() || !cart.customer.phone?.trim())
+    ) {
+      toast.error("Customer name and phone number are mandatory for credit payments.");
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const newBill = await billsStore.add({
-        customerName: custName || undefined,
-        customerPhone: custPhone || undefined,
+      const baseNotes = (cart.customer.notes || "").trim();
+      const rxParts: string[] = [];
+      if (hasRx && prescriptionRef) rxParts.push(`Rx ref: ${prescriptionRef}`);
+      if (hasRx && prescriptionPhoto) rxParts.push("Rx photo: attached");
+      const combinedNotes = [baseNotes, ...rxParts].filter(Boolean).join("\n");
+
+      const bill = await billsStore.add({
+        customerName: cart.customer.name || undefined,
+        customerPhone: cart.customer.phone || undefined,
         customerAddress: cart.customer.address || undefined,
-        customerDrugLicNo: custGst || undefined,
-        customerNotes: custDoctor ? `Doctor: ${custDoctor}` : undefined,
+        customerDrugLicNo: cart.customer.drugLicNo || undefined,
+        customerNotes: combinedNotes || undefined,
         cashier: session?.name || "Cashier",
         paymentMethod: cart.paymentMethod,
-        advanceAmount: 0,
-        discount: discountTotal,
+        advanceAmount: cart.advanceAmount,
+        advancePaymentMethod: cart.advanceAmount > 0 ? cart.advancePaymentMethod : undefined,
+        discount: cart.discount,
         items: cart.items.map((i) => ({
           productId: i.product.id,
           name: i.product.name,
@@ -303,28 +190,23 @@ function CartPage() {
           freeQty: i.freeQty || 0,
           taxPercent: i.product.taxPercent ?? 0,
           mrp: customMrps[i.product.id] ?? i.product.mrp ?? i.product.price,
-          batch: customBatches[i.product.id] ?? i.product.batch ?? "BATCH-1",
+          batch: customBatches[i.product.id] ?? i.product.batch ?? i.product.batch,
           pack: i.product.pack,
-          expiry: customExpiries[i.product.id] ?? i.product.expiry ?? "2030-01-01",
+          expiry: customExpiries[i.product.id] ?? i.product.expiry ?? i.product.expiry,
         })),
-        subtotal: subtotalWithOverrides,
-        tax: taxWithOverrides,
-        total: roundedNetTotal,
+        subtotal: cart.subtotal,
+        tax: cart.tax,
+        total: cart.total,
       });
 
-      // Decrement stock
       await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)));
       cart.clear();
-      localStorage.removeItem("medistock_cart_draft");
-      toast.success("Bill generated successfully!");
-
-      if (shouldPrint) {
-        navigate({ to: `/bills/${newBill.id}?print=true` });
-      } else {
-        navigate({ to: `/bills/${newBill.id}` });
-      }
+      toast.success(`Bill ${bill.number} generated`);
+      navigate({ to: `/bills/${bill.id}` });
     } catch (e) {
-      toast.error((e as Error).message || "Failed to save bill");
+      toast.error((e as Error).message || "Failed to generate bill");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -338,35 +220,13 @@ function CartPage() {
 
       if (e.key === "F2") {
         e.preventDefault();
-        setCustomerSearchOpen(true);
-      } else if (e.key === "F3") {
-        e.preventDefault();
-        setNewCustomerOpen(true);
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        handleHoldBill();
-      } else if (e.key === "F5") {
-        e.preventDefault();
-        setRecallOpen(true);
-      } else if (e.key === "F6") {
-        e.preventDefault();
-        document.getElementById("payment-mode-cash")?.focus();
-      } else if (e.key === "F7") {
-        e.preventDefault();
-        document.getElementById("discount-percent-input")?.focus();
-      } else if (e.key === "F8" || (e.ctrlKey && e.key.toLowerCase() === "s")) {
-        e.preventDefault();
-        void checkout(false);
+        setCustomerOpen(true);
       } else if (e.key === "F9") {
         e.preventDefault();
-        void checkout(true);
+        void checkout();
       } else if (e.ctrlKey && e.key.toLowerCase() === "f") {
         e.preventDefault();
         document.getElementById("cart-medicine-search")?.focus();
-      } else if (e.ctrlKey && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        cart.clear();
-        toast.success("Cart cleared");
       }
     };
 
@@ -377,7 +237,7 @@ function CartPage() {
   return (
     <div className="flex flex-col xl:flex-row gap-4 h-[calc(100vh-6rem)] overflow-hidden text-slate-800">
       
-      {/* LEFT COLUMN: Search & Cart Items Grid (70%) */}
+      {/* LEFT COLUMN: Search & Cart Items Table (70%) */}
       <div className="flex-1 flex flex-col gap-3 min-w-0 h-full">
         {/* Search Header Bar */}
         <div className="flex gap-2 items-center bg-white border p-2 rounded-xl shadow-sm relative">
@@ -392,11 +252,6 @@ function CartPage() {
             onKeyDown={handleSearchKeyDown}
             autoFocus
           />
-          {draftSavedAt && (
-            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md font-mono">
-              Draft Saved {draftSavedAt}
-            </span>
-          )}
 
           {/* Instant Search Results Dropdown */}
           {searchResults.length > 0 && (
@@ -407,7 +262,7 @@ function CartPage() {
                   onClick={() => confirmAdd(p)}
                   className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
                     highlightedSearchIdx === idx
-                      ? "bg-[#1A9890]/10 border-l-4 border-[#1A9890]"
+                      ? "bg-primary/10 border-l-4 border-primary"
                       : "hover:bg-slate-50"
                   }`}
                 >
@@ -582,299 +437,461 @@ function CartPage() {
               </tbody>
             </table>
           </div>
-
-          {/* Preset Add Presets & Status */}
-          <div className="bg-slate-50 border-t p-3 flex justify-between items-center text-xs">
-            <div className="flex gap-2">
-              <span className="font-semibold text-slate-600">Quick Presets:</span>
-              <span className="text-slate-500">[F2] Customer Search · [F3] New Customer · [F4] Hold · [F5] Recall · [F8] Save · [F9] Print</span>
-            </div>
-            <div className="font-mono text-slate-500">
-              Lines: {totalItemLines} · Items Qty: {totalQty}
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* RIGHT COLUMN: Customer, Summary, Payment Panel (30%) */}
-      <div className="w-full xl:w-96 flex flex-col gap-3 min-w-[24rem] h-full overflow-y-auto pb-4">
+      {/* RIGHT COLUMN: Old layout card components (30%) */}
+      <div className="w-full xl:w-96 flex flex-col gap-4 min-w-[24rem] h-full overflow-y-auto pb-4">
         
-        {/* Customer Details section */}
-        <div className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-sm text-slate-700 flex items-center gap-1.5">
-              <User className="h-4 w-4 text-[#1A9890]" /> Customer Details
-            </h3>
-            <div className="flex gap-1.5">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-[10px]"
-                onClick={() => setCustomerSearchOpen(true)}
-              >
-                Search [F2]
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-[10px]"
-                onClick={() => setNewCustomerOpen(true)}
-              >
-                New [F3]
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">Name</span>
-              <input
-                type="text"
-                className="w-full px-2.5 py-1.5 border rounded-lg text-xs outline-none bg-slate-50 focus:bg-white"
-                value={custName}
-                onChange={(e) => {
-                  setCustName(e.target.value);
-                  cart.setCustomer({ ...cart.customer, name: e.target.value });
-                }}
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">Mobile Number</span>
-              <input
-                type="text"
-                className="w-full px-2.5 py-1.5 border rounded-lg text-xs outline-none bg-slate-50 focus:bg-white"
-                value={custPhone}
-                onChange={(e) => {
-                  setCustPhone(e.target.value);
-                  cart.setCustomer({ ...cart.customer, phone: e.target.value });
-                }}
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">Doctor</span>
-              <input
-                type="text"
-                className="w-full px-2.5 py-1.5 border rounded-lg text-xs outline-none bg-slate-50 focus:bg-white"
-                placeholder="Prescribing Dr."
-                value={custDoctor}
-                onChange={(e) => setCustDoctor(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">GSTIN (Optional)</span>
-              <input
-                type="text"
-                className="w-full px-2.5 py-1.5 border rounded-lg text-xs outline-none bg-slate-50 focus:bg-white"
-                placeholder="Tax ID"
-                value={custGst}
-                onChange={(e) => setCustGst(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-100 font-medium">
-            Loyalty Tier: <span className="font-bold">{custLoyalty}</span>
-          </div>
-        </div>
-
-        {/* Billing calculations Summary */}
-        <div className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
-          <h3 className="font-bold text-sm text-slate-700 flex items-center gap-1.5">
-            <FileText className="h-4 w-4 text-[#1A9890]" /> Billing Summary
-          </h3>
-          
-          <div className="space-y-2 text-xs font-medium text-slate-600">
-            <div className="flex justify-between">
-              <span>Gross Total ({totalItemLines} items)</span>
-              <span>{formatMoney(grossAmount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>GST Total</span>
-              <span>{formatMoney(taxWithOverrides)}</span>
-            </div>
-            <div className="flex justify-between text-rose-600">
-              <span>Discounts</span>
-              <span>-{formatMoney(discountTotal)}</span>
-            </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Round Off</span>
-              <span>{roundOffValue >= 0 ? "+" : ""}{formatMoney(roundOffValue)}</span>
-            </div>
-            
-            <div className="border-t pt-3 flex justify-between items-end">
-              <span className="font-bold text-slate-700 text-sm">Net Payable</span>
-              <span className="text-2xl font-black text-[#1A9890] tabular-nums">
-                {formatMoney(roundedNetTotal)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment entry section */}
-        <div className="bg-white border rounded-xl shadow-sm p-4 space-y-3">
-          <h3 className="font-bold text-sm text-slate-700 flex items-center gap-1.5">
-            <CreditCard className="h-4 w-4 text-[#1A9890]" /> Payment Details
-          </h3>
-
-          <div className="grid grid-cols-3 gap-1">
-            {["cash", "online", "credit"].map((mode) => (
-              <button
-                key={mode}
-                id={`payment-mode-${mode}`}
-                onClick={() => cart.setPaymentMethod(mode as any)}
-                className={`py-2 text-xs font-bold rounded-lg border uppercase transition-all ${
-                  cart.paymentMethod === mode
-                    ? "bg-[#1A9890] text-white border-[#1A9890] shadow-sm"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-xs pt-1.5">
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">Amount Paid</span>
-              <input
-                type="number"
-                step="0.01"
-                className="w-full px-2.5 py-1.5 border rounded-lg text-sm font-bold text-right outline-none bg-slate-50 focus:bg-white"
-                value={amountPaid}
-                onChange={(e) => setAmountPaid(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-400 font-semibold uppercase">Change / Balance</span>
-              <div className={`w-full px-2.5 py-1.5 border rounded-lg text-sm font-black text-right tabular-nums ${
-                changeValue > 0 ? "text-emerald-600 bg-emerald-50" : "text-rose-600 bg-rose-50"
-              }`}>
-                {changeValue > 0 ? formatMoney(changeValue) : formatMoney(balanceValue)}
+        {/* Customer Info Card */}
+        <Card className="shadow-soft">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <UserRound className="h-4 w-4 text-primary" /> Customer
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCustomerOpen(true)}
+              disabled={cart.items.length === 0}
+            >
+              <Pencil className="h-3.5 w-3.5" /> {hasCustomer ? "Edit" : "Add"}
+            </Button>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {hasCustomer ? (
+              <div className="space-y-1">
+                {cart.customer.name && <div className="font-medium">{cart.customer.name}</div>}
+                {cart.customer.phone && (
+                  <div className="text-muted-foreground">{cart.customer.phone}</div>
+                )}
+                {cart.customer.address && (
+                  <div className="text-muted-foreground whitespace-pre-wrap mt-0.5 leading-snug">
+                    {cart.customer.address}
+                  </div>
+                )}
+                {cart.customer.drugLicNo && (
+                  <div className="text-muted-foreground text-xs mt-0.5">
+                    D.L. No: {cart.customer.drugLicNo}
+                  </div>
+                )}
+                {cart.customer.notes && (
+                  <div className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">
+                    {cart.customer.notes}
+                  </div>
+                )}
               </div>
+            ) : (
+              <p className="text-muted-foreground">Walk-in customer.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment Card */}
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-base">Payment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-2">
+              <PayChoice
+                label="Cash"
+                Icon={Banknote}
+                active={cart.paymentMethod === "cash"}
+                onClick={() => {
+                  cart.setPaymentMethod("cash");
+                  cart.setAdvanceAmount(0);
+                }}
+              />
+              <PayChoice
+                label="Online"
+                Icon={Smartphone}
+                active={cart.paymentMethod === "online"}
+                onClick={() => {
+                  cart.setPaymentMethod("online");
+                  cart.setAdvanceAmount(0);
+                }}
+              />
+              <PayChoice
+                label="Credit"
+                Icon={CreditCard}
+                active={cart.paymentMethod === "credit"}
+                onClick={() => cart.setPaymentMethod("credit")}
+              />
             </div>
-          </div>
-        </div>
 
-        {/* Action Button Panel */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => checkout(false)}
-            className="col-span-2 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
-          >
-            <Save className="h-5 w-5" /> Save Bill [F8]
-          </button>
-          <button
-            onClick={() => checkout(true)}
-            className="py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
-          >
-            <Printer className="h-4 w-4" /> Print [F9]
-          </button>
-          <button
-            onClick={handleHoldBill}
-            className="py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
-          >
-            <History className="h-4 w-4" /> Hold Bill [F4]
-          </button>
-          <button
-            onClick={() => {
-              cart.clear();
-              toast.success("Bill cleared");
-            }}
-            className="col-span-2 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition-all"
-          >
-            Cancel Bill
-          </button>
-        </div>
-
-      </div>
-
-      {/* DIALOG: Recall held bills */}
-      <Dialog open={recallOpen} onOpenChange={setRecallOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5 text-[#1A9890]" /> Recall Held Bills
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {heldBills.map((b) => (
-              <div
-                key={b.id}
-                onClick={() => handleRecallBill(b)}
-                className="p-3 border rounded-xl hover:bg-slate-50 cursor-pointer flex justify-between items-center"
-              >
-                <div>
-                  <div className="font-bold text-slate-800">{b.customerName}</div>
-                  <div className="text-[10px] text-slate-400">{b.time}</div>
+            {cart.paymentMethod === "credit" && (
+              <div className="mt-4 space-y-1.5 animate-fade-in">
+                <Label className="text-xs">Advance Payment (Optional)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    ₹
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={cart.total}
+                    value={cart.advanceAmount || ""}
+                    onChange={(e) => cart.setAdvanceAmount(Number(e.target.value))}
+                    className="pl-7"
+                    placeholder="0.00"
+                  />
                 </div>
-                <span className="text-xs bg-[#1A9890]/10 text-[#1A9890] px-2.5 py-1 rounded-full font-bold">
-                  {b.items.length} items
-                </span>
-              </div>
-            ))}
-            {heldBills.length === 0 && (
-              <div className="text-center py-8 text-slate-400 font-medium text-xs">
-                No bills currently on hold.
+                {cart.advanceAmount > 0 && (
+                  <div className="mt-2 space-y-1 animate-fade-in">
+                    <Label className="text-[11px] text-muted-foreground">Advance Pay Method</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={cart.advancePaymentMethod === "cash" ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1 text-xs py-1 h-8"
+                        onClick={() => cart.setAdvancePaymentMethod("cash")}
+                      >
+                        Cash
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={cart.advancePaymentMethod === "online" ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1 text-xs py-1 h-8"
+                        onClick={() => cart.setAdvancePaymentMethod("online")}
+                      >
+                        Online
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setRecallOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
 
-      {/* DIALOG: Customer Search */}
-      <Dialog open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Search Customers</DialogTitle>
-          </DialogHeader>
-          <div className="p-4 text-center text-xs text-slate-400 font-medium">
-            Type customer name or phone directly in the Customer Details panel for instant billing setup.
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setCustomerSearchOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {/* Discount Card */}
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-base">Discount</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => cart.setDiscountType("percentage")}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
+                  cart.discountType === "percentage"
+                    ? "bg-primary/10 border-primary text-primary shadow-soft"
+                    : "border-border hover:bg-accent/40",
+                )}
+              >
+                % Percentage
+              </button>
+              <button
+                type="button"
+                onClick={() => cart.setDiscountType("flat")}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
+                  cart.discountType === "flat"
+                    ? "bg-primary/10 border-primary text-primary shadow-soft"
+                    : "border-border hover:bg-accent/40",
+                )}
+              >
+                ₹ Flat Amount
+              </button>
+            </div>
 
-      {/* DIALOG: New Customer Details */}
-      <Dialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Customer</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-600">Full Name</span>
-              <Input value={custName} onChange={(e) => setCustName(e.target.value)} />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {cart.discountType === "percentage" ? "%" : "₹"}
+              </span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max={cart.discountType === "percentage" ? 100 : cart.subtotal + cart.tax}
+                value={cart.discountValue || ""}
+                onChange={(e) => cart.setDiscountValue(Number(e.target.value))}
+                className="pl-8"
+                placeholder="0.00"
+              />
             </div>
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-600">Mobile Phone</span>
-              <Input value={custPhone} onChange={(e) => setCustPhone(e.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              {cart.discountType === "percentage"
+                ? "Enter discount percentage to reduce the total bill."
+                : "Enter flat discount amount to reduce the total bill."}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Prescription Card */}
+        {hasRx && (
+          <Card className="shadow-soft border-destructive/40">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                <FileWarning className="h-4 w-4" /> Prescription required
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                This sale contains {rxItems.length} Rx item
+                {rxItems.length === 1 ? "" : "s"}:{" "}
+                <span className="font-medium text-foreground">
+                  {rxItems.map((i) => i.product.name).join(", ")}
+                </span>
+                . Provide the prescription as a photo <em>or</em> reference text to continue.
+              </p>
+              <RxInput
+                refValue={cart.customer.prescriptionRef ?? ""}
+                photoValue={cart.customer.prescriptionPhoto ?? ""}
+                onChange={(patch) => cart.setCustomer({ ...cart.customer, ...patch })}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Summary Card */}
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-base">Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="Subtotal" value={formatMoney(cart.subtotal)} />
+            <Row label="Tax" value={formatMoney(cart.tax)} />
+            {cart.discount > 0 && (
+              <Row
+                label="Discount"
+                value={`-${formatMoney(cart.discount)}`}
+                className="text-emerald-500"
+              />
+            )}
+            <div className="border-t pt-2">
+              <Row label="Total" value={formatMoney(cart.total)} bold />
             </div>
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-600">Doctor</span>
-              <Input value={custDoctor} onChange={(e) => setCustDoctor(e.target.value)} />
-            </div>
-          </div>
-          <DialogFooter>
             <Button
-              className="bg-[#1A9890]"
+              className="w-full shadow-soft mt-3"
+              size="lg"
+              onClick={() => void checkout()}
+              disabled={cart.items.length === 0 || submitting || rxBlocked}
+              id="cart-checkout-btn"
+              title="Generate Bill (F9)"
+            >
+              {submitting
+                ? "Generating…"
+                : rxBlocked
+                  ? "Add Rx photo or reference"
+                  : "Generate bill"}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              Press <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-semibold">F9</kbd> to generate bill
+            </p>
+          </CardContent>
+        </Card>
+
+      </div>
+
+      <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Remove from cart?
+            </DialogTitle>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
               onClick={() => {
-                cart.setCustomer({ name: custName, phone: custPhone, notes: custDoctor });
-                setNewCustomerOpen(false);
-                toast.success("New customer configured");
+                if (deleteTarget) {
+                  cart.remove(deleteTarget);
+                  setDeleteTarget(null);
+                }
               }}
             >
-              Configure Customer
+              Remove
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+    </div>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function PayChoice({
+  label,
+  Icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-sm font-medium transition-smooth",
+        active
+          ? "border-primary bg-primary/10 text-primary shadow-soft"
+          : "border-border hover:border-primary/40 hover:bg-accent/40",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
+
+function Row({
+  label,
+  value,
+  bold,
+  className,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={`flex justify-between ${bold ? "font-semibold text-base" : ""} ${className ?? ""}`}>
+      <span className={bold ? "" : "text-muted-foreground"}>{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function RxInput({
+  refValue,
+  photoValue,
+  onChange,
+}: {
+  refValue: string;
+  photoValue: string;
+  onChange: (patch: { prescriptionRef?: string; prescriptionPhoto?: string }) => void;
+}) {
+  const [tab, setTab] = useState<"text" | "photo">(photoValue ? "photo" : "text");
+
+  const onFile = (file: File | null) => {
+    if (!file) {
+      onChange({ prescriptionPhoto: "" });
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file.");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Image must be under 4 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onChange({ prescriptionPhoto: String(reader.result ?? "") });
+    reader.onerror = () => toast.error("Could not read the file.");
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-1 p-1 bg-muted rounded-lg">
+        <button
+          type="button"
+          onClick={() => setTab("text")}
+          className={cn(
+            "px-3 py-1.5 text-xs font-medium rounded-md transition-smooth",
+            tab === "text"
+              ? "bg-background shadow-soft text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Reference text
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("photo")}
+          className={cn(
+            "px-3 py-1.5 text-xs font-medium rounded-md transition-smooth",
+            tab === "photo"
+              ? "bg-background shadow-soft text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Upload photo
+        </button>
+      </div>
+
+      {tab === "text" ? (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Prescription / Rx reference</Label>
+          <Input
+            placeholder="e.g. Dr. Mehta · RX-2025-0421"
+            value={refValue}
+            onChange={(e) => onChange({ prescriptionRef: e.target.value })}
+          />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Label className="text-xs">Prescription photo</Label>
+          {photoValue ? (
+            <div className="space-y-2">
+              <img
+                src={photoValue}
+                alt="Prescription"
+                className="max-h-40 w-full object-contain rounded-md border bg-muted"
+              />
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+                  />
+                  <span className="block text-center text-xs px-2 py-1.5 rounded-md border cursor-pointer hover:bg-accent">
+                    Replace
+                  </span>
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onChange({ prescriptionPhoto: "" })}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <label className="block">
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+              />
+              <span className="flex flex-col items-center justify-center gap-1 px-3 py-6 rounded-md border-2 border-dashed text-xs text-muted-foreground cursor-pointer hover:bg-accent/40">
+                <span className="font-medium text-foreground">Tap to upload</span>
+                <span>JPG / PNG · under 4 MB</span>
+              </span>
+            </label>
+          )}
+        </div>
+      )}
     </div>
   );
 }
