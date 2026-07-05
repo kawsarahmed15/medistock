@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -94,8 +96,12 @@ function RevenuePage() {
   const [loading, setLoading] = useState(true);
 
   const [payments, setPayments] = useState<
-    { amount: number; method: string; created_at: string }[]
+    { id?: string; amount: number; method: string; created_at: string; customer_name?: string }[]
   >([]);
+
+  const [detailType, setDetailType] = useState<
+    "revenue" | "profit" | "tax" | "cash" | "online" | "credit" | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +199,146 @@ function RevenuePage() {
 
     return { totalRevenue, totalTax, avgBill, profit, cash, online, pendingCredit };
   }, [filteredBills, filteredPayments]);
+
+  const detailData = useMemo(() => {
+    if (!detailType) return [];
+    if (detailType === "revenue") {
+      return filteredBills.map((b) => ({
+        id: b.id,
+        number: b.number,
+        name: b.customerName || "Walk-in Customer",
+        date: new Date(b.createdAt).toLocaleDateString(),
+        amount: (b.subtotal || 0) - (b.discount || 0),
+        detail: `Subtotal: ${formatMoney(b.subtotal || 0)} - Disc: ${formatMoney(b.discount || 0)}`,
+      }));
+    }
+    if (detailType === "profit") {
+      return filteredBills.map((b) => {
+        const rev = (b.subtotal || 0) - (b.discount || 0);
+        const cost = b.items.reduce((s, it) => s + (it.costPrice ?? 0) * (it.qty + (it.freeQty || 0)), 0);
+        const profit = rev - cost;
+        return {
+          id: b.id,
+          number: b.number,
+          name: b.customerName || "Walk-in Customer",
+          date: new Date(b.createdAt).toLocaleDateString(),
+          amount: profit,
+          detail: `Revenue: ${formatMoney(rev)} - Cost: ${formatMoney(cost)}`,
+        };
+      });
+    }
+    if (detailType === "tax") {
+      return filteredBills.filter(b => (b.tax || 0) > 0).map((b) => ({
+        id: b.id,
+        number: b.number,
+        name: b.customerName || "Walk-in Customer",
+        date: new Date(b.createdAt).toLocaleDateString(),
+        amount: b.tax || 0,
+        detail: `Taxable: ${formatMoney(b.subtotal || 0)}`,
+      }));
+    }
+    if (detailType === "cash") {
+      const items: any[] = [];
+      filteredBills.forEach((b) => {
+        if (b.paymentMethod === "cash") {
+          items.push({
+            id: b.id,
+            number: b.number,
+            name: b.customerName || "Walk-in Customer",
+            date: new Date(b.createdAt).toLocaleDateString(),
+            amount: b.total || 0,
+            detail: "Cash Sale",
+          });
+        } else if (b.paymentMethod === "credit" && b.advancePaymentMethod !== "online" && b.advanceAmount > 0) {
+          items.push({
+            id: b.id,
+            number: b.number,
+            name: b.customerName || "Walk-in Customer",
+            date: new Date(b.createdAt).toLocaleDateString(),
+            amount: b.advanceAmount,
+            detail: "Advance (Cash)",
+          });
+        }
+      });
+      filteredPayments.forEach((p) => {
+        if (p.method === "cash") {
+          items.push({
+            id: p.id || Math.random().toString(),
+            number: "PAYMENT",
+            name: p.customer_name || "Customer",
+            date: new Date(p.created_at).toLocaleDateString(),
+            amount: p.amount,
+            detail: "Customer Payment (Cash)",
+          });
+        }
+      });
+      return items;
+    }
+    if (detailType === "online") {
+      const items: any[] = [];
+      filteredBills.forEach((b) => {
+        if (b.paymentMethod === "online") {
+          items.push({
+            id: b.id,
+            number: b.number,
+            name: b.customerName || "Walk-in Customer",
+            date: new Date(b.createdAt).toLocaleDateString(),
+            amount: b.total || 0,
+            detail: "Online Sale",
+          });
+        } else if (b.paymentMethod === "credit" && b.advancePaymentMethod === "online" && b.advanceAmount > 0) {
+          items.push({
+            id: b.id,
+            number: b.number,
+            name: b.customerName || "Walk-in Customer",
+            date: new Date(b.createdAt).toLocaleDateString(),
+            amount: b.advanceAmount,
+            detail: "Advance (Online)",
+          });
+        }
+      });
+      filteredPayments.forEach((p) => {
+        if (p.method === "online") {
+          items.push({
+            id: p.id || Math.random().toString(),
+            number: "PAYMENT",
+            name: p.customer_name || "Customer",
+            date: new Date(p.created_at).toLocaleDateString(),
+            amount: p.amount,
+            detail: "Customer Payment (Online)",
+          });
+        }
+      });
+      return items;
+    }
+    if (detailType === "credit") {
+      const items: any[] = [];
+      filteredBills.forEach((b) => {
+        if (b.paymentMethod === "credit") {
+          items.push({
+            id: b.id,
+            number: b.number,
+            name: b.customerName || "Walk-in Customer",
+            date: new Date(b.createdAt).toLocaleDateString(),
+            amount: (b.total || 0) - (b.advanceAmount || 0),
+            detail: `Total: ${formatMoney(b.total || 0)} (Adv: ${formatMoney(b.advanceAmount || 0)})`,
+          });
+        }
+      });
+      filteredPayments.forEach((p) => {
+        items.push({
+          id: p.id || Math.random().toString(),
+          number: "PAYMENT",
+          name: p.customer_name || "Customer",
+          date: new Date(p.created_at).toLocaleDateString(),
+          amount: -p.amount,
+          detail: `Credit Paid (${p.method})`,
+        });
+      });
+      return items;
+    }
+    return [];
+  }, [detailType, filteredBills, filteredPayments]);
 
   // For "today" we'll render an hourly chart instead of daily.
   const isToday = range === "today";
@@ -404,14 +550,28 @@ function RevenuePage() {
           label="Total revenue"
           value={formatMoney(stats.totalRevenue)}
           icon={IndianRupee}
+          onClick={() => setDetailType("revenue")}
         />
-        <StatCard label="Estimated profit" value={formatMoney(stats.profit)} icon={Wallet} />
-        <StatCard label="Tax collected" value={formatMoney(stats.totalTax)} icon={TrendingUp} />
+        <StatCard
+          label="Estimated profit"
+          value={formatMoney(stats.profit)}
+          icon={Wallet}
+          onClick={() => setDetailType("profit")}
+        />
+        <StatCard
+          label="Tax collected"
+          value={formatMoney(stats.totalTax)}
+          icon={TrendingUp}
+          onClick={() => setDetailType("tax")}
+        />
         <StatCard label="Avg bill value" value={formatMoney(stats.avgBill)} icon={ReceiptText} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="shadow-soft border-l-4 border-l-success">
+        <Card 
+          className="shadow-soft border-l-4 border-l-success cursor-pointer hover:bg-accent/40 transition-colors"
+          onClick={() => setDetailType("cash")}
+        >
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
               Cash collection
@@ -421,7 +581,10 @@ function RevenuePage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="shadow-soft border-l-4 border-l-primary">
+        <Card 
+          className="shadow-soft border-l-4 border-l-primary cursor-pointer hover:bg-accent/40 transition-colors"
+          onClick={() => setDetailType("online")}
+        >
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
               Online collection
@@ -431,7 +594,10 @@ function RevenuePage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="shadow-soft border-l-4 border-l-amber-500">
+        <Card 
+          className="shadow-soft border-l-4 border-l-amber-500 cursor-pointer hover:bg-accent/40 transition-colors"
+          onClick={() => setDetailType("credit")}
+        >
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
               Pending credit
@@ -546,6 +712,49 @@ function RevenuePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!detailType} onOpenChange={(v) => !v && setDetailType(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="capitalize">{detailType} Details</DialogTitle>
+            <DialogDescription>
+              Detailed breakdown of contributing entries.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Bill / Ref</TableHead>
+                <TableHead>Customer/Clinic</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {detailData.map((item, idx) => (
+                <TableRow key={idx}>
+                  <TableCell>{item.date}</TableCell>
+                  <TableCell className="font-mono text-xs">{item.number}</TableCell>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{item.detail}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {formatMoney(item.amount)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {detailData.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    No transactions found in this period.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -554,13 +763,18 @@ function StatCard({
   label,
   value,
   icon: Icon,
+  onClick,
 }: {
   label: string;
   value: string;
   icon: React.ComponentType<{ className?: string }>;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="shadow-soft">
+    <Card 
+      className={`shadow-soft ${onClick ? "cursor-pointer hover:bg-accent/40 transition-colors" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="p-5">
         <div className="inline-flex h-10 w-10 rounded-xl items-center justify-center bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
