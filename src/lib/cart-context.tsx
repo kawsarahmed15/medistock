@@ -43,6 +43,8 @@ type CartCtx = {
   setPaymentMethod: (m: PaymentMethod) => void;
   advanceAmount: number;
   setAdvanceAmount: (a: number) => void;
+  advancePaymentMethod: "cash" | "online";
+  setAdvancePaymentMethod: (m: "cash" | "online") => void;
   discountValue: number;
   setDiscountValue: (d: number) => void;
   discountType: "percentage" | "flat";
@@ -58,6 +60,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [customerSubmitted, setCustomerSubmitted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [advancePaymentMethod, setAdvancePaymentMethod] = useState<"cash" | "online">("cash");
   const [discountValue, setDiscountValue] = useState(0);
   const [discountType, setDiscountType] = useState<"percentage" | "flat">("percentage");
 
@@ -107,6 +110,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCustomerSubmitted(false);
     setPaymentMethod("cash");
     setAdvanceAmount(0);
+    setAdvancePaymentMethod("cash");
     setDiscountValue(0);
     setDiscountType("percentage");
   };
@@ -146,6 +150,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setPaymentMethod,
         advanceAmount,
         setAdvanceAmount,
+        advancePaymentMethod,
+        setAdvancePaymentMethod,
         discountValue,
         setDiscountValue,
         discountType,

@@ -182,6 +182,7 @@ function CartPage() {
         cashier: session?.name,
         paymentMethod: cart.paymentMethod,
         advanceAmount: cart.advanceAmount,
+        advancePaymentMethod: cart.advanceAmount > 0 ? cart.advancePaymentMethod : undefined,
         discount: cart.discount,
         items: cart.items.map((i) => ({
           productId: i.product.id,
@@ -677,6 +678,31 @@ function CartPage() {
                       placeholder="0.00"
                     />
                   </div>
+                  {cart.advanceAmount > 0 && (
+                    <div className="mt-2 space-y-1 animate-fade-in">
+                      <Label className="text-[11px] text-muted-foreground">Advance Pay Method</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={cart.advancePaymentMethod === "cash" ? "default" : "outline"}
+                          size="sm"
+                          className="flex-1 text-xs py-1 h-8"
+                          onClick={() => cart.setAdvancePaymentMethod("cash")}
+                        >
+                          Cash
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={cart.advancePaymentMethod === "online" ? "default" : "outline"}
+                          size="sm"
+                          className="flex-1 text-xs py-1 h-8"
+                          onClick={() => cart.setAdvancePaymentMethod("online")}
+                        >
+                          Online
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -381,11 +381,11 @@ function CreditPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <Badge
+                             <Badge
                               variant="outline"
                               className="text-emerald-600 border-emerald-600/20 bg-emerald-600/10"
                             >
-                              Payment
+                              {h.is_advance ? "Advance" : "Payment"}
                             </Badge>
                             <span className="text-xs text-muted-foreground capitalize">
                               {h.method}

@@ -54,6 +54,7 @@ export type Bill = {
   discount?: number;
   total: number;
   advanceAmount: number;
+  advancePaymentMethod?: "cash" | "online";
   paymentMethod: PaymentMethod;
   createdAt: string;
   cashier?: string;
@@ -131,8 +132,10 @@ type BillRow = {
   cashier: string | null;
   payment_method: PaymentMethod;
   advance_amount: number | string;
+  advance_payment_method?: string | null;
   subtotal: number | string;
   tax: number | string;
+  discount?: number | string;
   total: number | string;
   created_at: string;
 };
@@ -164,6 +167,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     cashier: b.cashier ?? undefined,
     paymentMethod: b.payment_method,
     advanceAmount: Number(b.advance_amount) || 0,
+    advancePaymentMethod: (b.advance_payment_method as any) || undefined,
     subtotal: Number(b.subtotal) || 0,
     tax: Number(b.tax) || 0,
     discount: Number(b.discount) || 0,

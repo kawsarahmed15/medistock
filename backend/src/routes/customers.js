@@ -50,9 +50,12 @@ router.get("/", async (req, res, next) => {
           totalSpent: Number(row.total || 0),
           totalCredit:
             row.payment_method === "credit"
-              ? Number(row.total || 0) - Number(row.advance_amount || 0)
+              ? Number(row.total || 0)
               : 0,
-          totalPaid: 0,
+          totalPaid:
+            row.payment_method === "credit"
+              ? Number(row.advance_amount || 0)
+              : 0,
           balance: 0,
           lastVisit: row.created_at,
         });
@@ -61,7 +64,8 @@ router.get("/", async (req, res, next) => {
         current.visits += 1;
         current.totalSpent += Number(row.total || 0);
         if (row.payment_method === "credit") {
-          current.totalCredit += Number(row.total || 0) - Number(row.advance_amount || 0);
+          current.totalCredit += Number(row.total || 0);
+          current.totalPaid += Number(row.advance_amount || 0);
         }
       }
     }
@@ -140,22 +144,26 @@ router.get("/:phone/credit-history", async (req, res, next) => {
   try {
     const phone = req.params.phone;
 
-    // Get credit bills
+    // Get credit bills (show full total)
     const [bills] = await pool.query(
-      `SELECT id, number, (total - advance_amount) as amount, created_at, 'bill' as type 
+      `SELECT id, number, total as amount, created_at, 'bill' as type 
        FROM bills 
        WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit'
        ORDER BY created_at DESC`,
       [req.auth.userId, phone],
     );
 
-    // Get payments
+    // Get payments (including advance payments)
     const [payments] = await pool.query(
-      `SELECT id, amount, payment_method as method, created_at, 'payment' as type 
+      `SELECT id, amount, payment_method as method, created_at, 'payment' as type, 0 as is_advance
        FROM customer_payments 
        WHERE user_id = ? AND customer_phone = ?
+       UNION ALL
+       SELECT id, advance_amount as amount, advance_payment_method as method, created_at, 'payment' as type, 1 as is_advance
+       FROM bills
+       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit' AND advance_amount > 0
        ORDER BY created_at DESC`,
-      [req.auth.userId, phone],
+      [req.auth.userId, phone, req.auth.userId, phone],
     );
 
     const history = [...bills, ...payments].sort(

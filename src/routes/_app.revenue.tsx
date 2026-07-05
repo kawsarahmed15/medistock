@@ -165,7 +165,7 @@ function RevenuePage() {
           s +
           (b.paymentMethod === "cash"
             ? b.total || 0
-            : b.paymentMethod === "credit"
+            : b.paymentMethod === "credit" && b.advancePaymentMethod !== "online"
               ? b.advanceAmount || 0
               : 0),
         0,
@@ -173,7 +173,16 @@ function RevenuePage() {
       filteredPayments.reduce((s, p) => s + (p.method === "cash" ? Number(p.amount) || 0 : 0), 0);
 
     const online =
-      filteredBills.reduce((s, b) => s + (b.paymentMethod === "online" ? b.total || 0 : 0), 0) +
+      filteredBills.reduce(
+        (s, b) =>
+          s +
+          (b.paymentMethod === "online"
+            ? b.total || 0
+            : b.paymentMethod === "credit" && b.advancePaymentMethod === "online"
+              ? b.advanceAmount || 0
+              : 0),
+        0,
+      ) +
       filteredPayments.reduce((s, p) => s + (p.method === "online" ? Number(p.amount) || 0 : 0), 0);
 
     const pendingCredit =

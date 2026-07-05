@@ -9,7 +9,7 @@ router.use(requireAuth);
 router.get("/", async (req, res, next) => {
   try {
     const [bills] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, cashier, payment_method, advance_amount, subtotal, tax, discount, total, created_at
+      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, created_at
        FROM bills
        WHERE user_id = ?
        ORDER BY created_at DESC
@@ -52,7 +52,7 @@ router.get("/", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes, cashier, payment_method, advance_amount,
+      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes, cashier, payment_method, advance_amount, advance_payment_method,
               subtotal, tax, discount, total, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
@@ -91,8 +91,8 @@ router.post("/", async (req, res, next) => {
       const id = generateId();
       await conn.query(
         `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes,
-             cashier, payment_method, advance_amount, subtotal, tax, discount, total)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           req.auth.userId,
@@ -105,6 +105,7 @@ router.post("/", async (req, res, next) => {
           body.cashier || null,
           ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
           Number(body.advanceAmount || 0),
+          ["cash", "online"].includes(body.advancePaymentMethod) ? body.advancePaymentMethod : "cash",
           Number(body.subtotal || 0),
           Number(body.tax || 0),
           Number(body.discount || 0),
@@ -141,7 +142,7 @@ router.post("/", async (req, res, next) => {
 
     const [rows] = await pool.query(
       `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes, cashier, payment_method,
-              advance_amount, subtotal, tax, discount, total, created_at
+              advance_amount, advance_payment_method, subtotal, tax, discount, total, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
        LIMIT 1`,
