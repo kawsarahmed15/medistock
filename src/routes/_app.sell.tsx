@@ -42,6 +42,16 @@ function SellPage() {
   const cart = useCart();
   const navigate = useNavigate();
 
+  const filtered = useMemo(
+    () =>
+      products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.category.toLowerCase().includes(query.toLowerCase()),
+      ),
+    [products, query],
+  );
+
   const [focusedIdx, setFocusedIdx] = useState(0);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -162,15 +172,6 @@ function SellPage() {
     return () => window.removeEventListener("trigger-new-bill", handler);
   }, []);
 
-  const filtered = useMemo(
-    () =>
-      products.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.category.toLowerCase().includes(query.toLowerCase()),
-      ),
-    [products, query],
-  );
 
   const openQtyPicker = (p: Product) => {
     setQtyProduct(p);
