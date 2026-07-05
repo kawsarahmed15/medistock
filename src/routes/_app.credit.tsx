@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { CreditCard, Search, Phone, History } from "lucide-react";
-import { customersStore, type Customer } from "@/lib/storage";
+import { customersStore, billsStore, type Customer, type Bill } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,24 @@ function CreditPage() {
 
   const [focusedIdx, setFocusedIdx] = useState(0);
   const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
+
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerBills, setCustomerBills] = useState<Bill[]>([]);
+  const [loadingBills, setLoadingBills] = useState(false);
+
+  const viewCustomerDetails = async (c: Customer) => {
+    setSelectedCustomer(c);
+    setLoadingBills(true);
+    try {
+      const allBills = await billsStore.list();
+      const filtered = allBills.filter(b => b.customerPhone === c.phone || (b.customerName && b.customerName.toLowerCase() === c.name.toLowerCase()));
+      setCustomerBills(filtered);
+    } catch (err) {
+      toast.error("Failed to load customer bills");
+    } finally {
+      setLoadingBills(false);
+    }
+  };
 
   const loadData = () => {
     customersStore
@@ -224,7 +242,13 @@ function CreditPage() {
                     focusedIdx === idx ? "bg-muted/50 border-primary/20" : "hover:bg-muted/30"
                   }`}
                 >
-                  <div className="flex-1 min-w-0">
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      viewCustomerDetails(c);
+                    }}
+                  >
                     <div className="font-medium truncate">
                       {c.name || <span className="text-muted-foreground italic">No name</span>}
                     </div>
@@ -410,6 +434,96 @@ function CreditPage() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedCustomer} onOpenChange={(v) => !v && setSelectedCustomer(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Customer Details</DialogTitle>
+            <DialogDescription>
+              Comprehensive summary and purchase history for this customer.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCustomer && (
+            <div className="space-y-6 pt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground block">Customer Name</span>
+                  <span className="font-semibold">{selectedCustomer.name || "N/A"}</span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs text-muted-foreground block">Phone</span>
+                  <span className="font-semibold">{selectedCustomer.phone}</span>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <span className="text-xs text-muted-foreground block">Address</span>
+                  <p className="text-sm bg-muted/30 p-2 rounded border">{selectedCustomer.address || "No address on file."}</p>
+                </div>
+                {selectedCustomer.notes && (
+                  <div className="space-y-1 col-span-2">
+                    <span className="text-xs text-muted-foreground block">Notes</span>
+                    <p className="text-sm bg-amber-500/5 p-2 rounded border border-amber-500/10 text-amber-600/90">{selectedCustomer.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t">
+                <div className="bg-muted/30 p-3 rounded text-center">
+                  <span className="text-[10px] uppercase text-muted-foreground block">Visits</span>
+                  <span className="text-xl font-bold">{selectedCustomer.visits}</span>
+                </div>
+                <div className="bg-muted/30 p-3 rounded text-center">
+                  <span className="text-[10px] uppercase text-muted-foreground block">Total Spent</span>
+                  <span className="text-xl font-bold text-primary">{formatMoney(selectedCustomer.totalSpent)}</span>
+                </div>
+                <div className="bg-muted/30 p-3 rounded text-center">
+                  <span className="text-[10px] uppercase text-muted-foreground block">Total Credit</span>
+                  <span className="text-xl font-bold text-destructive">{formatMoney(selectedCustomer.totalCredit)}</span>
+                </div>
+                <div className="bg-muted/30 p-3 rounded text-center">
+                  <span className="text-[10px] uppercase text-muted-foreground block">Outstanding Bal</span>
+                  <span className={`text-xl font-bold ${selectedCustomer.balance > 0 ? "text-destructive" : "text-emerald-600"}`}>
+                    {formatMoney(selectedCustomer.balance)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <h3 className="font-semibold text-sm">Purchase History / Bills</h3>
+                {loadingBills ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : customerBills.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic py-2">No bills found under this customer's phone/name.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Bill No.</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customerBills.map((b) => (
+                        <TableRow key={b.id}>
+                          <TableCell className="font-mono text-xs">{b.number}</TableCell>
+                          <TableCell>{new Date(b.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell className="capitalize text-xs">{b.paymentMethod}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatMoney(b.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
