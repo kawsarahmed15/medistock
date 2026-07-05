@@ -312,30 +312,35 @@ function RevenuePage() {
       return items;
     }
     if (detailType === "credit") {
-      const items: any[] = [];
+      const customerMap = new Map<string, { name: string; amount: number }>();
       filteredBills.forEach((b) => {
         if (b.paymentMethod === "credit") {
-          items.push({
-            id: b.id,
-            number: b.number,
-            name: b.customerName || "Walk-in Customer",
-            date: new Date(b.createdAt).toLocaleDateString(),
-            amount: (b.total || 0) - (b.advanceAmount || 0),
-            detail: `Total: ${formatMoney(b.total || 0)} (Adv: ${formatMoney(b.advanceAmount || 0)})`,
-          });
+          const name = b.customerName || "Walk-in Customer";
+          const phone = b.customerPhone || "";
+          const key = phone || name.toLowerCase();
+          const existing = customerMap.get(key) || { name, amount: 0 };
+          existing.amount += (b.total || 0) - (b.advanceAmount || 0);
+          customerMap.set(key, existing);
         }
       });
       filteredPayments.forEach((p) => {
-        items.push({
-          id: p.id || Math.random().toString(),
-          number: "PAYMENT",
-          name: p.customer_name || "Customer",
-          date: new Date(p.created_at).toLocaleDateString(),
-          amount: -p.amount,
-          detail: `Credit Paid (${p.method})`,
-        });
+        const name = p.customer_name || "Customer";
+        const phone = p.customer_phone || "";
+        const key = phone || name.toLowerCase();
+        const existing = customerMap.get(key) || { name, amount: 0 };
+        existing.amount -= p.amount || 0;
+        customerMap.set(key, existing);
       });
-      return items;
+      return Array.from(customerMap.values())
+        .filter((c) => Math.abs(c.amount) > 0.01)
+        .map((c) => ({
+          id: c.name,
+          number: "CREDIT",
+          name: c.name,
+          date: "-",
+          amount: c.amount,
+          detail: "Remaining Credit Balance",
+        }));
     }
     return [];
   }, [detailType, filteredBills, filteredPayments]);
@@ -722,37 +727,65 @@ function RevenuePage() {
             </DialogDescription>
           </DialogHeader>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Bill / Ref</TableHead>
-                <TableHead>Customer/Clinic</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detailData.map((item, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{item.date}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.number}</TableCell>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{item.detail}</TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatMoney(item.amount)}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {detailData.length === 0 && (
+          {detailType === "credit" ? (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No transactions found in this period.
-                  </TableCell>
+                  <TableHead>Customer/Clinic</TableHead>
+                  <TableHead className="text-right">Credit Left</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {detailData.map((item, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium">{item.name}</TableCell>
+                    <TableCell className="text-right font-bold text-destructive tabular-nums">
+                      {formatMoney(item.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {detailData.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-center text-muted-foreground py-8">
+                      No outstanding credit.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Bill / Ref</TableHead>
+                  <TableHead>Customer/Clinic</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {detailData.map((item, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{item.date}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.number}</TableCell>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{item.detail}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {formatMoney(item.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {detailData.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      No transactions found in this period.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </DialogContent>
       </Dialog>
     </div>

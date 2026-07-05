@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { CreditCard, Search, Phone, History } from "lucide-react";
-import { customersStore, billsStore, type Customer, type Bill } from "@/lib/storage";
+import { customersStore, type Customer } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,24 +56,6 @@ function CreditPage() {
 
   const [focusedIdx, setFocusedIdx] = useState(0);
   const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
-
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [customerBills, setCustomerBills] = useState<Bill[]>([]);
-  const [loadingBills, setLoadingBills] = useState(false);
-
-  const viewCustomerDetails = async (c: Customer) => {
-    setSelectedCustomer(c);
-    setLoadingBills(true);
-    try {
-      const allBills = await billsStore.list();
-      const filtered = allBills.filter(b => b.customerPhone === c.phone || (b.customerName && b.customerName.toLowerCase() === c.name.toLowerCase()));
-      setCustomerBills(filtered);
-    } catch (err) {
-      toast.error("Failed to load customer bills");
-    } finally {
-      setLoadingBills(false);
-    }
-  };
 
   const loadData = () => {
     customersStore
@@ -242,13 +224,7 @@ function CreditPage() {
                     focusedIdx === idx ? "bg-muted/50 border-primary/20" : "hover:bg-muted/30"
                   }`}
                 >
-                  <div 
-                    className="flex-1 min-w-0 cursor-pointer hover:underline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      viewCustomerDetails(c);
-                    }}
-                  >
+                  <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">
                       {c.name || <span className="text-muted-foreground italic">No name</span>}
                     </div>
@@ -434,32 +410,6 @@ function CreditPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!selectedCustomer} onOpenChange={(v) => !v && setSelectedCustomer(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Credit Details</DialogTitle>
-            <DialogDescription>
-              Remaining outstanding balance for this customer.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedCustomer && (
-            <div className="space-y-4 pt-2">
-              <div className="flex justify-between items-center bg-muted/30 p-4 rounded-lg border">
-                <span className="text-sm font-medium text-muted-foreground">Customer Name</span>
-                <span className="font-semibold text-base">{selectedCustomer.name || "N/A"}</span>
-              </div>
-              <div className="flex justify-between items-center bg-destructive/5 p-4 rounded-lg border border-destructive/10">
-                <span className="text-sm font-medium text-destructive">Credit Left</span>
-                <span className="text-lg font-bold text-destructive">
-                  {formatMoney(selectedCustomer.balance)}
-                </span>
-              </div>
             </div>
           )}
         </DialogContent>
