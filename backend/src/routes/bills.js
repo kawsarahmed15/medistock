@@ -135,6 +135,33 @@ router.post("/", async (req, res, next) => {
             Number(item.freeQty || 0),
           ],
         );
+
+        // FEFO stock deduction on MARG stocks table
+        let remainingToDeduct = Number(item.qty || 0);
+        const [meds] = await conn.query(
+          `SELECT id FROM medicines WHERE user_id = ? AND (id = ? OR medicine_name = ?) LIMIT 1`,
+          [req.auth.userId, item.productId, item.name]
+        );
+        if (meds.length > 0) {
+          const medId = meds[0].id;
+          const [batches] = await conn.query(
+            `SELECT b.id AS batch_id, s.quantity AS stock_qty
+             FROM medicine_batches b
+             JOIN stocks s ON b.id = s.batch_id
+             WHERE b.user_id = ? AND b.medicine_id = ? AND s.quantity > 0
+             ORDER BY b.expiry_date ASC`,
+            [req.auth.userId, medId]
+          );
+          for (const batch of batches) {
+            if (remainingToDeduct <= 0) break;
+            const toDeduct = Math.min(remainingToDeduct, batch.stock_qty);
+            await conn.query(
+              `UPDATE stocks SET quantity = quantity - ? WHERE batch_id = ?`,
+              [toDeduct, batch.batch_id]
+            );
+            remainingToDeduct -= toDeduct;
+          }
+        }
       }
 
       return { id, number: invoiceNo };
