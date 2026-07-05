@@ -18,6 +18,7 @@ import { Minus, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { SellSkeleton } from "@/components/loading-skeleton";
 
+type ProductWithBatches = Product & { batches?: Product[] };
 type SellSearch = { add?: string; new?: number };
 
 export const Route = createFileRoute("/_app/sell")({
@@ -37,7 +38,8 @@ function SellPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [customerOpen, setCustomerOpen] = useState(false);
-  const [qtyProduct, setQtyProduct] = useState<Product | null>(null);
+  const [qtyProduct, setQtyProduct] = useState<ProductWithBatches | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<Product | null>(null);
   const [qtyValue, setQtyValue] = useState(1);
   const cart = useCart();
   const navigate = useNavigate();
@@ -51,6 +53,27 @@ function SellPage() {
       ),
     [products, query],
   );
+
+  // Group products by name to avoid duplicate list items
+  const groupedProducts = useMemo(() => {
+    const map = new Map<string, Product[]>();
+    filtered.forEach((p) => {
+      const key = p.name.toLowerCase().trim();
+      const existing = map.get(key) || [];
+      existing.push(p);
+      map.set(key, existing);
+    });
+
+    return Array.from(map.values()).map((batchList) => {
+      const first = batchList[0];
+      const totalStock = batchList.reduce((s, p) => s + p.stock, 0);
+      return {
+        ...first,
+        stock: totalStock,
+        batches: batchList,
+      };
+    });
+  }, [filtered]);
 
   const [focusedIdx, setFocusedIdx] = useState(0);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -92,19 +115,19 @@ function SellPage() {
 
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        setFocusedIdx((prev) => Math.min(filtered.length - 1, prev + 1));
+        setFocusedIdx((prev) => Math.min(groupedProducts.length - 1, prev + 1));
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
         setFocusedIdx((prev) => Math.max(0, prev - 1));
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        setFocusedIdx((prev) => Math.min(filtered.length - 1, prev + colCount));
+        setFocusedIdx((prev) => Math.min(groupedProducts.length - 1, prev + colCount));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setFocusedIdx((prev) => Math.max(0, prev - colCount));
       } else if (e.key === "Enter") {
         e.preventDefault();
-        const p = filtered[focusedIdx];
+        const p = groupedProducts[focusedIdx];
         if (p && p.stock > 0) {
           openQtyPicker(p);
         }
@@ -116,7 +139,7 @@ function SellPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [filtered, qtyProduct, customerOpen, focusedIdx]);
+  }, [groupedProducts, qtyProduct, customerOpen, focusedIdx]);
 
   const refresh = async () => {
     try {
@@ -173,23 +196,29 @@ function SellPage() {
   }, []);
 
 
-  const openQtyPicker = (p: Product) => {
+  const openQtyPicker = (p: ProductWithBatches) => {
     setQtyProduct(p);
     setQtyValue(1);
+    if (p.batches && p.batches.length > 0) {
+      setSelectedBatch(p.batches[0]);
+    } else {
+      setSelectedBatch(p);
+    }
   };
 
   const confirmAdd = () => {
-    if (!qtyProduct) return;
-    const { isFirst } = cart.add(qtyProduct, qtyValue);
-    toast.success(`${qtyProduct.name} × ${qtyValue} added`);
+    if (!qtyProduct || !selectedBatch) return;
+    const { isFirst } = cart.add(selectedBatch, qtyValue);
+    toast.success(`${selectedBatch.name} (Batch: ${selectedBatch.batch}) × ${qtyValue} added`);
     setQtyProduct(null);
+    setSelectedBatch(null);
     if (isFirst && !cart.customerSubmitted) {
       setCustomerOpen(true);
     }
   };
 
-  const maxQty = qtyProduct
-    ? qtyProduct.stock - (cart.items.find((i) => i.product.id === qtyProduct.id)?.qty ?? 0)
+  const maxQty = selectedBatch
+    ? selectedBatch.stock - (cart.items.find((i) => i.product.id === selectedBatch.id)?.qty ?? 0)
     : 1;
 
   return (
@@ -234,7 +263,7 @@ function SellPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filtered.slice(0, 50).map((p, i) => (
+          {groupedProducts.slice(0, 50).map((p, i) => (
             <button
               key={p.id}
               ref={(el) => (buttonRefs.current[i] = el)}
@@ -311,9 +340,41 @@ function SellPage() {
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {formatMoney(qtyProduct.price)} per unit · {maxQty} available
+                  {formatMoney(qtyProduct.price)} per unit
                 </div>
               </div>
+
+              {qtyProduct.batches && qtyProduct.batches.length > 1 ? (
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] text-muted-foreground font-semibold">Select Batch</Label>
+                  <select
+                    className="w-full text-xs p-2 border rounded-lg bg-background outline-none focus:ring-1 focus:ring-primary text-slate-700 font-medium"
+                    value={selectedBatch?.id || ""}
+                    onChange={(e) => {
+                      const found = qtyProduct.batches?.find((b) => b.id === e.target.value);
+                      if (found) {
+                        setSelectedBatch(found);
+                        setQtyValue(1);
+                      }
+                    }}
+                  >
+                    {qtyProduct.batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.batch || "No Batch"} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="text-[10px] text-muted-foreground mt-1">
+                    Selected batch stock limit: <span className="font-bold text-primary">{maxQty}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs bg-muted/40 p-2.5 rounded-lg border space-y-1 text-slate-600 font-medium">
+                  <div>Batch: <span className="text-slate-800 font-semibold">{selectedBatch?.batch || "N/A"}</span></div>
+                  <div>Expiry: <span className="text-slate-800 font-semibold">{selectedBatch?.expiry ? new Date(selectedBatch.expiry).toLocaleDateString() : "N/A"}</span></div>
+                  <div>Available Stock: <span className="text-primary font-bold">{maxQty}</span></div>
+                </div>
+              )}
 
               <div className="flex items-center justify-center gap-4">
                 <Button
