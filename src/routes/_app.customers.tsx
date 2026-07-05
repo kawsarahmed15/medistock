@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar, Pencil } from "lucide-react";
 import { customersStore, billsStore, type Customer, type Bill } from "@/lib/storage";
 import { useCart } from "@/lib/cart-context";
@@ -116,6 +116,50 @@ function CustomersPage() {
       (c) => c.name.toLowerCase().includes(needle) || c.phone.toLowerCase().includes(needle),
     );
   }, [customers, q]);
+
+  // Keyboard navigation
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
+
+  useEffect(() => {
+    if (focusedIdx >= filtered.length) setFocusedIdx(0);
+  }, [filtered.length, focusedIdx]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
+        return;
+      }
+      if (editingCustomer || selectedCustomer) return;
+      if (filtered.length === 0) return;
+
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.min(filtered.length - 1, i + 1);
+          rowRefs.current[next]?.focus();
+          return next;
+        });
+      } else if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.max(0, i - 1);
+          rowRefs.current[next]?.focus();
+          return next;
+        });
+      } else if (e.key === "Enter") {
+        const c = filtered[focusedIdx];
+        if (c) {
+          e.preventDefault();
+          viewCustomerDetails(c);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [filtered, focusedIdx, editingCustomer, selectedCustomer]);
 
   const totalSales = useMemo(() => {
     return filtered.reduce((acc, c) => acc + c.totalSpent, 0);
@@ -246,14 +290,22 @@ function CustomersPage() {
             </div>
           ) : (
             <ul className="divide-y">
-              {filtered.map((c) => (
+              {filtered.map((c, idx) => (
                 <li
                   key={`${c.phone}-${c.name}`}
-                  className="flex flex-wrap items-center gap-3 py-3 animate-fade-in"
+                  ref={(el) => (rowRefs.current[idx] = el)}
+                  tabIndex={0}
+                  onClick={() => setFocusedIdx(idx)}
+                  className={`flex flex-wrap items-center gap-3 py-3 animate-fade-in outline-none rounded-lg px-2 transition-colors ${
+                    focusedIdx === idx ? "bg-muted/50 border-primary/20" : "hover:bg-muted/30"
+                  }`}
                 >
                   <div 
                     className="flex-1 min-w-0 cursor-pointer hover:underline"
-                    onClick={() => viewCustomerDetails(c)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      viewCustomerDetails(c);
+                    }}
                   >
                     <div className="font-medium truncate">
                       {c.name || <span className="text-muted-foreground italic">No name</span>}

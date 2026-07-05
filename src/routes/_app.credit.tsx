@@ -111,7 +111,7 @@ function CreditPage() {
       if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
         return;
       }
-      if (paymentCustomer || historyCustomer) return; // Don't navigate if dialog is open
+      if (paymentCustomer || historyCustomer || selectedCustomer) return; // Don't navigate if dialog is open
       if (filtered.length === 0) return;
 
       if (e.key === "ArrowDown" || e.key === "j") {
@@ -132,7 +132,7 @@ function CreditPage() {
         const c = filtered[focusedIdx];
         if (c) {
           e.preventDefault();
-          setPaymentCustomer(c);
+          viewCustomerDetails(c);
         }
       } else if (e.key === "h" || e.key === "H") {
         const c = filtered[focusedIdx];
