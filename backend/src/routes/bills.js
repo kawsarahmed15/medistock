@@ -92,7 +92,7 @@ router.post("/", async (req, res, next) => {
       await conn.query(
         `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes,
              cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           req.auth.userId,
