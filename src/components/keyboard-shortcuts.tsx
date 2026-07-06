@@ -69,8 +69,8 @@ export function KeyboardShortcuts() {
           }
         }
         cart.clear();
-        if (routerState.location.pathname !== "/sell") {
-          navigate({ to: "/sell" }).then(() => {
+        if (routerState.location.pathname !== "/cart") {
+          navigate({ to: "/cart", search: { newSale: 1 } as never }).then(() => {
             setTimeout(() => window.dispatchEvent(new CustomEvent("trigger-new-bill")), 100);
           });
         } else {
