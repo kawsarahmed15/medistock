@@ -36,7 +36,12 @@ import { SkuScanner } from "@/components/sku-scanner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
+type CartSearch = { newSale?: number };
+
 export const Route = createFileRoute("/_app/cart")({
+  validateSearch: (search: Record<string, unknown>): CartSearch => ({
+    newSale: search.newSale ? 1 : undefined,
+  }),
   component: CartPage,
 });
 
@@ -98,10 +103,27 @@ function CartPage() {
   const cart = useCart();
   const { session } = useAuth();
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const routeNavigate = Route.useNavigate();
   const [customerOpen, setCustomerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const browseButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (search.newSale) {
+      setCustomerOpen(true);
+      void routeNavigate({ search: {}, replace: true });
+    }
+  }, [search.newSale, routeNavigate]);
+
+  useEffect(() => {
+    const handler = () => {
+      setCustomerOpen(true);
+    };
+    window.addEventListener("trigger-new-bill", handler);
+    return () => window.removeEventListener("trigger-new-bill", handler);
+  }, []);
 
   // ── Cart item keyboard selection state ─────────────────────────────────────
   const [selectedIdx, setSelectedIdx] = useState<number>(-1);
@@ -428,7 +450,7 @@ function CartPage() {
                         className={cn(
                           "flex items-center gap-3 py-3 px-2 rounded-lg animate-fade-in cursor-pointer transition-colors outline-none",
                           isSelected
-                            ? "bg-primary/8 ring-1 ring-primary/30"
+                            ? "bg-primary/20 ring-1.5 ring-primary/50"
                             : "hover:bg-muted/40",
                         )}
                       >

@@ -196,9 +196,9 @@ function SellPage() {
   }, []);
 
   useEffect(() => {
-    // If the cart is empty and the customer details are not yet submitted, open the customer details dialog first.
+    // If the cart is empty and the customer details are not yet submitted, redirect to the cart page to fill details.
     if (cart.items.length === 0 && !cart.customerSubmitted) {
-      setCustomerOpen(true);
+      navigate({ to: "/cart", search: { newSale: 1 } as never });
     } else {
       const input = document.getElementById("sell-search-input");
       if (input) {
@@ -298,7 +298,7 @@ function SellPage() {
                 p.stock > 0
                   ? `bg-card hover:shadow-glow hover:-translate-y-0.5 ${
                       focusedIdx === i
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        ? "border-primary bg-primary/15 ring-2 ring-primary/45"
                         : "border-border"
                     }`
                   : "bg-muted opacity-50 cursor-not-allowed border-border"

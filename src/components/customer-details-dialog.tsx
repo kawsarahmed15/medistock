@@ -224,7 +224,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                     }}
                     className={cn(
                       "w-full text-left px-3 py-2 text-sm transition-colors outline-none",
-                      activeMatchIdx === idx ? "bg-accent text-accent-foreground" : "hover:bg-accent"
+                      activeMatchIdx === idx ? "bg-primary/20 text-foreground font-semibold" : "hover:bg-accent"
                     )}
                   >
                     <div className="font-medium truncate">{c.name}</div>
