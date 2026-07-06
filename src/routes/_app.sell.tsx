@@ -235,9 +235,13 @@ function SellPage() {
   const handleCustomerOpenChange = (open: boolean) => {
     setCustomerOpen(open);
     if (!open) {
-      setTimeout(() => {
-        document.getElementById("sell-search-input")?.focus();
-      }, 100);
+      if (cart.customerSubmitted) {
+        navigate({ to: "/cart" });
+      } else {
+        setTimeout(() => {
+          document.getElementById("sell-search-input")?.focus();
+        }, 100);
+      }
     }
   };
 
@@ -463,7 +467,7 @@ function SellPage() {
         </DialogContent>
       </Dialog>
 
-      <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
+      <CustomerDetailsDialog open={customerOpen} onOpenChange={handleCustomerOpenChange} />
     </div>
   );
 }
