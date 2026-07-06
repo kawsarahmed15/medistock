@@ -67,7 +67,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
 
   const nameMatches = useMemo(() => {
     const needle = form.name.trim().toLowerCase();
-    if (needle.length < 2) return [];
+    if (needle.length < 1) return [];
     const filtered = saved.filter((c) => c.name.toLowerCase().includes(needle));
     if (filtered.length === 1 && filtered[0].name.toLowerCase() === needle) return [];
     return filtered.slice(0, 4);
