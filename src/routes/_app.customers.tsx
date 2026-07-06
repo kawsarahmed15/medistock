@@ -50,7 +50,7 @@ function CustomersPage() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", address: "", notes: "" });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", address: "", drugLicNo: "", notes: "" });
   const [isSaving, setIsSaving] = useState(false);
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -339,6 +339,7 @@ function CustomersPage() {
                           name: c.name,
                           phone: c.phone,
                           address: c.address || "",
+                          drugLicNo: c.drugLicNo || "",
                           notes: c.notes || "",
                         });
                       }}
@@ -383,6 +384,14 @@ function CustomersPage() {
                 value={editForm.address}
                 onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                 placeholder="Customer Address"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Drug Lic No</Label>
+              <Input
+                value={editForm.drugLicNo}
+                onChange={(e) => setEditForm({ ...editForm, drugLicNo: e.target.value })}
+                placeholder="Drug License Number"
               />
             </div>
             <div className="space-y-1.5">
