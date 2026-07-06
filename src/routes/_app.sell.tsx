@@ -188,13 +188,24 @@ function SellPage() {
   // Handle Alt+N shortcut via custom event
   useEffect(() => {
     const handler = () => {
-      document.getElementById("sell-search-input")?.focus();
+      setCustomerOpen(true);
       toast.success("Started a new bill");
     };
     window.addEventListener("trigger-new-bill", handler);
     return () => window.removeEventListener("trigger-new-bill", handler);
   }, []);
 
+  useEffect(() => {
+    // If the cart is empty and the customer details are not yet submitted, open the customer details dialog first.
+    if (cart.items.length === 0 && !cart.customerSubmitted) {
+      setCustomerOpen(true);
+    } else {
+      const input = document.getElementById("sell-search-input");
+      if (input) {
+        input.focus();
+      }
+    }
+  }, [cart.items.length, cart.customerSubmitted]);
 
   const openQtyPicker = (p: ProductWithBatches) => {
     setQtyProduct(p);
@@ -220,6 +231,15 @@ function SellPage() {
   const maxQty = selectedBatch
     ? selectedBatch.stock - (cart.items.find((i) => i.product.id === selectedBatch.id)?.qty ?? 0)
     : 1;
+
+  const handleCustomerOpenChange = (open: boolean) => {
+    setCustomerOpen(open);
+    if (!open) {
+      setTimeout(() => {
+        document.getElementById("sell-search-input")?.focus();
+      }, 100);
+    }
+  };
 
   return (
     <div className="space-y-6 pb-24">
@@ -248,6 +268,7 @@ function SellPage() {
           className="pl-9"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          autoFocus
         />
       </div>
 
