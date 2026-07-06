@@ -28,6 +28,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
   const [pickQuery, setPickQuery] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [nameFocused, setNameFocused] = useState(false);
+  const [activeMatchIdx, setActiveMatchIdx] = useState(-1);
 
   useEffect(() => {
     if (open) {
@@ -71,6 +72,28 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
     if (filtered.length === 1 && filtered[0].name.toLowerCase() === needle) return [];
     return filtered.slice(0, 4);
   }, [saved, form.name]);
+
+  useEffect(() => {
+    setActiveMatchIdx(-1);
+  }, [nameMatches]);
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (nameMatches.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveMatchIdx((prev) => (prev + 1) % nameMatches.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveMatchIdx((prev) => (prev - 1 + nameMatches.length) % nameMatches.length);
+    } else if (e.key === "Enter" && activeMatchIdx >= 0) {
+      e.preventDefault();
+      pick(nameMatches[activeMatchIdx]);
+      setNameFocused(false);
+    } else if (e.key === "Escape") {
+      setNameFocused(false);
+    }
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -184,12 +207,13 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               onFocus={() => setNameFocused(true)}
               onBlur={() => setTimeout(() => setNameFocused(false), 200)}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onKeyDown={handleNameKeyDown}
               placeholder="e.g. Asha Verma"
               autoComplete="off"
             />
             {nameFocused && nameMatches.length > 0 && (
               <div className="absolute z-10 w-full bg-popover border rounded-md shadow-md mt-1 top-[calc(100%+4px)] overflow-hidden">
-                {nameMatches.map((c) => (
+                {nameMatches.map((c, idx) => (
                   <button
                     key={`${c.phone}-${c.name}`}
                     type="button"
@@ -198,7 +222,10 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                       pick(c);
                       setNameFocused(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-sm transition-colors outline-none",
+                      activeMatchIdx === idx ? "bg-accent text-accent-foreground" : "hover:bg-accent"
+                    )}
                   >
                     <div className="font-medium truncate">{c.name}</div>
                     <div className="text-xs text-muted-foreground truncate">
