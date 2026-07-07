@@ -125,7 +125,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const discount =
     discountType === "percentage" ? ((subtotal + tax) * discountValue) / 100 : discountValue;
 
-  const total = Math.max(0, subtotal + tax - discount);
+  const total = Math.round(Math.max(0, subtotal + tax - discount));
   const count = items.reduce((s, i) => s + i.qty, 0);
 
   return (

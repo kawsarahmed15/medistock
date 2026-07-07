@@ -109,7 +109,7 @@ router.post("/", async (req, res, next) => {
           Number(body.subtotal || 0),
           Number(body.tax || 0),
           Number(body.discount || 0),
-          Number(body.total || 0),
+          Math.round(Number(body.total || 0)),
         ],
       );
 
