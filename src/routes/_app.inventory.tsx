@@ -72,8 +72,6 @@ type FormState = {
   conversionFactor: string;
   packPrice: string;
   packCostPrice: string;
-  retailerPackStock: string;
-  retailerLooseStock: string;
 };
 
 const empty: FormState = {
@@ -92,13 +90,11 @@ const empty: FormState = {
   sku: "",
   taxPercent: "12",
   prescription: false,
-  baseUnit: "Tab",
-  packUnit: "Strip",
-  conversionFactor: "10",
+  baseUnit: "Unit",
+  packUnit: "Pack",
+  conversionFactor: "1",
   packPrice: "",
   packCostPrice: "",
-  retailerPackStock: "",
-  retailerLooseStock: "",
 };
 
 function parsePack(packStr?: string) {
@@ -158,7 +154,6 @@ function InventoryPage() {
     "date_desc",
   );
   const { session } = useAuth();
-  const isRetailer = session?.role !== "wholesaler";
   const expiryDays = session?.expiryDays ?? 60;
   const defaultTax = session?.defaultTax ?? 12;
 
@@ -299,40 +294,23 @@ function InventoryPage() {
   useEffect(() => {
     const handler = () => {
       setEditing(null);
-      setForm({
-        ...empty,
-        taxPercent: String(defaultTax),
-        baseUnit: "Tab",
-        packUnit: "Strip",
-        conversionFactor: "10",
-        retailerPackStock: "",
-        retailerLooseStock: "",
-      });
+      setForm({ ...empty, taxPercent: String(defaultTax) });
       setOpen(true);
     };
     window.addEventListener("trigger-add-product", handler);
     return () => window.removeEventListener("trigger-add-product", handler);
-  }, [defaultTax]);
+  }, []);
 
   if (loading && items.length === 0) return <TableSkeleton cols={6} />;
 
   const startAdd = () => {
     setEditing(null);
-    setForm({
-      ...empty,
-      taxPercent: String(defaultTax),
-      baseUnit: "Tab",
-      packUnit: "Strip",
-      conversionFactor: "10",
-      retailerPackStock: "",
-      retailerLooseStock: "",
-    });
+    setForm({ ...empty, taxPercent: String(defaultTax) });
     setOpen(true);
   };
 
   const startEdit = (p: Product) => {
     setEditing(p);
-    const conv = p.conversionFactor ?? 10;
     setForm({
       name: p.name,
       category: p.category,
@@ -354,13 +332,11 @@ function InventoryPage() {
       sku: p.sku ?? "",
       taxPercent: String(p.taxPercent ?? 0),
       prescription: !!p.prescription,
-      baseUnit: p.baseUnit ?? "Tab",
-      packUnit: p.packUnit ?? "Strip",
-      conversionFactor: String(conv),
+      baseUnit: p.baseUnit ?? "Unit",
+      packUnit: p.packUnit ?? "Pack",
+      conversionFactor: String(p.conversionFactor ?? 1),
       packPrice: p.packPrice != null ? String(p.packPrice) : "",
       packCostPrice: p.packCostPrice != null ? String(p.packCostPrice) : "",
-      retailerPackStock: String(Math.floor(p.stock / conv)),
-      retailerLooseStock: String(p.stock % conv),
     });
     setOpen(true);
   };
@@ -389,29 +365,14 @@ function InventoryPage() {
         packValue = `${form.stockPacks} ML Drop`;
       }
     }
-
-    const isRetailer = session?.role !== "wholesaler";
-    const cf = isRetailer ? (Number(form.conversionFactor) || 10) : (Number(form.conversionFactor) || 1);
-    const calculatedStock = isRetailer 
-      ? (Number(form.retailerPackStock) || 0) * cf + (Number(form.retailerLooseStock) || 0)
-      : (Number(form.stock) || 0);
-
-    const calculatedPrice = isRetailer
-      ? (form.price !== "" ? Number(form.price) : (Number(form.packPrice) || 0) / cf)
-      : Number(form.price);
-
-    const calculatedCostPrice = isRetailer
-      ? (form.costPrice !== "" ? Number(form.costPrice) : (Number(form.packCostPrice) || 0) / cf)
-      : (form.costPrice === "" ? undefined : Number(form.costPrice));
-
     const payload = {
       name: form.name.trim(),
       category: form.category.trim() || "General",
-      costPrice: calculatedCostPrice,
-      price: calculatedPrice,
+      costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
+      price: Number(form.price),
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
-      stock: calculatedStock,
-      pack: isRetailer ? `${cf}${form.baseUnit} / ${form.packUnit}` : packValue,
+      stock: Number(form.stock) || 0,
+      pack: packValue,
       expiry: (() => {
         if (!form.expiry) return "";
         const parts = form.expiry.split("/");
@@ -428,13 +389,12 @@ function InventoryPage() {
       sku: form.sku.trim() || undefined,
       taxPercent: Number(form.taxPercent) || 0,
       prescription: form.prescription,
-      baseUnit: isRetailer ? (form.baseUnit.trim() || "Tab") : (form.baseUnit.trim() || "Unit"),
-      packUnit: isRetailer ? (form.packUnit.trim() || "Strip") : (form.packUnit.trim() || "Pack"),
-      conversionFactor: cf,
+      baseUnit: form.baseUnit.trim() || "Unit",
+      packUnit: form.packUnit.trim() || "Pack",
+      conversionFactor: Number(form.conversionFactor) || 1,
       packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
       packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
     };
-
     if (
       !payload.name ||
       !payload.expiry ||
@@ -573,312 +533,168 @@ function InventoryPage() {
                   />
                   <RecentOptions id="manufacturer-recent" options={recentManufacturers} />
                 </Field>
-                {session?.role !== "wholesaler" ? (
-                  <>
-                    <div className="col-span-2 bg-primary/10 border border-primary/20 text-primary p-3 rounded-lg text-xs leading-relaxed space-y-1">
-                      <div className="font-semibold">Retailer Pack & Piece Calculations (Marg Style)</div>
-                      <p>
-                        Manage stock in packs/strips and loose pieces. Enter the price of 1 Strip/Box and its conversion factor (e.g. 10 tablets) to auto-calculate per-piece rates.
-                      </p>
+                <Field label="Buying price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.costPrice}
+                    onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                    placeholder="Cost per unit"
+                    required
+                  />
+                </Field>
+                <Field label="Selling price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    required
+                  />
+                </Field>
+                <Field label="MRP">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.mrp}
+                    onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                    placeholder="Printed price"
+                  />
+                </Field>
+                <Field label="Stock Type">
+                  <select
+                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={form.stockType}
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      setForm({
+                        ...form,
+                        stockType: type,
+                        stockPacks: "",
+                        stockUnits: type === "inj" ? "ML" : "",
+                      });
+                    }}
+                  >
+                    <option value="other">General / Other</option>
+                    <option value="tab">Tablet (Tab)</option>
+                    <option value="cap">Capsule (Cap)</option>
+                    <option value="syp">Syrup (Syp)</option>
+                    <option value="inj">Injection (Inj)</option>
+                    <option value="cream">Cream</option>
+                    <option value="drop">Drop</option>
+                  </select>
+                </Field>
+                {form.stockType === "other" && (
+                  <Field label="Pack Options">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        list="general-options"
+                        placeholder="e.g. 10X10, ML, GM..."
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                      />
+                      <datalist id="general-options">
+                        <option value="10X10" />
+                        <option value="10X1X10" />
+                        <option value="ML" />
+                        <option value="MG" />
+                        <option value="GM" />
+                        <option value="CAP" />
+                      </datalist>
                     </div>
-
-                    <Field label="Pack Unit (e.g. Strip, Box)">
-                      <Input
-                        value={form.packUnit}
-                        onChange={(e) => setForm({ ...form, packUnit: e.target.value })}
-                        placeholder="Strip"
-                        required
-                      />
-                    </Field>
-                    <Field label="Base Unit (e.g. Tab, Cap, Piece)">
-                      <Input
-                        value={form.baseUnit}
-                        onChange={(e) => setForm({ ...form, baseUnit: e.target.value })}
-                        placeholder="Tab"
-                        required
-                      />
-                    </Field>
-                    <Field label="Conversion (Units per Pack)">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={form.conversionFactor}
-                        onChange={(e) => {
-                          const cf = Number(e.target.value) || 1;
-                          const pP = Number(form.packPrice) || 0;
-                          const pCP = Number(form.packCostPrice) || 0;
-                          setForm({ 
-                            ...form, 
-                            conversionFactor: e.target.value,
-                            price: pP ? String((pP / cf).toFixed(2)) : form.price,
-                            costPrice: pCP ? String((pCP / cf).toFixed(2)) : form.costPrice
-                          });
-                        }}
-                        placeholder="10"
-                        required
-                      />
-                    </Field>
-                    <Field label="MRP (Per Strip/Box)">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.mrp}
-                        onChange={(e) => setForm({ ...form, mrp: e.target.value })}
-                        placeholder="MRP per Pack"
-                      />
-                    </Field>
-
-                    <Field label="Pack Buying Price">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.packCostPrice}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const cf = Number(form.conversionFactor) || 10;
-                          setForm({ 
-                            ...form, 
-                            packCostPrice: val,
-                            costPrice: val ? String((Number(val) / cf).toFixed(2)) : ""
-                          });
-                        }}
-                        placeholder="Buying price per pack"
-                        required
-                      />
-                    </Field>
-                    <Field label="Pack Selling Price">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.packPrice}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const cf = Number(form.conversionFactor) || 10;
-                          setForm({ 
-                            ...form, 
-                            packPrice: val,
-                            price: val ? String((Number(val) / cf).toFixed(2)) : ""
-                          });
-                        }}
-                        placeholder="Selling price per pack"
-                        required
-                      />
-                    </Field>
-
-                    <Field label={`Unit Buying Price (Per ${form.baseUnit || 'Piece'})`}>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.costPrice}
-                        onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
-                        placeholder="Per unit buying"
-                        required
-                      />
-                    </Field>
-                    <Field label={`Unit Selling Price (Per ${form.baseUnit || 'Piece'})`}>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.price}
-                        onChange={(e) => setForm({ ...form, price: e.target.value })}
-                        placeholder="Per unit selling"
-                        required
-                      />
-                    </Field>
-
-                    <div className="col-span-2 border-t pt-2 mt-1">
-                      <div className="text-xs font-semibold text-muted-foreground mb-2">Stock Inventory Entry</div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Field label={`${form.packUnit || 'Strip'} Stock`}>
-                          <Input
-                            type="number"
-                            value={form.retailerPackStock}
-                            onChange={(e) => setForm({ ...form, retailerPackStock: e.target.value })}
-                            placeholder="Strips count"
-                            required
-                          />
-                        </Field>
-                        <Field label={`Loose ${form.baseUnit || 'Piece'} Stock`}>
-                          <Input
-                            type="number"
-                            value={form.retailerLooseStock}
-                            onChange={(e) => setForm({ ...form, retailerLooseStock: e.target.value })}
-                            placeholder="Loose units"
-                            required
-                          />
-                        </Field>
-                      </div>
-                      <div className="text-xs font-semibold text-primary mt-2">
-                        Total Stock: {((Number(form.retailerPackStock) || 0) * (Number(form.conversionFactor) || 10) + (Number(form.retailerLooseStock) || 0))} {form.baseUnit || 'Pieces'}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Field label="Buying price">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.costPrice}
-                        onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
-                        placeholder="Cost per unit"
-                        required
-                      />
-                    </Field>
-                    <Field label="Selling price">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.price}
-                        onChange={(e) => setForm({ ...form, price: e.target.value })}
-                        required
-                      />
-                    </Field>
-                    <Field label="MRP">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={form.mrp}
-                        onChange={(e) => setForm({ ...form, mrp: e.target.value })}
-                        placeholder="Printed price"
-                      />
-                    </Field>
-                    <Field label="Stock Type">
-                      <select
-                        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        value={form.stockType}
-                        onChange={(e) => {
-                          const type = e.target.value;
-                          setForm({
-                            ...form,
-                            stockType: type,
-                            stockPacks: "",
-                            stockUnits: type === "inj" ? "ML" : "",
-                          });
-                        }}
-                      >
-                        <option value="other">General / Other</option>
-                        <option value="tab">Tablet (Tab)</option>
-                        <option value="cap">Capsule (Cap)</option>
-                        <option value="syp">Syrup (Syp)</option>
-                        <option value="inj">Injection (Inj)</option>
-                        <option value="cream">Cream</option>
-                        <option value="drop">Drop</option>
-                      </select>
-                    </Field>
-                    {form.stockType === "other" && (
-                      <Field label="Pack Options">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            list="general-options"
-                            placeholder="e.g. 10X10, ML, GM..."
-                            value={form.stockPacks}
-                            onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
-                          />
-                          <datalist id="general-options">
-                            <option value="10X10" />
-                            <option value="10X1X10" />
-                            <option value="ML" />
-                            <option value="MG" />
-                            <option value="GM" />
-                            <option value="CAP" />
-                          </datalist>
-                        </div>
-                      </Field>
-                    )}
-                    {(form.stockType === "tab" || form.stockType === "cap") && (
-                      <Field label="Pack Format">
-                        <div className="flex items-center gap-2 w-full">
-                          <Input
-                            list="tab-cap-pack-options"
-                            placeholder="e.g. 10x10, 10X1X10, CAP"
-                            value={form.stockPacks}
-                            onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
-                            required
-                          />
-                          <datalist id="tab-cap-pack-options">
-                            <option value="10X10" />
-                            <option value="10X1X10" />
-                            <option value="CAP" />
-                          </datalist>
-                        </div>
-                      </Field>
-                    )}
-                    {form.stockType === "syp" && (
-                      <Field label="Pack (ML)">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="ML Amount"
-                            value={form.stockPacks}
-                            onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
-                            required
-                          />
-                          <span className="text-muted-foreground text-sm font-medium">ML</span>
-                        </div>
-                      </Field>
-                    )}
-                    {form.stockType === "inj" && (
-                      <Field label="Pack (Measure)">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Amount"
-                            value={form.stockPacks}
-                            onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
-                            required
-                          />
-                          <select
-                            className="flex h-9 w-24 items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            value={form.stockUnits || "ML"}
-                            onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
-                          >
-                            <option value="ML">ML</option>
-                            <option value="MG">MG</option>
-                            <option value="GM">GM</option>
-                          </select>
-                        </div>
-                      </Field>
-                    )}
-                    {form.stockType === "cream" && (
-                      <Field label="Pack (Measure)">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Amount"
-                            value={form.stockPacks}
-                            onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
-                            required
-                          />
-                          <span className="text-muted-foreground text-sm font-medium">GM</span>
-                        </div>
-                      </Field>
-                    )}
-                    {form.stockType === "drop" && (
-                      <Field label="Pack (Measure)">
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Amount"
-                            value={form.stockPacks}
-                            onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
-                            required
-                          />
-                          <span className="text-muted-foreground text-sm font-medium">ML</span>
-                        </div>
-                      </Field>
-                    )}
-                    <Field label="Stock Quantity">
-                      <Input
-                        type="number"
-                        placeholder="Total qty"
-                        value={form.stock}
-                        onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                        required
-                      />
-                    </Field>
-                  </>
+                  </Field>
                 )}
+                {(form.stockType === "tab" || form.stockType === "cap") && (
+                  <Field label="Pack Format">
+                    <div className="flex items-center gap-2 w-full">
+                      <Input
+                        list="tab-cap-pack-options"
+                        placeholder="e.g. 10x10, 10X1X10, CAP"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <datalist id="tab-cap-pack-options">
+                        <option value="10X10" />
+                        <option value="10X1X10" />
+                        <option value="CAP" />
+                      </datalist>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "syp" && (
+                  <Field label="Pack (ML)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="ML Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">ML</span>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "inj" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <select
+                        className="flex h-9 w-24 items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={form.stockUnits || "ML"}
+                        onChange={(e) => setForm({ ...form, stockUnits: e.target.value })}
+                      >
+                        <option value="ML">ML</option>
+                        <option value="MG">MG</option>
+                        <option value="GM">GM</option>
+                      </select>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "cream" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">GM</span>
+                    </div>
+                  </Field>
+                )}
+                {form.stockType === "drop" && (
+                  <Field label="Pack (Measure)">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Amount"
+                        value={form.stockPacks}
+                        onChange={(e) => setForm({ ...form, stockPacks: e.target.value })}
+                        required
+                      />
+                      <span className="text-muted-foreground text-sm font-medium">ML</span>
+                    </div>
+                  </Field>
+                )}
+                <Field label="Stock Quantity">
+                  <Input
+                    type="number"
+                    placeholder="Total qty"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                    required
+                  />
+                </Field>
                 <Field label="Expiry">
                   <Input
                     type="text"
@@ -1054,11 +870,7 @@ function InventoryPage() {
                               : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                         )}
                       >
-                        {isRetailer && p.conversionFactor && p.conversionFactor > 1 ? (
-                          `${Math.floor(p.stock / p.conversionFactor)} ${p.packUnit || 'Strip'}${Math.floor(p.stock / p.conversionFactor) !== 1 ? 's' : ''} & ${p.stock % p.conversionFactor} ${p.baseUnit || 'Tab'}${p.stock % p.conversionFactor !== 1 ? 's' : ''}`
-                        ) : (
-                          `${p.stock} ${isOutOfStock ? "Out" : isLowStock ? "Low" : ""}`
-                        )}
+                        {p.stock} {isOutOfStock ? "Out" : isLowStock ? "Low" : ""}
                       </span>
                     </TableCell>
                     <TableCell>

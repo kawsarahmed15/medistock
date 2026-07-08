@@ -76,11 +76,6 @@ type ProductRow = {
   prescription: boolean | number;
   tax_percent: number | string;
   created_at: string;
-  base_unit?: string | null;
-  pack_unit?: string | null;
-  conversion_factor?: number | string | null;
-  pack_price?: number | string | null;
-  pack_cost_price?: number | string | null;
 };
 
 const num = (v: number | string | null | undefined) =>
@@ -103,11 +98,6 @@ function rowToProduct(r: ProductRow): Product {
     prescription: Boolean(r.prescription),
     taxPercent: Number(r.tax_percent) || 0,
     createdAt: r.created_at,
-    baseUnit: r.base_unit ?? undefined,
-    packUnit: r.pack_unit ?? undefined,
-    conversionFactor: num(r.conversion_factor),
-    packPrice: num(r.pack_price),
-    packCostPrice: num(r.pack_cost_price),
   };
 }
 
