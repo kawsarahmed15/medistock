@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { FileWarning, Plus, Search } from "lucide-react";
 import { productsStore, type Product } from "@/lib/storage";
 import { useCart } from "@/lib/cart-context";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,8 @@ function formatMoney(n: number) {
 }
 
 function SellPage() {
+  const { session } = useAuth();
+  const isRetailer = session?.role !== "wholesaler";
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -41,8 +44,18 @@ function SellPage() {
   const [qtyProduct, setQtyProduct] = useState<ProductWithBatches | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<Product | null>(null);
   const [qtyValue, setQtyValue] = useState(1);
+  const [retailerPacks, setRetailerPacks] = useState(0);
+  const [retailerLoose, setRetailerLoose] = useState(0);
   const cart = useCart();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isRetailer && selectedBatch?.conversionFactor && selectedBatch.conversionFactor > 1) {
+      const cf = selectedBatch.conversionFactor;
+      const totalQty = (retailerPacks * cf) + retailerLoose;
+      setQtyValue(totalQty);
+    }
+  }, [retailerPacks, retailerLoose, selectedBatch, isRetailer]);
 
   const filtered = useMemo(
     () =>
@@ -210,6 +223,8 @@ function SellPage() {
   const openQtyPicker = (p: ProductWithBatches) => {
     setQtyProduct(p);
     setQtyValue(1);
+    setRetailerPacks(0);
+    setRetailerLoose(0);
     if (p.batches && p.batches.length > 0) {
       setSelectedBatch(p.batches[0]);
     } else {
@@ -327,13 +342,30 @@ function SellPage() {
                     {p.category} {p.manufacturer ? `· ${p.manufacturer}` : ""}
                   </div>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded bg-accent text-accent-foreground shrink-0">
-                  {p.stock} in stock
+                <span className="text-xs px-2 py-0.5 rounded bg-accent text-accent-foreground shrink-0 font-medium">
+                  {isRetailer && p.conversionFactor && p.conversionFactor > 1 ? (
+                    `${Math.floor(p.stock / p.conversionFactor)} ${p.packUnit || 'Strip'}${Math.floor(p.stock / p.conversionFactor) !== 1 ? 's' : ''} & ${p.stock % p.conversionFactor} ${p.baseUnit || 'Tab'}${p.stock % p.conversionFactor !== 1 ? 's' : ''}`
+                  ) : (
+                    `${p.stock} in stock`
+                  )}
                 </span>
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <span className="font-semibold">{formatMoney(p.price)}</span>
-                <span className="inline-flex items-center gap-1 text-xs text-primary">
+                <div className="flex flex-col">
+                  {isRetailer && p.conversionFactor && p.conversionFactor > 1 ? (
+                    <>
+                      <span className="font-semibold text-sm text-foreground">
+                        ₹{p.packPrice != null ? p.packPrice.toFixed(2) : (p.price * p.conversionFactor).toFixed(2)} / {p.packUnit || 'Strip'}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {formatMoney(p.price)} / {p.baseUnit || 'Tab'}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-semibold">{formatMoney(p.price)}</span>
+                  )}
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
                   <Plus className="h-3 w-3" /> Add
                 </span>
               </div>
@@ -401,51 +433,103 @@ function SellPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-center gap-4">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setQtyValue(Math.max(1, qtyValue - 1))}
-                  disabled={qtyValue <= 1}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Input
-                  type="number"
-                  min={1}
-                  max={maxQty}
-                  value={qtyValue}
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (maxQty >= 1) confirmAdd();
-                    } else if (e.key === "+" || e.key === "ArrowUp") {
-                      e.preventDefault();
-                      setQtyValue(Math.min(maxQty, qtyValue + 1));
-                    } else if (e.key === "-" || e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setQtyValue(Math.max(1, qtyValue - 1));
-                    }
-                  }}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (!isNaN(v)) setQtyValue(Math.max(1, Math.min(maxQty, v)));
-                    else setQtyValue(1);
-                  }}
-                  className="w-20 text-center text-lg font-semibold tabular-nums"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setQtyValue(Math.min(maxQty, qtyValue + 1))}
-                  disabled={qtyValue >= maxQty}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              {isRetailer && selectedBatch?.conversionFactor && selectedBatch.conversionFactor > 1 ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">{selectedBatch.packUnit || 'Strip'} Qty</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={retailerPacks}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                          const cf = selectedBatch.conversionFactor || 10;
+                          const theoreticalTotal = val * cf + retailerLoose;
+                          if (theoreticalTotal <= maxQty) {
+                            setRetailerPacks(val);
+                          } else {
+                            setRetailerPacks(Math.floor(maxQty / cf));
+                            setRetailerLoose(maxQty % cf);
+                            toast.warning(`Quantity capped at maximum stock: ${maxQty} units`);
+                          }
+                        }}
+                        className="text-center font-medium"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">{selectedBatch.baseUnit || 'Piece'} Qty</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={retailerLoose}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                          const cf = selectedBatch.conversionFactor || 10;
+                          const theoreticalTotal = retailerPacks * cf + val;
+                          if (theoreticalTotal <= maxQty) {
+                            setRetailerLoose(val);
+                          } else {
+                            setRetailerPacks(Math.floor(maxQty / cf));
+                            setRetailerLoose(maxQty % cf);
+                            toast.warning(`Quantity capped at maximum stock: ${maxQty} units`);
+                          }
+                        }}
+                        className="text-center font-medium"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-primary font-medium text-center bg-primary/5 p-2 rounded border border-primary/10">
+                    Total: {qtyValue} {selectedBatch.baseUnit || 'Pieces'} ({Math.floor(qtyValue / selectedBatch.conversionFactor)} Strips & {qtyValue % selectedBatch.conversionFactor} Tabs)
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => setQtyValue(Math.max(1, qtyValue - 1))}
+                    disabled={qtyValue <= 1}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={maxQty}
+                    value={qtyValue}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (maxQty >= 1) confirmAdd();
+                      } else if (e.key === "+" || e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setQtyValue(Math.min(maxQty, qtyValue + 1));
+                      } else if (e.key === "-" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setQtyValue(Math.max(1, qtyValue - 1));
+                      }
+                    }}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (!isNaN(v)) setQtyValue(Math.max(1, Math.min(maxQty, v)));
+                      else setQtyValue(1);
+                    }}
+                    className="w-20 text-center text-lg font-semibold tabular-nums"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => setQtyValue(Math.min(maxQty, qtyValue + 1))}
+                    disabled={qtyValue >= maxQty}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
 
               <div className="text-center text-sm text-muted-foreground">
                 Total:{" "}

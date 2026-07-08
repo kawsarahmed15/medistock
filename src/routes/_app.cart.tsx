@@ -102,6 +102,7 @@ const emptyForm: FormState = {
 function CartPage() {
   const cart = useCart();
   const { session } = useAuth();
+  const isRetailer = session?.role !== "wholesaler";
   const navigate = useNavigate();
   const search = Route.useSearch();
   const routeNavigate = Route.useNavigate();
@@ -477,6 +478,11 @@ function CartPage() {
                               </span>
                             )}
                           </div>
+                          {isRetailer && i.product.conversionFactor && i.product.conversionFactor > 1 && (
+                            <div className="text-[10px] bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.5 mt-1 font-semibold w-max">
+                              Breakdown: {Math.floor(i.qty / i.product.conversionFactor)} {i.product.packUnit || 'Strip'}{Math.floor(i.qty / i.product.conversionFactor) !== 1 ? 's' : ''} & {i.qty % i.product.conversionFactor} {i.product.baseUnit || 'Tab'}{i.qty % i.product.conversionFactor !== 1 ? 's' : ''}
+                            </div>
+                          )}
                           <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
                             {i.freeQty && i.freeQty === i.qty ? (
                               <span className="font-semibold text-primary">Free</span>
@@ -535,31 +541,80 @@ function CartPage() {
                               ))}
                             </select>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty - 1); }}
-                            title="Decrease qty (← when row selected)"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className={cn(
-                            "w-8 text-center text-sm tabular-nums font-semibold transition-colors",
-                            isSelected ? "text-primary" : "",
-                          )}>
-                            {i.qty}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty + 1); }}
-                            disabled={i.qty >= i.product.stock}
-                            title="Increase qty (→ when row selected)"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                          {isRetailer && i.product.conversionFactor && i.product.conversionFactor > 1 ? (
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[9px] uppercase font-bold text-muted-foreground">{i.product.packUnit || 'Strip'}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="w-12 h-8 text-center border rounded font-semibold text-xs bg-background"
+                                  value={Math.floor(i.qty / i.product.conversionFactor)}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                    const cf = i.product.conversionFactor || 10;
+                                    const loose = i.qty % cf;
+                                    const nextQty = val * cf + loose;
+                                    if (nextQty <= i.product.stock) {
+                                      cart.setQty(i.product.id, nextQty);
+                                    } else {
+                                      cart.setQty(i.product.id, i.product.stock);
+                                      toast.warning("Capped at available stock limit");
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[9px] uppercase font-bold text-muted-foreground">{i.product.baseUnit || 'Piece'}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="w-12 h-8 text-center border rounded font-semibold text-xs bg-background"
+                                  value={i.qty % i.product.conversionFactor}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                    const cf = i.product.conversionFactor || 10;
+                                    const packs = Math.floor(i.qty / cf);
+                                    const nextQty = packs * cf + val;
+                                    if (nextQty <= i.product.stock) {
+                                      cart.setQty(i.product.id, nextQty);
+                                    } else {
+                                      cart.setQty(i.product.id, i.product.stock);
+                                      toast.warning("Capped at available stock limit");
+                                    }
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty - 1); }}
+                                title="Decrease qty (← when row selected)"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className={cn(
+                                "w-8 text-center text-sm tabular-nums font-semibold transition-colors",
+                                isSelected ? "text-primary" : "",
+                              )}>
+                                {i.qty}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty + 1); }}
+                                disabled={i.qty >= i.product.stock}
+                                title="Increase qty (→ when row selected)"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
                         </div>
 
                         <div className="w-24 text-right tabular-nums font-medium">
