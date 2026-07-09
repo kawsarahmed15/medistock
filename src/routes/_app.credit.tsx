@@ -450,7 +450,7 @@ function CreditPage() {
 
           {selectedCustomer && (
             <div className="space-y-6 pt-2">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <span className="text-xs text-muted-foreground block">Customer Name</span>
                   <span className="font-semibold">{selectedCustomer.name || "N/A"}</span>
@@ -459,12 +459,12 @@ function CreditPage() {
                   <span className="text-xs text-muted-foreground block">Phone</span>
                   <span className="font-semibold">{selectedCustomer.phone}</span>
                 </div>
-                <div className="space-y-1 col-span-2">
+                <div className="space-y-1 col-span-full">
                   <span className="text-xs text-muted-foreground block">Address</span>
                   <p className="text-sm bg-muted/30 p-2 rounded border">{selectedCustomer.address || "No address on file."}</p>
                 </div>
                 {selectedCustomer.notes && (
-                  <div className="space-y-1 col-span-2">
+                  <div className="space-y-1 col-span-full">
                     <span className="text-xs text-muted-foreground block">Notes</span>
                     <p className="text-sm bg-amber-500/5 p-2 rounded border border-amber-500/10 text-amber-600/90">{selectedCustomer.notes}</p>
                   </div>

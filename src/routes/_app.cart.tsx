@@ -1353,8 +1353,8 @@ function AddProductDialog({
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={submit} className="grid grid-cols-2 gap-4">
-            <FieldInline label="Name" className="col-span-2">
+          <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FieldInline label="Name" className="col-span-full">
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -1614,7 +1614,7 @@ function AddProductDialog({
               </datalist>
             </FieldInline>
 
-            <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
+            <div className="col-span-full flex items-center justify-between rounded-lg border p-3">
               <div>
                 <div className="text-sm font-medium">Prescription required</div>
                 <div className="text-xs text-muted-foreground">Mark this product as Rx-only.</div>
@@ -1625,7 +1625,7 @@ function AddProductDialog({
               />
             </div>
 
-            <DialogFooter className="col-span-2">
+            <DialogFooter className="col-span-full">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>

@@ -22,9 +22,11 @@ import {
   Star,
   ChevronRight,
   Globe,
+  Menu,
 } from "lucide-react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/")(  {
   component: LandingPage,
@@ -243,12 +245,50 @@ function LandingPage() {
             >
               Log in
             </Link>
-            <Link to="/signup">
+            <Link to="/signup" className="hidden xs:block">
               <Button className="rounded-full shadow-glow bg-gradient-primary hover:opacity-90 text-primary-foreground font-semibold px-6 transition-all duration-300 hover:shadow-[0_10px_40px_-10px_oklch(0.62_0.13_175/0.5)] hover:scale-105">
                 Start Free Trial
                 <Sparkles className="ml-1.5 w-4 h-4" />
               </Button>
             </Link>
+
+            {/* Mobile Navigation Drawer */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">
+                  <Menu className="w-6 h-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full max-w-[300px] p-6 bg-background/95 backdrop-blur-md">
+                <SheetTitle className="text-xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+                  MediStock
+                </SheetTitle>
+                <div className="flex flex-col gap-6 mt-8">
+                  {["Features", "About", "Testimonials", "Pricing"].map((item) => (
+                    <a
+                      key={item}
+                      href={`#${item.toLowerCase()}`}
+                      className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {item}
+                    </a>
+                  ))}
+                  <div className="border-t border-border/50 pt-6 flex flex-col gap-4">
+                    <Link
+                      to="/login"
+                      className="text-center py-2.5 rounded-full border border-border text-sm font-medium hover:bg-muted/50 transition-colors"
+                    >
+                      Log in
+                    </Link>
+                    <Link to="/signup">
+                      <Button className="w-full rounded-full bg-gradient-primary text-primary-foreground font-semibold py-2.5">
+                        Start Free Trial
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>

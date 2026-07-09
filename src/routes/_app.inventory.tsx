@@ -503,8 +503,8 @@ function InventoryPage() {
               <DialogHeader>
                 <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={submit} className="grid grid-cols-2 gap-4">
-                <Field label="Name" className="col-span-2">
+              <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Name" className="col-span-full">
                   <Input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -744,7 +744,7 @@ function InventoryPage() {
                   </div>
                   <RecentOptions id="hsn-recent" options={recentHsns} />
                 </Field>
-                <div className="col-span-2 flex items-center justify-between rounded-lg border p-3">
+                 <div className="col-span-full flex items-center justify-between rounded-lg border p-3">
                   <div>
                     <div className="text-sm font-medium">Prescription required</div>
                     <div className="text-xs text-muted-foreground">
@@ -756,7 +756,7 @@ function InventoryPage() {
                     onCheckedChange={(v) => setForm({ ...form, prescription: v })}
                   />
                 </div>
-                <DialogFooter className="col-span-2">
+                <DialogFooter className="col-span-full">
                   <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                     Cancel
                   </Button>
