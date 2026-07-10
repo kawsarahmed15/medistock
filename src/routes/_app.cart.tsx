@@ -824,6 +824,16 @@ function CartPage() {
                   className="text-emerald-500"
                 />
               )}
+              {(() => {
+                const roundOff = cart.total - (cart.subtotal + cart.tax - cart.discount);
+                return Math.abs(roundOff) >= 0.01 ? (
+                  <Row
+                    label="Round Off"
+                    value={`${roundOff > 0 ? "+" : ""}${formatMoney(roundOff)}`}
+                    className="text-muted-foreground"
+                  />
+                ) : null;
+              })()}
               <div className="border-t pt-2">
                 <Row label="Total" value={formatMoney(cart.total)} bold />
               </div>

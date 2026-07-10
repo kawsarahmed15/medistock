@@ -419,8 +419,8 @@ export async function downloadBillPdf(
   y = tableEndY + 20;
 
   // 4. Totals & Footer Info Area
-  const netPayable = Math.round(bill.total);
-  const roundOff = netPayable - bill.total;
+  const netPayable = bill.total;
+  const roundOff = bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
   const cgst = bill.tax / 2;
   const sgst = bill.tax / 2;
   const totalQty = bill.items.reduce((acc, item) => acc + item.qty, 0);

@@ -131,8 +131,8 @@ function BillDetailPage() {
   const cgst = bill.tax / 2;
   const sgst = bill.tax / 2;
 
-  const netPayable = Math.round(bill.total);
-  const roundOff = netPayable - bill.total;
+  const netPayable = bill.total;
+  const roundOff = bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
 
   const handlePrint = () => {
     downloadBillPdf(bill, {
