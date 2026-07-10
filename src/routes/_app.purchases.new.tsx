@@ -535,7 +535,7 @@ function AddPurchasePage() {
                           className="h-9 text-sm px-3"
                         />
                         {activeLine === idx && productSearch && (
-                          <div className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto">
+                          <div className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
                             {filteredProducts.length > 0 ? (
                               filteredProducts.map((p) => (
                                 <div
