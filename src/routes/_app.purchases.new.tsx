@@ -350,7 +350,7 @@ function AddPurchasePage() {
     : [];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-20">
+    <div className="space-y-6 max-w-[98%] 2xl:max-w-[1650px] mx-auto pb-20 px-2 md:px-4">
       {/* Navigation Header */}
       <div className="flex items-center gap-4 border-b pb-4">
         <Button variant="ghost" size="icon" asChild className="shrink-0 text-muted-foreground hover:text-foreground">
