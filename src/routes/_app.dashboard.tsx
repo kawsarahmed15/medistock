@@ -101,15 +101,22 @@ function DashboardPage() {
     for (let i = 13; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
       days.push({
-        key: d.toISOString().slice(0, 10),
+        key: `${year}-${month}-${day}`,
         label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         revenue: 0,
       });
     }
     const map = new Map(days.map((d) => [d.key, d]));
     for (const b of bills) {
-      const k = new Date(b.createdAt).toISOString().slice(0, 10);
+      const d = new Date(b.createdAt);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const k = `${year}-${month}-${day}`;
       const row = map.get(k);
       if (row) row.revenue += b.total;
     }

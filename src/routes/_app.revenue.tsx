@@ -377,7 +377,10 @@ function RevenuePage() {
     for (let i = totalDays - 1; i >= 0; i--) {
       const d = new Date(base);
       d.setDate(base.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const key = `${year}-${month}-${day}`;
       days.push({
         date: key,
         label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
@@ -387,7 +390,11 @@ function RevenuePage() {
     }
     const map = new Map(days.map((d) => [d.date, d]));
     for (const b of filteredBills) {
-      const key = new Date(b.createdAt).toISOString().slice(0, 10);
+      const d = new Date(b.createdAt);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const key = `${year}-${month}-${day}`;
       const row = map.get(key);
       if (row) {
         row.revenue += b.total;
