@@ -489,7 +489,7 @@ function AddPurchasePage() {
             </Button>
           </div>
 
-          <div className="overflow-x-auto w-full border border-border rounded-lg shadow-sm max-h-[550px]">
+          <div className="overflow-x-auto w-full border border-border rounded-lg shadow-sm max-h-[700px] no-scrollbar">
             <table className="w-full text-sm text-left border-collapse min-w-[1300px]">
               <thead className="bg-muted/70 sticky top-0 z-10">
                 <tr className="border-b text-muted-foreground font-semibold text-[13px]">
