@@ -475,33 +475,36 @@ function AddPurchasePage() {
         </div>
 
         {/* Medicine Entry Grid Spreadsheet */}
-        <Card className="p-4 border-border/60 shadow-soft overflow-visible">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-sm flex items-center gap-1">
-              <span>Medicine Intake Spreadsheet</span>
-              <span className="text-[10px] text-muted-foreground font-normal">Use arrow keys/Enter to navigate grid cells.</span>
-            </h3>
-            <Button type="button" variant="outline" size="xs" onClick={addLine} className="h-7 text-xs">
-              <Plus className="h-3 w-3 mr-1" /> Add Row (Insert)
+        <Card className="p-5 border-border/60 shadow-md overflow-visible bg-card">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <div>
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <span>Medicine Intake Spreadsheet</span>
+                <span className="hidden md:inline text-xs text-muted-foreground font-normal">Use arrow keys/Enter to navigate grid cells.</span>
+              </h3>
+              <p className="md:hidden text-[11px] text-muted-foreground">Swipe horizontally to view all columns. Use arrow keys/Enter to navigate.</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={addLine} className="h-9 text-xs shrink-0">
+              <Plus className="h-4 w-4 mr-1.5" /> Add Row (Insert)
             </Button>
           </div>
 
-          <div className="overflow-x-auto w-full border rounded-lg max-h-[400px]">
-            <table className="w-full text-xs text-left border-collapse min-w-[1400px]">
-              <thead className="bg-muted/60 sticky top-0 z-10">
-                <tr className="border-b text-muted-foreground font-semibold">
-                  <th className="py-2.5 px-2 w-[220px]">Medicine Name</th>
-                  <th className="py-2.5 px-2 w-[110px]">Batch No.</th>
-                  <th className="py-2.5 px-2 w-[100px]">Expiry Date</th>
-                  <th className="py-2.5 px-2 w-[80px]">Pack Size</th>
-                  <th className="py-2.5 px-2 w-[80px] text-right">Purchase Qty</th>
-                  <th className="py-2.5 px-2 w-[80px] text-right">Free Qty</th>
-                  <th className="py-2.5 px-2 w-[100px] text-right">Buy Rate (Cost)</th>
-                  <th className="py-2.5 px-2 w-[100px] text-right">MRP</th>
-                  <th className="py-2.5 px-2 w-[80px] text-right">GST %</th>
-                  <th className="py-2.5 px-2 w-[120px] text-right">Landing Cost</th>
-                  <th className="py-2.5 px-2 w-[120px] text-right">Line Total</th>
-                  <th className="py-2.5 px-2 w-[40px]"></th>
+          <div className="overflow-x-auto w-full border border-border rounded-lg shadow-sm max-h-[550px]">
+            <table className="w-full text-sm text-left border-collapse min-w-[1300px]">
+              <thead className="bg-muted/70 sticky top-0 z-10">
+                <tr className="border-b text-muted-foreground font-semibold text-[13px]">
+                  <th className="py-3 px-3 w-[260px]">Medicine Name</th>
+                  <th className="py-3 px-3 w-[120px]">Batch No.</th>
+                  <th className="py-3 px-3 w-[145px]">Expiry Date</th>
+                  <th className="py-3 px-3 w-[90px]">Pack Size</th>
+                  <th className="py-3 px-3 w-[95px] text-right">Purchase Qty</th>
+                  <th className="py-3 px-3 w-[95px] text-right">Free Qty</th>
+                  <th className="py-3 px-3 w-[110px] text-right">Buy Rate (Cost)</th>
+                  <th className="py-3 px-3 w-[110px] text-right">MRP</th>
+                  <th className="py-3 px-3 w-[90px] text-right">GST %</th>
+                  <th className="py-3 px-3 w-[120px] text-right">Landing Cost</th>
+                  <th className="py-3 px-3 w-[120px] text-right">Line Total</th>
+                  <th className="py-3 px-3 w-[50px]"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -512,12 +515,12 @@ function AddPurchasePage() {
                   if (!gridRefs.current[idx]) gridRefs.current[idx] = [];
 
                   return (
-                    <tr key={idx} className="hover:bg-muted/10">
+                    <tr key={idx} className="hover:bg-muted/10 transition-colors">
                       {/* Name Search Box */}
-                      <td className="p-1.5 relative">
+                      <td className="p-2 relative">
                         <Input
                           ref={(el) => (gridRefs.current[idx][0] = el)}
-                          placeholder="Medicine or search finder"
+                          placeholder="Medicine name"
                           value={line.name}
                           onChange={(e) => {
                             updateLine(idx, "name", e.target.value);
@@ -529,7 +532,7 @@ function AddPurchasePage() {
                             setProductSearch(line.name);
                           }}
                           onKeyDown={(e) => handleKeyDown(e, idx, 0)}
-                          className="h-7 text-xs py-0 px-2"
+                          className="h-9 text-sm px-3"
                         />
                         {activeLine === idx && productSearch && (
                           <div className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto">
@@ -537,7 +540,7 @@ function AddPurchasePage() {
                               filteredProducts.map((p) => (
                                 <div
                                   key={p.id}
-                                  className="px-3 py-1.5 hover:bg-muted cursor-pointer text-xs"
+                                  className="px-3 py-2 hover:bg-muted cursor-pointer text-xs"
                                   onMouseDown={() => selectProduct(idx, p)}
                                 >
                                   {p.name} <span className="text-muted-foreground text-[10px]">({p.stock} units, MRP: ₹{p.mrp})</span>
@@ -554,43 +557,43 @@ function AddPurchasePage() {
                       </td>
 
                       {/* Batch */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][1] = el)}
                           placeholder="Batch"
                           value={line.batch}
                           onChange={(e) => updateLine(idx, "batch", e.target.value)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 1)}
-                          className="h-7 text-xs font-mono uppercase"
+                          className="h-9 text-sm font-mono uppercase px-3"
                         />
                       </td>
 
                       {/* Expiry */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][2] = el)}
                           type="date"
                           value={line.expiry}
                           onChange={(e) => updateLine(idx, "expiry", e.target.value)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 2)}
-                          className="h-7 text-xs p-1"
+                          className="h-9 text-sm px-2"
                         />
                       </td>
 
                       {/* Pack */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][3] = el)}
                           placeholder="10x15"
                           value={line.pack}
                           onChange={(e) => updateLine(idx, "pack", e.target.value)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 3)}
-                          className="h-7 text-xs text-center"
+                          className="h-9 text-sm text-center px-2"
                         />
                       </td>
 
                       {/* Purchase Qty */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][4] = el)}
                           type="number"
@@ -598,12 +601,12 @@ function AddPurchasePage() {
                           value={line.qty || ""}
                           onChange={(e) => updateLine(idx, "qty", parseInt(e.target.value) || 0)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 4)}
-                          className="h-7 text-xs text-right"
+                          className="h-9 text-sm text-right px-3"
                         />
                       </td>
 
                       {/* Free Qty */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][5] = el)}
                           type="number"
@@ -611,12 +614,12 @@ function AddPurchasePage() {
                           value={line.freeQty || ""}
                           onChange={(e) => updateLine(idx, "freeQty", parseInt(e.target.value) || 0)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 5)}
-                          className="h-7 text-xs text-right"
+                          className="h-9 text-sm text-right px-3"
                         />
                       </td>
 
                       {/* Buy Rate */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][6] = el)}
                           type="number"
@@ -624,12 +627,12 @@ function AddPurchasePage() {
                           value={line.costPrice || ""}
                           onChange={(e) => updateLine(idx, "costPrice", parseFloat(e.target.value) || 0)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 6)}
-                          className="h-7 text-xs text-right font-mono"
+                          className="h-9 text-sm text-right font-mono px-3"
                         />
                       </td>
 
                       {/* MRP */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][7] = el)}
                           type="number"
@@ -637,12 +640,12 @@ function AddPurchasePage() {
                           value={line.mrp || ""}
                           onChange={(e) => updateLine(idx, "mrp", parseFloat(e.target.value) || 0)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 7)}
-                          className="h-7 text-xs text-right font-mono"
+                          className="h-9 text-sm text-right font-mono px-3"
                         />
                       </td>
 
                       {/* GST */}
-                      <td className="p-1.5">
+                      <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][8] = el)}
                           type="number"
@@ -650,24 +653,24 @@ function AddPurchasePage() {
                           value={line.taxPercent || ""}
                           onChange={(e) => updateLine(idx, "taxPercent", parseFloat(e.target.value) || 0)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 8)}
-                          className="h-7 text-xs text-right"
+                          className="h-9 text-sm text-right px-3"
                         />
                       </td>
 
                       {/* Landing cost info display */}
-                      <td className="p-1.5 text-right font-mono text-muted-foreground select-none">
+                      <td className="p-2 text-right font-mono text-muted-foreground select-none align-middle text-[13px]">
                         ₹{lineCalc?.landingCost.toFixed(2) || "0.00"}
                       </td>
 
                       {/* Line total info display */}
-                      <td className="p-1.5 text-right font-mono font-bold text-primary select-none">
+                      <td className="p-2 text-right font-mono font-semibold text-primary select-none align-middle text-[13px]">
                         ₹{lineCalc?.lineTotal.toFixed(2) || "0.00"}
                       </td>
 
                       {/* Remove line */}
-                      <td className="p-1 text-center">
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(idx)} className="h-6 w-6 text-rose-500 hover:bg-rose-50" disabled={lines.length === 1}>
-                          <Trash2 className="h-3.5 w-3.5" />
+                      <td className="p-2 text-center align-middle">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(idx)} className="h-8 w-8 text-rose-500 hover:bg-rose-50" disabled={lines.length === 1}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
                     </tr>
