@@ -62,6 +62,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [location.pathname]);
 
   const handleSidebarKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === "ArrowRight") {
+      const firstMainFocusable = document
+        .querySelector("#main")
+        ?.querySelector<HTMLElement>('input:not([tabindex="-1"]), button:not([tabindex="-1"]), a:not([tabindex="-1"]), [tabindex="0"]');
+      if (firstMainFocusable) {
+        e.preventDefault();
+        firstMainFocusable.focus();
+      }
+      return;
+    }
+
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
 
     const focusable = Array.from(
@@ -81,6 +92,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     e.preventDefault();
     focusable[nextIndex]?.focus();
     setActiveFocusIndex(nextIndex);
+  };
+
+  const handleMainKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === "ArrowLeft") {
+      const active = document.activeElement;
+      if (
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.getAttribute("contenteditable") === "true")
+      ) {
+        return;
+      }
+
+      const activeSidebarItem = document.querySelector(".sidebar-focus-item[tabindex='0']") as HTMLElement;
+      if (activeSidebarItem) {
+        e.preventDefault();
+        activeSidebarItem.focus();
+      }
+    }
   };
 
   const [isDesktop, setIsDesktop] = useState(true);
@@ -225,7 +256,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   const main = (
-    <div className="h-full flex flex-col min-w-0 bg-gradient-soft print:block print:h-auto">
+    <div
+      id="main"
+      onKeyDown={handleMainKeyDown}
+      className="h-full flex flex-col min-w-0 bg-gradient-soft print:block print:h-auto"
+    >
       <header className="h-14 flex items-center gap-2 sm:gap-3 md:gap-4 px-3 sm:px-4 md:px-8 border-b border-border bg-background/70 backdrop-blur-md sticky top-0 z-10 print:hidden">
         {/* Mobile hamburger -> opens sidebar sheet */}
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
