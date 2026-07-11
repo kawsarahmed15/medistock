@@ -45,12 +45,15 @@ export async function sendVerificationEmail({ to, name, verificationUrl }) {
     footer: "If you did not create this account, you can ignore this message.",
   });
 
+  const text = `Hi ${name || "there"},\n\nPlease verify your email to activate your account and start using MediStock securely by visiting this link:\n${verificationUrl}\n\nIf you did not create this account, you can ignore this message.`;
+
   try {
     await transporter.sendMail({
       from: config.smtp.from,
       to,
       subject: "Verify your MediStock account",
       html,
+      text,
     });
   } catch (error) {
     console.warn("Verification email could not be sent", error);
@@ -66,12 +69,15 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
     footer: "If you did not request this, no action is required.",
   });
 
+  const text = `Hi ${name || "there"},\n\nWe received a request to reset your password. Click below to continue:\n${resetUrl}\n\nIf you did not request this, no action is required.`;
+
   try {
     await transporter.sendMail({
       from: config.smtp.from,
       to,
       subject: "MediStock password reset",
       html,
+      text,
     });
   } catch (error) {
     console.warn("Password reset email could not be sent", error);
@@ -91,12 +97,15 @@ export async function sendEmailChangeVerification({ to, name, verificationUrl })
     footer: "If you did not request this change, please ignore this message.",
   });
 
+  const text = `Hi ${name || "there"},\n\nYou requested to change your email address for your MediStock account. Click below to confirm this new email:\n${verificationUrl}\n\nIf you did not request this change, please ignore this message.`;
+
   try {
     await transporter.sendMail({
       from: config.smtp.from,
       to,
       subject: "Confirm your new MediStock email",
       html,
+      text,
     });
   } catch (error) {
     console.warn("Email change email could not be sent", error);
