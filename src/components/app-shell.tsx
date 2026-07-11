@@ -63,12 +63,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleSidebarKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key === "ArrowRight") {
-      const firstMainFocusable = document
-        .querySelector("#main")
-        ?.querySelector<HTMLElement>('input:not([tabindex="-1"]), button:not([tabindex="-1"]), a:not([tabindex="-1"]), [tabindex="0"]');
-      if (firstMainFocusable) {
-        e.preventDefault();
-        firstMainFocusable.focus();
+      const mainContainer = document.getElementById("main-content-wrapper");
+      if (mainContainer) {
+        const focusableElements = Array.from(
+          mainContainer.querySelectorAll<HTMLElement>(
+            'a, button, input, select, textarea, [tabindex]'
+          )
+        ).filter((el) => {
+          const tabIndexAttr = el.getAttribute("tabindex");
+          const isNotTabbable = tabIndexAttr === "-1" || el.hasAttribute("disabled");
+          const style = window.getComputedStyle(el);
+          const isVisible = style.display !== "none" && style.visibility !== "hidden";
+          return !isNotTabbable && isVisible;
+        });
+
+        if (focusableElements.length > 0) {
+          e.preventDefault();
+          focusableElements[0].focus();
+        }
       }
       return;
     }
@@ -106,7 +118,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const activeSidebarItem = document.querySelector(".sidebar-focus-item[tabindex='0']") as HTMLElement;
+      const activeSidebarItem = (document.querySelector(".sidebar-focus-item[tabindex='0']") ||
+        document.querySelector(".sidebar-focus-item")) as HTMLElement;
       if (activeSidebarItem) {
         e.preventDefault();
         activeSidebarItem.focus();
