@@ -50,6 +50,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [activeFocusIndex, setActiveFocusIndex] = useState(0);
+
+  useEffect(() => {
+    const activeIdx = nav.findIndex((item) => location.pathname.startsWith(item.to));
+    if (activeIdx !== -1) {
+      setActiveFocusIndex(activeIdx);
+    } else {
+      setActiveFocusIndex(0);
+    }
+  }, [location.pathname]);
+
+  const handleSidebarKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+
+    const focusable = Array.from(
+      e.currentTarget.querySelectorAll<HTMLElement>(".sidebar-focus-item")
+    );
+    if (focusable.length === 0) return;
+
+    const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+    let nextIndex = 0;
+
+    if (e.key === "ArrowDown") {
+      nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % focusable.length;
+    } else if (e.key === "ArrowUp") {
+      nextIndex = currentIndex === -1 ? focusable.length - 1 : (currentIndex - 1 + focusable.length) % focusable.length;
+    }
+
+    e.preventDefault();
+    focusable[nextIndex]?.focus();
+    setActiveFocusIndex(nextIndex);
+  };
 
   const [isDesktop, setIsDesktop] = useState(true);
   useEffect(() => {
@@ -62,7 +94,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const sidebarBody = (onNavigate?: () => void) => (
-    <aside className="h-full flex flex-col border-r border-sidebar-border bg-sidebar shadow-soft overflow-hidden print:hidden">
+    <aside
+      onKeyDown={handleSidebarKeyDown}
+      className="h-full flex flex-col border-r border-sidebar-border bg-sidebar shadow-soft overflow-hidden print:hidden"
+    >
       <div className="flex items-center gap-2 px-6 py-5 border-b border-sidebar-border">
         <div className="h-9 w-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow shrink-0">
           <Pill className="h-5 w-5 text-primary-foreground" />
@@ -76,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {nav.map(({ to, label, icon: Icon }) => {
+        {nav.map(({ to, label, icon: Icon }, idx) => {
           const active = location.pathname.startsWith(to);
           return (
             <Link
@@ -84,8 +119,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               to={to}
               preload="intent"
               onClick={onNavigate}
+              tabIndex={activeFocusIndex === idx ? 0 : -1}
+              onFocus={() => setActiveFocusIndex(idx)}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-smooth",
+                "sidebar-focus-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-smooth",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-soft"
                   : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
@@ -110,7 +147,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onNavigate?.();
             setProfileOpen(true);
           }}
-          className="w-full text-left rounded-lg px-3 py-2 hover:bg-sidebar-accent/60 transition-smooth flex items-center gap-3"
+          tabIndex={activeFocusIndex === 10 ? 0 : -1}
+          onFocus={() => setActiveFocusIndex(10)}
+          className="sidebar-focus-item w-full text-left rounded-lg px-3 py-2 hover:bg-sidebar-accent/60 transition-smooth flex items-center gap-3"
           aria-label="Open profile"
         >
           <div className="h-9 w-9 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground text-sm font-semibold shadow-glow shrink-0">
@@ -128,7 +167,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link
             to="/admin/dashboard"
             onClick={onNavigate}
-            className="flex w-full justify-start items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-500/10 transition-smooth"
+            tabIndex={activeFocusIndex === 11 ? 0 : -1}
+            onFocus={() => setActiveFocusIndex(11)}
+            className="sidebar-focus-item flex w-full justify-start items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-500/10 transition-smooth"
           >
             <ShieldCheck className="h-4 w-4" /> Admin Panel
           </Link>
@@ -137,7 +178,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           variant="ghost"
           size="sm"
           onClick={() => void logout()}
-          className="w-full justify-start gap-2"
+          tabIndex={activeFocusIndex === (session?.role === "superadmin" ? 12 : 11) ? 0 : -1}
+          onFocus={() => setActiveFocusIndex(session?.role === "superadmin" ? 12 : 11)}
+          className="sidebar-focus-item w-full justify-start gap-2"
         >
           <LogOut className="h-4 w-4" /> Sign out
         </Button>
