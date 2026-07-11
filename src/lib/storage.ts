@@ -250,7 +250,7 @@ export const customersStore = {
   async getAllPayments(
     from?: string,
     to?: string,
-  ): Promise<{ id: string; amount: number; method: string; created_at: string }[]> {
+  ): Promise<{ id: string; amount: number; method: string; created_at: string; customer_name?: string; customer_phone?: string }[]> {
     const params = new URLSearchParams();
     if (from) params.append("from", from);
     if (to) params.append("to", to);

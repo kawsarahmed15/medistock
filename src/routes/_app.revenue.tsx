@@ -26,12 +26,12 @@ import {
 } from "recharts";
 import { TableSkeleton } from "@/components/loading-skeleton";
 
-type Range = "today" | "7d" | "30d" | "month" | "quarter" | "year" | "custom" | "all";
+type Range = "today" | "yesterday" | "7d" | "30d" | "month" | "quarter" | "year" | "custom" | "all";
 type RevenueSearch = { range?: Range; from?: string; to?: string };
 
 export const Route = createFileRoute("/_app/revenue")({
   validateSearch: (search: Record<string, unknown>): RevenueSearch => {
-    const valid: Range[] = ["today", "7d", "30d", "month", "quarter", "year", "custom", "all"];
+    const valid: Range[] = ["today", "yesterday", "7d", "30d", "month", "quarter", "year", "custom", "all"];
     const r = search.range as string | undefined;
     return {
       range: valid.includes(r as Range) ? (r as Range) : undefined,
@@ -54,6 +54,10 @@ function rangeBounds(range: Range, from?: string, to?: string): { start: Date; e
   switch (range) {
     case "today":
       // start already today 00:00
+      break;
+    case "yesterday":
+      start.setDate(start.getDate() - 1);
+      end.setDate(end.getDate() - 1);
       break;
     case "7d":
       start.setDate(start.getDate() - 6);
@@ -344,11 +348,11 @@ function RevenuePage() {
     return [];
   }, [detailType, filteredBills, filteredPayments]);
 
-  // For "today" we'll render an hourly chart instead of daily.
-  const isToday = range === "today";
+  // For "today" or "yesterday" we'll render an hourly chart instead of daily.
+  const isHourly = range === "today" || range === "yesterday";
 
   const dailyData = useMemo(() => {
-    if (isToday) {
+    if (isHourly) {
       const hours: { date: string; label: string; revenue: number; bills: number }[] = [];
       for (let h = 0; h < 24; h++) {
         hours.push({
@@ -401,7 +405,7 @@ function RevenuePage() {
       }
     }
     return days;
-  }, [filteredBills, start, end, isToday]);
+  }, [filteredBills, start, end, isHourly]);
 
   // Monthly revenue across the range (last 24 months max)
   const monthlyData = useMemo(() => {
@@ -465,6 +469,7 @@ function RevenuePage() {
 
   const rangeLabel: Record<Range, string> = {
     today: "Today",
+    yesterday: "Yesterday",
     "7d": "Last 7 days",
     "30d": "Last 30 days",
     month: "This month",
@@ -506,6 +511,7 @@ function RevenuePage() {
           <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
             <TabsList className="flex flex-wrap h-auto">
               <TabsTrigger value="today">Today</TabsTrigger>
+              <TabsTrigger value="yesterday">Yesterday</TabsTrigger>
               <TabsTrigger value="7d">Last 7 days</TabsTrigger>
               <TabsTrigger value="30d">Last 30 days</TabsTrigger>
               <TabsTrigger value="month">This month</TabsTrigger>
@@ -623,7 +629,7 @@ function RevenuePage() {
       <Card className="shadow-soft">
         <CardHeader>
           <CardTitle className="text-base">
-            {isToday ? "Hourly revenue · today" : "Daily revenue"}
+            {range === "today" ? "Hourly revenue · today" : range === "yesterday" ? "Hourly revenue · yesterday" : "Daily revenue"}
           </CardTitle>
         </CardHeader>
         <CardContent className="h-72">

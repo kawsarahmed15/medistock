@@ -97,7 +97,7 @@ import { generateId } from "../utils.js";
 router.get("/payments/all", async (req, res, next) => {
   try {
     const params = [req.auth.userId];
-    let query = `SELECT id, amount, payment_method as method, created_at FROM customer_payments WHERE user_id = ?`;
+    let query = `SELECT id, amount, payment_method as method, created_at, customer_name, customer_phone FROM customer_payments WHERE user_id = ?`;
     if (req.query.from) {
       query += ` AND created_at >= ?`;
       params.push(req.query.from);
