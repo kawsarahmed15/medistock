@@ -89,7 +89,7 @@ export async function downloadBillPdf(
 
   const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
   const pharmacyPhone = settings?.pharmacyPhone || "";
-  const pharmacyAddress = settings?.pharmacyAddress || "123 Health Ave, Medical District, City";
+  const pharmacyAddress = settings?.pharmacyAddress || "";
   const gstNumber = settings?.gstNumber || "";
   const drugLicNo = settings?.drugLicNo || "";
   const billColor = settings?.billColor || "#1a9890";
@@ -137,8 +137,10 @@ export async function downloadBillPdf(
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  let addrLines = doc.splitTextToSize(clean(pharmacyAddress), 220);
-  doc.text(addrLines, headerLeftX, currentY + 30);
+  let addrLines = pharmacyAddress ? doc.splitTextToSize(clean(pharmacyAddress), 220) : [];
+  if (addrLines.length > 0) {
+    doc.text(addrLines, headerLeftX, currentY + 30);
+  }
 
   let headerBottomY = currentY + 30 + addrLines.length * 12;
   doc.setFontSize(9);

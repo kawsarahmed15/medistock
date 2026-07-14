@@ -51,14 +51,14 @@ function SettingsPage() {
 
   useEffect(() => {
     if (session) {
-      if (session.pharmacyName) setPharmacyName(session.pharmacyName);
-      if (session.pharmacyPhone) setPharmacyPhone(session.pharmacyPhone);
-      if (session.pharmacyAddress) setPharmacyAddress(session.pharmacyAddress);
-      if (session.gstNumber) setGstNumber(session.gstNumber);
-      if (session.drugLicNo) setDrugLicNo(session.drugLicNo);
-      if (session.billColor) setBillColor(session.billColor);
-      if (session.signature) setSignature(session.signature);
-      if (session.expiryDays) setExpiryDays(session.expiryDays);
+      setPharmacyName(session.pharmacyName ?? "");
+      setPharmacyPhone(session.pharmacyPhone ?? "");
+      setPharmacyAddress(session.pharmacyAddress ?? "");
+      setGstNumber(session.gstNumber ?? "");
+      setDrugLicNo(session.drugLicNo ?? "");
+      setBillColor(session.billColor ?? "#1a9890");
+      setSignature(session.signature ?? "");
+      setExpiryDays(session.expiryDays ?? 60);
       if (session.defaultTax !== undefined) setDefaultTax(session.defaultTax);
     }
   }, [session]);

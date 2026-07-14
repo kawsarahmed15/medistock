@@ -73,7 +73,7 @@ function BillDetailPage() {
   const { session } = useAuth();
 
   const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
-  const pharmacyAddress = session?.pharmacyAddress || "123 Health Ave, Medical District, City";
+  const pharmacyAddress = session?.pharmacyAddress || "";
 
   // Backspace → go back to bills list (guarded when typing)
   useEffect(() => {
@@ -222,9 +222,11 @@ function BillDetailPage() {
               <h1 className="text-2xl font-bold uppercase tracking-wide m-0 leading-tight text-primary">
                 {pharmacyName}
               </h1>
-              <p className="text-sm max-w-xs leading-snug mt-1 whitespace-pre-wrap text-muted-foreground">
-                {pharmacyAddress}
-              </p>
+              {pharmacyAddress && (
+                <p className="text-sm max-w-xs leading-snug mt-1 whitespace-pre-wrap text-muted-foreground">
+                  {pharmacyAddress}
+                </p>
+              )}
               <div className="flex flex-wrap flex-col gap-y-1 mt-2 text-xs font-mono text-muted-foreground">
                 {session?.pharmacyPhone && (
                   <p>
