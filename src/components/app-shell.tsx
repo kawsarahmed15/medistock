@@ -39,7 +39,6 @@ const nav = [
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/purchases", label: "Purchases", icon: Truck },
   { to: "/credit", label: "Credit", icon: CreditCard },
-  { to: "/subscription", label: "Subscription", icon: Crown },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

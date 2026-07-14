@@ -12,7 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { apiRequest } from "@/lib/api-client";
-import { UserCog, KeyRound, Mail, LogOut } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { UserCog, KeyRound, Mail, LogOut, Crown } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -173,18 +174,25 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={async () => {
-              await logout();
-              onOpenChange(false);
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            <LogOut className="h-4 w-4" /> Sign out
-          </Button>
+        <DialogFooter className="gap-2 sm:justify-between items-center">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={async () => {
+                await logout();
+                onOpenChange(false);
+              }}
+              className="text-destructive hover:text-destructive h-9 px-3"
+            >
+              <LogOut className="h-4 w-4 mr-2" /> Sign out
+            </Button>
+            <Button asChild variant="outline" className="h-9 px-3" onClick={() => onOpenChange(false)}>
+              <Link to="/subscription">
+                <Crown className="h-4 w-4 mr-2 text-amber-500" /> Subscription
+              </Link>
+            </Button>
+          </div>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>

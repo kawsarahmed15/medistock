@@ -15,12 +15,13 @@ import { toast } from "sonner";
 
 const SHORTCUTS = [
   { keys: "F1", label: "Dashboard" },
-  { keys: "F2", label: "New sale" },
-  { keys: "F3", label: "Inventory" },
-  { keys: "F4", label: "Cart" },
-  { keys: "F5", label: "Bills" },
-  { keys: "F6", label: "Customers" },
-  { keys: "F7", label: "Revenue" },
+  { keys: "F2", label: "Inventory" },
+  { keys: "F3", label: "New sale" },
+  { keys: "F4", label: "Bills" },
+  { keys: "F5", label: "Customers" },
+  { keys: "F6", label: "Purchases" },
+  { keys: "F7", label: "Credit" },
+  { keys: "F8", label: "Settings" },
   { keys: "Alt + C", label: "Open cart" },
   { keys: "Alt + B", label: "Browse & Add Item (on Cart page)" },
   { keys: "Alt + N", label: "New bill (Clear cart)" },
@@ -122,17 +123,19 @@ export function KeyboardShortcuts() {
         case "F1":
           return go("/dashboard");
         case "F2":
-          return go("/sell");
-        case "F3":
           return go("/inventory");
+        case "F3":
+          return go("/sell");
         case "F4":
-          return go("/cart");
-        case "F5":
           return go("/bills");
-        case "F6":
+        case "F5":
           return go("/customers");
+        case "F6":
+          return go("/purchases");
         case "F7":
-          return go("/revenue");
+          return go("/credit");
+        case "F8":
+          return go("/settings");
         case "/": {
           if (e.shiftKey) {
             e.preventDefault();
