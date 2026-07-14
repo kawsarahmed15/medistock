@@ -45,6 +45,7 @@ function SettingsPage() {
   const [billColor, setBillColor] = useState(session?.billColor ?? "#1a9890");
   const [signature, setSignature] = useState(session?.signature ?? "");
   const [expiryDays, setExpiryDays] = useState(session?.expiryDays ?? 60);
+  const [lowStockQty, setLowStockQty] = useState(session?.lowStockQty ?? 10);
   const [defaultTax, setDefaultTax] = useState(session?.defaultTax ?? 12);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +60,7 @@ function SettingsPage() {
       setBillColor(session.billColor ?? "#1a9890");
       setSignature(session.signature ?? "");
       setExpiryDays(session.expiryDays ?? 60);
+      setLowStockQty(session.lowStockQty ?? 10);
       if (session.defaultTax !== undefined) setDefaultTax(session.defaultTax);
     }
   }, [session]);
@@ -105,6 +107,7 @@ function SettingsPage() {
           billColor: billColor,
           signature: signature || null,
           expiryDays: Number(expiryDays) || 60,
+          lowStockQty: Number(lowStockQty) || 10,
           defaultTax: Number(defaultTax),
         },
         auth: true,
@@ -119,6 +122,7 @@ function SettingsPage() {
         billColor: billColor,
         signature: signature || undefined,
         expiryDays: Number(expiryDays) || 60,
+        lowStockQty: Number(lowStockQty) || 10,
         defaultTax: Number(defaultTax),
       });
 
@@ -323,6 +327,25 @@ function SettingsPage() {
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
                   Products expiring within this timeframe will be highlighted as "Expiring Soon".
+                </p>
+              </div>
+
+              <div className="space-y-2 max-w-sm mt-4">
+                <Label htmlFor="low-stock-qty">Low Stock Threshold Qty</Label>
+                <select
+                  id="low-stock-qty"
+                  value={lowStockQty}
+                  onChange={(e) => setLowStockQty(Number(e.target.value))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value={10}>10 Items</option>
+                  <option value={20}>20 Items</option>
+                  <option value={30}>30 Items</option>
+                  <option value={40}>40 Items</option>
+                  <option value={50}>50 Items</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Products with stock levels at or below this amount will be flagged as "Low Stock".
                 </p>
               </div>
 

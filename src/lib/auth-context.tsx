@@ -15,6 +15,7 @@ export type Session = {
   role?: string;
   accountStatus?: string;
   expiryDays?: number;
+  lowStockQty?: number;
   defaultTax?: number;
 };
 
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: res.user.role,
             accountStatus: res.user.accountStatus,
             expiryDays: res.user.expiryDays,
+            lowStockQty: res.user.lowStockQty,
             defaultTax: res.user.defaultTax,
           });
         } catch {
@@ -97,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: res.user.role,
         accountStatus: res.user.accountStatus,
         expiryDays: res.user.expiryDays,
+        lowStockQty: res.user.lowStockQty,
         defaultTax: res.user.defaultTax,
       });
     },

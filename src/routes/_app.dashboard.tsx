@@ -37,6 +37,7 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
   const expiryDays = session?.expiryDays ?? 60;
+  const lowStockQty = session?.lowStockQty ?? 10;
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +82,7 @@ function DashboardPage() {
   // Stock value = buying price × quantity (fallback to selling price if no cost set)
   const stockValue = products.reduce((s, p) => s + (p.costPrice ?? p.price) * p.stock, 0);
 
-  const lowStock = products.filter((p) => p.stock <= 10);
+  const lowStock = products.filter((p) => p.stock <= lowStockQty);
 
   const expiringSoon = products
     .filter((p) => {
@@ -320,7 +321,7 @@ function DashboardPage() {
         <Card className="shadow-soft animate-fade-in">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Expiring soon</CardTitle>
-            <span className="text-xs text-muted-foreground">Next 60 days</span>
+            <span className="text-xs text-muted-foreground">Next {expiryDays} days</span>
           </CardHeader>
           <CardContent className="space-y-2">
             {expired.length === 0 && expiringSoon.length === 0 ? (
@@ -372,19 +373,6 @@ function DashboardPage() {
                     </div>
                   );
                 })}
-                {lowStock.length > 0 && (
-                  <div className="pt-2 mt-2 border-t border-border/60 space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">Low stock</div>
-                    {lowStock.slice(0, 3).map((p) => (
-                      <div key={p.id} className="flex justify-between text-sm">
-                        <span className="truncate">{p.name}</span>
-                        <span className="text-warning-foreground bg-warning/30 px-2 py-0.5 rounded-md text-xs">
-                          {p.stock} left
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </>
             )}
           </CardContent>

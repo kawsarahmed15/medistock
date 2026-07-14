@@ -270,7 +270,7 @@ router.post("/reset-password", async (req, res, next) => {
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -286,7 +286,7 @@ router.get("/me", requireAuth, async (req, res, next) => {
 router.patch("/profile", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -306,11 +306,13 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
     const signature = req.body.signature !== undefined ? req.body.signature : user.signature;
     const expiryDays =
       req.body.expiryDays !== undefined ? Number(req.body.expiryDays) || 60 : user.expiring_days;
+    const lowStockQty =
+      req.body.lowStockQty !== undefined ? Number(req.body.lowStockQty) || 10 : user.low_stock_qty;
     const defaultTax =
       req.body.defaultTax !== undefined ? Number(req.body.defaultTax) : user.default_tax;
 
     await pool.query(
-      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_phone = ?, pharmacy_address = ?, gst_number = ?, drug_lic_no = ?, bill_color = ?, signature = ?, expiring_days = ?, default_tax = ? WHERE id = ?",
+      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_phone = ?, pharmacy_address = ?, gst_number = ?, drug_lic_no = ?, bill_color = ?, signature = ?, expiring_days = ?, low_stock_qty = ?, default_tax = ? WHERE id = ?",
       [
         name,
         pharmacyName,
@@ -321,13 +323,14 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
         billColor,
         signature,
         expiryDays,
+        lowStockQty,
         defaultTax,
         req.auth.userId,
       ],
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
 
