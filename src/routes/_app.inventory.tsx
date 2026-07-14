@@ -146,6 +146,84 @@ function InventoryPage() {
   const [selectedIdx, setSelectedIdx] = useState<number>(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
+  const [form, setForm] = useState<FormState>(empty);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">(
+    "date_desc",
+  );
+  const { session } = useAuth();
+  const expiryDays = session?.expiryDays ?? 60;
+  const defaultTax = session?.defaultTax ?? 12;
+  const lowStockQty = session?.lowStockQty ?? 10;
+
+  const [recentCategories, setRecentCategories] = useState<string[]>([]);
+  const [recentManufacturers, setRecentManufacturers] = useState<string[]>([]);
+  const [recentHsns, setRecentHsns] = useState<string[]>([]);
+
+  const filtered = useMemo(() => {
+    return items.filter((p) => {
+      const q = query.toLowerCase();
+      if (
+        q &&
+        !p.name.toLowerCase().includes(q) &&
+        !p.category.toLowerCase().includes(q) &&
+        !(p.sku ?? "").toLowerCase().includes(q)
+      )
+        return false;
+
+      if (search.filter === "low") return p.stock <= lowStockQty;
+      if (search.filter === "expiring") {
+        const d = new Date(p.expiry).getTime();
+        const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
+        return days <= expiryDays && days >= 0;
+      }
+      if (search.filter === "expired") {
+        return new Date(p.expiry).getTime() < Date.now();
+      }
+      return true;
+    });
+  }, [items, query, search.filter, expiryDays, lowStockQty]);
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
+      if (sortBy === "name_desc") return b.name.localeCompare(a.name);
+      if (sortBy === "date_asc")
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [filtered, sortBy]);
+
+  const navigate = Route.useNavigate();
+  const cart = useCart();
+
+  const quickAdd = (p: Product) => {
+    if (p.stock <= 0) {
+      toast.error(`${p.name} is out of stock`);
+      return;
+    }
+    cart.add(p, 1);
+    toast.success(`${p.name} added to cart`);
+  };
+
+  const handleAddRecent = (
+    key: string,
+    value: string,
+    current: string[],
+    setter: (v: string[]) => void,
+    limit = 4,
+  ) => {
+    if (!value.trim()) return;
+    const updated = [
+      value.trim(),
+      ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase()),
+    ].slice(0, limit);
+    setter(updated);
+    localStorage.setItem(key, JSON.stringify(updated));
+  };
+
   useEffect(() => {
     setSelectedIdx(-1);
   }, [query, search.filter, items]);
@@ -194,17 +272,6 @@ function InventoryPage() {
   useEffect(() => {
     if (typeof qParam === "string") setQuery(qParam);
   }, [qParam]);
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState<FormState>(empty);
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">(
-    "date_desc",
-  );
-  const { session } = useAuth();
-  const expiryDays = session?.expiryDays ?? 60;
-  const defaultTax = session?.defaultTax ?? 12;
-  const lowStockQty = session?.lowStockQty ?? 10;
 
   useEffect(() => {
     // Initialize form with default tax once session is loaded if it's the empty form
@@ -213,10 +280,6 @@ function InventoryPage() {
     }
   }, [defaultTax]);
 
-  const [recentCategories, setRecentCategories] = useState<string[]>([]);
-  const [recentManufacturers, setRecentManufacturers] = useState<string[]>([]);
-  const [recentHsns, setRecentHsns] = useState<string[]>([]);
-
   useEffect(() => {
     try {
       setRecentCategories(JSON.parse(localStorage.getItem("recentCategories") || "[]"));
@@ -224,35 +287,6 @@ function InventoryPage() {
       setRecentHsns(JSON.parse(localStorage.getItem("recentHsns") || "[]"));
     } catch (e) {}
   }, []);
-
-  const saveRecent = (
-    key: string,
-    value: string,
-    current: string[],
-    setter: (v: string[]) => void,
-    limit = 4,
-  ) => {
-    if (!value.trim()) return;
-    const updated = [
-      value.trim(),
-      ...current.filter((v) => v.toLowerCase() !== value.trim().toLowerCase()),
-    ].slice(0, limit);
-    setter(updated);
-    localStorage.setItem(key, JSON.stringify(updated));
-  };
-
-  const navigate = Route.useNavigate();
-  const cart = useCart();
-
-  const quickAdd = (p: Product) => {
-    if (p.stock <= 0) {
-      toast.error(`${p.name} is out of stock`);
-      return;
-    }
-    cart.add(p, 1);
-    toast.success(`${p.name} added to cart`);
-  };
-
   const handleScan = (code: string) => {
     const trimmed = code.trim();
     if (!trimmed) return;
@@ -305,39 +339,6 @@ function InventoryPage() {
       });
   };
   useEffect(refresh, []);
-
-  const filtered = useMemo(() => {
-    return items.filter((p) => {
-      const q = query.toLowerCase();
-      if (
-        q &&
-        !p.name.toLowerCase().includes(q) &&
-        !p.category.toLowerCase().includes(q) &&
-        !(p.sku ?? "").toLowerCase().includes(q)
-      )
-        return false;
-
-      if (search.filter === "low") return p.stock <= lowStockQty;
-      if (search.filter === "expiring") {
-        const d = new Date(p.expiry).getTime();
-        const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
-        return days <= expiryDays && days >= 0;
-      }
-      if (search.filter === "expired") {
-        return new Date(p.expiry).getTime() < Date.now();
-      }
-      return true;
-    });
-  }, [items, query, search.filter, expiryDays, lowStockQty]);
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
-      if (sortBy === "name_desc") return b.name.localeCompare(a.name);
-      if (sortBy === "date_asc")
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }, [filtered, sortBy]);
 
   useEffect(() => {
     const handler = () => {
