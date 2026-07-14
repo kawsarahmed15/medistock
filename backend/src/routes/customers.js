@@ -7,7 +7,7 @@ router.use(requireAuth);
 
 router.get("/", async (req, res, next) => {
   try {
-    let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_notes, payment_method, advance_amount, total, created_at
+    let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, payment_method, advance_amount, total, created_at
        FROM bills
        WHERE user_id = ?`;
     let paymentsQuery = `SELECT customer_phone, customer_name, amount, created_at 
@@ -45,6 +45,7 @@ router.get("/", async (req, res, next) => {
           name,
           address: row.customer_address || undefined,
           drugLicNo: row.customer_drug_lic_no || undefined,
+          gstin: row.customer_gstin || undefined,
           notes: row.customer_notes || undefined,
           visits: 1,
           totalSpent: Number(row.total || 0),
@@ -178,12 +179,12 @@ router.get("/:phone/credit-history", async (req, res, next) => {
 router.put("/:phone", async (req, res, next) => {
   try {
     const oldPhone = req.params.phone;
-    const { name, phone, address, notes } = req.body;
+    const { name, phone, address, drugLicNo, gstin, notes } = req.body;
 
     // Update bills
     await pool.query(
-      `UPDATE bills SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_notes = ? WHERE user_id = ? AND customer_phone = ?`,
-      [name || null, phone || null, address || null, notes || null, req.auth.userId, oldPhone],
+      `UPDATE bills SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_drug_lic_no = ?, customer_gstin = ?, customer_notes = ? WHERE user_id = ? AND customer_phone = ?`,
+      [name || null, phone || null, address || null, drugLicNo || null, gstin || null, notes || null, req.auth.userId, oldPhone],
     );
 
     // Update payments

@@ -246,6 +246,14 @@ export async function downloadBillPdf(
     leftY += 12;
   }
 
+  if (bill.customerGstin) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`GSTIN: `, left + 12, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerGstin.toUpperCase()), left + 65, leftY);
+    leftY += 12;
+  }
+
   if (bill.customerAddress) {
     doc.setTextColor(110, 110, 110);
     doc.text(`ADDRESS: `, left + 12, leftY);
@@ -318,6 +326,14 @@ export async function downloadBillPdf(
     doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
     doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 45, leftY);
+    leftY += 12;
+  }
+
+  if (bill.customerGstin) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`GSTIN: `, left + 12, leftY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(clean(bill.customerGstin.toUpperCase()), left + 45, leftY);
     leftY += 12;
   }
 

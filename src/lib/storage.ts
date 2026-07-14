@@ -47,6 +47,7 @@ export type Bill = {
   customerPhone?: string;
   customerAddress?: string;
   customerDrugLicNo?: string;
+  customerGstin?: string;
   customerNotes?: string;
   items: BillItem[];
   subtotal: number;
@@ -128,6 +129,7 @@ type BillRow = {
   customer_phone: string | null;
   customer_address?: string | null;
   customer_drug_lic_no?: string | null;
+  customer_gstin?: string | null;
   customer_notes: string | null;
   cashier: string | null;
   payment_method: PaymentMethod;
@@ -163,6 +165,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     customerPhone: b.customer_phone ?? undefined,
     customerAddress: b.customer_address ?? undefined,
     customerDrugLicNo: b.customer_drug_lic_no ?? undefined,
+    customerGstin: b.customer_gstin ?? undefined,
     customerNotes: b.customer_notes ?? undefined,
     cashier: b.cashier ?? undefined,
     paymentMethod: b.payment_method,
@@ -212,6 +215,7 @@ export type Customer = {
   name: string;
   address?: string;
   drugLicNo?: string;
+  gstin?: string;
   notes?: string;
   visits: number;
   totalSpent: number;
@@ -259,7 +263,7 @@ export const customersStore = {
   },
   async update(
     phone: string,
-    data: { name?: string; phone?: string; address?: string; drugLicNo?: string; notes?: string },
+    data: { name?: string; phone?: string; address?: string; drugLicNo?: string; gstin?: string; notes?: string },
   ): Promise<{ success: boolean }> {
     return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone)}`, {
       method: "PUT",

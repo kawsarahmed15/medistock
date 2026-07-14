@@ -8,6 +8,7 @@ export type Customer = {
   phone: string;
   address?: string;
   drugLicNo?: string;
+  gstin?: string;
   notes: string;
   prescriptionRef?: string;
   /** Data URL (image/*) of an uploaded prescription photo. */
@@ -18,6 +19,8 @@ const emptyCustomer: Customer = {
   name: "",
   phone: "",
   address: "",
+  drugLicNo: "",
+  gstin: "",
   notes: "",
   prescriptionRef: "",
   prescriptionPhoto: "",

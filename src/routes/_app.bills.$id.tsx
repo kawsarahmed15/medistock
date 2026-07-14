@@ -289,6 +289,11 @@ function BillDetailPage() {
                 D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span>
               </p>
             )}
+            {bill.customerGstin && (
+              <p className="text-muted-foreground">
+                GSTIN: <span className="text-foreground uppercase">{bill.customerGstin}</span>
+              </p>
+            )}
             {bill.customerAddress && (
               <p className="text-muted-foreground truncate">
                 ADDRESS: <span className="text-foreground">{bill.customerAddress}</span>

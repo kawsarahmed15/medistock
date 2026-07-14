@@ -59,6 +59,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
       phone: c.phone || prev.phone,
       address: c.address || prev.address,
       drugLicNo: c.drugLicNo || prev.drugLicNo,
+      gstin: c.gstin || prev.gstin,
       notes: c.notes || prev.notes,
     }));
     setShowPicker(false);
@@ -104,6 +105,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
       phone: phone.slice(0, 20),
       address: (form.address || "").trim().slice(0, 300),
       drugLicNo: (form.drugLicNo || "").trim().slice(0, 100),
+      gstin: (form.gstin || "").trim().slice(0, 50),
       notes: form.notes.trim().slice(0, 300),
     };
     setCustomer(cleaned);
@@ -273,6 +275,18 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               maxLength={100}
               onChange={(e) => setForm({ ...form, drugLicNo: e.target.value })}
               placeholder="e.g. DL-12345"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cd-gstin" className="text-xs">
+              GSTIN
+            </Label>
+            <Input
+              id="cd-gstin"
+              value={form.gstin || ""}
+              maxLength={50}
+              onChange={(e) => setForm({ ...form, gstin: e.target.value })}
+              placeholder="e.g. 07AAAAA1111A1Z1 (optional)"
             />
           </div>
           <div className="space-y-1.5">
