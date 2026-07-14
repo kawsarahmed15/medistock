@@ -138,7 +138,8 @@ function parsePack(packStr?: string) {
 }
 
 function InventoryPage() {
-  const { q: qParam } = Route.useSearch();
+  const search = Route.useSearch();
+  const qParam = search.q;
   const [items, setItems] = useState<Product[]>([]);
   const [query, setQuery] = useState(qParam ?? "");
   const [loading, setLoading] = useState(true);
@@ -240,7 +241,6 @@ function InventoryPage() {
     localStorage.setItem(key, JSON.stringify(updated));
   };
 
-  const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const cart = useCart();
 
