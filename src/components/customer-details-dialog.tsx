@@ -248,6 +248,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               inputMode="tel"
               value={form.phone}
               maxLength={20}
+              autoComplete="off"
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               placeholder="+91 98765 43210"
             />
@@ -261,6 +262,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               value={form.address || ""}
               maxLength={300}
               rows={2}
+              autoComplete="off"
               onChange={(e) => setForm({ ...form, address: e.target.value })}
               placeholder="Full address (optional)"
             />
@@ -273,6 +275,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               id="cd-drug-lic"
               value={form.drugLicNo || ""}
               maxLength={100}
+              autoComplete="off"
               onChange={(e) => setForm({ ...form, drugLicNo: e.target.value })}
               placeholder="e.g. DL-12345"
             />
@@ -285,6 +288,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               id="cd-gstin"
               value={form.gstin || ""}
               maxLength={50}
+              autoComplete="off"
               onChange={(e) => setForm({ ...form, gstin: e.target.value })}
               placeholder="e.g. 07AAAAA1111A1Z1 (optional)"
             />
@@ -298,6 +302,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               value={form.notes}
               maxLength={300}
               rows={3}
+              autoComplete="off"
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="Optional"
             />
