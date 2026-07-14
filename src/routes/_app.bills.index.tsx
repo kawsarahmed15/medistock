@@ -380,11 +380,6 @@ function BillsPage() {
                   >
                     <Download className="h-4 w-4" /> PDF
                   </Button>
-                  <Button asChild variant="ghost" size="sm">
-                    <Link to="/bills/$id" params={{ id: b.id }}>
-                      <Eye className="h-4 w-4" /> View
-                    </Link>
-                  </Button>
                 </div>
               </div>
             </Card>
@@ -418,23 +413,17 @@ function BillsPage() {
               filtered.map((b, idx) => (
                 <TableRow
                   key={b.id}
+                  ref={(el) => {
+                    rowRefs.current[idx] = el as any;
+                  }}
+                  tabIndex={0}
+                  onFocus={() => setFocusedIdx(idx)}
                   data-focused={idx === focusedIdx}
-                  className="animate-fade-in data-[focused=true]:bg-accent/40 cursor-pointer hover:bg-muted/30"
+                  className="animate-fade-in data-[focused=true]:bg-accent/40 cursor-pointer hover:bg-muted/30 focus:outline-none focus:bg-accent/40"
                   onClick={() => routerNavigate({ to: "/bills/$id", params: { id: b.id } })}
                 >
-                  <TableCell>
-                    <Link
-                      ref={(el) => {
-                        rowRefs.current[idx] = el;
-                      }}
-                      to="/bills/$id"
-                      params={{ id: b.id }}
-                      onFocus={() => setFocusedIdx(idx)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded px-1"
-                    >
-                      {b.number}
-                    </Link>
+                  <TableCell className="font-medium text-primary">
+                    {b.number}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {new Date(b.createdAt).toLocaleString()}
@@ -462,11 +451,6 @@ function BillsPage() {
                     {formatMoney(b.total)}
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button asChild variant="ghost" size="icon" title="View details">
-                      <Link to="/bills/$id" params={{ id: b.id }}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
                     <Button
                       type="button"
                       variant="ghost"
