@@ -318,6 +318,8 @@ function SettingsPage() {
                   <option value={60}>60 Days</option>
                   <option value={90}>90 Days</option>
                   <option value={120}>120 Days</option>
+                  <option value={150}>150 Days</option>
+                  <option value={180}>180 Days</option>
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
                   Products expiring within this timeframe will be highlighted as "Expiring Soon".

@@ -270,7 +270,7 @@ router.post("/reset-password", async (req, res, next) => {
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -286,7 +286,7 @@ router.get("/me", requireAuth, async (req, res, next) => {
 router.patch("/profile", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
