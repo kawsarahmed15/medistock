@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Download, Eye, ReceiptText, Search, Smartphone, CreditCard } from "lucide-react";
 import { billsStore, type Bill } from "@/lib/storage";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ function formatMoney(n: number) {
 }
 
 function BillsPage() {
+  const { session } = useAuth();
   const [bills, setBills] = useState<Bill[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
