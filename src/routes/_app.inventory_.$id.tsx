@@ -62,6 +62,25 @@ function ProductDetails() {
     loadData();
   }, [id]);
 
+  useEffect(() => {
+    const handleBackspace = (e: KeyboardEvent) => {
+      if (dialogOpen || priceDialogOpen) return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      const inField =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        (e.target as HTMLElement)?.isContentEditable;
+
+      if (e.key === "Backspace" && !inField) {
+        e.preventDefault();
+        navigate({ to: "/inventory" });
+      }
+    };
+
+    window.addEventListener("keydown", handleBackspace);
+    return () => window.removeEventListener("keydown", handleBackspace);
+  }, [navigate, dialogOpen, priceDialogOpen]);
+
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${product?.name}? This action cannot be undone.`)) return;
     try {

@@ -39,7 +39,8 @@ export function GlobalSearch() {
         (e.key === "/" && !inField) ||
         ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")
       ) {
-        if (window.location.pathname === "/inventory") {
+        const cleanPath = window.location.pathname.toLowerCase().trim().replace(/\/$/, "");
+        if (cleanPath === "/inventory") {
           return;
         }
         e.preventDefault();
