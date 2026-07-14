@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import {
   ArrowUpFromLine,
   ShoppingCart,
   IndianRupee,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_app/inventory_/$id")({
 });
 
 function ProductDetails() {
+  const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/inventory_/$id" });
   const [product, setProduct] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -59,6 +61,17 @@ function ProductDetails() {
   useEffect(() => {
     loadData();
   }, [id]);
+
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${product?.name}? This action cannot be undone.`)) return;
+    try {
+      await apiRequest(`/products/${id}`, { method: "DELETE", auth: true });
+      toast.success("Product deleted successfully");
+      navigate({ to: "/inventory" });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete product");
+    }
+  };
 
   const handleStockAction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,16 +164,25 @@ function ProductDetails() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Link to="/inventory">
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
-          <p className="text-sm text-muted-foreground">{product.category}</p>
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-background p-4 rounded-lg border shadow-soft">
+        <div className="flex items-center gap-4">
+          <Link to="/inventory">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
+            <p className="text-sm text-muted-foreground">{product.category}</p>
+          </div>
         </div>
+        <Button
+          variant="destructive"
+          onClick={handleDelete}
+          className="gap-2 shadow-soft hover:bg-destructive/90"
+        >
+          <Trash2 className="w-4 h-4" /> Delete Product
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

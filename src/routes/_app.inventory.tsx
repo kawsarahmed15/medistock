@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, Eye } from "lucide-react";
+import { useEffect, useMemo, useState, useRef, type FormEvent } from "react";
+import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2 } from "lucide-react";
 
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
@@ -142,6 +142,53 @@ function InventoryPage() {
   const [items, setItems] = useState<Product[]>([]);
   const [query, setQuery] = useState(qParam ?? "");
   const [loading, setLoading] = useState(true);
+  const [selectedIdx, setSelectedIdx] = useState<number>(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setSelectedIdx(-1);
+  }, [query, search.filter, items]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const inField = tag === "INPUT" || tag === "TEXTAREA";
+
+      if (e.key === "/" && !inField) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (open) return;
+
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isEditingForm = tag === "INPUT" && (e.target as HTMLElement).closest("form");
+      if (isEditingForm) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev < sorted.length - 1 ? prev + 1 : prev));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev > 0 ? prev - 1 : 0));
+      } else if (e.key === "Enter") {
+        if (selectedIdx >= 0 && selectedIdx < sorted.length) {
+          e.preventDefault();
+          const targetProduct = sorted[selectedIdx];
+          navigate({ to: "/inventory/$id", params: { id: targetProduct.id } });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sorted, selectedIdx, open]);
 
   useEffect(() => {
     if (typeof qParam === "string") setQuery(qParam);
@@ -474,6 +521,7 @@ function InventoryPage() {
           <div className="relative flex-1 md:w-72">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               placeholder="Search products…"
               className="pl-9"
               value={query}
@@ -813,7 +861,9 @@ function InventoryPage() {
                 const isOrange = !isRed && (isNearExpiryOrange || isLowStock);
 
                 let rowBg = "hover:bg-muted/50";
-                if (isRed) {
+                if (idx === selectedIdx) {
+                  rowBg = "bg-primary/10 dark:bg-primary/20 hover:bg-primary/15 dark:hover:bg-primary/25";
+                } else if (isRed) {
                   rowBg = "bg-red-50/50 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30";
                 } else if (isOrange) {
                   rowBg = "bg-amber-50/50 hover:bg-amber-100/60 dark:bg-amber-950/20 dark:hover:bg-amber-950/30";
@@ -825,7 +875,13 @@ function InventoryPage() {
                     className={cn(
                       "animate-fade-in cursor-pointer transition-colors border-l-2",
                       rowBg,
-                      isRed ? "border-l-red-500" : isOrange ? "border-l-amber-500" : "border-l-transparent"
+                      idx === selectedIdx
+                        ? "border-l-primary"
+                        : isRed
+                          ? "border-l-red-500"
+                          : isOrange
+                            ? "border-l-amber-500"
+                            : "border-l-transparent"
                     )}
                     onClick={() => navigate({ to: "/inventory/$id", params: { id: p.id } })}
                   >
@@ -911,15 +967,6 @@ function InventoryPage() {
                       >
                         <ShoppingCart className="h-4 w-4" />
                       </Button>
-                      <Link
-                        to="/inventory/$id"
-                        params={{ id: p.id }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button variant="ghost" size="icon" title="View Details">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -930,18 +977,6 @@ function InventoryPage() {
                         title="Edit"
                       >
                         <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          remove(p);
-                        }}
-                        className="text-destructive hover:text-destructive"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

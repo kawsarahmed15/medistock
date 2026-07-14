@@ -39,6 +39,9 @@ export function GlobalSearch() {
         (e.key === "/" && !inField) ||
         ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k")
       ) {
+        if (window.location.pathname === "/inventory") {
+          return;
+        }
         e.preventDefault();
         inputRef.current?.focus();
       }
@@ -83,7 +86,7 @@ export function GlobalSearch() {
     setOpen(false);
     setQuery("");
     inputRef.current?.blur();
-    navigate({ to: "/sell", search: { add: p.id } as never });
+    navigate({ to: "/inventory/$id", params: { id: p.id } as any });
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
