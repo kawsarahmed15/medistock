@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             signature: res.user.signature,
             role: res.user.role,
             accountStatus: res.user.accountStatus,
+            expiryDays: res.user.expiryDays,
             defaultTax: res.user.defaultTax,
           });
         } catch {
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signature: res.user.signature,
         role: res.user.role,
         accountStatus: res.user.accountStatus,
+        expiryDays: res.user.expiryDays,
         defaultTax: res.user.defaultTax,
       });
     },
