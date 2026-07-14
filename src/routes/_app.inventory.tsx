@@ -156,6 +156,7 @@ function InventoryPage() {
   const { session } = useAuth();
   const expiryDays = session?.expiryDays ?? 60;
   const defaultTax = session?.defaultTax ?? 12;
+  const lowStockQty = session?.lowStockQty ?? 10;
 
   useEffect(() => {
     // Initialize form with default tax once session is loaded if it's the empty form
@@ -269,7 +270,7 @@ function InventoryPage() {
       )
         return false;
 
-      if (search.filter === "low") return p.stock <= 10;
+      if (search.filter === "low") return p.stock <= lowStockQty;
       if (search.filter === "expiring") {
         const d = new Date(p.expiry).getTime();
         const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
@@ -280,7 +281,7 @@ function InventoryPage() {
       }
       return true;
     });
-  }, [items, query, search.filter, expiryDays]);
+  }, [items, query, search.filter, expiryDays, lowStockQty]);
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
       if (sortBy === "name_asc") return a.name.localeCompare(b.name);
@@ -444,7 +445,7 @@ function InventoryPage() {
   };
 
   const filterLabel: Record<NonNullable<InventorySearch["filter"]>, string> = {
-    low: "Low stock (≤ 10)",
+    low: `Low stock (≤ ${lowStockQty})`,
     expiring: `Expiring within ${expiryDays} days`,
     expired: "Expired products",
   };
@@ -799,13 +800,12 @@ function InventoryPage() {
                 const now = Date.now();
                 const expTime = new Date(p.expiry).getTime();
                 const daysToExpiry = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
-                
                 const isExpired = daysToExpiry < 0;
                 const isNearExpiryRed = daysToExpiry >= 0 && daysToExpiry <= 30; // 1 month prior
                 const isNearExpiryOrange = daysToExpiry > 30 && daysToExpiry <= 90; // 3 months prior
 
                 const isOutOfStock = p.stock <= 0;
-                const isLowStock = p.stock > 0 && p.stock <= 10;
+                const isLowStock = p.stock > 0 && p.stock <= lowStockQty;
 
                 // Priority: Red row if Expired, Expiring in 1 month, or Out of stock
                 // Orange row if Expiring in 3 months or Low stock
