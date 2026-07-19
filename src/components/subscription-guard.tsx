@@ -239,6 +239,30 @@ function SubscriptionRequiredScreen() {
   );
 }
 
+function ExpiryBanner({ daysRemaining, endsAt }: { daysRemaining: number; endsAt: string | null }) {
+  const endDate = endsAt ? new Date(endsAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
+
+  return (
+    <div className="relative overflow-hidden bg-gradient-to-r from-rose-500/10 via-rose-400/10 to-red-500/10 border-b border-rose-500/20">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNlMTFkNDgiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djJoLTJ2LTJoMnptMC00di0yaDJ2MmgtMnptLTQgMHYtMmgydjJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-50" />
+      <div className="relative flex items-center justify-center gap-3 px-4 py-2.5">
+        <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 animate-pulse" />
+        <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+          <span className="font-bold">Your subscription is expiring in {daysRemaining} day{daysRemaining !== 1 ? "s" : ""}</span>
+          {endDate && <span className="text-rose-600/80 dark:text-rose-400/80"> · Expires {endDate}</span>}
+        </p>
+        <a
+          href="/subscription"
+          className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-3 py-1 text-xs font-semibold text-white transition-all hover:bg-rose-600 hover:scale-105 active:scale-95 shadow-sm"
+        >
+          <Crown className="h-3 w-3" />
+          Renew Now
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function SubscriptionGuard({ children }: { children: ReactNode }) {
   const { status, daysRemaining, subscription, loading } = useSubscription();
 
@@ -247,8 +271,16 @@ export function SubscriptionGuard({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  // Active subscription — render normally
+  // Active subscription — render normally, warning banner if expiring in <= 10 days
   if (status === "active") {
+    if (daysRemaining <= 10) {
+      return (
+        <>
+          <ExpiryBanner daysRemaining={daysRemaining} endsAt={subscription?.endsAt || null} />
+          {children}
+        </>
+      );
+    }
     return <>{children}</>;
   }
 
