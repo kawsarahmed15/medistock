@@ -762,17 +762,6 @@ function InventoryPage() {
                     </div>
                   </Field>
                 )}
-                {editing && (
-                  <Field label="Stock Quantity">
-                    <Input
-                      type="number"
-                      placeholder="Total qty"
-                      value={form.stock}
-                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                      required
-                    />
-                  </Field>
-                )}
                 <Field label="Expiry">
                   <Input
                     type="text"
@@ -995,17 +984,6 @@ function InventoryPage() {
                         title="Add to cart"
                       >
                         <ShoppingCart className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEdit(p);
-                        }}
-                        title="Edit"
-                      >
-                        <Pencil className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

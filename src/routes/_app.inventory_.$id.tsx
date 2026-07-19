@@ -11,12 +11,53 @@ import {
   ShoppingCart,
   IndianRupee,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+function parsePack(packStr?: string) {
+  if (!packStr) return { stockType: "other", stockPacks: "", stockUnits: "" };
+
+  if (packStr.toUpperCase().endsWith("ML") && !packStr.includes("x") && !packStr.includes("X")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "syp", stockPacks: val, stockUnits: "ML" };
+  }
+
+  if (packStr.toUpperCase().endsWith("MG")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "inj", stockPacks: val, stockUnits: "MG" };
+  }
+
+  if (packStr.toUpperCase().endsWith(" ML DROP")) {
+    const val = packStr.substring(0, packStr.length - 8).trim();
+    return { stockType: "drop", stockPacks: val, stockUnits: "ML" };
+  }
+
+  if (packStr.toUpperCase().endsWith(" GM")) {
+    const val = packStr.substring(0, packStr.length - 3).trim();
+    return { stockType: "cream", stockPacks: val, stockUnits: "GM" };
+  }
+
+  if (packStr.toUpperCase().endsWith("GM")) {
+    const val = packStr.substring(0, packStr.length - 2).trim();
+    return { stockType: "inj", stockPacks: val, stockUnits: "GM" };
+  }
+
+  if (
+    packStr.includes("x") ||
+    packStr.includes("X") ||
+    packStr.includes("*") ||
+    packStr.toUpperCase() === "CAP"
+  ) {
+    return { stockType: "tab", stockPacks: packStr, stockUnits: "" };
+  }
+
+  return { stockType: "other", stockPacks: packStr, stockUnits: "" };
+}
 
 export const Route = createFileRoute("/_app/inventory_/$id")({
   component: ProductDetails,
@@ -44,6 +85,30 @@ function ProductDetails() {
   const [newPackPrice, setNewPackPrice] = useState("");
   const [newPackCostPrice, setNewPackCostPrice] = useState("");
 
+  // Edit product state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<any>({
+    name: "",
+    category: "",
+    costPrice: "",
+    price: "",
+    mrp: "",
+    stockType: "other",
+    stockPacks: "",
+    stockUnits: "",
+    expiry: "",
+    batch: "",
+    manufacturer: "",
+    sku: "",
+    taxPercent: "12",
+    prescription: false,
+    baseUnit: "Unit",
+    packUnit: "Pack",
+    conversionFactor: "1",
+    packPrice: "",
+    packCostPrice: "",
+  });
+
   async function loadData() {
     try {
       const pRes = await apiRequest(`/products/${id}`, { auth: true });
@@ -64,7 +129,7 @@ function ProductDetails() {
 
   useEffect(() => {
     const handleBackspace = (e: KeyboardEvent) => {
-      if (dialogOpen || priceDialogOpen) return;
+      if (dialogOpen || priceDialogOpen || editOpen) return;
       const tag = (e.target as HTMLElement)?.tagName;
       const inField =
         tag === "INPUT" ||
@@ -79,7 +144,109 @@ function ProductDetails() {
 
     window.addEventListener("keydown", handleBackspace);
     return () => window.removeEventListener("keydown", handleBackspace);
-  }, [navigate, dialogOpen, priceDialogOpen]);
+  }, [navigate, dialogOpen, priceDialogOpen, editOpen]);
+
+  const startEdit = () => {
+    setEditForm({
+      name: product.name,
+      category: product.category,
+      costPrice: product.cost_price != null ? String(product.cost_price) : "",
+      price: String(product.price),
+      mrp: product.mrp != null ? String(product.mrp) : "",
+      ...parsePack(product.pack),
+      expiry: (() => {
+        if (!product.expiry) return "";
+        const parts = product.expiry.split("-");
+        if (parts.length >= 2) {
+          return `${parts[1]}/${parts[0].substring(2)}`;
+        }
+        return product.expiry;
+      })(),
+      batch: product.batch ?? "",
+      manufacturer: product.manufacturer ?? "",
+      sku: product.sku ?? "",
+      taxPercent: String(product.tax_percent ?? 0),
+      prescription: !!product.prescription,
+      baseUnit: product.base_unit ?? "Unit",
+      packUnit: product.pack_unit ?? "Pack",
+      conversionFactor: String(product.conversion_factor ?? 1),
+      packPrice: product.pack_price != null ? String(product.pack_price) : "",
+      packCostPrice: product.pack_cost_price != null ? String(product.pack_cost_price) : "",
+    });
+    setEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    let packValue: string | undefined = undefined;
+    if (editForm.stockType === "tab" || editForm.stockType === "cap" || editForm.stockType === "other") {
+      if (editForm.stockPacks) {
+        packValue = editForm.stockPacks;
+      }
+    } else if (editForm.stockType === "syp") {
+      if (editForm.stockPacks) {
+        packValue = `${editForm.stockPacks}ML`;
+      }
+    } else if (editForm.stockType === "inj") {
+      if (editForm.stockPacks) {
+        packValue = `${editForm.stockPacks}${editForm.stockUnits || "ML"}`;
+      }
+    } else if (editForm.stockType === "cream") {
+      if (editForm.stockPacks) {
+        packValue = `${editForm.stockPacks} GM`;
+      }
+    } else if (editForm.stockType === "drop") {
+      if (editForm.stockPacks) {
+        packValue = `${editForm.stockPacks} ML Drop`;
+      }
+    }
+
+    const payload = {
+      name: editForm.name.trim().toUpperCase(),
+      category: editForm.category.trim().toUpperCase() || "GENERAL",
+      costPrice: editForm.costPrice === "" ? null : Number(editForm.costPrice),
+      price: Number(editForm.price),
+      mrp: editForm.mrp === "" ? null : Number(editForm.mrp),
+      pack: packValue || null,
+      expiry: (() => {
+        if (!editForm.expiry) return "";
+        const parts = editForm.expiry.split("/");
+        if (parts.length === 2) {
+          const month = parseInt(parts[0], 10);
+          const year = 2000 + parseInt(parts[1], 10);
+          const lastDay = new Date(year, month, 0).getDate();
+          return `${year}-${month.toString().padStart(2, "0")}-${lastDay.toString().padStart(2, "0")}`;
+        }
+        return editForm.expiry;
+      })(),
+      batch: editForm.batch.trim() || null,
+      manufacturer: editForm.manufacturer.trim() ? editForm.manufacturer.trim().toUpperCase() : null,
+      sku: editForm.sku.trim() || null,
+      taxPercent: Number(editForm.taxPercent) || 0,
+      prescription: editForm.prescription ? 1 : 0,
+      baseUnit: editForm.baseUnit.trim() || "Unit",
+      packUnit: editForm.packUnit.trim() || "Pack",
+      conversionFactor: Number(editForm.conversionFactor) || 1,
+      packPrice: editForm.packPrice === "" ? null : Number(editForm.packPrice),
+      packCostPrice: editForm.packCostPrice === "" ? null : Number(editForm.packCostPrice),
+    };
+
+    setSubmitting(true);
+    try {
+      await apiRequest(`/products/${id}`, {
+        method: "PATCH",
+        body: payload,
+        auth: true,
+      });
+      toast.success("Product updated successfully");
+      setEditOpen(false);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update product");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${product?.name}? This action cannot be undone.`)) return;
@@ -195,13 +362,22 @@ function ProductDetails() {
             <p className="text-sm text-muted-foreground">{product.category}</p>
           </div>
         </div>
-        <Button
-          variant="destructive"
-          onClick={handleDelete}
-          className="gap-2 shadow-soft hover:bg-destructive/90"
-        >
-          <Trash2 className="w-4 h-4" /> Delete Product
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={startEdit}
+            className="gap-2 shadow-soft"
+          >
+            <Pencil className="w-4 h-4" /> Edit Product
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            className="gap-2 shadow-soft hover:bg-destructive/90"
+          >
+            <Trash2 className="w-4 h-4" /> Delete Product
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -489,6 +665,284 @@ function ProductDetails() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit product</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Name" className="col-span-full">
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value.toUpperCase() })}
+                required
+              />
+            </Field>
+            <Field label="Category">
+              <Input
+                value={editForm.category}
+                onChange={(e) => setEditForm({ ...editForm, category: e.target.value.toUpperCase() })}
+                placeholder="e.g. Antibiotic"
+              />
+            </Field>
+            <Field label="Manufacturer">
+              <Input
+                value={editForm.manufacturer}
+                onChange={(e) => setEditForm({ ...editForm, manufacturer: e.target.value.toUpperCase() })}
+              />
+            </Field>
+            <Field label="Buying price">
+              <Input
+                type="number"
+                step="0.01"
+                value={editForm.costPrice}
+                onChange={(e) => setEditForm({ ...editForm, costPrice: e.target.value })}
+                placeholder="Cost per unit"
+                required
+              />
+            </Field>
+            <Field label="Selling price">
+              <Input
+                type="number"
+                step="0.01"
+                value={editForm.price}
+                onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label="MRP">
+              <Input
+                type="number"
+                step="0.01"
+                value={editForm.mrp}
+                onChange={(e) => setEditForm({ ...editForm, mrp: e.target.value })}
+                placeholder="Printed price"
+              />
+            </Field>
+            <Field label="Stock Type">
+              <select
+                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={editForm.stockType}
+                onChange={(e) => {
+                  const type = e.target.value;
+                  setEditForm({
+                    ...editForm,
+                    stockType: type,
+                    stockPacks: "",
+                    stockUnits: type === "inj" ? "ML" : "",
+                  });
+                }}
+              >
+                <option value="other">General / Other</option>
+                <option value="tab">Tablet (Tab)</option>
+                <option value="cap">Capsule (Cap)</option>
+                <option value="syp">Syrup (Syp)</option>
+                <option value="inj">Injection (Inj)</option>
+                <option value="cream">Cream</option>
+                <option value="drop">Drop</option>
+              </select>
+            </Field>
+            {editForm.stockType === "other" && (
+              <Field label="Pack Options">
+                <Input
+                  placeholder="e.g. 10X10, ML, GM..."
+                  value={editForm.stockPacks}
+                  onChange={(e) => setEditForm({ ...editForm, stockPacks: e.target.value })}
+                />
+              </Field>
+            )}
+            {(editForm.stockType === "tab" || editForm.stockType === "cap") && (
+              <Field label="Pack Format">
+                <Input
+                  placeholder="e.g. 10x10, 10X1X10, CAP"
+                  value={editForm.stockPacks}
+                  onChange={(e) => setEditForm({ ...editForm, stockPacks: e.target.value })}
+                  required
+                />
+              </Field>
+            )}
+            {editForm.stockType === "syp" && (
+              <Field label="Pack (ML)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="ML Amount"
+                    value={editForm.stockPacks}
+                    onChange={(e) => setEditForm({ ...editForm, stockPacks: e.target.value })}
+                    required
+                  />
+                  <span className="text-muted-foreground text-sm font-medium">ML</span>
+                </div>
+              </Field>
+            )}
+            {editForm.stockType === "inj" && (
+              <Field label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={editForm.stockPacks}
+                    onChange={(e) => setEditForm({ ...editForm, stockPacks: e.target.value })}
+                    required
+                  />
+                  <select
+                    className="flex h-9 w-24 items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={editForm.stockUnits || "ML"}
+                    onChange={(e) => setEditForm({ ...editForm, stockUnits: e.target.value })}
+                  >
+                    <option value="ML">ML</option>
+                    <option value="MG">MG</option>
+                    <option value="GM">GM</option>
+                  </select>
+                </div>
+              </Field>
+            )}
+            {editForm.stockType === "cream" && (
+              <Field label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={editForm.stockPacks}
+                    onChange={(e) => setEditForm({ ...editForm, stockPacks: e.target.value })}
+                    required
+                  />
+                  <span className="text-muted-foreground text-sm font-medium">GM</span>
+                </div>
+              </Field>
+            )}
+            {editForm.stockType === "drop" && (
+              <Field label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={editForm.stockPacks}
+                    onChange={(e) => setEditForm({ ...editForm, stockPacks: e.target.value })}
+                    required
+                  />
+                  <span className="text-muted-foreground text-sm font-medium">ML</span>
+                </div>
+              </Field>
+            )}
+            <Field label="Expiry">
+              <Input
+                type="text"
+                placeholder="MM/YY"
+                maxLength={5}
+                value={editForm.expiry}
+                onChange={(e) => {
+                  let val = e.target.value.replace(/[^\d/]/g, "");
+                  if (val.length === 2 && !val.includes("/")) {
+                    val = val + "/";
+                  }
+                  setEditForm({ ...editForm, expiry: val });
+                }}
+                required
+              />
+            </Field>
+            <Field label="Batch">
+              <Input
+                value={editForm.batch}
+                onChange={(e) => setEditForm({ ...editForm, batch: e.target.value })}
+              />
+            </Field>
+            <Field label="HSN / SKU code">
+              <Input
+                value={editForm.sku}
+                onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
+              />
+            </Field>
+            <Field label="GST %">
+              <select
+                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={editForm.taxPercent}
+                onChange={(e) => setEditForm({ ...editForm, taxPercent: e.target.value })}
+              >
+                <option value="0">0%</option>
+                <option value="5">5%</option>
+                <option value="12">12%</option>
+                <option value="18">18%</option>
+                <option value="28">28%</option>
+              </select>
+            </Field>
+            <div className="col-span-full border-t border-border pt-4 mt-2">
+              <h4 className="text-sm font-medium mb-3">Unit Conversion Options</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Field label="Base Unit (e.g. Tab)">
+                  <Input
+                    placeholder="e.g. Tab, Cap"
+                    value={editForm.baseUnit}
+                    onChange={(e) => setEditForm({ ...editForm, baseUnit: e.target.value })}
+                  />
+                </Field>
+                <Field label="Pack Unit (e.g. Box)">
+                  <Input
+                    placeholder="e.g. Box, Strip"
+                    value={editForm.packUnit}
+                    onChange={(e) => setEditForm({ ...editForm, packUnit: e.target.value })}
+                  />
+                </Field>
+                <Field label="Conversion (e.g. 10)">
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Qty in 1 pack"
+                    value={editForm.conversionFactor}
+                    onChange={(e) => setEditForm({ ...editForm, conversionFactor: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </div>
+            {Number(editForm.conversionFactor) > 1 && (
+              <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-4">
+                <Field label={`Pack Selling Price (per ${editForm.packUnit || "Pack"})`}>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editForm.packPrice}
+                    onChange={(e) => setEditForm({ ...editForm, packPrice: e.target.value })}
+                  />
+                </Field>
+                <Field label={`Pack Buying Price (per ${editForm.packUnit || "Pack"})`}>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editForm.packCostPrice}
+                    onChange={(e) => setEditForm({ ...editForm, packCostPrice: e.target.value })}
+                  />
+                </Field>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-4 col-span-full border-t border-border">
+              <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-xs">{label}</Label>
+      {children}
     </div>
   );
 }

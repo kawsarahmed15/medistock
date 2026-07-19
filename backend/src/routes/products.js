@@ -414,7 +414,7 @@ router.post("/:id/stock", async (req, res, next) => {
             product.mrp == null ? null : Number(product.mrp),
             product.batch ? String(product.batch).trim() : null,
             product.pack ? String(product.pack).trim() : null,
-            product.expiry ? String(product.expiry).slice(0, 10) : null,
+            product.expiry ? (product.expiry instanceof Date ? product.expiry.toISOString().slice(0, 10) : String(product.expiry).slice(0, 10)) : null,
           ],
         );
 
