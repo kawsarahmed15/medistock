@@ -76,6 +76,9 @@ function ProductDetails() {
   const [unitType, setUnitType] = useState<"base" | "pack">("base");
   const [quantity, setQuantity] = useState("");
   const [notes, setNotes] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierPhone, setSupplierPhone] = useState("");
+  const [supplierInvoice, setSupplierInvoice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Price action dialog state
@@ -276,13 +279,23 @@ function ProductDetails() {
     try {
       await apiRequest(`/products/${id}/stock`, {
         method: "POST",
-        body: { action: actionType, quantity: finalQty, notes: finalNotes },
+        body: {
+          action: actionType,
+          quantity: finalQty,
+          notes: finalNotes,
+          supplierName: actionType !== "stock_out" ? supplierName : undefined,
+          supplierPhone: actionType !== "stock_out" ? supplierPhone : undefined,
+          supplierInvoice: actionType !== "stock_out" ? supplierInvoice : undefined,
+        },
         auth: true,
       });
       toast.success("Stock updated successfully");
       setDialogOpen(false);
       setQuantity("");
       setNotes("");
+      setSupplierName("");
+      setSupplierPhone("");
+      setSupplierInvoice("");
       loadData();
     } catch (err: any) {
       toast.error(err.message || "Failed to update stock");
@@ -294,6 +307,9 @@ function ProductDetails() {
   const openAction = (type: "stock_in" | "stock_out" | "purchase") => {
     setActionType(type);
     setUnitType("base");
+    setSupplierName("");
+    setSupplierPhone("");
+    setSupplierInvoice("");
     setDialogOpen(true);
   };
 
@@ -575,6 +591,36 @@ function ProductDetails() {
                 placeholder={`Enter number of ${unitType === "pack" ? product?.pack_unit + "s" || "Packs" : product?.base_unit + "s" || "Units"}...`}
               />
             </div>
+            {actionType !== "stock_out" && (
+              <>
+                <div className="space-y-2">
+                  <Label>Supplier Name (Optional)</Label>
+                  <Input
+                    value={supplierName}
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    placeholder="Enter supplier name..."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Supplier Phone (Optional)</Label>
+                    <Input
+                      value={supplierPhone}
+                      onChange={(e) => setSupplierPhone(e.target.value)}
+                      placeholder="e.g. +91 9999999999"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Invoice Number (Optional)</Label>
+                    <Input
+                      value={supplierInvoice}
+                      onChange={(e) => setSupplierInvoice(e.target.value)}
+                      placeholder="e.g. INV-12345"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label>Notes (Optional)</Label>
               <Input

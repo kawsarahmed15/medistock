@@ -325,7 +325,7 @@ router.get("/:id/history", async (req, res, next) => {
 
 router.post("/:id/stock", async (req, res, next) => {
   try {
-    const { action, quantity, notes } = req.body;
+    const { action, quantity, notes, supplierName, supplierPhone, supplierInvoice } = req.body;
     if (!["stock_in", "stock_out", "purchase", "adjustment"].includes(action)) {
       throw buildApiError(400, "Invalid action");
     }
@@ -383,9 +383,9 @@ router.post("/:id/stock", async (req, res, next) => {
             purchaseId,
             req.auth.userId,
             poNo,
-            "Stock Inward Adjustment",
-            null,
-            `ADJ-${product.id.slice(0, 6).toUpperCase()}`,
+            supplierName || (action === "purchase" ? "Supplier" : "Stock Inward Adjustment"),
+            supplierPhone || null,
+            supplierInvoice || `ADJ-${product.id.slice(0, 6).toUpperCase()}`,
             notes || "Stock adjustment inward",
             req.auth.userName || "System",
             "paid",
