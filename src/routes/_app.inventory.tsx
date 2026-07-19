@@ -420,7 +420,7 @@ function InventoryPage() {
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
       price: Number(form.price),
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
-      stock: Number(form.stock) || 0,
+      stock: editing ? (Number(form.stock) || 0) : 0,
       pack: packValue,
       expiry: (() => {
         if (!form.expiry) return "";
@@ -452,7 +452,7 @@ function InventoryPage() {
       payload.costPrice === undefined ||
       isNaN(payload.costPrice)
     ) {
-      toast.error("Please fill name, buying price, selling price, stock and expiry.");
+      toast.error(editing ? "Please fill name, buying price, selling price, stock and expiry." : "Please fill name, buying price, selling price and expiry.");
       return;
     }
     try {
@@ -736,15 +736,17 @@ function InventoryPage() {
                     </div>
                   </Field>
                 )}
-                <Field label="Stock Quantity">
-                  <Input
-                    type="number"
-                    placeholder="Total qty"
-                    value={form.stock}
-                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                    required
-                  />
-                </Field>
+                {editing && (
+                  <Field label="Stock Quantity">
+                    <Input
+                      type="number"
+                      placeholder="Total qty"
+                      value={form.stock}
+                      onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                      required
+                    />
+                  </Field>
+                )}
                 <Field label="Expiry">
                   <Input
                     type="text"
