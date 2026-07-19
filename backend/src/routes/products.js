@@ -168,8 +168,8 @@ router.post("/", async (req, res, next) => {
     const createdProduct = await withTransaction(async (conn) => {
       // Check if product with same name already exists
       const [existing] = await conn.query(
-        "SELECT id FROM products WHERE user_id = ? AND BINARY name = ? LIMIT 1",
-        [req.auth.userId, String(body.name || "").trim().toUpperCase()]
+        "SELECT id FROM products WHERE user_id = ? AND LOWER(name) = ? LIMIT 1",
+        [req.auth.userId, String(body.name || "").trim().toLowerCase()]
       );
       if (existing.length > 0) {
         throw buildApiError(400, "Product is already added in inventory");
@@ -517,8 +517,8 @@ router.patch("/:id", async (req, res, next) => {
 
     if (body.name) {
       const [existing] = await pool.query(
-        "SELECT id FROM products WHERE user_id = ? AND BINARY name = ? AND id != ? LIMIT 1",
-        [req.auth.userId, String(body.name).trim().toUpperCase(), id]
+        "SELECT id FROM products WHERE user_id = ? AND LOWER(name) = ? AND id != ? LIMIT 1",
+        [req.auth.userId, String(body.name).trim().toLowerCase(), id]
       );
       if (existing.length > 0) {
         throw buildApiError(400, "Product is already added in inventory");
