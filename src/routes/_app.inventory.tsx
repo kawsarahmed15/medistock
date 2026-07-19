@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef, type FormEvent } from "react";
-import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, AlertTriangle } from "lucide-react";
 
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
@@ -150,6 +150,26 @@ function InventoryPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<FormState>(empty);
   const [scannerOpen, setScannerOpen] = useState(false);
+  
+  // Duplicate alert state
+  const [isDuplicateAlertOpen, setIsDuplicateAlertOpen] = useState(false);
+
+  const handleCloseDuplicateAlert = () => {
+    setIsDuplicateAlertOpen(false);
+    setForm({ ...empty, taxPercent: String(defaultTax) });
+  };
+
+  useEffect(() => {
+    if (!isDuplicateAlertOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleCloseDuplicateAlert();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDuplicateAlertOpen, defaultTax]);
   const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">(
     "date_desc",
   );
@@ -477,7 +497,12 @@ function InventoryPage() {
       refresh();
       setOpen(false);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to save product");
+      const msg = (err as Error).message || "Failed to save product";
+      if (msg.includes("already added") || msg.toLowerCase().includes("duplicate")) {
+        setIsDuplicateAlertOpen(true);
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -989,6 +1014,32 @@ function InventoryPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Duplicate Product Alert Dialog */}
+      <Dialog open={isDuplicateAlertOpen} onOpenChange={setIsDuplicateAlertOpen}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-2">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <DialogTitle className="text-center text-lg font-bold text-slate-900">
+              Duplicate Product
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm text-muted-foreground">
+            Product is already added in inventory.
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={handleCloseDuplicateAlert}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-soft"
+              autoFocus
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <SkuScanner open={scannerOpen} onOpenChange={setScannerOpen} onDetected={handleScan} />
     </div>
