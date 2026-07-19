@@ -436,8 +436,8 @@ function InventoryPage() {
       }
     }
     const payload = {
-      name: form.name.trim(),
-      category: form.category.trim() || "General",
+      name: form.name.trim().toUpperCase(),
+      category: form.category.trim().toUpperCase() || "GENERAL",
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
       price: Number(form.price),
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
@@ -455,7 +455,7 @@ function InventoryPage() {
         return form.expiry;
       })(),
       batch: form.batch.trim() || undefined,
-      manufacturer: form.manufacturer.trim() || undefined,
+      manufacturer: form.manufacturer.trim() ? form.manufacturer.trim().toUpperCase() : undefined,
       sku: form.sku.trim() || undefined,
       taxPercent: Number(form.taxPercent) || 0,
       prescription: form.prescription,
@@ -583,7 +583,7 @@ function InventoryPage() {
                 <Field label="Name" className="col-span-full">
                   <Input
                     value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
                     required
                     list="product-names"
                   />
@@ -595,7 +595,7 @@ function InventoryPage() {
                 <Field label="Category">
                   <Input
                     value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    onChange={(e) => setForm({ ...form, category: e.target.value.toUpperCase() })}
                     placeholder="e.g. Antibiotic"
                     list="category-recent"
                   />
@@ -604,7 +604,7 @@ function InventoryPage() {
                 <Field label="Manufacturer">
                   <Input
                     value={form.manufacturer}
-                    onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
+                    onChange={(e) => setForm({ ...form, manufacturer: e.target.value.toUpperCase() })}
                     list="manufacturer-recent"
                   />
                   <RecentOptions id="manufacturer-recent" options={recentManufacturers} />
