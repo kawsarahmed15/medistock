@@ -289,6 +289,10 @@ function ProductDetails() {
         },
         auth: true,
       });
+      if (actionType !== "stock_out") {
+        if (supplierName.trim()) localStorage.setItem("lastSupplierName", supplierName.trim());
+        if (supplierPhone.trim()) localStorage.setItem("lastSupplierPhone", supplierPhone.trim());
+      }
       toast.success("Stock updated successfully");
       setDialogOpen(false);
       setQuantity("");
@@ -307,8 +311,8 @@ function ProductDetails() {
   const openAction = (type: "stock_in" | "stock_out" | "purchase") => {
     setActionType(type);
     setUnitType("base");
-    setSupplierName("");
-    setSupplierPhone("");
+    setSupplierName(localStorage.getItem("lastSupplierName") || "");
+    setSupplierPhone(localStorage.getItem("lastSupplierPhone") || "");
     setSupplierInvoice("");
     setDialogOpen(true);
   };
