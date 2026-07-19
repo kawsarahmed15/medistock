@@ -1,5 +1,4 @@
-import { Router } from "express";
-import { pool } from "../db.js";
+import { pool, withTransaction } from "../db.js";
 import { buildApiError, generateId } from "../utils.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -163,43 +162,119 @@ router.post("/", async (req, res, next) => {
     }
 
     const id = generateId();
-    await pool.query(
-      `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, mrp, pack, batch,
-         manufacturer, sku, prescription, tax_percent, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        req.auth.userId,
-        String(body.name || "").trim(),
-        String(body.category || "General").trim() || "General",
-        Number(body.price || 0),
-        body.costPrice == null ? null : Number(body.costPrice),
-        Number(body.stock || 0),
-        String(body.expiry || "").slice(0, 10),
-        body.mrp == null || body.mrp === "" ? null : Number(body.mrp),
-        body.pack ? String(body.pack).trim() : null,
-        body.batch ? String(body.batch).trim() : null,
-        body.manufacturer ? String(body.manufacturer).trim() : null,
-        body.sku ? String(body.sku).trim() : null,
-        body.prescription ? 1 : 0,
-        Number(body.taxPercent || 0),
-        String(body.baseUnit || "Unit").trim() || "Unit",
-        String(body.packUnit || "Pack").trim() || "Pack",
-        Number(body.conversionFactor || 1) || 1,
-        body.packPrice == null ? null : Number(body.packPrice),
-        body.packCostPrice == null ? null : Number(body.packCostPrice),
-      ],
-    );
+    const stockToImport = Number(body.stock || 0);
 
-    const [rows] = await pool.query(
-      `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
-              prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
-       FROM products
-       WHERE id = ? AND user_id = ?
-       LIMIT 1`,
-      [id, req.auth.userId],
-    );
-    res.status(201).json(rows[0]);
+    const createdProduct = await withTransaction(async (conn) => {
+      // 1. Insert product with stock = 0
+      await conn.query(
+        `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, mrp, pack, batch,
+           manufacturer, sku, prescription, tax_percent, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price)
+         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          req.auth.userId,
+          String(body.name || "").trim(),
+          String(body.category || "General").trim() || "General",
+          Number(body.price || 0),
+          body.costPrice == null ? null : Number(body.costPrice),
+          String(body.expiry || "").slice(0, 10),
+          body.mrp == null || body.mrp === "" ? null : Number(body.mrp),
+          body.pack ? String(body.pack).trim() : null,
+          body.batch ? String(body.batch).trim() : null,
+          body.manufacturer ? String(body.manufacturer).trim() : null,
+          body.sku ? String(body.sku).trim() : null,
+          body.prescription ? 1 : 0,
+          Number(body.taxPercent || 0),
+          String(body.baseUnit || "Unit").trim() || "Unit",
+          String(body.packUnit || "Pack").trim() || "Pack",
+          Number(body.conversionFactor || 1) || 1,
+          body.packPrice == null ? null : Number(body.packPrice),
+          body.packCostPrice == null ? null : Number(body.packCostPrice),
+        ],
+      );
+
+      // 2. If stock is greater than 0, create a new purchase order bill for this stock
+      if (stockToImport > 0) {
+        const [countRows] = await conn.query(
+          "SELECT COUNT(*) AS total FROM purchases WHERE user_id = ?",
+          [req.auth.userId],
+        );
+        const poNo = `PO-${String(Number(countRows[0].total || 0) + 1).padStart(4, "0")}`;
+        const purchaseId = generateId();
+
+        const costPriceVal = body.costPrice == null ? 0 : Number(body.costPrice);
+        const subtotalVal = costPriceVal * stockToImport;
+        const taxVal = subtotalVal * (Number(body.taxPercent || 0) / 100);
+        const totalVal = subtotalVal + taxVal;
+
+        await conn.query(
+          `INSERT INTO purchases (id, user_id, number, supplier_name, supplier_phone, supplier_invoice, notes, created_by, payment_status, payment_method, amount_paid, subtotal, tax, discount, total)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            purchaseId,
+            req.auth.userId,
+            poNo,
+            body.manufacturer || "Initial Stock Supplier",
+            null,
+            `INIT-${id.slice(0, 6).toUpperCase()}`,
+            "Auto-generated for initial inventory stock entry",
+            req.auth.userName || "System",
+            "paid",
+            "cash",
+            totalVal,
+            subtotalVal,
+            taxVal,
+            0,
+            totalVal,
+          ],
+        );
+
+        await conn.query(
+          `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          [
+            generateId(),
+            purchaseId,
+            req.auth.userId,
+            id,
+            String(body.name || "").trim(),
+            body.sku || null,
+            stockToImport,
+            costPriceVal,
+            Number(body.taxPercent || 0),
+            body.mrp == null || body.mrp === "" ? null : Number(body.mrp),
+            body.batch ? String(body.batch).trim() : null,
+            body.pack ? String(body.pack).trim() : null,
+            body.expiry ? String(body.expiry).slice(0, 10) : null,
+          ],
+        );
+
+        // Update product stock
+        await conn.query(
+          `UPDATE products SET stock = ? WHERE id = ? AND user_id = ?`,
+          [stockToImport, id, req.auth.userId]
+        );
+
+        await conn.query(
+          `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+           VALUES (?, ?, ?, 'purchase', ?, ?, ?)`,
+          [generateId(), req.auth.userId, id, stockToImport, stockToImport, `Added initial stock via PO ${poNo}`]
+        );
+      }
+
+      // Fetch the final product details
+      const [rows] = await conn.query(
+        `SELECT id, name, category, price, cost_price, stock, expiry, mrp, pack, batch, manufacturer, sku,
+                prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price
+         FROM products
+         WHERE id = ? AND user_id = ?
+         LIMIT 1`,
+        [id, req.auth.userId],
+      );
+      return rows[0];
+    });
+
+    res.status(201).json(createdProduct);
   } catch (error) {
     next(error);
   }
@@ -248,36 +323,110 @@ router.post("/:id/stock", async (req, res, next) => {
       throw buildApiError(400, "Quantity must be greater than 0");
     }
 
-    const [rows] = await pool.query(
-      "SELECT stock FROM products WHERE id = ? AND user_id = ? LIMIT 1",
-      [req.params.id, req.auth.userId],
-    );
-    if (rows.length === 0) throw buildApiError(404, "Product not found");
+    const updated = await withTransaction(async (conn) => {
+      const [rows] = await conn.query(
+        `SELECT id, name, cost_price, stock, mrp, batch, pack, expiry, tax_percent, sku FROM products WHERE id = ? AND user_id = ? LIMIT 1`,
+        [req.params.id, req.auth.userId],
+      );
+      const product = rows[0];
+      if (!product) throw buildApiError(404, "Product not found");
 
-    const currentStock = Number(rows[0].stock || 0);
-    let nextStock = currentStock;
+      const currentStock = Number(product.stock || 0);
+      let nextStock = currentStock;
+      let diff = 0;
 
-    if (action === "stock_out") {
-      nextStock = Math.max(0, currentStock - qty);
-    } else {
-      nextStock = currentStock + qty;
-    }
+      if (action === "stock_out") {
+        nextStock = Math.max(0, currentStock - qty);
+        diff = nextStock - currentStock;
 
-    const diff = nextStock - currentStock;
+        await conn.query("UPDATE products SET stock = ? WHERE id = ? AND user_id = ?", [
+          nextStock,
+          req.params.id,
+          req.auth.userId,
+        ]);
 
-    await pool.query("UPDATE products SET stock = ? WHERE id = ? AND user_id = ?", [
-      nextStock,
-      req.params.id,
-      req.auth.userId,
-    ]);
+        await conn.query(
+          `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [generateId(), req.auth.userId, req.params.id, action, diff, nextStock, notes || null],
+        );
+      } else {
+        // action is stock_in, purchase, or adjustment (positive adjustment)
+        // We create a purchase order to increase stock!
+        const [countRows] = await conn.query(
+          "SELECT COUNT(*) AS total FROM purchases WHERE user_id = ?",
+          [req.auth.userId],
+        );
+        const poNo = `PO-${String(Number(countRows[0].total || 0) + 1).padStart(4, "0")}`;
+        const purchaseId = generateId();
 
-    await pool.query(
-      `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [generateId(), req.auth.userId, req.params.id, action, diff, nextStock, notes || null],
-    );
+        const costPriceVal = product.cost_price == null ? 0 : Number(product.cost_price);
+        const subtotalVal = costPriceVal * qty;
+        const taxVal = subtotalVal * (Number(product.tax_percent || 0) / 100);
+        const totalVal = subtotalVal + taxVal;
 
-    res.json({ stock: nextStock, message: "Stock updated successfully" });
+        await conn.query(
+          `INSERT INTO purchases (id, user_id, number, supplier_name, supplier_phone, supplier_invoice, notes, created_by, payment_status, payment_method, amount_paid, subtotal, tax, discount, total)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            purchaseId,
+            req.auth.userId,
+            poNo,
+            "Stock Inward Adjustment",
+            null,
+            `ADJ-${product.id.slice(0, 6).toUpperCase()}`,
+            notes || "Stock adjustment inward",
+            req.auth.userName || "System",
+            "paid",
+            "cash",
+            totalVal,
+            subtotalVal,
+            taxVal,
+            0,
+            totalVal,
+          ],
+        );
+
+        await conn.query(
+          `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          [
+            generateId(),
+            purchaseId,
+            req.auth.userId,
+            product.id,
+            product.name,
+            product.sku || null,
+            qty,
+            costPriceVal,
+            Number(product.tax_percent || 0),
+            product.mrp == null ? null : Number(product.mrp),
+            product.batch ? String(product.batch).trim() : null,
+            product.pack ? String(product.pack).trim() : null,
+            product.expiry ? String(product.expiry).slice(0, 10) : null,
+          ],
+        );
+
+        nextStock = currentStock + qty;
+        diff = qty;
+
+        await conn.query("UPDATE products SET stock = ? WHERE id = ? AND user_id = ?", [
+          nextStock,
+          req.params.id,
+          req.auth.userId,
+        ]);
+
+        await conn.query(
+          `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+           VALUES (?, ?, ?, 'purchase', ?, ?, ?)`,
+          [generateId(), req.auth.userId, req.params.id, diff, nextStock, notes || `Added stock via PO ${poNo}`],
+        );
+      }
+
+      return { stock: nextStock };
+    });
+
+    res.json({ stock: updated.stock, message: "Stock updated successfully" });
   } catch (error) {
     next(error);
   }

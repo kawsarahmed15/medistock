@@ -18,6 +18,7 @@ import {
   CreditCard,
   Truck,
   Crown,
+  BookOpen,
 } from "lucide-react";
 import { UserProfileDialog } from "@/components/user-profile-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -39,6 +40,7 @@ const nav = [
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/purchases", label: "Purchases", icon: Truck },
   { to: "/credit", label: "Credit", icon: CreditCard },
+  { to: "/ledger", label: "Ledger", icon: BookOpen },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
