@@ -80,12 +80,14 @@ router.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];
+    const isReturn = !!body.isReturn;
     const created = await withTransaction(async (conn) => {
       const [countRows] = await conn.query(
         "SELECT COUNT(*) AS total FROM purchases WHERE user_id = ?",
         [req.auth.userId],
       );
-      const poNo = `PO-${String(Number(countRows[0].total || 0) + 1).padStart(4, "0")}`;
+      const prefix = isReturn ? "PR" : "PO";
+      const poNo = `${prefix}-${String(Number(countRows[0].total || 0) + 1).padStart(4, "0")}`;
 
       const id = generateId();
       await conn.query(
@@ -135,15 +137,25 @@ router.post("/", async (req, res, next) => {
         // Update product stock and cost price
         if (item.productId) {
           const addedStock = Number(item.qty || 0) + Number(item.freeQty || 0);
-          await conn.query(
-            `UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ? AND user_id = ?`,
-            [addedStock, Number(item.costPrice || 0), item.productId, req.auth.userId]
-          );
+          if (isReturn) {
+            await conn.query(
+              `UPDATE products SET stock = stock + ? WHERE id = ? AND user_id = ?`,
+              [addedStock, item.productId, req.auth.userId]
+            );
+          } else {
+            await conn.query(
+              `UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ? AND user_id = ?`,
+              [addedStock, Number(item.costPrice || 0), item.productId, req.auth.userId]
+            );
+          }
           
+          const historyAction = isReturn ? 'return' : 'purchase';
+          const historyNotes = isReturn ? `Returned via ${poNo}` : `Added from PO ${poNo}`;
+
           await conn.query(
             `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-             VALUES (?, ?, ?, 'purchase', ?, (SELECT stock FROM products WHERE id = ?), ?)`,
-            [generateId(), req.auth.userId, item.productId, addedStock, item.productId, `Added from PO ${poNo}`]
+             VALUES (?, ?, ?, ?, ?, (SELECT stock FROM products WHERE id = ?), ?)`,
+            [generateId(), req.auth.userId, item.productId, historyAction, addedStock, item.productId, historyNotes]
           );
         }
       }

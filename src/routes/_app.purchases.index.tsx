@@ -28,6 +28,7 @@ import { purchasesStore, type Purchase } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -36,6 +37,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { TableSkeleton } from "@/components/loading-skeleton";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -60,6 +68,80 @@ function PurchasesPage() {
   const [sortField, setSortField] = useState<keyof Purchase | "itemsCount">("createdAt");
   const [sortAsc, setSortAsc] = useState(false);
   const [activeTab, setActiveTab] = useState("all-bills");
+
+  // Purchase Return state
+  const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const [selectedPurchaseForReturn, setSelectedPurchaseForReturn] = useState<Purchase | null>(null);
+  const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
+  const [returnNotes, setReturnNotes] = useState("");
+  const [submittingReturn, setSubmittingReturn] = useState(false);
+
+  const handleConfirmReturn = async () => {
+    if (!selectedPurchaseForReturn) return;
+    
+    const returnedItems = selectedPurchaseForReturn.items
+      .filter((it) => (returnQuantities[it.id] || 0) > 0)
+      .map((it) => {
+        const qty = returnQuantities[it.id];
+        return {
+          productId: it.productId,
+          name: it.name,
+          sku: it.sku,
+          qty: -qty, // Negative quantity
+          freeQty: 0,
+          costPrice: it.costPrice,
+          taxPercent: it.taxPercent,
+          mrp: it.mrp,
+          batch: it.batch,
+          pack: it.pack,
+          expiry: it.expiry,
+        };
+      });
+
+    if (returnedItems.length === 0) {
+      toast.error("Please select at least one item to return with quantity greater than 0");
+      return;
+    }
+
+    setSubmittingReturn(true);
+    try {
+      let subtotal = 0;
+      let tax = 0;
+      returnedItems.forEach((it) => {
+        const lineCost = it.costPrice * it.qty; // negative
+        const lineTax = lineCost * (it.taxPercent / 100);
+        subtotal += lineCost;
+        tax += lineTax;
+      });
+      const total = subtotal + tax;
+
+      await purchasesStore.add({
+        supplierName: selectedPurchaseForReturn.supplierName,
+        supplierPhone: selectedPurchaseForReturn.supplierPhone,
+        supplierInvoice: `RET-${selectedPurchaseForReturn.number}`,
+        notes: `Return for ${selectedPurchaseForReturn.number}. Reason: ${returnNotes}`,
+        paymentStatus: "paid",
+        paymentMethod: selectedPurchaseForReturn.paymentMethod as any,
+        amountPaid: total, // negative
+        subtotal: subtotal,
+        tax: tax,
+        discount: 0,
+        total: total,
+        isReturn: true, // triggers backend logic for PR- prefix
+        items: returnedItems,
+      } as any);
+
+      toast.success("Purchase return successfully registered");
+      setIsReturnDialogOpen(false);
+      setSelectedPurchaseForReturn(null);
+      setReturnNotes("");
+      loadPurchases();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process purchase return");
+    } finally {
+      setSubmittingReturn(false);
+    }
+  };
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -305,7 +387,7 @@ function PurchasesPage() {
               <Plus className="h-4 w-4 mr-1.5" /> New Purchase
             </Link>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.success("Purchase return initialized")}>
+          <Button variant="outline" size="sm" onClick={() => setIsReturnDialogOpen(true)}>
             <RotateCcw className="h-4 w-4 mr-1.5" /> Purchase Return
           </Button>
           <Button variant="outline" size="sm" onClick={() => toast.info("Select purchase file to import")}>
@@ -720,6 +802,98 @@ function PurchasesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      {/* Purchase Return Dialog */}
+      <Dialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Process Purchase Return</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="purchase-select">Select Original Purchase Invoice</Label>
+              <select
+                id="purchase-select"
+                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={selectedPurchaseForReturn?.id || ""}
+                onChange={(e) => {
+                  const p = purchases.find((x) => x.id === e.target.value) || null;
+                  setSelectedPurchaseForReturn(p);
+                  const qtys: Record<string, number> = {};
+                  p?.items.forEach((it) => {
+                    qtys[it.id] = 0;
+                  });
+                  setReturnQuantities(qtys);
+                }}
+              >
+                <option value="">-- Select Purchase Invoice --</option>
+                {purchases.filter(p => !p.number.startsWith("PR-")).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.number} - {p.supplierName} ({new Date(p.createdAt).toLocaleDateString("en-IN")})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedPurchaseForReturn && (
+              <div className="space-y-4 mt-4">
+                <h4 className="text-sm font-semibold text-muted-foreground">Select Items and Quantities to Return</h4>
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                  {selectedPurchaseForReturn.items.map((it) => (
+                    <div key={it.id} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
+                      <div className="flex-1">
+                        <div className="font-semibold text-foreground">{it.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          Batch: {it.batch || "—"} | Exp: {it.expiry || "—"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Cost: {formatMoney(it.costPrice)} | Purchased: {it.qty}
+                        </div>
+                      </div>
+                      <div className="w-24">
+                        <Label className="text-xs text-muted-foreground">Return Qty</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={it.qty}
+                          value={returnQuantities[it.id] || 0}
+                          onChange={(e) => {
+                            const val = Math.min(it.qty, Math.max(0, parseInt(e.target.value) || 0));
+                            setReturnQuantities({ ...returnQuantities, [it.id]: val });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="return-notes">Reason / Notes for Return</Label>
+                  <Input
+                    id="return-notes"
+                    placeholder="e.g. Expired stock, damaged, incorrect order"
+                    value={returnNotes}
+                    onChange={(e) => setReturnNotes(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsReturnDialogOpen(false);
+                setSelectedPurchaseForReturn(null);
+                setReturnNotes("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmReturn} disabled={submittingReturn || !selectedPurchaseForReturn}>
+              {submittingReturn ? "Processing..." : "Confirm Return"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
