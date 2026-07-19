@@ -138,6 +138,11 @@ function parsePack(packStr?: string) {
 }
 
 function InventoryPage() {
+  const { session } = useAuth();
+  const expiryDays = session?.expiryDays ?? 60;
+  const defaultTax = session?.defaultTax ?? 12;
+  const lowStockQty = session?.lowStockQty ?? 10;
+
   const search = Route.useSearch();
   const qParam = search.q;
   const [items, setItems] = useState<Product[]>([]);
@@ -173,10 +178,6 @@ function InventoryPage() {
   const [sortBy, setSortBy] = useState<"date_desc" | "date_asc" | "name_asc" | "name_desc">(
     "date_desc",
   );
-  const { session } = useAuth();
-  const expiryDays = session?.expiryDays ?? 60;
-  const defaultTax = session?.defaultTax ?? 12;
-  const lowStockQty = session?.lowStockQty ?? 10;
 
   const [recentCategories, setRecentCategories] = useState<string[]>([]);
   const [recentManufacturers, setRecentManufacturers] = useState<string[]>([]);
