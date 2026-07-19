@@ -166,6 +166,15 @@ router.post("/", async (req, res, next) => {
     const stockToImport = Number(body.stock || 0);
 
     const createdProduct = await withTransaction(async (conn) => {
+      // Check if product with same name already exists
+      const [existing] = await conn.query(
+        "SELECT id FROM products WHERE user_id = ? AND LOWER(name) = ? LIMIT 1",
+        [req.auth.userId, String(body.name || "").trim().toLowerCase()]
+      );
+      if (existing.length > 0) {
+        throw buildApiError(400, "Product is already added in inventory");
+      }
+
       // 1. Insert product with stock = 0
       await conn.query(
         `INSERT INTO products (id, user_id, name, category, price, cost_price, stock, expiry, mrp, pack, batch,
