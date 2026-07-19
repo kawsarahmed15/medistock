@@ -171,6 +171,7 @@ router.post("/", async (req, res, next) => {
         "SELECT id FROM products WHERE user_id = ? AND LOWER(name) = ? LIMIT 1",
         [req.auth.userId, String(body.name || "").trim().toLowerCase()]
       );
+      console.log("DUPLICATE CHECK RESULT:", { name: body.name, existing });
       if (existing.length > 0) {
         throw buildApiError(400, "Product is already added in inventory");
       }

@@ -484,16 +484,16 @@ function InventoryPage() {
         await productsStore.add(payload);
         toast.success("Product added");
       }
-      saveRecent("recentCategories", payload.category, recentCategories, setRecentCategories, 4);
+      handleAddRecent("recentCategories", payload.category, recentCategories, setRecentCategories, 4);
       if (payload.manufacturer)
-        saveRecent(
+        handleAddRecent(
           "recentManufacturers",
           payload.manufacturer,
           recentManufacturers,
           setRecentManufacturers,
           8,
         );
-      if (payload.sku) saveRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
+      if (payload.sku) handleAddRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
 
       refresh();
       setOpen(false);
