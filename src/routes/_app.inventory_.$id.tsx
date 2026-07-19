@@ -266,6 +266,10 @@ function ProductDetails() {
     e.preventDefault();
     const qty = parseInt(quantity);
     if (!qty || qty <= 0) return toast.error("Quantity must be greater than 0");
+    if (actionType !== "stock_out") {
+      if (!supplierName.trim()) return toast.error("Supplier Name is required");
+      if (!supplierInvoice.trim()) return toast.error("Invoice Number is required");
+    }
 
     let finalQty = qty;
     let finalNotes = notes;
@@ -598,11 +602,12 @@ function ProductDetails() {
             {actionType !== "stock_out" && (
               <>
                 <div className="space-y-2">
-                  <Label>Supplier Name (Optional)</Label>
+                  <Label>Supplier Name</Label>
                   <Input
                     value={supplierName}
                     onChange={(e) => setSupplierName(e.target.value)}
                     placeholder="Enter supplier name..."
+                    required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -615,11 +620,12 @@ function ProductDetails() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Invoice Number (Optional)</Label>
+                    <Label>Invoice Number</Label>
                     <Input
                       value={supplierInvoice}
                       onChange={(e) => setSupplierInvoice(e.target.value)}
                       placeholder="e.g. INV-12345"
+                      required
                     />
                   </div>
                 </div>
