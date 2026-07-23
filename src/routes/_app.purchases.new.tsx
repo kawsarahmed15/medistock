@@ -308,6 +308,7 @@ function AddPurchasePage() {
         costPrice: payload.costPrice,
         stock: Number(quickProductForm.stock) || 1, // Store the initial stock qty to populate the purchase line qty
         expiry: payload.expiry || "",
+        batch: payload.batch || "",
         mrp: payload.mrp,
         pack: payload.pack,
         manufacturer: payload.manufacturer,
@@ -606,6 +607,8 @@ function AddPurchasePage() {
       productId: p.id,
       name: p.name,
       qty: p.isDraftProduct && p.stock && p.stock > 0 ? p.stock : newLines[index].qty || 1,
+      batch: p.batch || newLines[index].batch || "",
+      expiry: p.expiry || newLines[index].expiry || "",
       costPrice: p.costPrice || 0,
       taxPercent: p.taxPercent || 0,
       mrp: p.mrp || 0,
