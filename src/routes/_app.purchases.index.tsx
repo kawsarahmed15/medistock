@@ -71,6 +71,7 @@ function PurchasesPage() {
 
   // Purchase Return state
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const [showSuppliersModal, setShowSuppliersModal] = useState(false);
   const [selectedPurchaseForReturn, setSelectedPurchaseForReturn] = useState<Purchase | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
   const [returnNotes, setReturnNotes] = useState("");
