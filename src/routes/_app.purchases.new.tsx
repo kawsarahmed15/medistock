@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle, ScanLine } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle, ScanLine, AlertTriangle } from "lucide-react";
 import { purchasesStore, productsStore, type Product, type Purchase } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -173,6 +173,7 @@ function AddPurchasePage() {
 
   // Quick Add Product state
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
+  const [isDuplicateAlertOpen, setIsDuplicateAlertOpen] = useState(false);
   const [quickProductLineIdx, setQuickProductLineIdx] = useState<number | null>(null);
   const [quickProductForm, setQuickProductForm] = useState({
     name: "",
@@ -232,6 +233,17 @@ function AddPurchasePage() {
     e.preventDefault();
     if (!quickProductForm.name) {
       toast.error("Product name is required.");
+      return;
+    }
+
+    const isDuplicate = products.some(
+      (p) => p.name.trim().toLowerCase() === quickProductForm.name.trim().toLowerCase()
+    );
+    const isDuplicateInLines = lines.some(
+      (l, idx) => idx !== quickProductLineIdx && l.name.trim().toLowerCase() === quickProductForm.name.trim().toLowerCase()
+    );
+    if (isDuplicate || isDuplicateInLines) {
+      setIsDuplicateAlertOpen(true);
       return;
     }
 
@@ -1571,6 +1583,32 @@ function AddPurchasePage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Product Alert Dialog */}
+      <Dialog open={isDuplicateAlertOpen} onOpenChange={setIsDuplicateAlertOpen}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-2">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <DialogTitle className="text-center text-lg font-bold text-slate-900">
+              Duplicate Product
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm text-muted-foreground">
+            Product is already added in inventory.
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={() => setIsDuplicateAlertOpen(false)}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-soft"
+              autoFocus
+            >
+              OK
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
