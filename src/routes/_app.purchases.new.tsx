@@ -74,6 +74,23 @@ function AddPurchasePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [activeLine, setActiveLine] = useState<number | null>(null);
+  const [focusedProductIndex, setFocusedProductIndex] = useState<number>(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setFocusedProductIndex(-1);
+  }, [productSearch]);
+
+  useEffect(() => {
+    if (focusedProductIndex >= 0 && dropdownRef.current) {
+      const activeEl = dropdownRef.current.children[focusedProductIndex] as HTMLElement;
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          block: "nearest",
+        });
+      }
+    }
+  }, [focusedProductIndex]);
 
   // Supplier add popup
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -318,6 +335,45 @@ function AddPurchasePage() {
   const handleKeyDown = (e: React.KeyboardEvent, rowIdx: number, colIdx: number) => {
     // Arrow keys, Enter, etc.
     const key = e.key;
+
+    // Handle dropdown keyboard navigation when in Medicine Name column (colIdx = 0)
+    if (colIdx === 0 && activeLine === rowIdx && filteredProducts.length > 0) {
+      if (key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedProductIndex((prev) => {
+          const nextIdx = prev + 1;
+          return nextIdx < filteredProducts.length ? nextIdx : prev;
+        });
+        return;
+      }
+      if (key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedProductIndex((prev) => {
+          const nextIdx = prev - 1;
+          return nextIdx >= 0 ? nextIdx : -1;
+        });
+        return;
+      }
+      if (key === "Enter") {
+        if (focusedProductIndex >= 0 && focusedProductIndex < filteredProducts.length) {
+          e.preventDefault();
+          selectProduct(rowIdx, filteredProducts[focusedProductIndex]);
+          setFocusedProductIndex(-1);
+          // Move focus to next cell (Batch No., colIdx = 1)
+          setTimeout(() => {
+            gridRefs.current[rowIdx]?.[1]?.focus();
+          }, 50);
+          return;
+        }
+      }
+      if (key === "Escape") {
+        e.preventDefault();
+        setActiveLine(null);
+        setFocusedProductIndex(-1);
+        return;
+      }
+    }
+
     if (key === "Enter") {
       e.preventDefault();
       // Move to next cell horizontally
@@ -536,12 +592,14 @@ function AddPurchasePage() {
                           className="h-9 text-sm px-3"
                         />
                         {activeLine === idx && productSearch && (
-                          <div className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
+                          <div ref={dropdownRef} className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
                             {filteredProducts.length > 0 ? (
-                              filteredProducts.map((p) => (
+                              filteredProducts.map((p, pIdx) => (
                                 <div
                                   key={p.id}
-                                  className="px-3 py-2 hover:bg-muted cursor-pointer text-xs"
+                                  className={`px-3 py-2 cursor-pointer text-xs transition-colors ${
+                                    focusedProductIndex === pIdx ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted"
+                                  }`}
                                   onMouseDown={() => selectProduct(idx, p)}
                                 >
                                   {p.name} <span className="text-muted-foreground text-[10px]">({p.stock} units, MRP: ₹{p.mrp})</span>
