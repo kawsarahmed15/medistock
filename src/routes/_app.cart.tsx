@@ -485,7 +485,8 @@ function CartPage() {
                           </div>
                           {(() => {
                             const parentProduct = productList.find((p) => p.id === i.product.productId);
-                            if (parentProduct && parentProduct.batches && parentProduct.batches.length > 1) {
+                            const activeBatches = parentProduct?.batches?.filter((b) => b.stock > 0 || b.id === i.product.id) || [];
+                            if (activeBatches.length > 1) {
                               return (
                                 <div className="flex items-center gap-1.5 mt-1 text-[11px]">
                                   <span className="text-muted-foreground font-medium">Batch:</span>
@@ -493,7 +494,7 @@ function CartPage() {
                                     className="bg-transparent border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-semibold outline-none focus:ring-1 focus:ring-primary"
                                     value={i.product.id}
                                     onChange={(e) => {
-                                      const newBatch = parentProduct.batches?.find(b => b.id === e.target.value);
+                                      const newBatch = activeBatches.find(b => b.id === e.target.value);
                                       if (newBatch) {
                                         cart.switchBatch(i.product.id, newBatch);
                                         toast.success(`Switched to batch ${newBatch.batch}`);
@@ -501,7 +502,7 @@ function CartPage() {
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                   >
-                                    {parentProduct.batches.map(b => (
+                                    {activeBatches.map(b => (
                                       <option key={b.id} value={b.id}>
                                         {b.batch || "No Batch"} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
                                       </option>

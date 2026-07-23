@@ -207,17 +207,16 @@ function SellPage() {
   const openQtyPicker = (p: ProductWithBatches) => {
     setQtyProduct(p);
     setQtyValue(1);
-    if (p.batches && p.batches.length > 0) {
+    const stockBatches = p.batches?.filter((b) => b.stock > 0) || [];
+    if (stockBatches.length > 0) {
       if (fefoEnabled) {
         // Find batch with nearest expiry date having stock > 0
-        const stockBatches = p.batches.filter((b) => b.stock > 0);
-        const listToUse = stockBatches.length > 0 ? stockBatches : p.batches;
-        const sortedBatches = [...listToUse].sort(
+        const sortedBatches = [...stockBatches].sort(
           (a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime()
         );
         setSelectedBatch(sortedBatches[0]);
       } else {
-        setSelectedBatch(p.batches[0]);
+        setSelectedBatch(stockBatches[0]);
       }
     } else {
       setSelectedBatch(p);
@@ -392,37 +391,44 @@ function SellPage() {
                 </div>
               </div>
 
-              {qtyProduct.batches && qtyProduct.batches.length > 1 ? (
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] text-muted-foreground font-semibold">Select Batch</Label>
-                  <select
-                    className="w-full text-xs p-2 border rounded-lg bg-background outline-none focus:ring-1 focus:ring-primary text-slate-700 font-medium"
-                    value={selectedBatch?.id || ""}
-                    onChange={(e) => {
-                      const found = qtyProduct.batches?.find((b) => b.id === e.target.value);
-                      if (found) {
-                        setSelectedBatch(found);
-                        setQtyValue(1);
-                      }
-                    }}
-                  >
-                    {qtyProduct.batches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.batch || "No Batch"} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="text-[10px] text-muted-foreground mt-1">
-                    Selected batch stock limit: <span className="font-bold text-primary">{maxQty}</span>
+              {(() => {
+                const stockBatches = qtyProduct.batches?.filter((b) => b.stock > 0) || [];
+                if (stockBatches.length > 1) {
+                  return (
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground font-semibold">Select Batch</Label>
+                      <select
+                        className="w-full text-xs p-2 border rounded-lg bg-background outline-none focus:ring-1 focus:ring-primary text-slate-700 font-medium"
+                        value={selectedBatch?.id || ""}
+                        onChange={(e) => {
+                          const found = stockBatches.find((b) => b.id === e.target.value);
+                          if (found) {
+                            setSelectedBatch(found);
+                            setQtyValue(1);
+                          }
+                        }}
+                      >
+                        {stockBatches.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.batch || "No Batch"} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        Selected batch stock limit: <span className="font-bold text-primary">{maxQty}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                const activeBatch = stockBatches[0] || selectedBatch || qtyProduct;
+                return (
+                  <div className="text-xs bg-muted/40 p-2.5 rounded-lg border space-y-1 text-slate-600 font-medium">
+                    <div>Batch: <span className="text-slate-800 font-semibold">{activeBatch?.batch || "N/A"}</span></div>
+                    <div>Expiry: <span className="text-slate-800 font-semibold">{activeBatch?.expiry ? new Date(activeBatch.expiry).toLocaleDateString() : "N/A"}</span></div>
+                    <div>Available Stock: <span className="text-primary font-bold">{maxQty}</span></div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-xs bg-muted/40 p-2.5 rounded-lg border space-y-1 text-slate-600 font-medium">
-                  <div>Batch: <span className="text-slate-800 font-semibold">{selectedBatch?.batch || "N/A"}</span></div>
-                  <div>Expiry: <span className="text-slate-800 font-semibold">{selectedBatch?.expiry ? new Date(selectedBatch.expiry).toLocaleDateString() : "N/A"}</span></div>
-                  <div>Available Stock: <span className="text-primary font-bold">{maxQty}</span></div>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="flex items-center justify-center gap-4">
                 <Button
