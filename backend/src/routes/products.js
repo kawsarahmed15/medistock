@@ -321,8 +321,8 @@ router.post("/", async (req, res, next) => {
           );
 
           await conn.query(
-            `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+            `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
             [
               generateId(),
               purchaseId,
@@ -337,6 +337,7 @@ router.post("/", async (req, res, next) => {
               batchNo,
               body.pack ? String(body.pack).trim() : null,
               expiryDate,
+              sellingPriceVal,
             ],
           );
 

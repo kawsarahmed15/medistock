@@ -361,6 +361,7 @@ export type PurchaseItem = {
   batch?: string;
   expiry?: string;
   pack?: string;
+  saleRate?: number;
 };
 
 export type Purchase = {
@@ -413,6 +414,7 @@ function rowToPurchase(p: any, items: any[]): Purchase {
       batch: it.batch ?? undefined,
       pack: it.pack ?? undefined,
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
+      saleRate: it.sale_rate ? Number(it.sale_rate) : undefined,
     }))
   };
 }

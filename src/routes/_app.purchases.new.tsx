@@ -134,7 +134,7 @@ function AddPurchasePage() {
           mrp: it.mrp || 0,
           pack: it.pack || "",
           ptr: it.costPrice,
-          saleRate: it.mrp,
+          saleRate: it.saleRate || it.mrp || 0,
         }));
         setLines(mappedLines);
       }).catch(console.error);
@@ -490,7 +490,7 @@ function AddPurchasePage() {
           </div>
 
           <div className="overflow-x-auto w-full border border-border rounded-lg shadow-sm min-h-[500px] max-h-[700px] no-scrollbar">
-            <table className="w-full text-sm text-left border-collapse min-w-[1300px]">
+            <table className="w-full text-sm text-left border-collapse min-w-[1420px]">
               <thead className="bg-muted/70 sticky top-0 z-10">
                 <tr className="border-b text-muted-foreground font-semibold text-[13px]">
                   <th className="py-3 px-3 w-[260px]">Medicine Name</th>
@@ -501,6 +501,7 @@ function AddPurchasePage() {
                   <th className="py-3 px-3 w-[95px] text-right">Free Qty</th>
                   <th className="py-3 px-3 w-[110px] text-right">Buy Rate (Cost)</th>
                   <th className="py-3 px-3 w-[110px] text-right">MRP</th>
+                  <th className="py-3 px-3 w-[110px] text-right">Sale Price</th>
                   <th className="py-3 px-3 w-[90px] text-right">GST %</th>
                   <th className="py-3 px-3 w-[120px] text-right">Landing Cost</th>
                   <th className="py-3 px-3 w-[120px] text-right">Line Total</th>
@@ -644,15 +645,28 @@ function AddPurchasePage() {
                         />
                       </td>
 
-                      {/* GST */}
+                      {/* Sale Price */}
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][8] = el)}
                           type="number"
+                          step="0.01"
+                          value={line.saleRate || ""}
+                          onChange={(e) => updateLine(idx, "saleRate", parseFloat(e.target.value) || 0)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 8)}
+                          className="h-9 text-sm text-right font-mono px-3"
+                        />
+                      </td>
+
+                      {/* GST */}
+                      <td className="p-2">
+                        <Input
+                          ref={(el) => (gridRefs.current[idx][9] = el)}
+                          type="number"
                           step="0.1"
                           value={line.taxPercent || ""}
                           onChange={(e) => updateLine(idx, "taxPercent", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 8)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 9)}
                           className="h-9 text-sm text-right px-3"
                         />
                       </td>

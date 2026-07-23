@@ -198,6 +198,7 @@ function PurchaseDetailsPage() {
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead className="text-right">Free</TableHead>
                 <TableHead className="text-right">MRP</TableHead>
+                <TableHead className="text-right">Sale Price</TableHead>
                 <TableHead className="text-center">GST%</TableHead>
                 <TableHead className="text-right">Rate</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
@@ -217,6 +218,7 @@ function PurchaseDetailsPage() {
                     <TableCell className="text-right font-medium">{it.qty}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{it.freeQty || 0}</TableCell>
                     <TableCell className="text-right font-mono text-muted-foreground">₹{(it.mrp || 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono text-muted-foreground">₹{(it.saleRate || it.mrp || 0).toFixed(2)}</TableCell>
                     <TableCell className="text-center">{it.taxPercent}%</TableCell>
                     <TableCell className="text-right font-mono">₹{it.costPrice.toFixed(2)}</TableCell>
                     <TableCell className="text-right font-mono font-bold text-primary">₹{(lineAmount + taxAmount).toFixed(2)}</TableCell>

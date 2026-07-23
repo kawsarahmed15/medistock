@@ -25,7 +25,7 @@ router.get("/", async (req, res, next) => {
     const ids = purchases.map((p) => p.id);
     const placeholders = ids.map(() => "?").join(",");
     const [items] = await pool.query(
-      `SELECT purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty
+      `SELECT purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
        FROM purchase_items
        WHERE user_id = ? AND purchase_id IN (${placeholders})`,
       [req.auth.userId, ...ids],
@@ -64,7 +64,7 @@ router.get("/:id", async (req, res, next) => {
     }
 
     const [items] = await pool.query(
-      `SELECT purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty
+      `SELECT purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
        FROM purchase_items
        WHERE user_id = ? AND purchase_id = ?`,
       [req.auth.userId, req.params.id],
@@ -114,8 +114,8 @@ router.post("/", async (req, res, next) => {
 
       for (const item of items) {
         await conn.query(
-          `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             generateId(),
             id,
@@ -131,6 +131,7 @@ router.post("/", async (req, res, next) => {
             item.pack ? String(item.pack).trim() : null,
             item.expiry ? String(item.expiry).slice(0, 10) : null,
             Number(item.freeQty || 0),
+            item.saleRate == null || item.saleRate === "" ? null : Number(item.saleRate),
           ],
         );
 
