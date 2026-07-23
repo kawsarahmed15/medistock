@@ -1052,7 +1052,7 @@ function AddPurchasePage() {
                               </div>
                             )}
                           </div>
-                          {line.name.trim() !== "" && !line.productId && (
+                          {!line.productId && (
                             <Button
                               type="button"
                               variant="ghost"
