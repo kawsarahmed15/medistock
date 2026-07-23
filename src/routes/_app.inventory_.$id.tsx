@@ -454,7 +454,7 @@ function ProductDetails() {
                       const isExpired = expDate.getTime() < Date.now();
                       return (
                         <TableRow key={b.id}>
-                          <TableCell className="font-semibold text-xs">{b.batch_no}</TableCell>
+                          <TableCell className="font-semibold text-xs uppercase">{String(b.batch_no || "").toUpperCase()}</TableCell>
                           <TableCell className="text-xs">
                             <span className={isExpired ? "text-red-500 font-semibold" : ""}>
                               {expDate.toLocaleDateString()}
