@@ -33,6 +33,7 @@ type CartCtx = {
   setQty: (productId: string, qty: number) => void;
   setFreeQty: (productId: string, freeQty: number) => void;
   setCustomPrice: (productId: string, price: number) => void;
+  switchBatch: (oldProductId: string, newProduct: Product) => void;
   clear: () => void;
   subtotal: number;
   tax: number;
@@ -107,6 +108,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
       ),
     );
 
+  const switchBatch: CartCtx["switchBatch"] = (oldId, newProduct) => {
+    setItems((prev) => {
+      const oldItem = prev.find((item) => item.product.id === oldId);
+      if (!oldItem) return prev;
+
+      const existingNewItem = prev.find((item) => item.product.id === newProduct.id);
+      if (existingNewItem) {
+        return prev
+          .map((item) => {
+            if (item.product.id === newProduct.id) {
+              return {
+                ...item,
+                qty: Math.min(newProduct.stock, item.qty + oldItem.qty),
+                freeQty: (item.freeQty || 0) + (oldItem.freeQty || 0),
+              };
+            }
+            return item;
+          })
+          .filter((item) => item.product.id !== oldId);
+      }
+
+      return prev.map((item) =>
+        item.product.id === oldId
+          ? {
+              ...item,
+              product: newProduct,
+              qty: Math.min(newProduct.stock, item.qty),
+              freeQty: Math.min(newProduct.stock, item.freeQty || 0),
+            }
+          : item
+      );
+    });
+  };
+
   const clear = () => {
     setItems([]);
     setCustomer(emptyCustomer);
@@ -140,6 +175,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setQty,
         setFreeQty,
         setCustomPrice,
+        switchBatch,
         clear,
         subtotal,
         tax,

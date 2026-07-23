@@ -109,6 +109,11 @@ function CartPage() {
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const browseButtonRef = useRef<HTMLButtonElement>(null);
+  const [productList, setProductList] = useState<Product[]>([]);
+
+  useEffect(() => {
+    productsStore.list().then(setProductList).catch(() => {});
+  }, [addOpen, cart.items.length]);
 
   useEffect(() => {
     if (search.newSale) {
@@ -478,6 +483,47 @@ function CartPage() {
                               </span>
                             )}
                           </div>
+                          {(() => {
+                            const parentProduct = productList.find((p) => p.id === i.product.productId);
+                            if (parentProduct && parentProduct.batches && parentProduct.batches.length > 1) {
+                              return (
+                                <div className="flex items-center gap-1.5 mt-1 text-[11px]">
+                                  <span className="text-muted-foreground font-medium">Batch:</span>
+                                  <select
+                                    className="bg-transparent border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-semibold outline-none focus:ring-1 focus:ring-primary"
+                                    value={i.product.id}
+                                    onChange={(e) => {
+                                      const newBatch = parentProduct.batches?.find(b => b.id === e.target.value);
+                                      if (newBatch) {
+                                        cart.switchBatch(i.product.id, newBatch);
+                                        toast.success(`Switched to batch ${newBatch.batch}`);
+                                      }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {parentProduct.batches.map(b => (
+                                      <option key={b.id} value={b.id}>
+                                        {b.batch || "No Batch"} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="text-[11px] text-muted-foreground mt-1 font-medium">
+                                Batch: <span className="font-semibold text-slate-800 dark:text-slate-200">{i.product.batch || "—"}</span>
+                                {i.product.expiry && (
+                                  <>
+                                    {" · Exp: "}
+                                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                      {new Date(i.product.expiry).toLocaleDateString()}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
                             {i.freeQty && i.freeQty === i.qty ? (
                               <span className="font-semibold text-primary">Free</span>

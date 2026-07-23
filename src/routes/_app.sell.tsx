@@ -5,6 +5,7 @@ import { productsStore, type Product } from "@/lib/storage";
 import { useCart } from "@/lib/cart-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CustomerDetailsDialog } from "@/components/customer-details-dialog";
 import {
@@ -313,7 +314,7 @@ function SellPage() {
           {groupedProducts.slice(0, 50).map((p, i) => (
             <button
               key={p.id}
-              ref={(el) => (buttonRefs.current[i] = el)}
+              ref={(el) => { buttonRefs.current[i] = el; }}
               onClick={() => p.stock > 0 && openQtyPicker(p)}
               disabled={p.stock <= 0}
               className={`text-left rounded-xl border p-4 shadow-soft transition-smooth animate-fade-in outline-none ${
