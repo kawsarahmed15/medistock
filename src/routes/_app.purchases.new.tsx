@@ -1532,9 +1532,9 @@ function AddPurchasePage() {
             <Field label="Batch">
               <Input
                 value={quickProductForm.batch}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, batch: e.target.value })}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, batch: e.target.value.toUpperCase() })}
                 placeholder="e.g. B123"
-                className="h-8 text-xs"
+                className="h-8 text-xs uppercase font-mono"
               />
             </Field>
 
