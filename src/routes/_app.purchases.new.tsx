@@ -779,6 +779,19 @@ function AddPurchasePage() {
       }
     }
 
+    if (key === "Tab") {
+      e.preventDefault();
+      if (gridRefs.current[rowIdx + 1]?.[0]) {
+        gridRefs.current[rowIdx + 1][0]?.focus();
+      } else {
+        addLine();
+        setTimeout(() => {
+          gridRefs.current[rowIdx + 1]?.[0]?.focus();
+        }, 50);
+      }
+      return;
+    }
+
     if (key === "Enter") {
       e.preventDefault();
       // Move to next cell horizontally
