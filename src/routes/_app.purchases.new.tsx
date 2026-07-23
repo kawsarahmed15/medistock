@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle } from "lucide-react";
-import { purchasesStore, productsStore, type Product } from "@/lib/storage";
+import { purchasesStore, productsStore, type Product, type Purchase } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -101,6 +101,100 @@ function AddPurchasePage() {
   // Refs for keyboard matrix navigation
   const gridRefs = useRef<Array<Array<HTMLInputElement | null>>>([[]]);
 
+  const [pastPurchases, setPastPurchases] = useState<Purchase[]>([]);
+  const [supplierSearchFocused, setSupplierSearchFocused] = useState(false);
+  const [activeSupplierMatchIdx, setActiveSupplierMatchIdx] = useState(-1);
+
+  const uniqueSuppliers = useMemo(() => {
+    const map = new Map<string, {
+      name: string;
+      phone: string;
+      gst: string;
+      dl: string;
+      address: string;
+      email: string;
+    }>();
+
+    pastPurchases.forEach((p) => {
+      const name = (p.supplierName || "").trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      
+      let gst = "";
+      let dl = "";
+      let address = "";
+      let email = "";
+      if (p.notes) {
+        try {
+          const meta = JSON.parse(p.notes);
+          gst = meta.supplierGst || "";
+          dl = meta.supplierDl || "";
+          address = meta.supplierAddress || "";
+          email = meta.supplierEmail || "";
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!map.has(key)) {
+        map.set(key, {
+          name,
+          phone: p.supplierPhone || "",
+          gst,
+          dl,
+          address,
+          email,
+        });
+      } else {
+        const existing = map.get(key)!;
+        if (!existing.phone && p.supplierPhone) existing.phone = p.supplierPhone;
+        if (!existing.gst && gst) existing.gst = gst;
+        if (!existing.dl && dl) existing.dl = dl;
+        if (!existing.address && address) existing.address = address;
+        if (!existing.email && email) existing.email = email;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [pastPurchases]);
+
+  const matchedSuppliers = useMemo(() => {
+    const query = supplierName.trim().toLowerCase();
+    if (query.length < 1) return [];
+    return uniqueSuppliers.filter((s) => s.name.toLowerCase().includes(query));
+  }, [uniqueSuppliers, supplierName]);
+
+  useEffect(() => {
+    setActiveSupplierMatchIdx(-1);
+  }, [matchedSuppliers]);
+
+  const pickSupplier = (s: { name: string; phone: string; gst: string; dl: string; address: string; email: string }) => {
+    setSupplierName(s.name);
+    setSupplierPhone(s.phone);
+    setSupplierGst(s.gst);
+    setSupplierDl(s.dl);
+    setSupplierAddress(s.address);
+    setSupplierEmail(s.email);
+  };
+
+  const handleSupplierNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (matchedSuppliers.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSupplierMatchIdx((prev) => (prev + 1) % matchedSuppliers.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSupplierMatchIdx((prev) => (prev - 1 + matchedSuppliers.length) % matchedSuppliers.length);
+    } else if (e.key === "Enter" && activeSupplierMatchIdx >= 0) {
+      e.preventDefault();
+      pickSupplier(matchedSuppliers[activeSupplierMatchIdx]);
+      setSupplierSearchFocused(false);
+    } else if (e.key === "Escape") {
+      setSupplierSearchFocused(false);
+    }
+  };
+
   // Load products list
   const loadProducts = () => {
     productsStore.list().then(setProducts).catch(console.error);
@@ -108,6 +202,7 @@ function AddPurchasePage() {
 
   useEffect(() => {
     loadProducts();
+    purchasesStore.list().then(setPastPurchases).catch(console.error);
   }, []);
 
   // Handle Edit/Duplicate loading
@@ -437,14 +532,43 @@ function AddPurchasePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
-              <div className="space-y-1">
+              <div className="space-y-1 relative">
                 <Label className="text-[11px]">Supplier Name</Label>
                 <Input
                   placeholder="Enter name or search"
                   value={supplierName}
                   onChange={(e) => setSupplierName(e.target.value)}
+                  onFocus={() => setSupplierSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setSupplierSearchFocused(false), 200)}
+                  onKeyDown={handleSupplierNameKeyDown}
                   className="h-8 text-xs font-semibold"
+                  autoComplete="off"
                 />
+                {supplierSearchFocused && matchedSuppliers.length > 0 && (
+                  <div className="absolute z-50 w-full bg-popover border border-border rounded-md shadow-md mt-1 top-[calc(100%+4px)] overflow-hidden max-h-48 overflow-y-auto no-scrollbar">
+                    {matchedSuppliers.map((s, idx) => (
+                      <button
+                        key={`${s.phone}-${s.name}`}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          pickSupplier(s);
+                          setSupplierSearchFocused(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs transition-colors outline-none block ${
+                          activeSupplierMatchIdx === idx ? "bg-primary/20 text-foreground font-semibold" : "hover:bg-accent"
+                        }`}
+                      >
+                        <div className="font-semibold truncate">{s.name}</div>
+                        {(s.phone || s.gst) && (
+                          <div className="text-[10px] text-muted-foreground truncate">
+                            {s.phone} {s.gst ? `· GST: ${s.gst}` : ""}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-[11px]">Supplier phone</Label>
@@ -631,9 +755,21 @@ function AddPurchasePage() {
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][2] = el)}
-                          type="date"
-                          value={line.expiry}
-                          onChange={(e) => updateLine(idx, "expiry", e.target.value)}
+                          type="month"
+                          value={line.expiry ? line.expiry.substring(0, 7) : ""}
+                          onChange={(e) => {
+                            const monthVal = e.target.value;
+                            if (monthVal) {
+                              const parts = monthVal.split("-");
+                              const year = parseInt(parts[0], 10);
+                              const month = parseInt(parts[1], 10);
+                              const lastDay = new Date(year, month, 0).getDate();
+                              const fullDate = `${parts[0]}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+                              updateLine(idx, "expiry", fullDate);
+                            } else {
+                              updateLine(idx, "expiry", "");
+                            }
+                          }}
                           onKeyDown={(e) => handleKeyDown(e, idx, 2)}
                           className="h-9 text-sm px-2"
                         />

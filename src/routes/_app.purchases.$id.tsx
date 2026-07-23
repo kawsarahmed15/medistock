@@ -214,7 +214,7 @@ function PurchaseDetailsPage() {
                     <TableCell className="text-center">{idx + 1}</TableCell>
                     <TableCell className="font-semibold">{it.name}</TableCell>
                     <TableCell className="font-mono uppercase text-muted-foreground">{it.batch || "—"}</TableCell>
-                    <TableCell className="font-mono text-muted-foreground">{it.expiry || "—"}</TableCell>
+                    <TableCell className="font-mono text-muted-foreground">{it.expiry ? it.expiry.substring(0, 7) : "—"}</TableCell>
                     <TableCell className="text-right font-medium">{it.qty}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{it.freeQty || 0}</TableCell>
                     <TableCell className="text-right font-mono text-muted-foreground">₹{(it.mrp || 0).toFixed(2)}</TableCell>
