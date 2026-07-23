@@ -455,9 +455,13 @@ function ProductDetails() {
                       return (
                         <TableRow key={b.id}>
                           <TableCell className="font-semibold text-xs uppercase">{String(b.batch_no || "").toUpperCase()}</TableCell>
-                          <TableCell className="text-xs">
+                           <TableCell className="text-xs">
                             <span className={isExpired ? "text-red-500 font-semibold" : ""}>
-                              {expDate.toLocaleDateString()}
+                              {(() => {
+                                const mm = String(expDate.getMonth() + 1).padStart(2, "0");
+                                const yy = String(expDate.getFullYear()).substring(2);
+                                return `${mm}/${yy}`;
+                              })()}
                               {isExpired ? " (Expired)" : ""}
                             </span>
                           </TableCell>
