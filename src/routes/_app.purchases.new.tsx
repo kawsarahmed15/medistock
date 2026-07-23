@@ -264,7 +264,7 @@ function AddPurchasePage() {
       costPrice: quickProductForm.costPrice === "" ? undefined : Number(quickProductForm.costPrice),
       price: Number(quickProductForm.price) || 0,
       mrp: quickProductForm.mrp === "" ? undefined : Number(quickProductForm.mrp),
-      stock: Number(quickProductForm.stock) || 0,
+      stock: 0, // CRITICAL: Database stock catalog starts at 0, stock is added by the purchase bill items
       pack: packValue,
       expiry: (() => {
         if (!quickProductForm.expiry) return "";
@@ -287,13 +287,6 @@ function AddPurchasePage() {
       conversionFactor: 1,
     };
 
-    if (payload.stock > 0) {
-      if (!payload.expiry || isNaN(payload.price) || payload.costPrice === undefined || isNaN(payload.costPrice) || !payload.batch) {
-        toast.error("Please fill batch, expiry, buying price, and selling price when initial stock is greater than 0.");
-        return;
-      }
-    }
-
     try {
       const tempProduct: Product & { isDraftProduct: boolean; draftProductDetails: any } = {
         id: "draft-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
@@ -301,7 +294,7 @@ function AddPurchasePage() {
         category: payload.category,
         price: payload.price,
         costPrice: payload.costPrice,
-        stock: payload.stock,
+        stock: Number(quickProductForm.stock) || 1, // Store the initial stock qty to populate the purchase line qty
         expiry: payload.expiry || "",
         mrp: payload.mrp,
         pack: payload.pack,
@@ -600,6 +593,7 @@ function AddPurchasePage() {
       ...newLines[index],
       productId: p.id,
       name: p.name,
+      qty: p.isDraftProduct && p.stock && p.stock > 0 ? p.stock : newLines[index].qty || 1,
       costPrice: p.costPrice || 0,
       taxPercent: p.taxPercent || 0,
       mrp: p.mrp || 0,
