@@ -134,28 +134,60 @@ router.post("/", async (req, res, next) => {
           ],
         );
 
-        // Update product stock and cost price
+        // Update product stock and cost price using batch-wise logic
         if (item.productId) {
           const addedStock = Number(item.qty || 0) + Number(item.freeQty || 0);
-          if (isReturn) {
+          const itemBatchNo = item.batch ? String(item.batch).trim() : "DEFAULT";
+          
+          // Check if batch already exists for this product
+          const [existingBatch] = await conn.query(
+            `SELECT id FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1`,
+            [item.productId, itemBatchNo]
+          );
+
+          if (existingBatch.length > 0) {
+            // Batch exists: Increase quantity only, do NOT overwrite details
             await conn.query(
-              `UPDATE products SET stock = stock + ? WHERE id = ? AND user_id = ?`,
-              [addedStock, item.productId, req.auth.userId]
+              `UPDATE product_batches SET available_qty = available_qty + ? WHERE id = ?`,
+              [addedStock, existingBatch[0].id]
             );
           } else {
+            // Batch does not exist: Create a new batch
+            const newBatchId = generateId();
+            const costPriceVal = item.costPrice == null ? 0 : Number(item.costPrice);
+            const mrpVal = item.mrp == null ? 0 : Number(item.mrp);
+            const sellingPriceVal = item.saleRate != null ? Number(item.saleRate) : mrpVal;
+
             await conn.query(
-              `UPDATE products SET stock = stock + ?, cost_price = ? WHERE id = ? AND user_id = ?`,
-              [addedStock, Number(item.costPrice || 0), item.productId, req.auth.userId]
+              `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                newBatchId,
+                item.productId,
+                itemBatchNo,
+                item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
+                costPriceVal,
+                mrpVal,
+                sellingPriceVal,
+                addedStock
+              ]
             );
           }
           
           const historyAction = isReturn ? 'return' : 'purchase';
           const historyNotes = isReturn ? `Returned via ${poNo}` : `Added from PO ${poNo}`;
 
+          // Fetch sum of all batches for product history balance
+          const [sumRows] = await conn.query(
+            "SELECT SUM(available_qty) AS total FROM product_batches WHERE product_id = ?",
+            [item.productId]
+          );
+          const nextStock = Number(sumRows[0].total || 0);
+
           await conn.query(
             `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-             VALUES (?, ?, ?, ?, ?, (SELECT stock FROM products WHERE id = ?), ?)`,
-            [generateId(), req.auth.userId, item.productId, historyAction, addedStock, item.productId, historyNotes]
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [generateId(), req.auth.userId, item.productId, historyAction, addedStock, nextStock, historyNotes]
           );
         }
       }

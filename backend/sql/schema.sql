@@ -47,13 +47,7 @@ CREATE TABLE IF NOT EXISTS products (
   user_id CHAR(36) NOT NULL,
   name VARCHAR(255) NOT NULL,
   category VARCHAR(120) NOT NULL DEFAULT 'General',
-  price DECIMAL(12,2) NOT NULL DEFAULT 0,
-  cost_price DECIMAL(12,2) NULL,
-  stock INT NOT NULL DEFAULT 0,
-  expiry DATE NOT NULL,
-  mrp DECIMAL(12,2) NULL,
   pack VARCHAR(50) NULL,
-  batch VARCHAR(120) NULL,
   manufacturer VARCHAR(180) NULL,
   sku VARCHAR(120) NULL,
   prescription TINYINT(1) NOT NULL DEFAULT 0,
@@ -63,6 +57,26 @@ CREATE TABLE IF NOT EXISTS products (
   INDEX idx_products_user (user_id),
   CONSTRAINT fk_products_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_batches (
+  id CHAR(36) PRIMARY KEY,
+  product_id CHAR(36) NOT NULL,
+  batch_no VARCHAR(120) NOT NULL,
+  expiry_date DATE NOT NULL,
+  manufacture_date DATE NULL,
+  purchase_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  mrp DECIMAL(12,2) NOT NULL DEFAULT 0,
+  selling_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+  available_qty INT NOT NULL DEFAULT 0,
+  strip_qty INT NULL,
+  supplier_id VARCHAR(36) NULL,
+  invoice_id VARCHAR(36) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_batches_product (product_id),
+  UNIQUE KEY uniq_product_batch (product_id, batch_no),
+  CONSTRAINT fk_batches_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 CREATE TABLE IF NOT EXISTS bills (
   id CHAR(36) PRIMARY KEY,

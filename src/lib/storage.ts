@@ -23,6 +23,7 @@ export type Product = {
   packPrice?: number;
   packCostPrice?: number;
   createdAt: string;
+  batches?: Product[];
 };
 
 export type BillItem = {
@@ -65,40 +66,70 @@ type ProductRow = {
   id: string;
   name: string;
   category: string;
-  price: number | string;
-  cost_price: number | string | null;
-  stock: number;
-  expiry: string;
-  mrp: number | string | null;
+  price?: number | string;
+  cost_price?: number | string | null;
+  stock?: number;
+  expiry?: string;
+  mrp?: number | string | null;
   pack: string | null;
-  batch: string | null;
+  batch?: string | null;
   manufacturer: string | null;
   sku: string | null;
   prescription: boolean | number;
   tax_percent: number | string;
   created_at: string;
+  batches?: any[];
 };
 
 const num = (v: number | string | null | undefined) =>
   v == null ? undefined : typeof v === "string" ? Number(v) : v;
 
 function rowToProduct(r: ProductRow): Product {
+  const batchesList = Array.isArray(r.batches) ? r.batches : [];
+
+  // FEFO sorting for active batch (nearest expiry with stock > 0, fallback to nearest expiry overall)
+  const activeBatch = (() => {
+    if (batchesList.length === 0) return null;
+    const stockBatches = batchesList.filter((b) => (Number(b.available_qty) || 0) > 0);
+    const list = stockBatches.length > 0 ? stockBatches : batchesList;
+    return [...list].sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())[0];
+  })();
+
+  const totalStock = batchesList.reduce((sum, b) => sum + (Number(b.available_qty) || 0), 0);
+
   return {
     id: r.id,
     name: r.name,
     category: r.category,
-    price: Number(r.price) || 0,
-    costPrice: num(r.cost_price),
-    stock: r.stock,
-    expiry: r.expiry,
-    mrp: num(r.mrp),
+    price: activeBatch ? Number(activeBatch.selling_price) : (Number(r.price) || 0),
+    costPrice: activeBatch ? Number(activeBatch.purchase_price) : (r.cost_price != null ? Number(r.cost_price) : undefined),
+    stock: activeBatch ? totalStock : (Number(r.stock) || 0),
+    expiry: activeBatch ? activeBatch.expiry_date : (r.expiry || "2030-12-31"),
+    mrp: activeBatch ? Number(activeBatch.mrp) : (r.mrp != null ? Number(r.mrp) : undefined),
     pack: r.pack ?? undefined,
-    batch: r.batch ?? undefined,
+    batch: activeBatch ? activeBatch.batch_no : (r.batch ?? undefined),
     manufacturer: r.manufacturer ?? undefined,
     sku: r.sku ?? undefined,
     prescription: Boolean(r.prescription),
     taxPercent: Number(r.tax_percent) || 0,
     createdAt: r.created_at,
+    batches: batchesList.map((b) => ({
+      id: b.id,
+      name: r.name,
+      category: r.category,
+      price: Number(b.selling_price) || 0,
+      costPrice: Number(b.purchase_price) || 0,
+      stock: Number(b.available_qty) || 0,
+      expiry: b.expiry_date,
+      mrp: Number(b.mrp) || 0,
+      pack: r.pack ?? undefined,
+      batch: b.batch_no,
+      manufacturer: r.manufacturer ?? undefined,
+      sku: r.sku ?? undefined,
+      prescription: Boolean(r.prescription),
+      taxPercent: Number(r.tax_percent) || 0,
+      createdAt: b.created_at,
+    })),
   };
 }
 
@@ -106,6 +137,27 @@ export const productsStore = {
   async list(): Promise<Product[]> {
     const data = await apiRequest<ProductRow[]>("/products", { auth: true });
     return data.map(rowToProduct);
+  },
+  async listBatches(): Promise<Product[]> {
+    const data = await apiRequest<any[]>("/products/batches", { auth: true });
+    return data.map((b) => ({
+      id: b.id,
+      name: b.name,
+      category: b.category || "General",
+      price: Number(b.selling_price) || 0,
+      costPrice: Number(b.purchase_price) || 0,
+      stock: Number(b.available_qty) || 0,
+      expiry: b.expiry_date,
+      mrp: Number(b.mrp) || 0,
+      pack: b.pack ?? undefined,
+      batch: b.batch_no,
+      manufacturer: b.manufacturer ?? undefined,
+      sku: b.sku ?? undefined,
+      prescription: false,
+      taxPercent: Number(b.tax_percent) || 0,
+      createdAt: b.created_at,
+      productId: b.product_id,
+    }));
   },
   async add(p: Omit<Product, "id" | "createdAt">): Promise<Product> {
     const data = await apiRequest<ProductRow>("/products", { method: "POST", body: p, auth: true });
@@ -119,6 +171,15 @@ export const productsStore = {
   },
   async decrementStock(id: string, qty: number): Promise<void> {
     await apiRequest(`/products/${id}/decrement`, { method: "POST", body: { qty }, auth: true });
+  },
+  async addBatch(productId: string, batch: any): Promise<void> {
+    await apiRequest(`/products/${productId}/batches`, { method: "POST", body: batch, auth: true });
+  },
+  async updateBatch(batchId: string, patch: any): Promise<void> {
+    await apiRequest(`/products/batches/${batchId}`, { method: "PATCH", body: patch, auth: true });
+  },
+  async removeBatch(batchId: string): Promise<void> {
+    await apiRequest(`/products/batches/${batchId}`, { method: "DELETE", auth: true });
   },
 };
 

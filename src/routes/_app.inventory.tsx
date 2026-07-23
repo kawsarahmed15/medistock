@@ -183,29 +183,56 @@ function InventoryPage() {
   const [recentManufacturers, setRecentManufacturers] = useState<string[]>([]);
   const [recentHsns, setRecentHsns] = useState<string[]>([]);
 
+  const flatItems = useMemo(() => {
+    const list: Product[] = [];
+    items.forEach((p) => {
+      if (!p.batches || p.batches.length === 0) {
+        list.push({
+          ...p,
+          id: p.id,
+          productId: p.id,
+          batch: "—",
+          expiry: "—",
+          stock: 0,
+        });
+      } else {
+        p.batches.forEach((b) => {
+          list.push({
+            ...b,
+            productId: p.id,
+          });
+        });
+      }
+    });
+    return list;
+  }, [items]);
+
   const filtered = useMemo(() => {
-    return items.filter((p) => {
+    return flatItems.filter((p) => {
       const q = query.toLowerCase();
       if (
         q &&
         !p.name.toLowerCase().includes(q) &&
         !p.category.toLowerCase().includes(q) &&
-        !(p.sku ?? "").toLowerCase().includes(q)
+        !(p.sku ?? "").toLowerCase().includes(q) &&
+        !(p.batch ?? "").toLowerCase().includes(q)
       )
         return false;
 
       if (search.filter === "low") return p.stock <= lowStockQty;
       if (search.filter === "expiring") {
+        if (p.expiry === "—") return false;
         const d = new Date(p.expiry).getTime();
         const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
         return days <= expiryDays && days >= 0;
       }
       if (search.filter === "expired") {
+        if (p.expiry === "—") return false;
         return new Date(p.expiry).getTime() < Date.now();
       }
       return true;
     });
-  }, [items, query, search.filter, expiryDays, lowStockQty]);
+  }, [flatItems, query, search.filter, expiryDays, lowStockQty]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -439,9 +466,9 @@ function InventoryPage() {
       name: form.name.trim().toUpperCase(),
       category: form.category.trim().toUpperCase() || "GENERAL",
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
-      price: Number(form.price),
+      price: Number(form.price) || 0,
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
-      stock: editing ? (Number(form.stock) || 0) : 0,
+      stock: Number(form.stock) || 0,
       pack: packValue,
       expiry: (() => {
         if (!form.expiry) return "";
@@ -465,16 +492,17 @@ function InventoryPage() {
       packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
       packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
     };
-    if (
-      !payload.name ||
-      !payload.expiry ||
-      isNaN(payload.price) ||
-      isNaN(payload.stock) ||
-      payload.costPrice === undefined ||
-      isNaN(payload.costPrice)
-    ) {
-      toast.error(editing ? "Please fill name, buying price, selling price, stock and expiry." : "Please fill name, buying price, selling price and expiry.");
+
+    if (!payload.name) {
+      toast.error("Product name is required.");
       return;
+    }
+
+    if (payload.stock > 0) {
+      if (!payload.expiry || isNaN(payload.price) || payload.costPrice === undefined || isNaN(payload.costPrice) || !payload.batch) {
+        toast.error("Please fill batch, expiry, buying price, and selling price when initial stock is greater than 0.");
+        return;
+      }
     }
     try {
       if (editing) {
@@ -609,34 +637,46 @@ function InventoryPage() {
                   />
                   <RecentOptions id="manufacturer-recent" options={recentManufacturers} />
                 </Field>
-                <Field label="Buying price">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.costPrice}
-                    onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
-                    placeholder="Cost per unit"
-                    required
-                  />
-                </Field>
-                <Field label="Selling price">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    required
-                  />
-                </Field>
-                <Field label="MRP">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.mrp}
-                    onChange={(e) => setForm({ ...form, mrp: e.target.value })}
-                    placeholder="Printed price"
-                  />
-                </Field>
+                {!editing && (
+                  <>
+                    <Field label="Initial Stock Qty">
+                      <Input
+                        type="number"
+                        value={form.stock}
+                        onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                        placeholder="e.g. 100"
+                      />
+                    </Field>
+                    <Field label="Buying price">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.costPrice}
+                        onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                        placeholder="Cost per unit"
+                        required
+                      />
+                    </Field>
+                    <Field label="Selling price">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.price}
+                        onChange={(e) => setForm({ ...form, price: e.target.value })}
+                        required
+                      />
+                    </Field>
+                    <Field label="MRP">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={form.mrp}
+                        onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                        placeholder="Printed price"
+                      />
+                    </Field>
+                  </>
+                )}
                 <Field label="Stock Type">
                   <select
                     className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -762,22 +802,24 @@ function InventoryPage() {
                     </div>
                   </Field>
                 )}
-                <Field label="Expiry">
-                  <Input
-                    type="text"
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    value={form.expiry}
-                    onChange={(e) => {
-                      let val = e.target.value.replace(/[^\d/]/g, "");
-                      if (val.length === 2 && form.expiry.length !== 3 && !val.includes("/")) {
-                        val += "/";
-                      }
-                      setForm({ ...form, expiry: val });
-                    }}
-                    required
-                  />
-                </Field>
+                {!editing && (
+                  <Field label="Expiry">
+                    <Input
+                      type="text"
+                      placeholder="MM/YY"
+                      maxLength={5}
+                      value={form.expiry}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/[^\d/]/g, "");
+                        if (val.length === 2 && form.expiry.length !== 3 && !val.includes("/")) {
+                          val += "/";
+                        }
+                        setForm({ ...form, expiry: val });
+                      }}
+                      required
+                    />
+                  </Field>
+                )}
                 <Field label="Tax %">
                   <Input
                     type="number"
@@ -785,12 +827,16 @@ function InventoryPage() {
                     onChange={(e) => setForm({ ...form, taxPercent: e.target.value })}
                   />
                 </Field>
-                <Field label="Batch">
-                  <Input
-                    value={form.batch}
-                    onChange={(e) => setForm({ ...form, batch: e.target.value })}
-                  />
-                </Field>
+                {!editing && (
+                  <Field label="Batch">
+                    <Input
+                      value={form.batch}
+                      onChange={(e) => setForm({ ...form, batch: e.target.value })}
+                      placeholder="e.g. B123"
+                      required
+                    />
+                  </Field>
+                )}
                 <Field label="HSN Code">
                   <div className="flex gap-2">
                     <Input
@@ -842,20 +888,21 @@ function InventoryPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12 text-center">#</TableHead>
-              <TableHead>Name</TableHead>
+              <TableHead>Medicine Name</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className="text-right">MRP</TableHead>
-              <TableHead className="text-right">Purchase</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
+              <TableHead>Batch</TableHead>
               <TableHead>Expiry</TableHead>
+              <TableHead className="text-right">Purchase Price</TableHead>
+              <TableHead className="text-right">MRP</TableHead>
+              <TableHead className="text-right">Selling Price</TableHead>
+              <TableHead className="text-right">Available Qty</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-10">
                   {items.length === 0
                     ? "No products yet. Add your first one to get started."
                     : "No products match your search."}
@@ -864,17 +911,16 @@ function InventoryPage() {
             ) : (
               sorted.map((p, idx) => {
                 const now = Date.now();
-                const expTime = new Date(p.expiry).getTime();
-                const daysToExpiry = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
-                const isExpired = daysToExpiry < 0;
-                const isNearExpiryRed = daysToExpiry >= 0 && daysToExpiry <= 30; // 1 month prior
-                const isNearExpiryOrange = daysToExpiry > 30 && daysToExpiry <= 90; // 3 months prior
+                const hasExpiry = p.expiry !== "—";
+                const expTime = hasExpiry ? new Date(p.expiry).getTime() : 0;
+                const daysToExpiry = hasExpiry ? Math.ceil((expTime - now) / (1000 * 60 * 60 * 24)) : 999;
+                const isExpired = hasExpiry && daysToExpiry < 0;
+                const isNearExpiryRed = hasExpiry && daysToExpiry >= 0 && daysToExpiry <= 30;
+                const isNearExpiryOrange = hasExpiry && daysToExpiry > 30 && daysToExpiry <= 90;
 
                 const isOutOfStock = p.stock <= 0;
                 const isLowStock = p.stock > 0 && p.stock <= lowStockQty;
 
-                // Priority: Red row if Expired, Expiring in 1 month, or Out of stock
-                // Orange row if Expiring in 3 months or Low stock
                 const isRed = isExpired || isNearExpiryRed || isOutOfStock;
                 const isOrange = !isRed && (isNearExpiryOrange || isLowStock);
 
@@ -901,7 +947,7 @@ function InventoryPage() {
                             ? "border-l-amber-500"
                             : "border-l-transparent"
                     )}
-                    onClick={() => navigate({ to: "/inventory/$id", params: { id: p.id } })}
+                    onClick={() => navigate({ to: "/inventory/$id", params: { id: p.productId || p.id } })}
                   >
                     <TableCell className="text-center font-medium text-muted-foreground">
                       {idx + 1}
@@ -916,21 +962,46 @@ function InventoryPage() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {p.manufacturer ?? "—"} {p.batch ? `· Batch ${p.batch}` : ""}
-                        {p.prescription ? " · Rx" : ""}
+                        {p.manufacturer ?? "—"} {p.prescription ? " · Rx" : ""}
                       </div>
                     </TableCell>
                     <TableCell>{p.category}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {p.mrp ? p.mrp.toFixed(2) : "—"}
+                    <TableCell className="font-semibold text-xs">{p.batch}</TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold",
+                          !hasExpiry
+                            ? "text-muted-foreground"
+                            : isExpired
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                              : isNearExpiryRed
+                                ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                : isNearExpiryOrange
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                  : "text-muted-foreground"
+                        )}
+                      >
+                        {!hasExpiry ? "—" : new Date(p.expiry).toLocaleDateString()}
+                        {hasExpiry && isExpired
+                          ? " (Expired)"
+                          : hasExpiry && isNearExpiryRed
+                            ? " (<30d)"
+                            : hasExpiry && isNearExpiryOrange
+                              ? " (<90d)"
+                              : ""}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {p.costPrice ? p.costPrice.toFixed(2) : "—"}
+                      {p.costPrice ? `₹${p.costPrice.toFixed(2)}` : "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {p.price.toFixed(2)}
+                      {p.mrp ? `₹${p.mrp.toFixed(2)}` : "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      ₹{p.price.toFixed(2)}
                       {p.taxPercent ? (
-                        <span className="text-xs text-muted-foreground"> +{p.taxPercent}%</span>
+                        <span className="text-[10px] text-muted-foreground"> +{p.taxPercent}% GST</span>
                       ) : null}
                     </TableCell>
                     <TableCell className="text-right">
@@ -947,30 +1018,6 @@ function InventoryPage() {
                         {p.stock} {isOutOfStock ? "Out" : isLowStock ? "Low" : ""}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold",
-                          isExpired
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                            : isNearExpiryRed
-                              ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                              : isNearExpiryOrange
-                                ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                                : "text-muted-foreground"
-                        )}
-                      >
-                        {new Date(p.expiry).toLocaleDateString()}
-                        {isExpired
-                          ? " (Expired)"
-                          : isNearExpiryRed
-                            ? " (<30d)"
-                            : isNearExpiryOrange
-                              ? " (<90d)"
-                              : ""}
-                      </span>
-                    </TableCell>
-
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
@@ -980,7 +1027,7 @@ function InventoryPage() {
                           quickAdd(p);
                         }}
                         disabled={p.stock <= 0}
-                        className="text-primary hover:text-primary"
+                        className="text-primary hover:text-primary animate-pulse"
                         title="Add to cart"
                       >
                         <ShoppingCart className="h-4 w-4" />

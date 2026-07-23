@@ -41,6 +41,13 @@ function SellPage() {
   const [qtyProduct, setQtyProduct] = useState<ProductWithBatches | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<Product | null>(null);
   const [qtyValue, setQtyValue] = useState(1);
+  const [fefoEnabled, setFefoEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("medistock.fefo");
+      return saved !== "false";
+    }
+    return true;
+  });
   const cart = useCart();
   const navigate = useNavigate();
 
@@ -54,23 +61,12 @@ function SellPage() {
     [products, query],
   );
 
-  // Group products by name to avoid duplicate list items
   const groupedProducts = useMemo(() => {
-    const map = new Map<string, Product[]>();
-    filtered.forEach((p) => {
-      const key = p.name.toLowerCase().trim();
-      const existing = map.get(key) || [];
-      existing.push(p);
-      map.set(key, existing);
-    });
-
-    return Array.from(map.values()).map((batchList) => {
-      const first = batchList[0];
-      const totalStock = batchList.reduce((s, p) => s + p.stock, 0);
+    return filtered.map((p) => {
+      const totalStock = p.batches ? p.batches.reduce((s, b) => s + b.stock, 0) : 0;
       return {
-        ...first,
+        ...p,
         stock: totalStock,
-        batches: batchList,
       };
     });
   }, [filtered]);
@@ -211,7 +207,17 @@ function SellPage() {
     setQtyProduct(p);
     setQtyValue(1);
     if (p.batches && p.batches.length > 0) {
-      setSelectedBatch(p.batches[0]);
+      if (fefoEnabled) {
+        // Find batch with nearest expiry date having stock > 0
+        const stockBatches = p.batches.filter((b) => b.stock > 0);
+        const listToUse = stockBatches.length > 0 ? stockBatches : p.batches;
+        const sortedBatches = [...listToUse].sort(
+          (a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime()
+        );
+        setSelectedBatch(sortedBatches[0]);
+      } else {
+        setSelectedBatch(p.batches[0]);
+      }
     } else {
       setSelectedBatch(p);
     }
@@ -264,16 +270,32 @@ function SellPage() {
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          id="sell-search-input"
-          placeholder="Search products in stock…"
-          className="pl-9"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-        />
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div className="relative flex-1">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="sell-search-input"
+            placeholder="Search products in stock…"
+            className="pl-9"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div className="flex items-center gap-2 border bg-accent/40 rounded-lg px-3 py-2 text-xs font-semibold self-start sm:self-auto shrink-0 shadow-soft border-border/80 text-accent-foreground">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={fefoEnabled}
+              onChange={(e) => {
+                setFefoEnabled(e.target.checked);
+                localStorage.setItem("medistock.fefo", String(e.target.checked));
+              }}
+              className="rounded border-input text-primary focus:ring-1 focus:ring-primary h-4 w-4"
+            />
+            <span>Auto Select Earliest Expiry (FEFO)</span>
+          </label>
+        </div>
       </div>
 
       {loading ? (
