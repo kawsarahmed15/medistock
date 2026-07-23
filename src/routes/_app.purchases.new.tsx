@@ -98,6 +98,77 @@ function AddPurchasePage() {
   const [showMedicineModal, setShowMedicineModal] = useState(false);
   const [medicineSearchQuery, setMedicineSearchQuery] = useState("");
 
+  // Quick Add Product state
+  const [showQuickProductModal, setShowQuickProductModal] = useState(false);
+  const [quickProductLineIdx, setQuickProductLineIdx] = useState<number | null>(null);
+  const [quickProductForm, setQuickProductForm] = useState({
+    name: "",
+    category: "GENERAL",
+    manufacturer: "",
+    pack: "",
+    taxPercent: "12",
+    mrp: "",
+    costPrice: "",
+    price: "",
+    sku: "",
+  });
+
+  const openAddProductModal = (typedName: string, lineIdx: number) => {
+    setQuickProductLineIdx(lineIdx);
+    setQuickProductForm({
+      name: typedName.toUpperCase(),
+      category: "GENERAL",
+      manufacturer: "",
+      pack: "",
+      taxPercent: "12",
+      mrp: "",
+      costPrice: "",
+      price: "",
+      sku: "",
+    });
+    setShowQuickProductModal(true);
+  };
+
+  const handleQuickProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickProductForm.name) {
+      toast.error("Product name is required.");
+      return;
+    }
+
+    try {
+      const payload = {
+        name: quickProductForm.name.trim().toUpperCase(),
+        category: (quickProductForm.category.trim() || "GENERAL").toUpperCase(),
+        manufacturer: quickProductForm.manufacturer.trim().toUpperCase() || undefined,
+        pack: quickProductForm.pack.trim() || undefined,
+        taxPercent: Number(quickProductForm.taxPercent) || 0,
+        mrp: quickProductForm.mrp ? Number(quickProductForm.mrp) : 0,
+        costPrice: quickProductForm.costPrice ? Number(quickProductForm.costPrice) : 0,
+        price: quickProductForm.price ? Number(quickProductForm.price) : 0,
+        sku: quickProductForm.sku.trim() || undefined,
+        stock: 0,
+        expiry: "",
+        prescription: false,
+      };
+
+      const newProduct = await productsStore.add(payload);
+      toast.success("Product created and added to inventory.");
+
+      // Refresh product list
+      await loadProducts();
+
+      // Autofill the current spreadsheet line with the newly created product
+      if (quickProductLineIdx !== null) {
+        selectProduct(quickProductLineIdx, newProduct);
+      }
+
+      setShowQuickProductModal(false);
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to create product");
+    }
+  };
+
   // Refs for keyboard matrix navigation
   const gridRefs = useRef<Array<Array<HTMLInputElement | null>>>([[]]);
 
@@ -432,12 +503,15 @@ function AddPurchasePage() {
     const key = e.key;
 
     // Handle dropdown keyboard navigation when in Medicine Name column (colIdx = 0)
-    if (colIdx === 0 && activeLine === rowIdx && filteredProducts.length > 0) {
+    const showAddOption = productSearch && !filteredProducts.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase());
+    const totalDropdownItems = filteredProducts.length + (showAddOption ? 1 : 0);
+
+    if (colIdx === 0 && activeLine === rowIdx && (filteredProducts.length > 0 || showAddOption)) {
       if (key === "ArrowDown") {
         e.preventDefault();
         setFocusedProductIndex((prev) => {
           const nextIdx = prev + 1;
-          return nextIdx < filteredProducts.length ? nextIdx : prev;
+          return nextIdx < totalDropdownItems ? nextIdx : prev;
         });
         return;
       }
@@ -450,14 +524,20 @@ function AddPurchasePage() {
         return;
       }
       if (key === "Enter") {
-        if (focusedProductIndex >= 0 && focusedProductIndex < filteredProducts.length) {
+        if (focusedProductIndex >= 0 && focusedProductIndex < totalDropdownItems) {
           e.preventDefault();
-          selectProduct(rowIdx, filteredProducts[focusedProductIndex]);
-          setFocusedProductIndex(-1);
-          // Move focus to next cell (Batch No., colIdx = 1)
-          setTimeout(() => {
-            gridRefs.current[rowIdx]?.[1]?.focus();
-          }, 50);
+          if (focusedProductIndex < filteredProducts.length) {
+            selectProduct(rowIdx, filteredProducts[focusedProductIndex]);
+            setFocusedProductIndex(-1);
+            // Move focus to next cell (Batch No., colIdx = 1)
+            setTimeout(() => {
+              gridRefs.current[rowIdx]?.[1]?.focus();
+            }, 50);
+          } else {
+            // It is the "Add product" option
+            openAddProductModal(productSearch, rowIdx);
+            setFocusedProductIndex(-1);
+          }
           return;
         }
       }
@@ -717,22 +797,25 @@ function AddPurchasePage() {
                         />
                         {activeLine === idx && productSearch && (
                           <div ref={dropdownRef} className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
-                            {filteredProducts.length > 0 ? (
-                              filteredProducts.map((p, pIdx) => (
-                                <div
-                                  key={p.id}
-                                  className={`px-3 py-2 cursor-pointer text-xs transition-colors ${
-                                    focusedProductIndex === pIdx ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted"
-                                  }`}
-                                  onMouseDown={() => selectProduct(idx, p)}
-                                >
-                                  {p.name} <span className="text-muted-foreground text-[10px]">({p.stock} units, MRP: ₹{p.mrp})</span>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="px-3 py-3 text-xs text-muted-foreground text-center">
-                                Product not found.<br />
-                                <Link to="/inventory" className="text-primary hover:underline">Create product first</Link>
+                            {filteredProducts.map((p, pIdx) => (
+                              <div
+                                key={p.id}
+                                className={`px-3 py-2 cursor-pointer text-xs transition-colors ${
+                                  focusedProductIndex === pIdx ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted"
+                                }`}
+                                onMouseDown={() => selectProduct(idx, p)}
+                              >
+                                {p.name} <span className="text-muted-foreground text-[10px]">({p.stock} units, MRP: ₹{p.mrp})</span>
+                              </div>
+                            ))}
+                            {productSearch && !filteredProducts.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase()) && (
+                              <div
+                                className={`px-3 py-2.5 cursor-pointer text-xs transition-colors border-t font-semibold flex items-center gap-1.5 ${
+                                  focusedProductIndex === filteredProducts.length ? "bg-primary/20 text-primary" : "hover:bg-muted text-primary"
+                                }`}
+                                onMouseDown={() => openAddProductModal(productSearch, idx)}
+                              >
+                                <PlusCircle className="h-4 w-4 text-primary" /> Add "{productSearch.toUpperCase()}" as new product
                               </div>
                             )}
                           </div>
@@ -1006,6 +1089,130 @@ function AddPurchasePage() {
               <CheckCircle className="h-4 w-4 mr-1.5" /> Save Supplier
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add Product popup modal */}
+      <Dialog open={showQuickProductModal} onOpenChange={setShowQuickProductModal}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quick Add Product to Inventory</DialogTitle>
+            <DialogDescription>
+              Define a new product. It will be saved into the inventory database catalog and auto-selected for this row.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleQuickProductSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-1 sm:col-span-2">
+              <Label>Product Name *</Label>
+              <Input
+                placeholder="PRODUCT NAME"
+                value={quickProductForm.name}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value.toUpperCase() })}
+                required
+                className="h-8 text-xs"
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <Label>Category / Generic Name</Label>
+              <Input
+                placeholder="e.g. TABLET, INJECTION, GENERAL"
+                value={quickProductForm.category}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, category: e.target.value.toUpperCase() })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Manufacturer</Label>
+              <Input
+                placeholder="e.g. CIPLA, ALKEM"
+                value={quickProductForm.manufacturer}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, manufacturer: e.target.value.toUpperCase() })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Pack (Format)</Label>
+              <Input
+                placeholder="e.g. 10x10, 100ML"
+                value={quickProductForm.pack}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, pack: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Tax Percent (GST %)</Label>
+              <select
+                value={quickProductForm.taxPercent}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, taxPercent: e.target.value })}
+                className="w-full text-xs p-1.5 border rounded-md bg-background focus:ring-1 focus:ring-primary h-8"
+              >
+                <option value="0">0%</option>
+                <option value="5">5% (GST)</option>
+                <option value="12">12% (GST)</option>
+                <option value="18">18% (GST)</option>
+                <option value="28">28% (GST)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <Label>MRP (₹)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={quickProductForm.mrp}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, mrp: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Buying Price (Cost Price ₹)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={quickProductForm.costPrice}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Selling Price (Rate ₹)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={quickProductForm.price}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>HSN / SKU Code</Label>
+              <Input
+                placeholder="HSN Code"
+                value={quickProductForm.sku}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, sku: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="col-span-full flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowQuickProductModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="shadow-soft">
+                <CheckCircle className="h-4 w-4 mr-1.5" /> Save & Select
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
