@@ -1,14 +1,15 @@
 import { createFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle, ScanLine } from "lucide-react";
 import { purchasesStore, productsStore, type Product, type Purchase } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 
 
 export const Route = createFileRoute("/_app/purchases/new")({
@@ -37,6 +38,76 @@ type PurchaseLine = {
 
 function formatMoney(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(n);
+}
+
+type MedicineNameInputProps = {
+  initialValue: string;
+  onChange: (val: string) => void;
+  onFocus: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  placeholder?: string;
+  inputRef?: React.Ref<HTMLInputElement>;
+};
+
+function MedicineNameInput({
+  initialValue,
+  onChange,
+  onFocus,
+  onKeyDown,
+  placeholder,
+  inputRef,
+}: MedicineNameInputProps) {
+  const [localVal, setLocalVal] = useState(initialValue);
+
+  useEffect(() => {
+    setLocalVal(initialValue);
+  }, [initialValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalVal(val);
+    onChange(val);
+  };
+
+  return (
+    <Input
+      ref={inputRef}
+      placeholder={placeholder}
+      value={localVal || ""}
+      onChange={handleChange}
+      onFocus={onFocus}
+      onKeyDown={onKeyDown}
+      className="h-9 text-sm px-3"
+    />
+  );
+}
+
+function Field({
+  label,
+  children,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`space-y-1.5 ${className ?? ""}`}>
+      <Label className="text-xs">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function RecentOptions({ id, options }: { id?: string; options: string[] }) {
+  if (!options || options.length === 0 || !id) return null;
+  return (
+    <datalist id={id}>
+      {options.map((opt) => (
+        <option key={opt} value={opt} />
+      ))}
+    </datalist>
+  );
 }
 
 function AddPurchasePage() {
@@ -103,28 +174,54 @@ function AddPurchasePage() {
   const [quickProductLineIdx, setQuickProductLineIdx] = useState<number | null>(null);
   const [quickProductForm, setQuickProductForm] = useState({
     name: "",
-    category: "GENERAL",
+    category: "",
     manufacturer: "",
-    pack: "",
-    taxPercent: "12",
-    mrp: "",
+    stock: "0",
     costPrice: "",
     price: "",
+    mrp: "",
+    stockType: "other",
+    stockPacks: "",
+    stockUnits: "ML",
+    expiry: "",
+    taxPercent: "12",
+    batch: "",
     sku: "",
+    prescription: false,
   });
+
+  const [recentCategories, setRecentCategories] = useState<string[]>([]);
+  const [recentManufacturers, setRecentManufacturers] = useState<string[]>([]);
+  const [recentHsns, setRecentHsns] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      setRecentCategories(JSON.parse(localStorage.getItem("recentCategories") || "[]"));
+      setRecentManufacturers(JSON.parse(localStorage.getItem("recentManufacturers") || "[]"));
+      setRecentHsns(JSON.parse(localStorage.getItem("recentHsns") || "[]"));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const openAddProductModal = (typedName: string, lineIdx: number) => {
     setQuickProductLineIdx(lineIdx);
     setQuickProductForm({
       name: typedName.toUpperCase(),
-      category: "GENERAL",
+      category: "",
       manufacturer: "",
-      pack: "",
-      taxPercent: "12",
-      mrp: "",
+      stock: "0",
       costPrice: "",
       price: "",
+      mrp: "",
+      stockType: "other",
+      stockPacks: "",
+      stockUnits: "ML",
+      expiry: "",
+      taxPercent: "12",
+      batch: "",
       sku: "",
+      prescription: false,
     });
     setShowQuickProductModal(true);
   };
@@ -136,24 +233,91 @@ function AddPurchasePage() {
       return;
     }
 
-    try {
-      const payload = {
-        name: quickProductForm.name.trim().toUpperCase(),
-        category: (quickProductForm.category.trim() || "GENERAL").toUpperCase(),
-        manufacturer: quickProductForm.manufacturer.trim().toUpperCase() || undefined,
-        pack: quickProductForm.pack.trim() || undefined,
-        taxPercent: Number(quickProductForm.taxPercent) || 0,
-        mrp: quickProductForm.mrp ? Number(quickProductForm.mrp) : 0,
-        costPrice: quickProductForm.costPrice ? Number(quickProductForm.costPrice) : 0,
-        price: quickProductForm.price ? Number(quickProductForm.price) : 0,
-        sku: quickProductForm.sku.trim() || undefined,
-        stock: 0,
-        expiry: "",
-        prescription: false,
-      };
+    let packValue: string | undefined = undefined;
+    if (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap" || quickProductForm.stockType === "other") {
+      if (quickProductForm.stockPacks) {
+        packValue = quickProductForm.stockPacks;
+      }
+    } else if (quickProductForm.stockType === "syp") {
+      if (quickProductForm.stockPacks) {
+        packValue = `${quickProductForm.stockPacks}ML`;
+      }
+    } else if (quickProductForm.stockType === "inj") {
+      if (quickProductForm.stockPacks) {
+        packValue = `${quickProductForm.stockPacks}${quickProductForm.stockUnits || "ML"}`;
+      }
+    } else if (quickProductForm.stockType === "cream") {
+      if (quickProductForm.stockPacks) {
+        packValue = `${quickProductForm.stockPacks} GM`;
+      }
+    } else if (quickProductForm.stockType === "drop") {
+      if (quickProductForm.stockPacks) {
+        packValue = `${quickProductForm.stockPacks} ML Drop`;
+      }
+    }
 
+    const payload = {
+      name: quickProductForm.name.trim().toUpperCase(),
+      category: quickProductForm.category.trim().toUpperCase() || "GENERAL",
+      costPrice: quickProductForm.costPrice === "" ? undefined : Number(quickProductForm.costPrice),
+      price: Number(quickProductForm.price) || 0,
+      mrp: quickProductForm.mrp === "" ? undefined : Number(quickProductForm.mrp),
+      stock: Number(quickProductForm.stock) || 0,
+      pack: packValue,
+      expiry: (() => {
+        if (!quickProductForm.expiry) return "";
+        const parts = quickProductForm.expiry.split("/");
+        if (parts.length === 2) {
+          const month = parseInt(parts[0], 10);
+          const year = 2000 + parseInt(parts[1], 10);
+          const lastDay = new Date(year, month, 0).getDate();
+          return `${year}-${month.toString().padStart(2, "0")}-${lastDay.toString().padStart(2, "0")}`;
+        }
+        return quickProductForm.expiry;
+      })(),
+      batch: quickProductForm.batch.trim() || undefined,
+      manufacturer: quickProductForm.manufacturer.trim() ? quickProductForm.manufacturer.trim().toUpperCase() : undefined,
+      sku: quickProductForm.sku.trim() || undefined,
+      taxPercent: Number(quickProductForm.taxPercent) || 0,
+      prescription: quickProductForm.prescription,
+      baseUnit: "Unit",
+      packUnit: "Pack",
+      conversionFactor: 1,
+    };
+
+    if (payload.stock > 0) {
+      if (!payload.expiry || isNaN(payload.price) || payload.costPrice === undefined || isNaN(payload.costPrice) || !payload.batch) {
+        toast.error("Please fill batch, expiry, buying price, and selling price when initial stock is greater than 0.");
+        return;
+      }
+    }
+
+    try {
       const newProduct = await productsStore.add(payload);
       toast.success("Product created and added to inventory.");
+
+      const handleAddRecent = (
+        key: string,
+        val: string | undefined,
+        current: string[],
+        set: React.Dispatch<React.SetStateAction<string[]>>,
+        max: number,
+      ) => {
+        if (!val) return;
+        const cleaned = val.trim().toUpperCase();
+        if (!cleaned) return;
+        const next = [cleaned, ...current.filter((x) => x !== cleaned)].slice(0, max);
+        set(next);
+        localStorage.setItem(key, JSON.stringify(next));
+      };
+
+      handleAddRecent("recentCategories", payload.category, recentCategories, setRecentCategories, 4);
+      if (payload.manufacturer) {
+        handleAddRecent("recentManufacturers", payload.manufacturer, recentManufacturers, setRecentManufacturers, 8);
+      }
+      if (payload.sku) {
+        handleAddRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
+      }
 
       // Refresh product list
       await loadProducts();
@@ -779,21 +943,20 @@ function AddPurchasePage() {
                     <tr key={idx} className="hover:bg-muted/10 transition-colors">
                       {/* Name Search Box */}
                       <td className="p-2 relative">
-                        <Input
-                          ref={(el) => (gridRefs.current[idx][0] = el)}
+                        <MedicineNameInput
+                          inputRef={(el) => (gridRefs.current[idx][0] = el)}
                           placeholder="Medicine name"
-                          value={line.name}
-                          onChange={(e) => {
-                            updateLine(idx, "name", e.target.value);
+                          initialValue={line.name}
+                          onChange={(val) => {
+                            updateLine(idx, "name", val);
                             updateLine(idx, "productId", "");
-                            setProductSearch(e.target.value);
+                            setProductSearch(val);
                           }}
                           onFocus={() => {
                             setActiveLine(idx);
                             setProductSearch(line.name);
                           }}
                           onKeyDown={(e) => handleKeyDown(e, idx, 0)}
-                          className="h-9 text-sm px-3"
                         />
                         {activeLine === idx && productSearch && (
                           <div ref={dropdownRef} className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
@@ -1098,120 +1261,283 @@ function AddPurchasePage() {
           <DialogHeader>
             <DialogTitle>Quick Add Product to Inventory</DialogTitle>
             <DialogDescription>
-              Define a new product. It will be saved into the inventory database catalog and auto-selected for this row.
+              Define a new product definition. It will be saved into the inventory database catalog and auto-selected for this row.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleQuickProductSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-1 sm:col-span-2">
-              <Label>Product Name *</Label>
+            <Field label="Name *" className="col-span-full">
               <Input
-                placeholder="PRODUCT NAME"
                 value={quickProductForm.name}
                 onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value.toUpperCase() })}
                 required
                 className="h-8 text-xs"
               />
-            </div>
-            
-            <div className="space-y-1">
-              <Label>Category / Generic Name</Label>
+            </Field>
+            <Field label="Category / Generic Name">
               <Input
-                placeholder="e.g. TABLET, INJECTION, GENERAL"
                 value={quickProductForm.category}
                 onChange={(e) => setQuickProductForm({ ...quickProductForm, category: e.target.value.toUpperCase() })}
+                placeholder="e.g. Antibiotic"
+                list="category-recent-quick"
                 className="h-8 text-xs"
               />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Manufacturer</Label>
+              <RecentOptions id="category-recent-quick" options={recentCategories} />
+            </Field>
+            <Field label="Manufacturer">
               <Input
-                placeholder="e.g. CIPLA, ALKEM"
                 value={quickProductForm.manufacturer}
                 onChange={(e) => setQuickProductForm({ ...quickProductForm, manufacturer: e.target.value.toUpperCase() })}
+                list="manufacturer-recent-quick"
                 className="h-8 text-xs"
               />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Pack (Format)</Label>
+              <RecentOptions id="manufacturer-recent-quick" options={recentManufacturers} />
+            </Field>
+            
+            <Field label="Initial Stock Qty">
               <Input
-                placeholder="e.g. 10x10, 100ML"
-                value={quickProductForm.pack}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, pack: e.target.value })}
+                type="number"
+                value={quickProductForm.stock}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, stock: e.target.value })}
+                placeholder="e.g. 100"
                 className="h-8 text-xs"
               />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Tax Percent (GST %)</Label>
-              <select
-                value={quickProductForm.taxPercent}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, taxPercent: e.target.value })}
-                className="w-full text-xs p-1.5 border rounded-md bg-background focus:ring-1 focus:ring-primary h-8"
-              >
-                <option value="0">0%</option>
-                <option value="5">5% (GST)</option>
-                <option value="12">12% (GST)</option>
-                <option value="18">18% (GST)</option>
-                <option value="28">28% (GST)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <Label>MRP (₹)</Label>
+            </Field>
+            <Field label="Buying price">
               <Input
                 type="number"
                 step="0.01"
-                placeholder="0.00"
-                value={quickProductForm.mrp}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, mrp: e.target.value })}
-                className="h-8 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Buying Price (Cost Price ₹)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
                 value={quickProductForm.costPrice}
                 onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
+                placeholder="Cost per unit"
                 className="h-8 text-xs"
               />
-            </div>
-
-            <div className="space-y-1">
-              <Label>Selling Price (Rate ₹)</Label>
+            </Field>
+            <Field label="Selling price">
               <Input
                 type="number"
                 step="0.01"
-                placeholder="0.00"
                 value={quickProductForm.price}
                 onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                placeholder="Rate per unit"
                 className="h-8 text-xs"
               />
-            </div>
-
-            <div className="space-y-1">
-              <Label>HSN / SKU Code</Label>
+            </Field>
+            <Field label="MRP">
               <Input
-                placeholder="HSN Code"
+                type="number"
+                step="0.01"
+                value={quickProductForm.mrp}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, mrp: e.target.value })}
+                placeholder="Printed price"
+                className="h-8 text-xs"
+              />
+            </Field>
+
+            <Field label="Stock Type">
+              <select
+                className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={quickProductForm.stockType}
+                onChange={(e) => {
+                  const type = e.target.value;
+                  setQuickProductForm({
+                    ...quickProductForm,
+                    stockType: type,
+                    stockPacks: "",
+                    stockUnits: type === "inj" ? "ML" : "",
+                  });
+                }}
+              >
+                <option value="other">General / Other</option>
+                <option value="tab">Tablet (Tab)</option>
+                <option value="cap">Capsule (Cap)</option>
+                <option value="syp">Syrup (Syp)</option>
+                <option value="inj">Injection (Inj)</option>
+                <option value="cream">Cream</option>
+                <option value="drop">Drop</option>
+              </select>
+            </Field>
+
+            {quickProductForm.stockType === "other" && (
+              <Field label="Pack Options">
+                <div className="flex items-center gap-2">
+                  <Input
+                    list="general-options-quick"
+                    placeholder="e.g. 10X10, ML, GM..."
+                    value={quickProductForm.stockPacks}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stockPacks: e.target.value })}
+                    className="h-8 text-xs"
+                  />
+                  <datalist id="general-options-quick">
+                    <option value="10X10" />
+                    <option value="10X1X10" />
+                    <option value="ML" />
+                    <option value="MG" />
+                    <option value="GM" />
+                    <option value="CAP" />
+                  </datalist>
+                </div>
+              </Field>
+            )}
+
+            {(quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") && (
+              <Field label="Pack Format">
+                <div className="flex items-center gap-2 w-full">
+                  <Input
+                    list="tab-cap-pack-options-quick"
+                    placeholder="e.g. 10x10, 10X1X10, CAP"
+                    value={quickProductForm.stockPacks}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stockPacks: e.target.value })}
+                    required
+                    className="h-8 text-xs"
+                  />
+                  <datalist id="tab-cap-pack-options-quick">
+                    <option value="10X10" />
+                    <option value="10X1X10" />
+                    <option value="CAP" />
+                  </datalist>
+                </div>
+              </Field>
+            )}
+
+            {quickProductForm.stockType === "syp" && (
+              <Field label="Pack (ML)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="ML Amount"
+                    value={quickProductForm.stockPacks}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stockPacks: e.target.value })}
+                    required
+                    className="h-8 text-xs"
+                  />
+                  <span className="text-muted-foreground text-xs font-medium">ML</span>
+                </div>
+              </Field>
+            )}
+
+            {quickProductForm.stockType === "inj" && (
+              <Field label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={quickProductForm.stockPacks}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stockPacks: e.target.value })}
+                    required
+                    className="h-8 text-xs"
+                  />
+                  <select
+                    className="flex h-8 w-24 items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={quickProductForm.stockUnits || "ML"}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stockUnits: e.target.value })}
+                  >
+                    <option value="ML">ML</option>
+                    <option value="MG">MG</option>
+                    <option value="GM">GM</option>
+                  </select>
+                </div>
+              </Field>
+            )}
+
+            {quickProductForm.stockType === "cream" && (
+              <Field label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={quickProductForm.stockPacks}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stockPacks: e.target.value })}
+                    required
+                    className="h-8 text-xs"
+                  />
+                  <span className="text-muted-foreground text-xs font-medium">GM</span>
+                </div>
+              </Field>
+            )}
+
+            {quickProductForm.stockType === "drop" && (
+              <Field label="Pack (Measure)">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Amount"
+                    value={quickProductForm.stockPacks}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stockPacks: e.target.value })}
+                    required
+                    className="h-8 text-xs"
+                  />
+                  <span className="text-muted-foreground text-xs font-medium">ML</span>
+                </div>
+              </Field>
+            )}
+
+            <Field label="Expiry (MM/YY)">
+              <Input
+                type="text"
+                placeholder="MM/YY"
+                maxLength={5}
+                value={quickProductForm.expiry}
+                onChange={(e) => {
+                  let val = e.target.value.replace(/[^\d/]/g, "");
+                  if (val.length === 2 && quickProductForm.expiry.length !== 3 && !val.includes("/")) {
+                    val += "/";
+                  }
+                  setQuickProductForm({ ...quickProductForm, expiry: val });
+                }}
+                className="h-8 text-xs"
+              />
+            </Field>
+
+            <Field label="Tax %">
+              <Input
+                type="number"
+                value={quickProductForm.taxPercent}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, taxPercent: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </Field>
+
+            <Field label="Batch">
+              <Input
+                value={quickProductForm.batch}
+                onChange={(e) => setQuickProductForm({ ...quickProductForm, batch: e.target.value })}
+                placeholder="e.g. B123"
+                className="h-8 text-xs"
+              />
+            </Field>
+
+            <Field label="HSN Code">
+              <Input
                 value={quickProductForm.sku}
                 onChange={(e) => setQuickProductForm({ ...quickProductForm, sku: e.target.value })}
+                placeholder="Type or scan"
+                list="hsn-recent-quick"
                 className="h-8 text-xs"
+              />
+              <RecentOptions id="hsn-recent-quick" options={recentHsns} />
+            </Field>
+
+            <div className="col-span-full flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <div className="text-sm font-medium">Prescription required</div>
+                <div className="text-xs text-muted-foreground">
+                  Mark this product as Rx-only.
+                </div>
+              </div>
+              <Switch
+                checked={quickProductForm.prescription}
+                onCheckedChange={(v) => setQuickProductForm({ ...quickProductForm, prescription: v })}
               />
             </div>
 
-            <div className="col-span-full flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" size="sm" onClick={() => setShowQuickProductModal(false)}>
+            <DialogFooter className="col-span-full">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowQuickProductModal(false)}>
                 Cancel
               </Button>
               <Button type="submit" size="sm" className="shadow-soft">
-                <CheckCircle className="h-4 w-4 mr-1.5" /> Save & Select
+                Save & Select
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
