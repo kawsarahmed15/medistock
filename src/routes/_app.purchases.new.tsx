@@ -42,6 +42,20 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(n);
 }
 
+function getDisplayExpiry(expiryDateStr: string) {
+  if (!expiryDateStr) return "";
+  if (expiryDateStr.length < 10) {
+    return expiryDateStr;
+  }
+  const parts = expiryDateStr.split("-");
+  if (parts.length >= 2) {
+    const year = parts[0].substring(2);
+    const month = parts[1];
+    return `${month}/${year}`;
+  }
+  return expiryDateStr;
+}
+
 type MedicineNameInputProps = {
   initialValue: string;
   onChange: (val: string) => void;
@@ -1048,23 +1062,33 @@ function AddPurchasePage() {
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][2] = el)}
-                          type="month"
-                          value={line.expiry ? line.expiry.substring(0, 7) : ""}
+                          type="text"
+                          placeholder="MM/YY"
+                          maxLength={5}
+                          value={getDisplayExpiry(line.expiry)}
                           onChange={(e) => {
-                            const monthVal = e.target.value;
-                            if (monthVal) {
-                              const parts = monthVal.split("-");
-                              const year = parseInt(parts[0], 10);
-                              const month = parseInt(parts[1], 10);
-                              const lastDay = new Date(year, month, 0).getDate();
-                              const fullDate = `${parts[0]}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-                              updateLine(idx, "expiry", fullDate);
-                            } else {
-                              updateLine(idx, "expiry", "");
+                            let val = e.target.value.replace(/[^\d/]/g, "");
+                            const prevDisplayLength = getDisplayExpiry(line.expiry || "").length;
+                            if (val.length === 2 && prevDisplayLength !== 3 && !val.includes("/")) {
+                              val += "/";
                             }
+                            if (val.length === 5) {
+                              const parts = val.split("/");
+                              if (parts.length === 2) {
+                                const month = parseInt(parts[0], 10);
+                                const year = 2000 + parseInt(parts[1], 10);
+                                if (month >= 1 && month <= 12) {
+                                  const lastDay = new Date(year, month, 0).getDate();
+                                  const fullDate = `${year}-${parts[0].padStart(2, "0")}-${lastDay.toString().padStart(2, "0")}`;
+                                  updateLine(idx, "expiry", fullDate);
+                                  return;
+                                }
+                              }
+                            }
+                            updateLine(idx, "expiry", val);
                           }}
                           onKeyDown={(e) => handleKeyDown(e, idx, 2)}
-                          className="h-9 text-sm px-2"
+                          className="h-9 text-sm px-2 text-center"
                         />
                       </td>
 
