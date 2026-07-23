@@ -34,6 +34,8 @@ type PurchaseLine = {
   saleRate?: number;
   ptr?: number;
   rack?: string;
+  isDraftProduct?: boolean;
+  draftProductDetails?: any;
 };
 
 function formatMoney(n: number) {
@@ -293,8 +295,24 @@ function AddPurchasePage() {
     }
 
     try {
-      const newProduct = await productsStore.add(payload);
-      toast.success("Product created and added to inventory.");
+      const tempProduct: Product & { isDraftProduct: boolean; draftProductDetails: any } = {
+        id: "draft-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
+        name: payload.name,
+        category: payload.category,
+        price: payload.price,
+        costPrice: payload.costPrice,
+        stock: payload.stock,
+        expiry: payload.expiry || "",
+        mrp: payload.mrp,
+        pack: payload.pack,
+        manufacturer: payload.manufacturer,
+        sku: payload.sku,
+        taxPercent: payload.taxPercent,
+        prescription: payload.prescription,
+        createdAt: new Date().toISOString(),
+        isDraftProduct: true,
+        draftProductDetails: payload,
+      };
 
       const handleAddRecent = (
         key: string,
@@ -319,17 +337,15 @@ function AddPurchasePage() {
         handleAddRecent("recentHsns", payload.sku, recentHsns, setRecentHsns, 4);
       }
 
-      // Refresh product list
-      await loadProducts();
-
-      // Autofill the current spreadsheet line with the newly created product
+      // Autofill the current spreadsheet line with the draft product definition
       if (quickProductLineIdx !== null) {
-        selectProduct(quickProductLineIdx, newProduct);
+        selectProduct(quickProductLineIdx, tempProduct);
       }
 
+      toast.success("Product draft added to row. It will be saved to inventory when you save the bill.");
       setShowQuickProductModal(false);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to create product");
+      toast.error((err as Error).message || "Failed to add draft product");
     }
   };
 
@@ -578,7 +594,7 @@ function AddPurchasePage() {
     setLines(newLines);
   };
 
-  const selectProduct = (index: number, p: Product) => {
+  const selectProduct = (index: number, p: Product & { isDraftProduct?: boolean; draftProductDetails?: any }) => {
     const newLines = [...lines];
     newLines[index] = {
       ...newLines[index],
@@ -592,6 +608,8 @@ function AddPurchasePage() {
       hsn: p.sku || "",
       saleRate: p.price || p.mrp || 0,
       ptr: p.costPrice || 0,
+      isDraftProduct: p.isDraftProduct,
+      draftProductDetails: p.draftProductDetails,
     };
     setLines(newLines);
     setActiveLine(null);
@@ -622,6 +640,26 @@ function AddPurchasePage() {
 
     setIsSubmitting(true);
     try {
+      // 1. First save any draft products to inventory database
+      const finalLines = [];
+      for (const line of lines) {
+        if (line.isDraftProduct && line.draftProductDetails) {
+          // Add to inventory database
+          const newProduct = await productsStore.add(line.draftProductDetails);
+          finalLines.push({
+            ...line,
+            productId: newProduct.id,
+            isDraftProduct: undefined,
+            draftProductDetails: undefined,
+          });
+        } else {
+          finalLines.push(line);
+        }
+      }
+
+      // Re-load the product list so autocomplete and local memory remain correct
+      await loadProducts();
+
       const metaNotes = JSON.stringify({
         supplierGst,
         supplierDl,
@@ -648,7 +686,7 @@ function AddPurchasePage() {
         tax: calculations.tax,
         discount,
         total: calculations.grandTotal,
-        items: lines,
+        items: finalLines,
       };
 
       await purchasesStore.add(bodyData);
