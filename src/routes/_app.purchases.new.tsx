@@ -652,6 +652,11 @@ function AddPurchasePage() {
       toast.error("Please add product names for all entry rows.");
       return;
     }
+    const unsavedLines = lines.filter((l) => l.name.trim() !== "" && !l.productId);
+    if (unsavedLines.length > 0) {
+      toast.error(`Please save new products ("${unsavedLines.map(l => l.name).join('", "')}") using the Quick Add (+) button first.`);
+      return;
+    }
     if (lines.some((l) => !l.batch)) {
       toast.error("Batch numbers are mandatory for all items.");
       return;
@@ -1004,46 +1009,62 @@ function AddPurchasePage() {
                     <tr key={idx} className="hover:bg-muted/10 transition-colors">
                       {/* Name Search Box */}
                       <td className="p-2 relative">
-                        <MedicineNameInput
-                          inputRef={(el) => (gridRefs.current[idx][0] = el)}
-                          placeholder="Medicine name"
-                          initialValue={line.name}
-                          onChange={(val) => {
-                            updateLine(idx, "name", val);
-                            updateLine(idx, "productId", "");
-                            setProductSearch(val);
-                          }}
-                          onFocus={() => {
-                            setActiveLine(idx);
-                            setProductSearch(line.name);
-                          }}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 0)}
-                        />
-                        {activeLine === idx && productSearch && (
-                          <div ref={dropdownRef} className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
-                            {filteredProducts.map((p, pIdx) => (
-                              <div
-                                key={p.id}
-                                className={`px-3 py-2 cursor-pointer text-xs transition-colors ${
-                                  focusedProductIndex === pIdx ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted"
-                                }`}
-                                onMouseDown={() => selectProduct(idx, p)}
-                              >
-                                {p.name} <span className="text-muted-foreground text-[10px]">({p.stock} units, MRP: ₹{p.mrp})</span>
-                              </div>
-                            ))}
-                            {productSearch && !filteredProducts.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase()) && (
-                              <div
-                                className={`px-3 py-2.5 cursor-pointer text-xs transition-colors border-t font-semibold flex items-center gap-1.5 ${
-                                  focusedProductIndex === filteredProducts.length ? "bg-primary/20 text-primary" : "hover:bg-muted text-primary"
-                                }`}
-                                onMouseDown={() => openAddProductModal(productSearch, idx)}
-                              >
-                                <PlusCircle className="h-4 w-4 text-primary" /> Add "{productSearch.toUpperCase()}" as new product
+                        <div className="flex items-center gap-1.5 w-full">
+                          <div className="relative flex-1">
+                            <MedicineNameInput
+                              inputRef={(el) => (gridRefs.current[idx][0] = el)}
+                              placeholder="Medicine name"
+                              initialValue={line.name}
+                              onChange={(val) => {
+                                updateLine(idx, "name", val);
+                                updateLine(idx, "productId", "");
+                                setProductSearch(val);
+                              }}
+                              onFocus={() => {
+                                setActiveLine(idx);
+                                setProductSearch(line.name);
+                              }}
+                              onKeyDown={(e) => handleKeyDown(e, idx, 0)}
+                            />
+                            {activeLine === idx && productSearch && (
+                              <div ref={dropdownRef} className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
+                                {filteredProducts.map((p, pIdx) => (
+                                  <div
+                                    key={p.id}
+                                    className={`px-3 py-2 cursor-pointer text-xs transition-colors ${
+                                      focusedProductIndex === pIdx ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted"
+                                    }`}
+                                    onMouseDown={() => selectProduct(idx, p)}
+                                  >
+                                    {p.name} <span className="text-muted-foreground text-[10px]">({p.stock} units, MRP: ₹{p.mrp})</span>
+                                  </div>
+                                ))}
+                                {productSearch && !filteredProducts.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase()) && (
+                                  <div
+                                    className={`px-3 py-2.5 cursor-pointer text-xs transition-colors border-t font-semibold flex items-center gap-1.5 ${
+                                      focusedProductIndex === filteredProducts.length ? "bg-primary/20 text-primary" : "hover:bg-muted text-primary"
+                                    }`}
+                                    onMouseDown={() => openAddProductModal(productSearch, idx)}
+                                  >
+                                    <PlusCircle className="h-4 w-4 text-primary" /> Add "{productSearch.toUpperCase()}" as new product
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
-                        )}
+                          {line.name.trim() !== "" && !line.productId && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 text-primary hover:bg-primary/10 shrink-0 border border-dashed border-primary"
+                              onClick={() => openAddProductModal(line.name, idx)}
+                              title="Quick Add this product to Inventory"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Batch */}
