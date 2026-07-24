@@ -599,11 +599,13 @@ function InventoryPage() {
             <ScanLine className="h-4 w-4" />
             <span className="hidden sm:inline">Scan HSN</span>
           </Button>
-          <Button onClick={startAdd} className="shadow-soft">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add product</span>
-            <span className="sm:hidden">Add</span>
-          </Button>
+          <Link to="/purchases/new">
+            <Button className="shadow-soft">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New purchase</span>
+              <span className="sm:hidden">Purchase</span>
+            </Button>
+          </Link>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
