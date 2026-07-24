@@ -157,6 +157,8 @@ function AddPurchasePage() {
 
   const [discount, setDiscount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [tempDraftData, setTempDraftData] = useState<any>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState("");
@@ -264,24 +266,8 @@ function AddPurchasePage() {
           const savedDraft = localStorage.getItem("medistock_draft_purchase");
           if (savedDraft) {
             const draft = JSON.parse(savedDraft);
-            if (draft.lines) setLines(draft.lines);
-            if (draft.supplierName) setSupplierName(draft.supplierName);
-            if (draft.supplierPhone) setSupplierPhone(draft.supplierPhone);
-            if (draft.supplierInvoice) setSupplierInvoice(draft.supplierInvoice);
-            if (draft.supplierGst) setSupplierGst(draft.supplierGst);
-            if (draft.supplierDl) setSupplierDl(draft.supplierDl);
-            if (draft.supplierAddress) setSupplierAddress(draft.supplierAddress);
-            if (draft.supplierEmail) setSupplierEmail(draft.supplierEmail);
-            if (draft.invoiceDate) setInvoiceDate(draft.invoiceDate);
-            if (draft.purchaseDate) setPurchaseDate(draft.purchaseDate);
-            if (draft.paymentMode) setPaymentMode(draft.paymentMode);
-            if (draft.creditDays) setCreditDays(draft.creditDays);
-            if (draft.dueDate) setDueDate(draft.dueDate);
-            if (draft.transportName) setTransportName(draft.transportName);
-            if (draft.lrNumber) setLrNumber(draft.lrNumber);
-            if (draft.remarks) setRemarks(draft.remarks);
-            if (draft.discount) setDiscount(draft.discount);
-            toast.info("Restored draft purchase bill from your last session.");
+            setTempDraftData(draft);
+            setShowDraftPrompt(true);
           }
         }
       } catch (err) {
@@ -290,6 +276,37 @@ function AddPurchasePage() {
     }
     isLoadedRef.current = true;
   }, [editFrom, duplicateFrom]);
+
+  const handleContinueDraft = () => {
+    if (tempDraftData) {
+      const draft = tempDraftData;
+      if (draft.lines) setLines(draft.lines);
+      if (draft.supplierName) setSupplierName(draft.supplierName);
+      if (draft.supplierPhone) setSupplierPhone(draft.supplierPhone);
+      if (draft.supplierInvoice) setSupplierInvoice(draft.supplierInvoice);
+      if (draft.supplierGst) setSupplierGst(draft.supplierGst);
+      if (draft.supplierDl) setSupplierDl(draft.supplierDl);
+      if (draft.supplierAddress) setSupplierAddress(draft.supplierAddress);
+      if (draft.supplierEmail) setSupplierEmail(draft.supplierEmail);
+      if (draft.invoiceDate) setInvoiceDate(draft.invoiceDate);
+      if (draft.purchaseDate) setPurchaseDate(draft.purchaseDate);
+      if (draft.paymentMode) setPaymentMode(draft.paymentMode);
+      if (draft.creditDays) setCreditDays(draft.creditDays);
+      if (draft.dueDate) setDueDate(draft.dueDate);
+      if (draft.transportName) setTransportName(draft.transportName);
+      if (draft.lrNumber) setLrNumber(draft.lrNumber);
+      if (draft.remarks) setRemarks(draft.remarks);
+      if (draft.discount) setDiscount(draft.discount);
+      toast.success("Draft purchase bill restored.");
+    }
+    setShowDraftPrompt(false);
+  };
+
+  const handleDiscardDraft = () => {
+    localStorage.removeItem("medistock_draft_purchase");
+    setShowDraftPrompt(false);
+    toast.info("Unsaved draft discarded. Started a new purchase bill.");
+  };
 
   // Save draft to localStorage when anything changes, but only if loaded
   useEffect(() => {
@@ -1834,6 +1851,56 @@ function AddPurchasePage() {
               autoFocus
             >
               OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Restore Draft Dialog Prompt */}
+      <Dialog open={showDraftPrompt} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary animate-pulse" /> Restore Draft Invoice?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              We found an unsaved purchase invoice draft from your last session. Would you like to continue editing it or start a new blank bill?
+            </DialogDescription>
+          </DialogHeader>
+
+          {tempDraftData && (
+            <div className="my-4 p-3 bg-muted/40 rounded-lg text-xs space-y-1.5 border border-border/50">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Supplier:</span>
+                <span className="font-semibold text-foreground">{tempDraftData.supplierName || "Unspecified"}</span>
+              </div>
+              {tempDraftData.supplierInvoice && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Invoice No:</span>
+                  <span className="font-mono font-semibold text-foreground">{tempDraftData.supplierInvoice}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Medicines:</span>
+                <span className="font-semibold text-foreground">{(tempDraftData.lines || []).length} items</span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDiscardDraft}
+              className="flex-1 text-xs border-rose-200 text-rose-700 bg-rose-50/50 hover:bg-rose-50 hover:text-rose-800"
+            >
+              Start New Bill
+            </Button>
+            <Button
+              type="button"
+              onClick={handleContinueDraft}
+              className="flex-1 text-xs bg-primary text-white hover:bg-primary/95 shadow-soft"
+            >
+              Continue Draft
             </Button>
           </DialogFooter>
         </DialogContent>
