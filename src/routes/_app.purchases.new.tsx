@@ -384,7 +384,8 @@ function AddPurchasePage() {
   };
 
   const handleQuickProductFormKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
+    const key = e.key;
+    if (key !== "ArrowLeft" && key !== "ArrowRight" && key !== "ArrowUp" && key !== "ArrowDown" && key !== "Enter") return;
 
     const target = e.target as HTMLElement;
     const form = e.currentTarget as HTMLFormElement;
@@ -392,30 +393,25 @@ function AddPurchasePage() {
       form.querySelectorAll('input:not([type="hidden"]), select, button[role="switch"], button[type="submit"]')
     ) as HTMLElement[];
 
-    if (target.tagName === "SELECT") {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const currentIndex = focusableElements.indexOf(target);
-        if (currentIndex !== -1) {
-          const nextIndex = (currentIndex + 1) % focusableElements.length;
-          focusableElements[nextIndex]?.focus();
-        }
-      }
+    const hasDropdown = target.tagName === "SELECT" || target.hasAttribute("list");
+
+    // If it has a dropdown and key is ArrowUp/ArrowDown, let standard option browsing work
+    if (hasDropdown && (key === "ArrowUp" || key === "ArrowDown")) {
       return;
     }
 
-    if (e.key === "Enter" && (target.tagName === "BUTTON" || target.getAttribute("type") === "submit")) {
+    if (key === "Enter" && (target.tagName === "BUTTON" || target.getAttribute("type") === "submit")) {
       return;
     }
 
     const currentIndex = focusableElements.indexOf(target);
     if (currentIndex === -1) return;
 
-    if (e.key === "ArrowDown" || e.key === "Enter") {
+    if (key === "ArrowRight" || key === "Enter") {
       e.preventDefault();
       const nextIndex = (currentIndex + 1) % focusableElements.length;
       focusableElements[nextIndex]?.focus();
-    } else if (e.key === "ArrowUp") {
+    } else if (key === "ArrowLeft") {
       e.preventDefault();
       const prevIndex = (currentIndex - 1 + focusableElements.length) % focusableElements.length;
       focusableElements[prevIndex]?.focus();
