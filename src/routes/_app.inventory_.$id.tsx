@@ -430,14 +430,11 @@ function ProductDetails() {
           <Card className="shadow-soft">
             <CardHeader className="py-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">Product Batches</CardTitle>
-              <Button size="xs" onClick={openAddBatch} className="gap-1 shadow-soft h-7 px-2.5 text-xs">
-                <Plus className="w-3.5 h-3.5" /> Add Batch
-              </Button>
             </CardHeader>
             <CardContent className="p-0">
               {(!product.batches || product.batches.length === 0) ? (
                 <div className="text-center text-muted-foreground py-10 text-xs font-medium">
-                  No active batches for this medicine. Register stock or click Add Batch.
+                  No active batches for this medicine. Register stock via Purchase Bill.
                 </div>
               ) : (
                 <Table>
