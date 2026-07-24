@@ -198,6 +198,15 @@ function ProductDetails() {
   };
 
   const handleDelete = async () => {
+    const totalStock = product?.batches && product.batches.length > 0
+      ? product.batches.reduce((sum: number, b: any) => sum + (Number(b.available_qty || b.stock) || 0), 0)
+      : (Number(product?.stock) || 0);
+
+    if (totalStock > 0) {
+      toast.error("Cannot delete product with active stock. Stock must be 0 to delete.");
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete ${product?.name}? This action cannot be undone.`)) return;
     try {
       await apiRequest(`/products/${id}`, { method: "DELETE", auth: true });

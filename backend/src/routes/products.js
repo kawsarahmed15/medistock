@@ -560,9 +560,20 @@ router.patch("/:id", async (req, res, next) => {
   }
 });
 
-// DELETE a product
+// DELETE a product (only allowed if stock is 0)
 router.delete("/:id", async (req, res, next) => {
   try {
+    const [stockRows] = await pool.query(
+      `SELECT COALESCE(SUM(available_qty), 0) AS total_stock
+       FROM product_batches
+       WHERE product_id = ?`,
+      [req.params.id]
+    );
+
+    if (stockRows[0] && Number(stockRows[0].total_stock) > 0) {
+      throw buildApiError(400, "Cannot delete product with active stock. Stock must be 0 to delete.");
+    }
+
     await pool.query("DELETE FROM products WHERE id = ? AND user_id = ?", [
       req.params.id,
       req.auth.userId,
