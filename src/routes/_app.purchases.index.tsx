@@ -248,13 +248,23 @@ function PurchasesPage() {
     }
 
     if (statusFilter !== "all") {
-      result = result.filter((p) => p.paymentStatus === statusFilter);
+      if (statusFilter === "pending") {
+        result = result.filter((p) => p.paymentStatus !== "paid");
+      } else {
+        result = result.filter((p) => p.paymentStatus === statusFilter);
+      }
     }
 
     if (dateFilter) {
-      result = result.filter(
-        (p) => new Date(p.createdAt).toISOString().slice(0, 10) === dateFilter
-      );
+      if (dateFilter.length === 7) {
+        result = result.filter(
+          (p) => new Date(p.createdAt).toISOString().slice(0, 7) === dateFilter
+        );
+      } else {
+        result = result.filter(
+          (p) => new Date(p.createdAt).toISOString().slice(0, 10) === dateFilter
+        );
+      }
     }
 
     // Apply Sorting
@@ -291,6 +301,61 @@ function PurchasesPage() {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
+  };
+
+  const isFilterActive = useMemo(() => {
+    return (
+      query !== "" ||
+      supplierFilter !== "all" ||
+      paymentModeFilter !== "all" ||
+      statusFilter !== "all" ||
+      dateFilter !== ""
+    );
+  }, [query, supplierFilter, paymentModeFilter, statusFilter, dateFilter]);
+
+  const resetFilters = () => {
+    setQuery("");
+    setSupplierFilter("all");
+    setPaymentModeFilter("all");
+    setStatusFilter("all");
+    setDateFilter("");
+    setCurrentPage(1);
+    toast.success("Filters cleared");
+  };
+
+  const handleTodayPurchaseClick = () => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    setDateFilter(todayStr);
+    setSupplierFilter("all");
+    setPaymentModeFilter("all");
+    setStatusFilter("all");
+    setQuery("");
+    setActiveTab("all-bills");
+    setCurrentPage(1);
+    toast.success("Filtering by today's purchases");
+  };
+
+  const handleMonthlyPurchaseClick = () => {
+    const thisMonthStr = new Date().toISOString().slice(0, 7);
+    setDateFilter(thisMonthStr);
+    setSupplierFilter("all");
+    setPaymentModeFilter("all");
+    setStatusFilter("all");
+    setQuery("");
+    setActiveTab("all-bills");
+    setCurrentPage(1);
+    toast.success("Filtering by this month's purchases");
+  };
+
+  const handlePendingBillsClick = () => {
+    setStatusFilter("pending");
+    setDateFilter("");
+    setSupplierFilter("all");
+    setPaymentModeFilter("all");
+    setQuery("");
+    setActiveTab("all-bills");
+    setCurrentPage(1);
+    toast.success("Filtering by pending/unpaid bills");
   };
 
   // Actions
@@ -454,7 +519,10 @@ function PurchasesPage() {
 
       {/* Dashboard KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="shadow-soft hover:shadow-md transition-shadow border-l-4 border-l-primary">
+        <Card 
+          className="shadow-soft hover:shadow-md transition-all border-l-4 border-l-primary cursor-pointer hover:bg-primary/5 active:scale-[0.99]"
+          onClick={handleTodayPurchaseClick}
+        >
           <CardContent className="p-4">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Today's Purchase</div>
             <div className="text-2xl font-bold mt-1 text-primary">{formatMoney(stats.todayPurchase)}</div>
@@ -463,21 +531,27 @@ function PurchasesPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-soft hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+        <Card 
+          className="shadow-soft hover:shadow-md transition-all border-l-4 border-l-blue-500 cursor-pointer hover:bg-blue-50/5 active:scale-[0.99]"
+          onClick={handleMonthlyPurchaseClick}
+        >
           <CardContent className="p-4">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monthly Purchase</div>
             <div className="text-2xl font-bold mt-1 text-blue-600">{formatMoney(stats.monthlyPurchase)}</div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" /> This calendar month
+              <Calendar className="h-3.5 w-3.5 text-blue-500" /> This calendar month
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-soft hover:shadow-md transition-shadow border-l-4 border-l-amber-500">
+        <Card 
+          className="shadow-soft hover:shadow-md transition-all border-l-4 border-l-amber-500 cursor-pointer hover:bg-amber-50/5 active:scale-[0.99]"
+          onClick={handlePendingBillsClick}
+        >
           <CardContent className="p-4">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Bills</div>
             <div className="text-2xl font-bold mt-1 text-amber-600">{stats.pendingBills} Bills</div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-              <AlertCircle className="h-3.5 w-3.5" /> Awaiting supplier payments
+              <AlertCircle className="h-3.5 w-3.5 text-amber-600" /> Awaiting supplier payments
             </p>
           </CardContent>
         </Card>
@@ -558,7 +632,7 @@ function PurchasesPage() {
                 <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                 <Input
                   type="date"
-                  value={dateFilter}
+                  value={dateFilter.length === 7 ? "" : dateFilter}
                   onChange={(e) => {
                     setDateFilter(e.target.value);
                     setCurrentPage(1);
@@ -599,11 +673,53 @@ function PurchasesPage() {
                 >
                   <option value="all">Payment Status (All)</option>
                   <option value="paid">Paid</option>
+                  <option value="pending">Pending (Unpaid/Partial)</option>
                   <option value="partial">Partial</option>
                   <option value="unpaid">Unpaid</option>
                 </select>
               </div>
             </div>
+
+            {isFilterActive && (
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-border/40">
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="font-medium text-[10px] uppercase tracking-wider text-slate-500">Active filters:</span>
+                  {query && (
+                    <Badge variant="secondary" className="text-[10px] py-0.5 px-2 bg-slate-100/80 border border-slate-200">
+                      Search: {query}
+                    </Badge>
+                  )}
+                  {supplierFilter !== "all" && (
+                    <Badge variant="secondary" className="text-[10px] py-0.5 px-2 bg-slate-100/80 border border-slate-200">
+                      Supplier: {supplierFilter}
+                    </Badge>
+                  )}
+                  {dateFilter && (
+                    <Badge variant="secondary" className="text-[10px] py-0.5 px-2 bg-slate-100/80 border border-slate-200">
+                      Date: {dateFilter.length === 7 ? `Month (${dateFilter})` : dateFilter}
+                    </Badge>
+                  )}
+                  {paymentModeFilter !== "all" && (
+                    <Badge variant="secondary" className="text-[10px] py-0.5 px-2 bg-slate-100/80 border border-slate-200">
+                      Mode: {paymentModeFilter}
+                    </Badge>
+                  )}
+                  {statusFilter !== "all" && (
+                    <Badge variant="secondary" className="text-[10px] py-0.5 px-2 bg-slate-100/80 border border-slate-200">
+                      Status: {statusFilter === "pending" ? "Pending" : statusFilter}
+                    </Badge>
+                  )}
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="xs" 
+                  onClick={resetFilters} 
+                  className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 px-2"
+                >
+                  Clear all filters
+                </Button>
+              </div>
+            )}
           </Card>
 
           {/* Bills Data Table */}
