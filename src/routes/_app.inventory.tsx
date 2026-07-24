@@ -186,6 +186,10 @@ function InventoryPage() {
   const flatItems = useMemo(() => {
     const list: Product[] = [];
     items.forEach((p) => {
+      const totalStock = p.batches && p.batches.length > 0
+        ? p.batches.reduce((sum, b) => sum + (Number(b.stock) || 0), 0)
+        : (Number(p.stock) || 0);
+
       if (!p.batches || p.batches.length === 0) {
         list.push({
           ...p,
@@ -193,17 +197,26 @@ function InventoryPage() {
           productId: p.id,
           batch: "—",
           expiry: "—",
-          stock: 0,
-          totalProductStock: 0,
+          stock: totalStock,
+          totalProductStock: totalStock,
         } as any);
       } else {
-        p.batches.forEach((b) => {
-          list.push({
-            ...b,
-            productId: p.id,
-            totalProductStock: p.stock,
-          } as any);
+        // Sort batches to pick the LATEST batch (by createdAt descending or expiry date descending)
+        const sortedBatches = [...p.batches].sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+          return new Date(b.expiry || 0).getTime() - new Date(a.expiry || 0).getTime();
         });
+        const latestBatch = sortedBatches[0];
+
+        list.push({
+          ...latestBatch,
+          productId: p.id,
+          stock: totalStock,
+          totalProductStock: totalStock,
+          batches: p.batches,
+        } as any);
       }
     });
     return list;
@@ -211,17 +224,25 @@ function InventoryPage() {
 
   const filtered = useMemo(() => {
     return flatItems.filter((p) => {
-      const q = query.toLowerCase();
-      if (
-        q &&
-        !p.name.toLowerCase().includes(q) &&
-        !p.category.toLowerCase().includes(q) &&
-        !(p.sku ?? "").toLowerCase().includes(q) &&
-        !(p.batch ?? "").toLowerCase().includes(q)
-      )
-        return false;
+      const q = query.toLowerCase().trim();
+      if (q) {
+        const nameMatch = p.name.toLowerCase().includes(q);
+        const catMatch = p.category.toLowerCase().includes(q);
+        const skuMatch = (p.sku ?? "").toLowerCase().includes(q);
+        const batchMatch = (p.batch ?? "").toLowerCase().includes(q);
+        const mfrMatch = (p.manufacturer ?? "").toLowerCase().includes(q);
+        const anyBatchMatch = ((p as any).batches || []).some(
+          (b: any) => (b.batch ?? "").toLowerCase().includes(q) || (b.sku ?? "").toLowerCase().includes(q)
+        );
 
-      if (search.filter === "low") return p.stock <= lowStockQty;
+        if (!nameMatch && !catMatch && !skuMatch && !batchMatch && !mfrMatch && !anyBatchMatch) {
+          return false;
+        }
+      }
+
+      const totalStock = (p as any).totalProductStock !== undefined ? (p as any).totalProductStock : p.stock;
+
+      if (search.filter === "low") return totalStock <= lowStockQty;
       if (search.filter === "expiring") {
         if (p.expiry === "—") return false;
         const d = new Date(p.expiry).getTime();
