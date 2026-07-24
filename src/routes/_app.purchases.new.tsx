@@ -383,6 +383,45 @@ function AddPurchasePage() {
     setShowQuickProductModal(true);
   };
 
+  const handleQuickProductFormKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
+
+    const target = e.target as HTMLElement;
+    const form = e.currentTarget as HTMLFormElement;
+    const focusableElements = Array.from(
+      form.querySelectorAll('input:not([type="hidden"]), select, button[role="switch"], button[type="submit"]')
+    ) as HTMLElement[];
+
+    if (target.tagName === "SELECT") {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const currentIndex = focusableElements.indexOf(target);
+        if (currentIndex !== -1) {
+          const nextIndex = (currentIndex + 1) % focusableElements.length;
+          focusableElements[nextIndex]?.focus();
+        }
+      }
+      return;
+    }
+
+    if (e.key === "Enter" && (target.tagName === "BUTTON" || target.getAttribute("type") === "submit")) {
+      return;
+    }
+
+    const currentIndex = focusableElements.indexOf(target);
+    if (currentIndex === -1) return;
+
+    if (e.key === "ArrowDown" || e.key === "Enter") {
+      e.preventDefault();
+      const nextIndex = (currentIndex + 1) % focusableElements.length;
+      focusableElements[nextIndex]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const prevIndex = (currentIndex - 1 + focusableElements.length) % focusableElements.length;
+      focusableElements[prevIndex]?.focus();
+    }
+  };
+
   const handleQuickProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickProductForm.name) {
@@ -1553,7 +1592,11 @@ function AddPurchasePage() {
               Define a new product definition. It will be saved into the inventory database catalog and auto-selected for this row.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleQuickProductSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <form 
+            onSubmit={handleQuickProductSubmit} 
+            onKeyDown={handleQuickProductFormKeyDown}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs"
+          >
             <Field label="Name *" className="col-span-full">
               <Input
                 value={quickProductForm.name}
