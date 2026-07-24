@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -1316,12 +1317,13 @@ function CartAddDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
-            {(batchesProduct?.batches || []).filter(b => b.stock > 0).map((b, idx) => {
+            {(batchesProduct?.batches || []).filter(b => b && b.stock > 0).map((b, idx) => {
               const isActive = idx === selectedBatchIdx;
               const now = Date.now();
-              const expTime = new Date(b.expiry || "").getTime();
-              const daysToExpiry = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
-              const isExpired = daysToExpiry < 0;
+              const expiryStr = b.expiry || "";
+              const expTime = expiryStr ? new Date(expiryStr).getTime() : NaN;
+              const daysToExpiry = isNaN(expTime) ? 999 : Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
+              const isExpired = !isNaN(expTime) && daysToExpiry < 0;
 
               return (
                 <button
@@ -1344,12 +1346,14 @@ function CartAddDialog({
                       Batch: {b.batch || "UNBATCHED"}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Expiry: {b.expiry ? (() => {
+                      Expiry: {(() => {
+                        if (!b.expiry) return "—";
                         const dateObj = new Date(b.expiry);
+                        if (isNaN(dateObj.getTime())) return "—";
                         const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
                         const yy = String(dateObj.getFullYear()).substring(2);
                         return `${mm}/${yy}`;
-                      })() : "—"} 
+                      })()} 
                       {isExpired && <span className="text-red-500 font-semibold"> (Expired)</span>}
                     </div>
                   </div>
@@ -1372,7 +1376,7 @@ function CartAddDialog({
             <Button
               size="sm"
               onClick={() => {
-                const activeBatches = batchesProduct?.batches?.filter(b => b.stock > 0) || [];
+                const activeBatches = batchesProduct?.batches?.filter(b => b && b.stock > 0) || [];
                 const batch = activeBatches[selectedBatchIdx];
                 if (batch) {
                   onAdd(batch);
