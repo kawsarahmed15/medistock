@@ -1316,7 +1316,7 @@ function CartAddDialog({
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
-            {batchesProduct?.batches?.filter(b => b.stock > 0).map((b, idx) => {
+            {(batchesProduct?.batches || []).filter(b => b.stock > 0).map((b, idx) => {
               const isActive = idx === selectedBatchIdx;
               const now = Date.now();
               const expTime = new Date(b.expiry || "").getTime();
