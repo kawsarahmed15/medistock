@@ -252,27 +252,37 @@ function AddPurchasePage() {
   useEffect(() => {
     if (!editFrom && !duplicateFrom) {
       try {
-        const savedDraft = localStorage.getItem("medistock_draft_purchase");
-        if (savedDraft) {
-          const draft = JSON.parse(savedDraft);
-          if (draft.lines) setLines(draft.lines);
-          if (draft.supplierName) setSupplierName(draft.supplierName);
-          if (draft.supplierPhone) setSupplierPhone(draft.supplierPhone);
-          if (draft.supplierInvoice) setSupplierInvoice(draft.supplierInvoice);
-          if (draft.supplierGst) setSupplierGst(draft.supplierGst);
-          if (draft.supplierDl) setSupplierDl(draft.supplierDl);
-          if (draft.supplierAddress) setSupplierAddress(draft.supplierAddress);
-          if (draft.supplierEmail) setSupplierEmail(draft.supplierEmail);
-          if (draft.invoiceDate) setInvoiceDate(draft.invoiceDate);
-          if (draft.purchaseDate) setPurchaseDate(draft.purchaseDate);
-          if (draft.paymentMode) setPaymentMode(draft.paymentMode);
-          if (draft.creditDays) setCreditDays(draft.creditDays);
-          if (draft.dueDate) setDueDate(draft.dueDate);
-          if (draft.transportName) setTransportName(draft.transportName);
-          if (draft.lrNumber) setLrNumber(draft.lrNumber);
-          if (draft.remarks) setRemarks(draft.remarks);
-          if (draft.discount) setDiscount(draft.discount);
-          toast.info("Restored draft purchase bill from your last session.");
+        const navigationEntries = performance.getEntriesByType("navigation");
+        const isReload = navigationEntries[0] 
+          ? (navigationEntries[0] as PerformanceNavigationTiming).type === "reload"
+          : performance.navigation?.type === 1;
+
+        if (isReload) {
+          localStorage.removeItem("medistock_draft_purchase");
+          toast.info("Unsaved draft purchase bill cleared on page refresh.");
+        } else {
+          const savedDraft = localStorage.getItem("medistock_draft_purchase");
+          if (savedDraft) {
+            const draft = JSON.parse(savedDraft);
+            if (draft.lines) setLines(draft.lines);
+            if (draft.supplierName) setSupplierName(draft.supplierName);
+            if (draft.supplierPhone) setSupplierPhone(draft.supplierPhone);
+            if (draft.supplierInvoice) setSupplierInvoice(draft.supplierInvoice);
+            if (draft.supplierGst) setSupplierGst(draft.supplierGst);
+            if (draft.supplierDl) setSupplierDl(draft.supplierDl);
+            if (draft.supplierAddress) setSupplierAddress(draft.supplierAddress);
+            if (draft.supplierEmail) setSupplierEmail(draft.supplierEmail);
+            if (draft.invoiceDate) setInvoiceDate(draft.invoiceDate);
+            if (draft.purchaseDate) setPurchaseDate(draft.purchaseDate);
+            if (draft.paymentMode) setPaymentMode(draft.paymentMode);
+            if (draft.creditDays) setCreditDays(draft.creditDays);
+            if (draft.dueDate) setDueDate(draft.dueDate);
+            if (draft.transportName) setTransportName(draft.transportName);
+            if (draft.lrNumber) setLrNumber(draft.lrNumber);
+            if (draft.remarks) setRemarks(draft.remarks);
+            if (draft.discount) setDiscount(draft.discount);
+            toast.info("Restored draft purchase bill from your last session.");
+          }
         }
       } catch (err) {
         console.error("Failed to load draft from localStorage", err);
