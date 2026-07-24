@@ -1,24 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-
-const loadPdfJs = () => {
-  return new Promise<any>((resolve, reject) => {
-    if ((window as any).pdfjsLib) {
-      resolve((window as any).pdfjsLib);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-    script.onload = () => {
-      const pdfjsLib = (window as any).pdfjsLib;
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-      resolve(pdfjsLib);
-    };
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
 import {
   Truck,
   Search,
@@ -451,295 +433,7 @@ function PurchasesPage() {
     });
   };
 
-  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    const isPdf = file.name.toLowerCase().endsWith(".pdf");
-    const reader = new FileReader();
-
-    reader.onload = async (evt) => {
-      try {
-        const fileData = evt.target?.result;
-        if (!fileData) return;
-
-        let lines: any[] = [];
-        let supplierName = "";
-        let supplierInvoice = "";
-
-        if (isPdf) {
-          const loadingToast = toast.loading("Loading PDF parser...");
-          const pdfjsLib = await loadPdfJs();
-          toast.dismiss(loadingToast);
-          
-          const arrayBuffer = fileData as ArrayBuffer;
-          const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
-          
-          const parsedRows: string[] = [];
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const items = textContent.items as any[];
-
-            // Group items by Y coordinate (within a 4px tolerance)
-            const linesMap: Record<number, any[]> = {};
-            items.forEach((item) => {
-              const y = Math.round(item.transform[5]); // Y coordinate
-              let foundKey = Object.keys(linesMap).find(k => Math.abs(Number(k) - y) <= 4);
-              if (foundKey) {
-                linesMap[Number(foundKey)].push(item);
-              } else {
-                linesMap[y] = [item];
-              }
-            });
-
-            // Sort lines from top to bottom (Y coordinate descending)
-            const sortedYKeys = Object.keys(linesMap).map(Number).sort((a, b) => b - a);
-
-            sortedYKeys.forEach(y => {
-              // Sort items on the same line from left to right (X coordinate ascending)
-              const lineItems = linesMap[y].sort((a, b) => a.transform[4] - b.transform[4]);
-              parsedRows.push(lineItems.map(it => it.str).join(" "));
-            });
-          }
-
-          // Heuristic text parsing for Marg PDF invoice layout
-          parsedRows.forEach((line) => {
-            const cleanLine = line.trim();
-            if (!cleanLine) return;
-
-            // Try to extract supplier name
-            if (cleanLine.toLowerCase().includes("m/s") || cleanLine.toLowerCase().includes("supplier:") || cleanLine.toLowerCase().includes("party:")) {
-              const match = cleanLine.match(/(?:m\/s|supplier:|party:)\s*([^0-9\n,]+)/i);
-              if (match && match[1]) {
-                supplierName = match[1].trim().toUpperCase();
-              }
-            }
-            // Try to extract invoice number
-            if (cleanLine.toLowerCase().includes("inv") || cleanLine.toLowerCase().includes("invoice") || cleanLine.toLowerCase().includes("bill no")) {
-              const match = cleanLine.match(/(?:inv(?:oice)?|bill)\s*(?:no\.?)?\s*([A-Z0-9\-/\\]+)/i);
-              if (match && match[1]) {
-                supplierInvoice = match[1].trim().toUpperCase();
-              }
-            }
-
-            // Search for expiry date pattern: MM/YY or MM/YYYY
-            const expMatch = cleanLine.match(/\b(\d{2})\/(\d{2}|\d{4})\b/);
-            if (expMatch) {
-              const expStr = expMatch[0];
-              const tokens = cleanLine.split(/\s+/);
-              const expIdx = tokens.indexOf(expStr);
-              if (expIdx !== -1) {
-                const batch = tokens[expIdx - 1] || "";
-                let startIdx = 0;
-                if (tokens[0] && /^\d+$/.test(tokens[0])) {
-                  startIdx = 1;
-                }
-                const nameTokens = tokens.slice(startIdx, expIdx - 1);
-                const name = nameTokens.join(" ").trim().toUpperCase();
-
-                const qty = Number(tokens[expIdx + 1]) || 1;
-                const remaining = tokens.slice(expIdx + 2);
-                
-                let freeQty = 0;
-                let costPrice = 0;
-                let mrp = 0;
-                let taxPercent = 12;
-
-                const numbers = remaining.map(t => t.replace(/%$/, "")).map(Number).filter(n => !isNaN(n));
-                if (numbers.length >= 2) {
-                  if (remaining[0] && Number(remaining[0]) >= 0 && remaining.length > 3) {
-                    freeQty = Number(remaining[0]) || 0;
-                    costPrice = Number(remaining[1]) || 0;
-                    mrp = Number(remaining[2]) || 0;
-                    taxPercent = Number(remaining[3]) || 12;
-                  } else {
-                    costPrice = numbers[0] || 0;
-                    mrp = numbers[1] || 0;
-                    taxPercent = numbers[2] || 12;
-                  }
-                }
-
-                const month = expMatch[1].padStart(2, "0");
-                let year = expMatch[2];
-                if (year.length === 2) year = "20" + year;
-                const lastDay = new Date(Number(year), Number(month), 0).getDate();
-                const expiryVal = `${year}-${month}-${lastDay}`;
-
-                if (name && batch) {
-                  lines.push({
-                    productId: "",
-                    name,
-                    qty,
-                    freeQty,
-                    costPrice,
-                    taxPercent,
-                    batch,
-                    expiry: expiryVal,
-                    mrp,
-                    pack: "",
-                    ptr: costPrice,
-                    saleRate: mrp,
-                  });
-                }
-              }
-            }
-          });
-
-        } else {
-          // Excel / CSV processing
-          const workbook = XLSX.read(fileData, { type: "binary" });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
-
-          if (rows.length === 0) {
-            toast.error("The selected file is empty.");
-            return;
-          }
-
-          let headerIdx = -1;
-          let mappings: Record<string, number> = {};
-
-          for (let i = 0; i < Math.min(rows.length, 30); i++) {
-            const row = rows[i];
-            if (!Array.isArray(row)) continue;
-            const rowStr = row.map(c => String(c || "").toLowerCase().trim());
-            const hasItem = rowStr.some(c => c.includes("particular") || c.includes("item") || c.includes("product") || c.includes("medicine"));
-            const hasQty = rowStr.some(c => c.includes("qty") || c.includes("quantity"));
-            const hasBatch = rowStr.some(c => c.includes("batch"));
-
-            if (hasItem && (hasQty || hasBatch)) {
-              headerIdx = i;
-              rowStr.forEach((cell, idx) => {
-                if (cell.includes("particular") || cell.includes("item") || cell.includes("product") || cell.includes("medicine")) {
-                  mappings.name = idx;
-                } else if (cell.includes("batch")) {
-                  mappings.batch = idx;
-                } else if (cell.includes("exp")) {
-                  mappings.expiry = idx;
-                } else if (cell.includes("qty") || cell.includes("quantity")) {
-                  if (!cell.includes("free")) {
-                    mappings.qty = idx;
-                  }
-                } else if (cell.includes("free")) {
-                  mappings.freeQty = idx;
-                } else if (cell.includes("rate") || cell.includes("cost") || cell.includes("ptr") || cell.includes("buy")) {
-                  mappings.costPrice = idx;
-                } else if (cell.includes("mrp")) {
-                  mappings.mrp = idx;
-                } else if (cell.includes("sale") || cell.includes("selling")) {
-                  mappings.saleRate = idx;
-                } else if (cell.includes("gst") || cell.includes("tax") || cell.includes("cgst") || cell.includes("sgst")) {
-                  mappings.taxPercent = idx;
-                }
-              });
-              break;
-            }
-          }
-
-          if (headerIdx === -1) {
-            toast.error("Could not detect Marg ERP invoice layout (missing Item, Batch, or Qty headers).");
-            return;
-          }
-
-          for (let i = 0; i < headerIdx; i++) {
-            const row = rows[i];
-            if (!Array.isArray(row)) continue;
-            row.forEach((cell, cellIdx) => {
-              const str = String(cell || "").toLowerCase();
-              if (str.includes("m/s") || str.includes("supplier:") || str.includes("distributor:") || str.includes("party:")) {
-                supplierName = String(row[cellIdx + 1] || cell).replace(/^(m\/s|party:|supplier:|distributor:)\s*/i, "").trim().toUpperCase();
-              }
-              if (str.includes("inv") || str.includes("invoice") || str.includes("bill no")) {
-                supplierInvoice = String(row[cellIdx + 1] || cell).replace(/^(no|bill no|inv no)\s*/i, "").trim().toUpperCase();
-              }
-            });
-          }
-
-          for (let i = headerIdx + 1; i < rows.length; i++) {
-            const row = rows[i];
-            if (!Array.isArray(row) || row.length === 0) continue;
-
-            const nameVal = row[mappings.name];
-            if (!nameVal || String(nameVal).trim() === "" || String(nameVal).toLowerCase().includes("total") || String(nameVal).toLowerCase().includes("subtotal")) {
-              continue;
-            }
-
-            let expiryVal = "";
-            if (mappings.expiry !== undefined && row[mappings.expiry]) {
-              const rawExp = String(row[mappings.expiry]).trim();
-              if (rawExp.includes("/")) {
-                const parts = rawExp.split("/");
-                if (parts.length === 2) {
-                  const month = parts[0].padStart(2, "0");
-                  let year = parts[1];
-                  if (year.length === 2) year = "20" + year;
-                  const lastDay = new Date(Number(year), Number(month), 0).getDate();
-                  expiryVal = `${year}-${month}-${lastDay}`;
-                }
-              } else if (rawExp.includes("-")) {
-                expiryVal = rawExp;
-              }
-            }
-
-            lines.push({
-              productId: "",
-              name: String(nameVal).trim().toUpperCase(),
-              qty: Number(row[mappings.qty]) || 1,
-              freeQty: Number(row[mappings.freeQty]) || 0,
-              costPrice: Number(row[mappings.costPrice]) || 0,
-              taxPercent: Number(row[mappings.taxPercent]) || 12,
-              batch: String(row[mappings.batch] || "").trim().toUpperCase(),
-              expiry: expiryVal,
-              mrp: Number(row[mappings.mrp]) || 0,
-              pack: "",
-              ptr: Number(row[mappings.costPrice]) || 0,
-              saleRate: Number(row[mappings.saleRate] || row[mappings.mrp]) || 0,
-            });
-          }
-        }
-
-        if (lines.length === 0) {
-          toast.error("No valid medicine items found in the file.");
-          return;
-        }
-
-        const draft = {
-          lines,
-          supplierName: supplierName || "",
-          supplierPhone: "",
-          supplierInvoice: supplierInvoice || "",
-          supplierGst: "",
-          supplierDl: "",
-          supplierAddress: "",
-          supplierEmail: "",
-          invoiceDate: new Date().toISOString().slice(0, 10),
-          purchaseDate: new Date().toISOString().slice(0, 10),
-          paymentMode: "cash",
-          creditDays: 0,
-          dueDate: new Date().toISOString().slice(0, 10),
-          transportName: "",
-          lrNumber: "",
-          remarks: "Imported from Marg ERP invoice file",
-          discount: 0,
-        };
-
-        localStorage.setItem("medistock_draft_purchase", JSON.stringify(draft));
-        toast.success(`Imported ${lines.length} items from Marg ERP bill! Redirecting...`);
-        navigate({ to: "/purchases/new" });
-
-      } catch (err: any) {
-        toast.error("Failed to parse file: " + err.message);
-      }
-    };
-
-    if (isPdf) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsBinaryString(file);
-    }
-  };
 
   const handlePrint = (p: Purchase) => {
     window.print();
@@ -850,9 +544,9 @@ function PurchasesPage() {
   }, [purchases]);
 
   return (
-    <div className="space-y-6 print:hidden">
+    <div className={`space-y-6 ${detailsDialogOpen ? "print:hidden" : ""}`}>
       {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
             <Truck className="h-8 w-8 text-primary" /> Purchase Management
@@ -877,19 +571,6 @@ function PurchasesPage() {
           <Button variant="outline" size="sm" onClick={() => setIsReturnDialogOpen(true)}>
             <RotateCcw className="h-4 w-4 mr-1.5" /> Purchase Return
           </Button>
-          <label className="cursor-pointer">
-            <Button variant="outline" size="sm" asChild>
-              <span>
-                <Download className="h-4 w-4 mr-1.5 rotate-180" /> Import Purchase
-              </span>
-            </Button>
-            <input 
-              type="file" 
-              accept=".csv,.xlsx,.xls,.tsv,.pdf" 
-              onChange={handleFileImport} 
-              className="hidden" 
-            />
-          </label>
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1.5" /> Print Register
           </Button>
@@ -911,7 +592,7 @@ function PurchasesPage() {
       )}
 
       {/* Dashboard KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:hidden">
         <Card 
           className="shadow-soft hover:shadow-md transition-all border-l-4 border-l-primary cursor-pointer hover:bg-primary/5 active:scale-[0.99]"
           onClick={handleTodayPurchaseClick}
@@ -963,7 +644,7 @@ function PurchasesPage() {
       </div>
 
       <Tabs defaultValue="all-bills" className="w-full space-y-4" onValueChange={setActiveTab}>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-1 gap-2">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-1 gap-2 print:hidden">
           <TabsList className="bg-muted/40 p-1">
             <TabsTrigger value="all-bills" className="text-xs">All Purchase Bills</TabsTrigger>
             <TabsTrigger value="supplier-wise" className="text-xs">Supplier Wise</TabsTrigger>
@@ -984,7 +665,7 @@ function PurchasesPage() {
         {/* Tab 1: All Purchase Bills List */}
         <TabsContent value="all-bills" className="space-y-4 outline-none">
           {/* Advanced Search & Filtering Panel */}
-          <Card className="p-4 border-border/50 shadow-soft bg-card/60">
+          <Card className="p-4 border-border/50 shadow-soft bg-card/60 print:hidden">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
               {/* Search */}
               <div className="relative">
@@ -1145,7 +826,7 @@ function PurchasesPage() {
                     <TableHead className="font-semibold text-xs py-3 w-[100px] text-center" onClick={() => handleSort("paymentStatus")}>
                       Status
                     </TableHead>
-                    <TableHead className="font-semibold text-xs py-3 w-[160px] text-center">Action</TableHead>
+                    <TableHead className="font-semibold text-xs py-3 w-[160px] text-center print:hidden">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1206,7 +887,7 @@ function PurchasesPage() {
                               {p.paymentStatus.toUpperCase()}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-center py-2">
+                          <TableCell className="text-center py-2 print:hidden">
                             <div className="flex items-center justify-center gap-1.5">
                               <Button
                                 variant="ghost"
@@ -1240,7 +921,7 @@ function PurchasesPage() {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex justify-between items-center p-4 border-t bg-muted/20">
+              <div className="flex justify-between items-center p-4 border-t bg-muted/20 print:hidden">
                 <div className="text-xs text-muted-foreground">
                   Showing {Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)} to{" "}
                   {Math.min(totalItems, currentPage * itemsPerPage)} of {totalItems} entries
