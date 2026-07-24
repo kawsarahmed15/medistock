@@ -993,8 +993,12 @@ function InventoryPage() {
                       </div>
                     </TableCell>
                     <TableCell>{p.category}</TableCell>
-                    <TableCell className="font-semibold text-xs uppercase">{String(p.batch || "").toUpperCase()}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
+                    <TableCell className="font-semibold text-xs uppercase">
+                      {isOutOfStock || !p.batch || p.batch === "DEFAULT" ? "—" : String(p.batch).toUpperCase()}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {isOutOfStock ? "—" : (p.sku || "—")}
+                    </TableCell>
                     <TableCell>
                       <span
                         className={cn(

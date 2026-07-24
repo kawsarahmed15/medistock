@@ -172,8 +172,8 @@ export function GlobalSearch() {
                         <div className="font-medium truncate">{p.name}</div>
                         <div className="text-[11px] text-muted-foreground truncate">
                           {p.category}
-                          {p.batch ? ` · Batch ${p.batch}` : ""}
-                          {p.sku ? ` · ${p.sku}` : ""}
+                          {p.batch && p.stock > 0 ? ` · Batch ${p.batch}` : ""}
+                          {p.sku && p.stock > 0 ? ` · ${p.sku}` : ""}
                         </div>
                       </div>
                       <div className="text-right shrink-0">

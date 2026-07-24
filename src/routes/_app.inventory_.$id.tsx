@@ -463,8 +463,12 @@ function ProductDetails() {
                       const isExpired = expDate.getTime() < Date.now();
                       return (
                         <TableRow key={b.id}>
-                          <TableCell className="font-semibold text-xs uppercase">{String(b.batch_no || "").toUpperCase()}</TableCell>
-                          <TableCell className="font-mono text-xs text-muted-foreground">{b.sku || "—"}</TableCell>
+                          <TableCell className="font-semibold text-xs uppercase">
+                            {Number(b.available_qty || 0) <= 0 || !b.batch_no || b.batch_no === "DEFAULT" ? "—" : String(b.batch_no).toUpperCase()}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {Number(b.available_qty || 0) <= 0 ? "—" : (b.sku || "—")}
+                          </TableCell>
                            <TableCell className="text-xs">
                             <span className={isExpired ? "text-red-500 font-semibold" : ""}>
                               {(() => {
