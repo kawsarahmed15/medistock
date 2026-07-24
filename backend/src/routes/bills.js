@@ -83,12 +83,15 @@ router.post("/", async (req, res, next) => {
     const items = Array.isArray(body.items) ? body.items : [];
     const isReturn = !!body.isReturn;
     const created = await withTransaction(async (conn) => {
-      const [countRows] = await conn.query(
-        "SELECT COUNT(*) AS total FROM bills WHERE user_id = ?",
-        [req.auth.userId],
-      );
       const prefix = isReturn ? "SR" : "INV";
-      const invoiceNo = `${prefix}-${String(Number(countRows[0].total || 0) + 1).padStart(4, "0")}`;
+      const [maxRows] = await conn.query(
+        `SELECT MAX(CAST(SUBSTRING_INDEX(number, '-', -1) AS UNSIGNED)) AS maxNo
+         FROM bills
+         WHERE user_id = ? AND number LIKE ?`,
+        [req.auth.userId, `${prefix}-%`],
+      );
+      const nextNo = Number(maxRows[0]?.maxNo || 0) + 1;
+      const invoiceNo = `${prefix}-${String(nextNo).padStart(4, "0")}`;
 
       const id = generateId();
       await conn.query(
