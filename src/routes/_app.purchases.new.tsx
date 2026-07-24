@@ -221,6 +221,118 @@ function AddPurchasePage() {
     }
   }, []);
 
+  const isBillRunning = useMemo(() => {
+    const hasNameInLines = lines.some((l) => l.name !== "" || l.batch !== "" || l.costPrice > 0 || l.qty > 1);
+    return (
+      supplierName !== "" ||
+      supplierInvoice !== "" ||
+      hasNameInLines ||
+      discount > 0
+    );
+  }, [lines, supplierName, supplierInvoice, discount]);
+
+  // Unload warning when refreshing page
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isBillRunning) {
+        e.preventDefault();
+        e.returnValue = "You have an unsaved purchase bill in progress. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isBillRunning]);
+
+  const isLoadedRef = useRef(false);
+
+  // Load draft on mount (only when not editing/duplicating)
+  useEffect(() => {
+    if (!editFrom && !duplicateFrom) {
+      try {
+        const savedDraft = localStorage.getItem("medistock_draft_purchase");
+        if (savedDraft) {
+          const draft = JSON.parse(savedDraft);
+          if (draft.lines) setLines(draft.lines);
+          if (draft.supplierName) setSupplierName(draft.supplierName);
+          if (draft.supplierPhone) setSupplierPhone(draft.supplierPhone);
+          if (draft.supplierInvoice) setSupplierInvoice(draft.supplierInvoice);
+          if (draft.supplierGst) setSupplierGst(draft.supplierGst);
+          if (draft.supplierDl) setSupplierDl(draft.supplierDl);
+          if (draft.supplierAddress) setSupplierAddress(draft.supplierAddress);
+          if (draft.supplierEmail) setSupplierEmail(draft.supplierEmail);
+          if (draft.invoiceDate) setInvoiceDate(draft.invoiceDate);
+          if (draft.purchaseDate) setPurchaseDate(draft.purchaseDate);
+          if (draft.paymentMode) setPaymentMode(draft.paymentMode);
+          if (draft.creditDays) setCreditDays(draft.creditDays);
+          if (draft.dueDate) setDueDate(draft.dueDate);
+          if (draft.transportName) setTransportName(draft.transportName);
+          if (draft.lrNumber) setLrNumber(draft.lrNumber);
+          if (draft.remarks) setRemarks(draft.remarks);
+          if (draft.discount) setDiscount(draft.discount);
+          toast.info("Restored draft purchase bill from your last session.");
+        }
+      } catch (err) {
+        console.error("Failed to load draft from localStorage", err);
+      }
+    }
+    isLoadedRef.current = true;
+  }, [editFrom, duplicateFrom]);
+
+  // Save draft to localStorage when anything changes, but only if loaded
+  useEffect(() => {
+    if (!isLoadedRef.current) return;
+    if (!editFrom && !duplicateFrom) {
+      if (isBillRunning) {
+        const draft = {
+          lines,
+          supplierName,
+          supplierPhone,
+          supplierInvoice,
+          supplierGst,
+          supplierDl,
+          supplierAddress,
+          supplierEmail,
+          invoiceDate,
+          purchaseDate,
+          paymentMode,
+          creditDays,
+          dueDate,
+          transportName,
+          lrNumber,
+          remarks,
+          discount,
+        };
+        localStorage.setItem("medistock_draft_purchase", JSON.stringify(draft));
+      } else {
+        localStorage.removeItem("medistock_draft_purchase");
+      }
+    }
+  }, [
+    isBillRunning,
+    lines,
+    supplierName,
+    supplierPhone,
+    supplierInvoice,
+    supplierGst,
+    supplierDl,
+    supplierAddress,
+    supplierEmail,
+    invoiceDate,
+    purchaseDate,
+    paymentMode,
+    creditDays,
+    dueDate,
+    transportName,
+    lrNumber,
+    remarks,
+    discount,
+    editFrom,
+    duplicateFrom,
+  ]);
+
   const openAddProductModal = (typedName: string, lineIdx: number) => {
     setQuickProductLineIdx(lineIdx);
     setQuickProductForm({
@@ -728,6 +840,7 @@ function AddPurchasePage() {
 
       await purchasesStore.add(bodyData);
       toast.success("Purchase registered successfully and stock batch ledger updated.");
+      localStorage.removeItem("medistock_draft_purchase");
       navigate({ to: "/purchases" });
     } catch (err: any) {
       toast.error("Error: " + err.message);
