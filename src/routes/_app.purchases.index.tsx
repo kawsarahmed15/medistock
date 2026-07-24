@@ -23,6 +23,7 @@ import {
   Edit,
   ArrowUpDown,
   Filter,
+  Phone,
 } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -69,9 +70,9 @@ function PurchasesPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [activeTab, setActiveTab] = useState("all-bills");
 
-  // Purchase Return state
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const [showSuppliersModal, setShowSuppliersModal] = useState(false);
+  const [supplierSearchQuery, setSupplierSearchQuery] = useState("");
   const [selectedPurchaseForReturn, setSelectedPurchaseForReturn] = useState<Purchase | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
   const [returnNotes, setReturnNotes] = useState("");
@@ -325,7 +326,6 @@ function PurchasesPage() {
     toast.success("Purchase data exported to PDF successfully");
   };
 
-  // Advanced Reporting Reports calculations
   const supplierWiseReport = useMemo(() => {
     const map = new Map<string, { count: number; total: number; pending: number }>();
     purchases.forEach((p) => {
@@ -338,6 +338,58 @@ function PurchasesPage() {
     });
     return Array.from(map.entries()).map(([name, stats]) => ({ name, ...stats }));
   }, [purchases]);
+
+  const detailedSuppliers = useMemo(() => {
+    const map = new Map<string, {
+      name: string;
+      phone: string;
+      totalPurchases: number;
+      totalAmount: number;
+      amountPaid: number;
+      outstandingBalance: number;
+      lastPurchaseDate: string;
+      lastInvoiceNumber: string;
+    }>();
+
+    purchases.forEach((p) => {
+      const name = p.supplierName || "Unknown Supplier";
+      const cur = map.get(name) ?? {
+        name,
+        phone: p.supplierPhone || "N/A",
+        totalPurchases: 0,
+        totalAmount: 0,
+        amountPaid: 0,
+        outstandingBalance: 0,
+        lastPurchaseDate: "",
+        lastInvoiceNumber: "",
+      };
+
+      cur.totalPurchases += 1;
+      cur.totalAmount += p.total;
+      cur.amountPaid += p.amountPaid;
+      cur.outstandingBalance += p.paymentStatus !== "paid" ? p.total - p.amountPaid : 0;
+
+      if (!cur.lastPurchaseDate || new Date(p.createdAt) > new Date(cur.lastPurchaseDate)) {
+        cur.lastPurchaseDate = p.createdAt;
+        if (p.supplierPhone) cur.phone = p.supplierPhone;
+        cur.lastInvoiceNumber = p.supplierInvoice || p.number;
+      }
+
+      map.set(name, cur);
+    });
+
+    return Array.from(map.values());
+  }, [purchases]);
+
+  const filteredDetailedSuppliers = useMemo(() => {
+    const q = supplierSearchQuery.toLowerCase().trim();
+    if (!q) return detailedSuppliers;
+    return detailedSuppliers.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.phone.toLowerCase().includes(q)
+    );
+  }, [detailedSuppliers, supplierSearchQuery]);
 
   const medicineWiseReport = useMemo(() => {
     const map = new Map<string, { qty: number; total: number; mrp?: number; cost?: number }>();
@@ -429,12 +481,15 @@ function PurchasesPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-soft hover:shadow-md transition-shadow border-l-4 border-l-emerald-500">
+        <Card 
+          className="shadow-soft hover:shadow-md transition-all border-l-4 border-l-emerald-500 cursor-pointer hover:bg-emerald-50/5 active:scale-[0.99]"
+          onClick={() => setShowSuppliersModal(true)}
+        >
           <CardContent className="p-4">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Suppliers</div>
             <div className="text-2xl font-bold mt-1 text-emerald-600">{stats.uniqueSuppliers} Suppliers</div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" /> Active distribution channels
+              <Users className="h-3.5 w-3.5 text-emerald-600" /> Active distribution channels
             </p>
           </CardContent>
         </Card>
@@ -891,6 +946,132 @@ function PurchasesPage() {
             </Button>
             <Button onClick={handleConfirmReturn} disabled={submittingReturn || !selectedPurchaseForReturn}>
               {submittingReturn ? "Processing..." : "Confirm Return"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suppliers Directory Modal */}
+      <Dialog open={showSuppliersModal} onOpenChange={setShowSuppliersModal}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <div className="flex justify-between items-center pr-6">
+              <div>
+                <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <Users className="h-5 w-5 text-emerald-600" /> Active Suppliers
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Directory of all active suppliers and their transaction summary. Click a supplier to view their bills.
+                </p>
+              </div>
+              <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                {stats.uniqueSuppliers} Total
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          {/* Search bar inside Modal */}
+          <div className="p-4 border-b bg-muted/20">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search supplier by name or phone..."
+                value={supplierSearchQuery}
+                onChange={(e) => setSupplierSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Suppliers List */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-3 max-h-[50vh]">
+            {filteredDetailedSuppliers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No suppliers found matching "{supplierSearchQuery}"
+              </div>
+            ) : (
+              filteredDetailedSuppliers.map((supplier) => {
+                const initials = supplier.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2);
+
+                return (
+                  <div
+                    key={supplier.name}
+                    onClick={() => {
+                      setSupplierFilter(supplier.name);
+                      setCurrentPage(1);
+                      setShowSuppliersModal(false);
+                      setActiveTab("all-bills");
+                      toast.success(`Showing bills for ${supplier.name}`);
+                    }}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-xl hover:border-emerald-200 hover:bg-emerald-50/10 cursor-pointer transition-all active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        {initials}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm text-foreground hover:underline">
+                          {supplier.name}
+                        </h4>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Phone className="h-3 w-3" /> {supplier.phone}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-right border-t sm:border-0 pt-2 sm:pt-0">
+                      <div>
+                        <div className="text-muted-foreground">Purchases</div>
+                        <div className="font-bold text-foreground mt-0.5">
+                          {supplier.totalPurchases} {supplier.totalPurchases === 1 ? "Bill" : "Bills"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Total Value</div>
+                        <div className="font-bold text-foreground mt-0.5">
+                          {formatMoney(supplier.totalAmount)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Outstanding</div>
+                        <div
+                          className={`font-bold mt-0.5 ${
+                            supplier.outstandingBalance > 0 ? "text-rose-600 font-semibold" : "text-emerald-600"
+                          }`}
+                        >
+                          {supplier.outstandingBalance > 0
+                            ? formatMoney(supplier.outstandingBalance)
+                            : "Settled"}
+                        </div>
+                      </div>
+                      <div className="hidden md:block">
+                        <div className="text-muted-foreground">Last Order</div>
+                        <div className="font-medium text-slate-600 mt-0.5">
+                          {new Date(supplier.lastPurchaseDate).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="p-4 border-t bg-muted/10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSuppliersModal(false)}
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
