@@ -81,12 +81,14 @@ router.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];
+    const isReturn = !!body.isReturn;
     const created = await withTransaction(async (conn) => {
       const [countRows] = await conn.query(
         "SELECT COUNT(*) AS total FROM bills WHERE user_id = ?",
         [req.auth.userId],
       );
-      const invoiceNo = `INV-${String(Number(countRows[0].total || 0) + 1).padStart(4, "0")}`;
+      const prefix = isReturn ? "SR" : "INV";
+      const invoiceNo = `${prefix}-${String(Number(countRows[0].total || 0) + 1).padStart(4, "0")}`;
 
       const id = generateId();
       await conn.query(
@@ -110,7 +112,7 @@ router.post("/", async (req, res, next) => {
           Number(body.subtotal || 0),
           Number(body.tax || 0),
           Number(body.discount || 0),
-          Math.round(Number(body.total || 0)),
+          Number(body.total || 0),
         ],
       );
 
@@ -136,6 +138,89 @@ router.post("/", async (req, res, next) => {
             Number(item.freeQty || 0),
           ],
         );
+
+        if (isReturn && item.productId) {
+          const returnQty = Math.abs(Number(item.qty || 0)) + Math.abs(Number(item.freeQty || 0));
+          const itemBatchNo = item.batch ? String(item.batch).trim() : null;
+
+          if (itemBatchNo) {
+            const [existingBatch] = await conn.query(
+              `SELECT id FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1`,
+              [item.productId, itemBatchNo]
+            );
+            if (existingBatch.length > 0) {
+              await conn.query(
+                `UPDATE product_batches SET available_qty = available_qty + ? WHERE id = ?`,
+                [returnQty, existingBatch[0].id]
+              );
+            } else {
+              const newBatchId = generateId();
+              await conn.query(
+                `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  newBatchId,
+                  item.productId,
+                  itemBatchNo,
+                  item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
+                  Number(item.costPrice || 0),
+                  Number(item.mrp || 0),
+                  Number(item.price || 0),
+                  returnQty,
+                  item.sku || null,
+                ]
+              );
+            }
+          } else {
+            const [batches] = await conn.query(
+              `SELECT id FROM product_batches WHERE product_id = ? ORDER BY created_at ASC LIMIT 1`,
+              [item.productId]
+            );
+            if (batches.length > 0) {
+              await conn.query(
+                `UPDATE product_batches SET available_qty = available_qty + ? WHERE id = ?`,
+                [returnQty, batches[0].id]
+              );
+            } else {
+              const newBatchId = generateId();
+              await conn.query(
+                `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                  newBatchId,
+                  item.productId,
+                  "DEFAULT",
+                  item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
+                  Number(item.costPrice || 0),
+                  Number(item.mrp || 0),
+                  Number(item.price || 0),
+                  returnQty,
+                  item.sku || null,
+                ]
+              );
+            }
+          }
+
+          // Fetch sum of all batches for product history balance
+          const [sumRows] = await conn.query(
+            "SELECT SUM(available_qty) AS total FROM product_batches WHERE product_id = ?",
+            [item.productId]
+          );
+          const nextStock = Number(sumRows[0].total || 0);
+
+          await conn.query(
+            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+             VALUES (?, ?, ?, 'return', ?, ?, ?)`,
+            [
+              generateId(),
+              req.auth.userId,
+              item.productId,
+              returnQty,
+              nextStock,
+              `Customer return via ${invoiceNo}`,
+            ]
+          );
+        }
       }
 
       return { id, number: invoiceNo };
