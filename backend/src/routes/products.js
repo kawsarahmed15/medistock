@@ -430,14 +430,10 @@ router.post("/:id/stock", async (req, res, next) => {
           throw buildApiError(400, `Batch ${targetBatchNo} not found for this product`);
         }
         nextStock = Math.max(0, currentStock - qty);
-        if (nextStock <= 0) {
-          await conn.query("DELETE FROM product_batches WHERE id = ?", [batch.id]);
-        } else {
-          await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [
-            nextStock,
-            batch.id,
-          ]);
-        }
+        await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [
+          nextStock,
+          batch.id,
+        ]);
       } else {
         // stock_in, purchase, adjustment (positive adjustment)
         if (batch) {
@@ -597,14 +593,10 @@ router.post("/:id/decrement", async (req, res, next) => {
       if (batch) {
         productId = batch.product_id;
         const nextQty = Math.max(0, Number(batch.available_qty || 0) - qty);
-        if (nextQty <= 0) {
-          await conn.query("DELETE FROM product_batches WHERE id = ?", [batch.id]);
-        } else {
-          await conn.query(
-            "UPDATE product_batches SET available_qty = ? WHERE id = ?",
-            [nextQty, batch.id]
-          );
-        }
+        await conn.query(
+          "UPDATE product_batches SET available_qty = ? WHERE id = ?",
+          [nextQty, batch.id]
+        );
 
         // Fetch sum of all batches for product history
         const [sumRows] = await conn.query(
@@ -655,15 +647,11 @@ router.post("/:id/decrement", async (req, res, next) => {
           } else {
             const toDecrement = Math.min(b.available_qty, remainingQtyToDecrement);
             if (toDecrement > 0) {
-              const nextQty = b.available_qty - toDecrement;
-              if (nextQty <= 0) {
-                await conn.query("DELETE FROM product_batches WHERE id = ?", [b.id]);
-              } else {
-                await conn.query(
-                  "UPDATE product_batches SET available_qty = available_qty - ? WHERE id = ?",
-                  [toDecrement, b.id]
-                );
-              }
+              const nextQty = Math.max(0, b.available_qty - toDecrement);
+              await conn.query(
+                "UPDATE product_batches SET available_qty = ? WHERE id = ?",
+                [nextQty, b.id]
+              );
               remainingQtyToDecrement -= toDecrement;
             }
           }
@@ -797,14 +785,7 @@ router.patch("/batches/:batchId", async (req, res, next) => {
       [...values, batchId]
     );
 
-    // If available quantity updated to 0 or less, delete the batch
-    const [checkRows] = await pool.query(
-      "SELECT available_qty FROM product_batches WHERE id = ?",
-      [batchId]
-    );
-    if (checkRows[0] && Number(checkRows[0].available_qty || 0) <= 0) {
-      await pool.query("DELETE FROM product_batches WHERE id = ?", [batchId]);
-    }
+
 
     res.json({ message: "Batch updated successfully" });
   } catch (error) {
