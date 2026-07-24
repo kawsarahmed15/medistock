@@ -142,9 +142,10 @@ function PurchasesPage() {
     if (!selectedPurchaseForReturn) return;
     
     const returnedItems = selectedPurchaseForReturn.items
-      .filter((it) => (returnQuantities[it.id] || 0) > 0)
-      .map((it) => {
-        const qty = returnQuantities[it.id];
+      .filter((it, idx) => (returnQuantities[it.id || `${it.productId || it.name}_${idx}`] || 0) > 0)
+      .map((it, idx) => {
+        const itemKey = it.id || `${it.productId || it.name}_${idx}`;
+        const qty = returnQuantities[itemKey];
         return {
           productId: it.productId,
           name: it.name,
@@ -1075,8 +1076,9 @@ function PurchasesPage() {
                   const p = purchases.find((x) => x.id === e.target.value) || null;
                   setSelectedPurchaseForReturn(p);
                   const qtys: Record<string, number> = {};
-                  p?.items.forEach((it) => {
-                    qtys[it.id] = 0;
+                  p?.items.forEach((it, idx) => {
+                    const itemKey = it.id || `${it.productId || it.name}_${idx}`;
+                    qtys[itemKey] = 0;
                   });
                   setReturnQuantities(qtys);
                 }}
@@ -1094,32 +1096,35 @@ function PurchasesPage() {
               <div className="space-y-4 mt-4">
                 <h4 className="text-sm font-semibold text-muted-foreground">Select Items and Quantities to Return</h4>
                 <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                  {selectedPurchaseForReturn.items.map((it) => (
-                    <div key={it.id} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
-                      <div className="flex-1">
-                        <div className="font-semibold text-foreground">{it.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
+                  {selectedPurchaseForReturn.items.map((it, idx) => {
+                    const itemKey = it.id || `${it.productId || it.name}_${idx}`;
+                    return (
+                      <div key={itemKey} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
+                        <div className="flex-1">
+                          <div className="font-semibold text-foreground">{it.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Cost: {formatMoney(it.costPrice)} | Purchased: {it.qty}
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Cost: {formatMoney(it.costPrice)} | Purchased: {it.qty}
+                        <div className="w-24">
+                          <Label className="text-xs text-muted-foreground">Return Qty</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={it.qty}
+                            value={returnQuantities[itemKey] ?? 0}
+                            onChange={(e) => {
+                              const val = Math.min(it.qty, Math.max(0, parseInt(e.target.value) || 0));
+                              setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
+                            }}
+                          />
                         </div>
                       </div>
-                      <div className="w-24">
-                        <Label className="text-xs text-muted-foreground">Return Qty</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={it.qty}
-                          value={returnQuantities[it.id] || 0}
-                          onChange={(e) => {
-                            const val = Math.min(it.qty, Math.max(0, parseInt(e.target.value) || 0));
-                            setReturnQuantities({ ...returnQuantities, [it.id]: val });
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="return-notes">Reason / Notes for Return</Label>

@@ -25,7 +25,7 @@ router.get("/", async (req, res, next) => {
     const ids = purchases.map((p) => p.id);
     const placeholders = ids.map(() => "?").join(",");
     const [items] = await pool.query(
-      `SELECT purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
+      `SELECT id, purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
        FROM purchase_items
        WHERE user_id = ? AND purchase_id IN (${placeholders})`,
       [req.auth.userId, ...ids],
@@ -64,7 +64,7 @@ router.get("/:id", async (req, res, next) => {
     }
 
     const [items] = await pool.query(
-      `SELECT purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
+      `SELECT id, purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
        FROM purchase_items
        WHERE user_id = ? AND purchase_id = ?`,
       [req.auth.userId, req.params.id],
