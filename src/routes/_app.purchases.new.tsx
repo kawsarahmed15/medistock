@@ -80,7 +80,7 @@ function MedicineNameInput({
   }, [initialValue]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+    const val = e.target.value.toUpperCase();
     setLocalVal(val);
     onChange(val);
   };
@@ -93,7 +93,7 @@ function MedicineNameInput({
       onChange={handleChange}
       onFocus={onFocus}
       onKeyDown={onKeyDown}
-      className="h-9 text-sm px-3"
+      className="h-9 text-sm px-3 uppercase"
     />
   );
 }
@@ -785,7 +785,11 @@ function AddPurchasePage() {
 
   const updateLine = (index: number, field: keyof PurchaseLine, value: any) => {
     const newLines = [...lines];
-    newLines[index] = { ...newLines[index], [field]: value };
+    let val = value;
+    if (field === "name" && typeof value === "string") {
+      val = value.toUpperCase();
+    }
+    newLines[index] = { ...newLines[index], [field]: val };
     setLines(newLines);
   };
 
@@ -794,7 +798,7 @@ function AddPurchasePage() {
     newLines[index] = {
       ...newLines[index],
       productId: p.id,
-      name: p.name,
+      name: p.name.toUpperCase(),
       qty: p.isDraftProduct && p.stock && p.stock > 0 ? p.stock : newLines[index].qty || 1,
       batch: p.isDraftProduct ? (p.batch || newLines[index].batch || "") : newLines[index].batch || "",
       expiry: p.isDraftProduct ? (p.expiry || newLines[index].expiry || "") : newLines[index].expiry || "",
