@@ -149,3 +149,19 @@ CREATE TABLE IF NOT EXISTS email_change_tokens (
   INDEX idx_email_change_hash (token_hash),
   CONSTRAINT fk_email_change_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_history (
+  id CHAR(36) PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  product_id CHAR(36) NOT NULL,
+  action ENUM('initial','stock_in','stock_out','sale','purchase','adjustment','return') NOT NULL,
+  quantity INT NOT NULL,
+  balance INT NOT NULL,
+  notes VARCHAR(255) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_history_user (user_id),
+  INDEX idx_history_product (product_id),
+  CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_history_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
