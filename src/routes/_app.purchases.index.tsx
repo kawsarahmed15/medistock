@@ -106,6 +106,9 @@ function PurchasesPage() {
 
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const [showSuppliersModal, setShowSuppliersModal] = useState(false);
+  const [kpiModalOpen, setKpiModalOpen] = useState(false);
+  const [kpiModalTitle, setKpiModalTitle] = useState("");
+  const [kpiModalBills, setKpiModalBills] = useState<Purchase[]>([]);
   const [supplierSearchQuery, setSupplierSearchQuery] = useState("");
   const [selectedPurchaseForReturn, setSelectedPurchaseForReturn] = useState<Purchase | null>(null);
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
@@ -359,37 +362,29 @@ function PurchasesPage() {
 
   const handleTodayPurchaseClick = () => {
     const todayStr = new Date().toISOString().slice(0, 10);
-    setDateFilter(todayStr);
-    setSupplierFilter("all");
-    setPaymentModeFilter("all");
-    setStatusFilter("all");
-    setQuery("");
-    setActiveTab("all-bills");
-    setCurrentPage(1);
-    toast.success("Filtering by today's purchases");
+    const bills = purchases.filter(
+      (p) => new Date(p.createdAt).toISOString().slice(0, 10) === todayStr
+    );
+    setKpiModalTitle("Today's Purchases");
+    setKpiModalBills(bills);
+    setKpiModalOpen(true);
   };
 
   const handleMonthlyPurchaseClick = () => {
     const thisMonthStr = new Date().toISOString().slice(0, 7);
-    setDateFilter(thisMonthStr);
-    setSupplierFilter("all");
-    setPaymentModeFilter("all");
-    setStatusFilter("all");
-    setQuery("");
-    setActiveTab("all-bills");
-    setCurrentPage(1);
-    toast.success("Filtering by this month's purchases");
+    const bills = purchases.filter(
+      (p) => new Date(p.createdAt).toISOString().slice(0, 7) === thisMonthStr
+    );
+    setKpiModalTitle("Monthly Purchases (This Month)");
+    setKpiModalBills(bills);
+    setKpiModalOpen(true);
   };
 
   const handlePendingBillsClick = () => {
-    setStatusFilter("pending");
-    setDateFilter("");
-    setSupplierFilter("all");
-    setPaymentModeFilter("all");
-    setQuery("");
-    setActiveTab("all-bills");
-    setCurrentPage(1);
-    toast.success("Filtering by pending/unpaid bills");
+    const bills = purchases.filter((p) => p.paymentStatus !== "paid");
+    setKpiModalTitle("Pending Bills");
+    setKpiModalBills(bills);
+    setKpiModalOpen(true);
   };
 
   const handleViewDetails = (p: Purchase) => {
@@ -1454,6 +1449,106 @@ function PurchasesPage() {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* KPI Bills Modal */}
+      <Dialog open={kpiModalOpen} onOpenChange={setKpiModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-background">
+          <DialogHeader className="p-6 pb-4 border-b">
+            <div className="flex justify-between items-center pr-6">
+              <div>
+                <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" /> {kpiModalTitle}
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  List of bills matching this summary KPI. Click a bill to view its details.
+                </p>
+              </div>
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                {kpiModalBills.length} Bills
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          {/* Bills List */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-3 max-h-[60vh]">
+            {kpiModalBills.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No bills found for this category.
+              </div>
+            ) : (
+              kpiModalBills.map((p) => {
+                const totalQty = p.items.reduce((s, it) => s + it.qty + (it.freeQty || 0), 0);
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => {
+                      handleViewDetails(p);
+                    }}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border rounded-xl hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-all active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        <FileText className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm text-foreground">
+                          {p.number}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Supplier: <span className="font-semibold text-foreground">{p.supplierName}</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Date: {new Date(p.createdAt).toLocaleDateString("en-IN")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-right border-t sm:border-0 pt-2 sm:pt-0">
+                      <div>
+                        <div className="text-muted-foreground">Items</div>
+                        <div className="font-bold text-foreground mt-0.5">
+                          {p.items.length} ({totalQty} Qty)
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Total Value</div>
+                        <div className="font-bold text-primary mt-0.5">
+                          {formatMoney(p.total)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Status</div>
+                        <Badge
+                          variant="outline"
+                          className={`mt-0.5 text-[10px] font-semibold py-0.5 px-2 ${
+                            p.paymentStatus === "paid"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : p.paymentStatus === "partial"
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-rose-50 text-rose-700 border-rose-200"
+                          }`}
+                        >
+                          {p.paymentStatus.toUpperCase()}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="p-4 border-t bg-muted/10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setKpiModalOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
