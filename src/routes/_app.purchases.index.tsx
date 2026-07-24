@@ -105,6 +105,25 @@ function PurchasesPage() {
   }, [selectedPurchaseForDetails]);
 
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftSupplierName, setDraftSupplierName] = useState("");
+
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem("medistock_draft_purchase");
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft);
+        setHasDraft(true);
+        setDraftSupplierName(draft.supplierName || "");
+      } else {
+        setHasDraft(false);
+        setDraftSupplierName("");
+      }
+    } catch {
+      setHasDraft(false);
+      setDraftSupplierName("");
+    }
+  }, []);
   const [showSuppliersModal, setShowSuppliersModal] = useState(false);
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [kpiModalTitle, setKpiModalTitle] = useState("");
@@ -534,6 +553,13 @@ function PurchasesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          {hasDraft && (
+            <Button asChild size="sm" variant="outline" className="border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-50 hover:text-amber-800 shadow-soft">
+              <Link to="/purchases/new">
+                <FileText className="h-4 w-4 mr-1.5 text-amber-600 animate-pulse" /> Resume Draft
+              </Link>
+            </Button>
+          )}
           <Button asChild size="sm" className="bg-primary hover:bg-primary/95 text-white font-medium shadow-soft">
             <Link to="/purchases/new">
               <Plus className="h-4 w-4 mr-1.5" /> New Purchase
@@ -550,6 +576,20 @@ function PurchasesPage() {
           </Button>
         </div>
       </div>
+
+      {hasDraft && (
+        <div className="flex items-center justify-between p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs shadow-soft print:hidden">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+            <div>
+              <span className="font-semibold">Unsaved Draft:</span> You have an incomplete purchase invoice in progress (Supplier: {draftSupplierName || "Unspecified"}).
+            </div>
+          </div>
+          <Button asChild size="xs" variant="ghost" className="text-amber-700 hover:text-amber-800 hover:bg-amber-100 font-semibold">
+            <Link to="/purchases/new">Resume Draft &rarr;</Link>
+          </Button>
+        </div>
+      )}
 
       {/* Dashboard KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
