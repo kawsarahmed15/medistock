@@ -406,16 +406,8 @@ function ProductDetails() {
                 <span className="font-semibold">{product.manufacturer ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">HSN / SKU Code</span>
-                <span className="font-semibold">{product.sku ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax rate (GST)</span>
                 <span className="font-semibold">{Number(product.tax_percent || 0).toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Prescription Required</span>
-                <span className="font-semibold">{product.prescription ? "Yes (Rx)" : "No"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Packing unit</span>
