@@ -1071,6 +1071,21 @@ function CartAddDialog({
     onOpenChange(false);
   };
 
+  const [batchesProduct, setBatchesProduct] = useState<Product | null>(null);
+  const [selectedBatchIdx, setSelectedBatchIdx] = useState(0);
+
+  const handleAddClick = (p: Product) => {
+    const activeBatches = p.batches ? p.batches.filter((b) => b.stock > 0) : [];
+    if (activeBatches.length > 1) {
+      setBatchesProduct(p);
+      setSelectedBatchIdx(0);
+    } else if (activeBatches.length === 1) {
+      onAdd(activeBatches[0]);
+    } else {
+      onAdd(p);
+    }
+  };
+
   // Scroll active item into view
   useEffect(() => {
     if (!listRef.current) return;
@@ -1083,6 +1098,28 @@ function CartAddDialog({
 
   // Keyboard navigation inside the dialog
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (batchesProduct) {
+      const activeBatches = batchesProduct.batches ? batchesProduct.batches.filter((b) => b.stock > 0) : [];
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedBatchIdx((i) => Math.min(i + 1, activeBatches.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedBatchIdx((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const batch = activeBatches[selectedBatchIdx];
+        if (batch) {
+          onAdd(batch);
+          setBatchesProduct(null);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setBatchesProduct(null);
+      }
+      return;
+    }
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIdx((i) => Math.min(i + 1, filtered.length - 1));
@@ -1092,7 +1129,7 @@ function CartAddDialog({
     } else if (e.key === "Enter") {
       e.preventDefault();
       const p = filtered[activeIdx];
-      if (p && p.stock > 0) onAdd(p);
+      if (p && p.stock > 0) handleAddClick(p);
     } else if (e.key === "Escape") {
       onOpenChange(false);
     }
@@ -1193,7 +1230,7 @@ function CartAddDialog({
                   <button
                     key={p.id}
                     data-product-item
-                    onClick={() => !outOfStock && onAdd(p)}
+                    onClick={() => !outOfStock && handleAddClick(p)}
                     disabled={outOfStock}
                     onMouseEnter={() => setActiveIdx(idx)}
                     className={cn(
@@ -1264,6 +1301,88 @@ function CartAddDialog({
             <span>{filtered.length} product{filtered.length !== 1 ? "s" : ""} found</span>
             <span>{products.length} total in inventory</span>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Selection Dialog */}
+      <Dialog open={!!batchesProduct} onOpenChange={(v) => { if (!v) setBatchesProduct(null); }}>
+        <DialogContent className="max-w-md p-4">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">
+              Select Batch for {batchesProduct?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Multiple batches available in stock. Use arrow keys to select and Enter to add.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
+            {batchesProduct?.batches?.filter(b => b.stock > 0).map((b, idx) => {
+              const isActive = idx === selectedBatchIdx;
+              const now = Date.now();
+              const expTime = new Date(b.expiry || "").getTime();
+              const daysToExpiry = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
+              const isExpired = daysToExpiry < 0;
+
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-lg border text-xs flex justify-between items-center transition-all",
+                    isActive
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:bg-muted"
+                  )}
+                  onClick={() => {
+                    onAdd(b);
+                    setBatchesProduct(null);
+                  }}
+                  onMouseEnter={() => setSelectedBatchIdx(idx)}
+                >
+                  <div>
+                    <div className="font-bold text-slate-900 flex items-center gap-1.5 uppercase">
+                      Batch: {b.batch || "UNBATCHED"}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Expiry: {b.expiry ? (() => {
+                        const dateObj = new Date(b.expiry);
+                        const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+                        const yy = String(dateObj.getFullYear()).substring(2);
+                        return `${mm}/${yy}`;
+                      })() : "—"} 
+                      {isExpired && <span className="text-red-500 font-semibold"> (Expired)</span>}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-primary">
+                      {formatMoney(b.price)}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      Stock: {b.stock} units
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter className="mt-4 sm:justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setBatchesProduct(null)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                const activeBatches = batchesProduct?.batches?.filter(b => b.stock > 0) || [];
+                const batch = activeBatches[selectedBatchIdx];
+                if (batch) {
+                  onAdd(batch);
+                  setBatchesProduct(null);
+                }
+              }}
+            >
+              Add Selected
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
