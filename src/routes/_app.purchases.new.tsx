@@ -195,7 +195,7 @@ function AddPurchasePage() {
     name: "",
     category: "",
     manufacturer: "",
-    stock: "0",
+    stock: "",
     costPrice: "",
     price: "",
     mrp: "",
@@ -367,7 +367,7 @@ function AddPurchasePage() {
       name: typedName.toUpperCase(),
       category: "",
       manufacturer: "",
-      stock: "0",
+      stock: "",
       costPrice: "",
       price: "",
       mrp: "",
@@ -495,7 +495,7 @@ function AddPurchasePage() {
         category: payload.category,
         price: payload.price,
         costPrice: payload.costPrice,
-        stock: Number(quickProductForm.stock) || 1, // Store the initial stock qty to populate the purchase line qty
+        stock: Number(quickProductForm.stock) || 0, // Store the initial stock qty to populate the purchase line qty
         expiry: payload.expiry || "",
         batch: payload.batch ? payload.batch.toUpperCase() : "",
         mrp: payload.mrp,
