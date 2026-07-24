@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { downloadPurchasePdf } from "@/lib/purchase-pdf";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,6 +85,7 @@ function numberToWords(num: number): string {
 }
 
 function PurchasesPage() {
+  const { session } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -1296,7 +1298,14 @@ function PurchasesPage() {
                       </DialogTitle>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => downloadPurchasePdf(p, meta)}>
+                      <Button variant="outline" size="sm" onClick={() => downloadPurchasePdf(p, meta, {
+                        pharmacyName: session?.pharmacyName,
+                        pharmacyPhone: session?.pharmacyPhone,
+                        pharmacyAddress: session?.pharmacyAddress,
+                        gstNumber: session?.gstNumber,
+                        drugLicNo: session?.drugLicNo,
+                        billColor: session?.billColor
+                      })}>
                         <Download className="h-4 w-4 mr-2" /> Download PDF
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => window.print()}>

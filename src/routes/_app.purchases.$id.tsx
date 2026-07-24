@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { ArrowLeft, Truck, Printer, Download, Pill, FileText, CheckCircle } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { downloadPurchasePdf } from "@/lib/purchase-pdf";
+import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -47,6 +48,7 @@ function numberToWords(num: number): string {
 }
 
 function PurchaseDetailsPage() {
+  const { session } = useAuth();
   const { id } = Route.useParams();
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +98,14 @@ function PurchaseDetailsPage() {
           </Link>
         </Button>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => downloadPurchasePdf(purchase, meta)}>
+          <Button variant="outline" size="sm" onClick={() => purchase && downloadPurchasePdf(purchase, meta, {
+            pharmacyName: session?.pharmacyName,
+            pharmacyPhone: session?.pharmacyPhone,
+            pharmacyAddress: session?.pharmacyAddress,
+            gstNumber: session?.gstNumber,
+            drugLicNo: session?.drugLicNo,
+            billColor: session?.billColor
+          })}>
             <Download className="h-4 w-4 mr-2" /> Download PDF
           </Button>
           <Button variant="outline" size="sm" onClick={() => window.print()}>
