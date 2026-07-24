@@ -136,37 +136,34 @@ export async function downloadPurchasePdf(
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Voucher No:", right - 160, rightY);
+  doc.text("Voucher No:", right - 140, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(clean(purchase.number), right, rightY, { align: "right" });
+  doc.text(clean(purchase.number), right - 70, rightY);
 
   rightY += 12;
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Invoice No:", right - 160, rightY);
+  doc.text("Invoice No:", right - 140, rightY);
   doc.setTextColor(35, 35, 35);
   doc.setFont("helvetica", "bold");
-  doc.text(clean(purchase.supplierInvoice || "—"), right, rightY, { align: "right" });
+  doc.text(clean(purchase.supplierInvoice || "—"), right - 70, rightY);
 
   rightY += 12;
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Date:", right - 160, rightY);
+  doc.text("Date:", right - 140, rightY);
   doc.setTextColor(35, 35, 35);
-  doc.text(new Date(purchase.createdAt).toLocaleDateString("en-IN"), right, rightY, {
-    align: "right",
-  });
+  doc.text(new Date(purchase.createdAt).toLocaleDateString("en-IN"), right - 70, rightY);
 
   rightY += 12;
   doc.setTextColor(110, 110, 110);
-  doc.text("Time:", right - 160, rightY);
+  doc.text("Time:", right - 140, rightY);
   doc.setTextColor(35, 35, 35);
   doc.text(
     new Date(purchase.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-    right,
-    rightY,
-    { align: "right" }
+    right - 70,
+    rightY
   );
 
   let y = Math.max(headerBottomY - 12, rightY) + 10;
