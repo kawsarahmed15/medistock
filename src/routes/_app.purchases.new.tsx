@@ -1237,7 +1237,19 @@ function AddPurchasePage() {
 
                       {/* Remove line */}
                       <td className="p-2 text-center align-middle">
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(idx)} className="h-8 w-8 text-rose-500 hover:bg-rose-50" disabled={lines.length === 1}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (!line.name || confirm(`Are you sure you want to delete the row for "${line.name}"?`)) {
+                              removeLine(idx);
+                            }
+                          }}
+                          className="h-8 w-8 text-rose-500 hover:bg-rose-50"
+                          disabled={lines.length === 1}
+                          title={line.name ? `Delete row for ${line.name}` : `Delete row ${idx + 1}`}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </td>
