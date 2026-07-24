@@ -194,13 +194,15 @@ function InventoryPage() {
           batch: "—",
           expiry: "—",
           stock: 0,
-        });
+          totalProductStock: 0,
+        } as any);
       } else {
         p.batches.forEach((b) => {
           list.push({
             ...b,
             productId: p.id,
-          });
+            totalProductStock: p.stock,
+          } as any);
         });
       }
     });
@@ -918,8 +920,9 @@ function InventoryPage() {
                 const isNearExpiryRed = hasExpiry && daysToExpiry >= 0 && daysToExpiry <= 30;
                 const isNearExpiryOrange = hasExpiry && daysToExpiry > 30 && daysToExpiry <= 90;
 
-                const isOutOfStock = p.stock <= 0;
-                const isLowStock = p.stock > 0 && p.stock <= lowStockQty;
+                const totalQty = (p as any).totalProductStock !== undefined ? (p as any).totalProductStock : p.stock;
+                const isOutOfStock = totalQty <= 0;
+                const isLowStock = totalQty > 0 && totalQty <= lowStockQty;
 
                 const isRed = isExpired || isNearExpiryRed || isOutOfStock;
                 const isOrange = !isRed && (isNearExpiryOrange || isLowStock);
@@ -1015,7 +1018,7 @@ function InventoryPage() {
                               : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
                         )}
                       >
-                        {p.stock} {isOutOfStock ? "Out" : isLowStock ? "Low" : ""}
+                        {totalQty} {isOutOfStock ? "Out" : isLowStock ? "Low" : ""}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
@@ -1026,7 +1029,7 @@ function InventoryPage() {
                           e.stopPropagation();
                           quickAdd(p);
                         }}
-                        disabled={p.stock <= 0}
+                        disabled={totalQty <= 0}
                         className="text-primary hover:text-primary animate-pulse"
                         title="Add to cart"
                       >
