@@ -164,58 +164,36 @@
     color: var(--color-foreground);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
-  /* Ultra-smooth circular reveal and surface transition for theme switching */
+  /* Hardware-Accelerated 60fps View Transition for Theme Switch */
   ::view-transition-old(root),
   ::view-transition-new(root) {
-    animation: none;
-    mix-blend-mode: normal;
+    animation-duration: 0.25s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   ::view-transition-old(root) {
-    z-index: 1;
+    animation-name: theme-fade-out;
   }
+
   ::view-transition-new(root) {
-    z-index: 9999;
+    animation-name: theme-fade-in;
   }
 
-  .dark::view-transition-old(root) {
-    z-index: 9999;
-  }
-  .dark::view-transition-new(root) {
-    z-index: 1;
-  }
-
-  body,
-  header,
-  aside,
-  main,
-  nav,
-  .bg-card,
-  .bg-background,
-  .bg-sidebar,
-  .border-border,
-  .text-foreground,
-  .text-muted-foreground {
-    transition:
-      background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-      border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-      color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-      box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  @keyframes theme-fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    body,
-    header,
-    aside,
-    main,
-    nav,
-    .bg-card,
-    .bg-background,
-    .bg-sidebar,
-    .border-border,
-    .text-foreground,
-    .text-muted-foreground {
-      transition: none;
+  @keyframes theme-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 }

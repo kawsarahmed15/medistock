@@ -244,13 +244,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     >
       <Sun
         className={cn(
-          "h-4 w-4 absolute transition-all duration-500 text-amber-500",
+          "h-4 w-4 absolute transition-all duration-300 ease-out text-amber-500",
           theme === "light" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0",
         )}
       />
       <Moon
         className={cn(
-          "h-4 w-4 absolute transition-all duration-500 text-sky-400",
+          "h-4 w-4 absolute transition-all duration-300 ease-out text-sky-400",
           theme === "dark" ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0",
         )}
       />
