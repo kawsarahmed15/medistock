@@ -237,20 +237,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <Button
       variant="outline"
       size="icon"
-      onClick={toggle}
+      onClick={(e) => toggle(e)}
       aria-label="Toggle theme"
       title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-      className="relative overflow-hidden shrink-0 border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-smooth"
+      className="relative overflow-hidden shrink-0 border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-300 active:scale-95 shadow-xs"
     >
       <Sun
         className={cn(
-          "h-4 w-4 absolute transition-all duration-500",
+          "h-4 w-4 absolute transition-all duration-500 text-amber-500",
           theme === "light" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0",
         )}
       />
       <Moon
         className={cn(
-          "h-4 w-4 absolute transition-all duration-500",
+          "h-4 w-4 absolute transition-all duration-500 text-sky-400",
           theme === "dark" ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0",
         )}
       />

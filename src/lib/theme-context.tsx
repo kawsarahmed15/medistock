@@ -2,7 +2,11 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { themeStore } from "./storage";
 
 type Theme = "light" | "dark";
-type ThemeCtx = { theme: Theme; toggle: () => void; setTheme: (t: Theme) => void };
+type ThemeCtx = {
+  theme: Theme;
+  toggle: (event?: React.MouseEvent | MouseEvent) => void;
+  setTheme: (t: Theme, event?: React.MouseEvent | MouseEvent) => void;
+};
 
 const Ctx = createContext<ThemeCtx | null>(null);
 
@@ -20,15 +24,41 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     themeStore.set(theme);
   }, [theme]);
 
-  const apply = (next: Theme) => {
-    // Use the View Transitions API when available for a buttery cross-fade
-    // that doesn't trigger a transition on every DOM node (which is what
-    // caused the previous laggy switch on mobile).
+  const apply = (next: Theme, event?: React.MouseEvent | MouseEvent) => {
+    if (next === theme) return;
+
     const docAny = document as unknown as {
-      startViewTransition?: (cb: () => void) => void;
+      startViewTransition?: (cb: () => void) => { ready: Promise<void> };
     };
-    if (typeof docAny.startViewTransition === "function") {
-      docAny.startViewTransition(() => setThemeState(next));
+
+    if (typeof docAny.startViewTransition === "function" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const x = event?.clientX ?? window.innerWidth / 2;
+      const y = event?.clientY ?? window.innerHeight / 2;
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      );
+
+      const transition = docAny.startViewTransition(() => {
+        setThemeState(next);
+      });
+
+      transition.ready.then(() => {
+        const clipPath = [
+          `circle(0px at ${x}px ${y}px)`,
+          `circle(${endRadius}px at ${x}px ${y}px)`,
+        ];
+        document.documentElement.animate(
+          {
+            clipPath: next === "dark" ? clipPath : [...clipPath].reverse(),
+          },
+          {
+            duration: 500,
+            easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+            pseudoElement: next === "dark" ? "::view-transition-new(root)" : "::view-transition-old(root)",
+          }
+        );
+      });
     } else {
       setThemeState(next);
     }
@@ -39,7 +69,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       value={{
         theme,
         setTheme: apply,
-        toggle: () => apply(theme === "light" ? "dark" : "light"),
+        toggle: (e) => apply(theme === "light" ? "dark" : "light", e),
       }}
     >
       {children}
