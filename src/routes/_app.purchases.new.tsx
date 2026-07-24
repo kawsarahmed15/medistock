@@ -738,8 +738,30 @@ function AddPurchasePage() {
 
   // Keyboard navigation handler on table input matrix
   const handleKeyDown = (e: React.KeyboardEvent, rowIdx: number, colIdx: number) => {
-    // Arrow keys, Enter, etc.
     const key = e.key;
+
+    // Delete row via keyboard Delete key (when input is empty or Ctrl+Delete is pressed)
+    const targetInput = e.target as HTMLInputElement;
+    const isInputEmpty = targetInput ? targetInput.value === "" : true;
+    if ((key === "Delete" && isInputEmpty) || (e.ctrlKey && key === "Delete")) {
+      e.preventDefault();
+      const line = lines[rowIdx];
+      if (line) {
+        if (lines.length > 1) {
+          if (!line.name || confirm(`Are you sure you want to delete the row for "${line.name}"?`)) {
+            removeLine(rowIdx);
+            // Move focus to previous row if possible, otherwise next row
+            const focusRowIdx = rowIdx > 0 ? rowIdx - 1 : 0;
+            setTimeout(() => {
+              gridRefs.current[focusRowIdx]?.[0]?.focus();
+            }, 50);
+          }
+        } else {
+          toast.warning("Cannot delete the only remaining row");
+        }
+      }
+      return;
+    }
 
     // Handle dropdown keyboard navigation when in Medicine Name column (colIdx = 0)
     const showAddOption = productSearch && !filteredProducts.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase());
