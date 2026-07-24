@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   Truck,
   Search,
@@ -432,6 +433,180 @@ function PurchasesPage() {
     });
   };
 
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        
+        // Convert sheet to JSON array of arrays
+        const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+        if (rows.length === 0) {
+          toast.error("The selected file is empty.");
+          return;
+        }
+
+        // Parse Marg ERP template
+        // We'll search for the headers row
+        let headerIdx = -1;
+        let mappings: Record<string, number> = {};
+
+        for (let i = 0; i < Math.min(rows.length, 30); i++) {
+          const row = rows[i];
+          if (!Array.isArray(row)) continue;
+          
+          // Check if this row looks like a header row
+          const rowStr = row.map(c => String(c || "").toLowerCase().trim());
+          const hasItem = rowStr.some(c => c.includes("particular") || c.includes("item") || c.includes("product") || c.includes("medicine"));
+          const hasQty = rowStr.some(c => c.includes("qty") || c.includes("quantity"));
+          const hasBatch = rowStr.some(c => c.includes("batch"));
+
+          if (hasItem && (hasQty || hasBatch)) {
+            headerIdx = i;
+            // Build index mappings
+            rowStr.forEach((cell, idx) => {
+              if (cell.includes("particular") || cell.includes("item") || cell.includes("product") || cell.includes("medicine")) {
+                mappings.name = idx;
+              } else if (cell.includes("batch")) {
+                mappings.batch = idx;
+              } else if (cell.includes("exp")) {
+                mappings.expiry = idx;
+              } else if (cell.includes("qty") || cell.includes("quantity")) {
+                // Avoid matching free qty as main qty
+                if (!cell.includes("free")) {
+                  mappings.qty = idx;
+                }
+              } else if (cell.includes("free")) {
+                mappings.freeQty = idx;
+              } else if (cell.includes("rate") || cell.includes("cost") || cell.includes("ptr") || cell.includes("buy")) {
+                mappings.costPrice = idx;
+              } else if (cell.includes("mrp")) {
+                mappings.mrp = idx;
+              } else if (cell.includes("sale") || cell.includes("selling")) {
+                mappings.saleRate = idx;
+              } else if (cell.includes("gst") || cell.includes("tax") || cell.includes("cgst") || cell.includes("sgst")) {
+                mappings.taxPercent = idx;
+              }
+            });
+            break;
+          }
+        }
+
+        if (headerIdx === -1) {
+          toast.error("Could not detect Marg ERP invoice layout (missing Item, Batch, or Qty headers).");
+          return;
+        }
+
+        // We can also try to find supplier metadata in the rows above the header
+        let supplierName = "";
+        let supplierInvoice = "";
+        for (let i = 0; i < headerIdx; i++) {
+          const row = rows[i];
+          if (!Array.isArray(row)) continue;
+          const rowStr = row.map(c => String(c || "").toLowerCase());
+          row.forEach((cell, cellIdx) => {
+            const str = String(cell || "").toLowerCase();
+            if (str.includes("m/s") || str.includes("supplier:") || str.includes("distributor:") || str.includes("party:")) {
+              supplierName = String(row[cellIdx + 1] || cell).replace(/^(m\/s|party:|supplier:|distributor:)\s*/i, "").trim().toUpperCase();
+            }
+            if (str.includes("inv") || str.includes("invoice") || str.includes("bill no")) {
+              supplierInvoice = String(row[cellIdx + 1] || cell).replace(/^(no|bill no|inv no)\s*/i, "").trim().toUpperCase();
+            }
+          });
+        }
+
+        // Parse lines
+        const lines: any[] = [];
+        for (let i = headerIdx + 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!Array.isArray(row) || row.length === 0) continue;
+
+          const nameVal = row[mappings.name];
+          if (!nameVal || String(nameVal).trim() === "" || String(nameVal).toLowerCase().includes("total") || String(nameVal).toLowerCase().includes("subtotal")) {
+            continue; // End of items or empty row
+          }
+
+          // Format expiry
+          let expiryVal = "";
+          if (mappings.expiry !== undefined && row[mappings.expiry]) {
+            const rawExp = String(row[mappings.expiry]).trim();
+            // Handle MM/YY or MM/YYYY
+            if (rawExp.includes("/")) {
+              const parts = rawExp.split("/");
+              if (parts.length === 2) {
+                const month = parts[0].padStart(2, "0");
+                let year = parts[1];
+                if (year.length === 2) year = "20" + year;
+                // Expiry is last day of the month
+                const lastDay = new Date(Number(year), Number(month), 0).getDate();
+                expiryVal = `${year}-${month}-${lastDay}`;
+              }
+            } else if (rawExp.includes("-")) {
+              expiryVal = rawExp; // YYYY-MM-DD
+            }
+          }
+
+          const parsedLine = {
+            productId: "",
+            name: String(nameVal).trim().toUpperCase(),
+            qty: Number(row[mappings.qty]) || 1,
+            freeQty: Number(row[mappings.freeQty]) || 0,
+            costPrice: Number(row[mappings.costPrice]) || 0,
+            taxPercent: Number(row[mappings.taxPercent]) || 12,
+            batch: String(row[mappings.batch] || "").trim().toUpperCase(),
+            expiry: expiryVal,
+            mrp: Number(row[mappings.mrp]) || 0,
+            pack: "",
+            ptr: Number(row[mappings.costPrice]) || 0,
+            saleRate: Number(row[mappings.saleRate] || row[mappings.mrp]) || 0,
+          };
+          lines.push(parsedLine);
+        }
+
+        if (lines.length === 0) {
+          toast.error("No valid medicine items found in the file.");
+          return;
+        }
+
+        // Save to localStorage draft
+        const draft = {
+          lines,
+          supplierName: supplierName || "",
+          supplierPhone: "",
+          supplierInvoice: supplierInvoice || "",
+          supplierGst: "",
+          supplierDl: "",
+          supplierAddress: "",
+          supplierEmail: "",
+          invoiceDate: new Date().toISOString().slice(0, 10),
+          purchaseDate: new Date().toISOString().slice(0, 10),
+          paymentMode: "cash",
+          creditDays: 0,
+          dueDate: new Date().toISOString().slice(0, 10),
+          transportName: "",
+          lrNumber: "",
+          remarks: "Imported from Marg ERP invoice file",
+          discount: 0,
+        };
+
+        localStorage.setItem("medistock_draft_purchase", JSON.stringify(draft));
+        toast.success(`Imported ${lines.length} items from Marg ERP bill! Redirecting...`);
+        navigate({ to: "/purchases/new" });
+
+      } catch (err: any) {
+        toast.error("Failed to parse file: " + err.message);
+      }
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
   const handlePrint = (p: Purchase) => {
     window.print();
   };
@@ -568,9 +743,19 @@ function PurchasesPage() {
           <Button variant="outline" size="sm" onClick={() => setIsReturnDialogOpen(true)}>
             <RotateCcw className="h-4 w-4 mr-1.5" /> Purchase Return
           </Button>
-          <Button variant="outline" size="sm" onClick={() => toast.info("Select purchase file to import")}>
-            <Download className="h-4 w-4 mr-1.5 rotate-180" /> Import Purchase
-          </Button>
+          <label className="cursor-pointer">
+            <Button variant="outline" size="sm" asChild>
+              <span>
+                <Download className="h-4 w-4 mr-1.5 rotate-180" /> Import Purchase
+              </span>
+            </Button>
+            <input 
+              type="file" 
+              accept=".csv,.xlsx,.xls,.tsv" 
+              onChange={handleFileImport} 
+              className="hidden" 
+            />
+          </label>
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1.5" /> Print Register
           </Button>
