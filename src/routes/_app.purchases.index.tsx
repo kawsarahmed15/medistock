@@ -776,7 +776,7 @@ function PurchasesPage() {
                     return (
                       <TableRow key={idx} className="hover:bg-muted/30">
                         <TableCell className="font-medium text-foreground text-xs">{row.name}</TableCell>
-                        <TableCell className="font-mono text-xs uppercase font-semibold">{row.batch}</TableCell>
+                        <TableCell className="font-mono text-xs uppercase font-semibold">{String(row.batch || "").toUpperCase()}</TableCell>
                         <TableCell className="text-xs font-semibold">
                           <span
                             className={
@@ -844,7 +844,7 @@ function PurchasesPage() {
                       <div className="flex-1">
                         <div className="font-semibold text-foreground">{it.name}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          Batch: {it.batch || "—"} | Exp: {it.expiry || "—"}
+                          Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Cost: {formatMoney(it.costPrice)} | Purchased: {it.qty}

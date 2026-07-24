@@ -303,7 +303,7 @@ function AddPurchasePage() {
         }
         return quickProductForm.expiry;
       })(),
-      batch: quickProductForm.batch.trim() || undefined,
+      batch: quickProductForm.batch.trim().toUpperCase() || undefined,
       manufacturer: quickProductForm.manufacturer.trim() ? quickProductForm.manufacturer.trim().toUpperCase() : undefined,
       sku: quickProductForm.sku.trim() || undefined,
       taxPercent: Number(quickProductForm.taxPercent) || 0,
@@ -322,7 +322,7 @@ function AddPurchasePage() {
         costPrice: payload.costPrice,
         stock: Number(quickProductForm.stock) || 1, // Store the initial stock qty to populate the purchase line qty
         expiry: payload.expiry || "",
-        batch: payload.batch || "",
+        batch: payload.batch ? payload.batch.toUpperCase() : "",
         mrp: payload.mrp,
         pack: payload.pack,
         manufacturer: payload.manufacturer,
@@ -671,17 +671,26 @@ function AddPurchasePage() {
       // 1. First save any draft products to inventory database
       const finalLines = [];
       for (const line of lines) {
-        if (line.isDraftProduct && line.draftProductDetails) {
+        const cleanLine = {
+          ...line,
+          batch: (line.batch || "").trim().toUpperCase(),
+        };
+
+        if (cleanLine.isDraftProduct && cleanLine.draftProductDetails) {
           // Add to inventory database
-          const newProduct = await productsStore.add(line.draftProductDetails);
+          const updatedDraftDetails = {
+            ...cleanLine.draftProductDetails,
+            batch: (cleanLine.batch || "").trim().toUpperCase(),
+          };
+          const newProduct = await productsStore.add(updatedDraftDetails);
           finalLines.push({
-            ...line,
+            ...cleanLine,
             productId: newProduct.id,
             isDraftProduct: undefined,
             draftProductDetails: undefined,
           });
         } else {
-          finalLines.push(line);
+          finalLines.push(cleanLine);
         }
       }
 
@@ -1086,7 +1095,7 @@ function AddPurchasePage() {
                           ref={(el) => (gridRefs.current[idx][1] = el)}
                           placeholder="Batch"
                           value={line.batch}
-                          onChange={(e) => updateLine(idx, "batch", e.target.value)}
+                          onChange={(e) => updateLine(idx, "batch", e.target.value.toUpperCase())}
                           onKeyDown={(e) => handleKeyDown(e, idx, 1)}
                           className="h-9 text-sm font-mono uppercase px-3"
                         />

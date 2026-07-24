@@ -226,7 +226,7 @@ function SellPage() {
   const confirmAdd = () => {
     if (!qtyProduct || !selectedBatch) return;
     const { isFirst } = cart.add(selectedBatch, qtyValue);
-    toast.success(`${selectedBatch.name} (Batch: ${selectedBatch.batch}) × ${qtyValue} added`);
+    toast.success(`${selectedBatch.name} (Batch: ${String(selectedBatch.batch || "").toUpperCase()}) × ${qtyValue} added`);
     setQtyProduct(null);
     setSelectedBatch(null);
     if (isFirst && !cart.customerSubmitted) {
@@ -409,8 +409,8 @@ function SellPage() {
                         }}
                       >
                         {stockBatches.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.batch || "No Batch"} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
+                           <option key={b.id} value={b.id}>
+                            {String(b.batch || "No Batch").toUpperCase()} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
                           </option>
                         ))}
                       </select>
@@ -423,7 +423,7 @@ function SellPage() {
                 const activeBatch = stockBatches[0] || selectedBatch || qtyProduct;
                 return (
                   <div className="text-xs bg-muted/40 p-2.5 rounded-lg border space-y-1 text-slate-600 font-medium">
-                    <div>Batch: <span className="text-slate-800 font-semibold">{activeBatch?.batch || "N/A"}</span></div>
+                    <div>Batch: <span className="text-slate-800 font-semibold uppercase">{String(activeBatch?.batch || "N/A").toUpperCase()}</span></div>
                     <div>Expiry: <span className="text-slate-800 font-semibold">{activeBatch?.expiry ? new Date(activeBatch.expiry).toLocaleDateString() : "N/A"}</span></div>
                     <div>Available Stock: <span className="text-primary font-bold">{maxQty}</span></div>
                   </div>

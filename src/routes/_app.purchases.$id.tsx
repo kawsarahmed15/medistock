@@ -213,7 +213,7 @@ function PurchaseDetailsPage() {
                   <TableRow key={idx} className="hover:bg-muted/10">
                     <TableCell className="text-center">{idx + 1}</TableCell>
                     <TableCell className="font-semibold">{it.name}</TableCell>
-                    <TableCell className="font-mono uppercase text-muted-foreground">{it.batch || "—"}</TableCell>
+                    <TableCell className="font-mono uppercase text-muted-foreground">{String(it.batch || "—").toUpperCase()}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{it.expiry ? it.expiry.substring(0, 7) : "—"}</TableCell>
                     <TableCell className="text-right font-medium">{it.qty}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{it.freeQty || 0}</TableCell>

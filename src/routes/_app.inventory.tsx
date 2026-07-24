@@ -969,7 +969,7 @@ function InventoryPage() {
                       </div>
                     </TableCell>
                     <TableCell>{p.category}</TableCell>
-                    <TableCell className="font-semibold text-xs">{p.batch}</TableCell>
+                    <TableCell className="font-semibold text-xs uppercase">{String(p.batch || "").toUpperCase()}</TableCell>
                     <TableCell>
                       <span
                         className={cn(

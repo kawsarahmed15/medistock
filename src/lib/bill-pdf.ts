@@ -385,7 +385,7 @@ export async function downloadBillPdf(
         String(idx + 1),
         nameStr,
         clean(it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"),
-        clean(it.batch || "-"),
+        clean(String(it.batch || "-").toUpperCase()),
         it.expiry
           ? (() => {
               const d = new Date(it.expiry);

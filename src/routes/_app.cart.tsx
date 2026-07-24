@@ -505,7 +505,7 @@ function CartPage() {
                                   >
                                     {activeBatches.map(b => (
                                       <option key={b.id} value={b.id}>
-                                        {b.batch || "No Batch"} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
+                                        {String(b.batch || "No Batch").toUpperCase()} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
                                       </option>
                                     ))}
                                   </select>
@@ -514,7 +514,7 @@ function CartPage() {
                             }
                             return (
                               <div className="text-[11px] text-muted-foreground mt-1 font-medium">
-                                Batch: <span className="font-semibold text-slate-800 dark:text-slate-200">{i.product.batch || "—"}</span>
+                                Batch: <span className="font-semibold text-slate-800 dark:text-slate-200 uppercase">{String(i.product.batch || "—").toUpperCase()}</span>
                                 {i.product.expiry && (
                                   <>
                                     {" · Exp: "}
@@ -1483,7 +1483,7 @@ function AddProductDialog({
         }
         return form.expiry;
       })(),
-      batch: form.batch.trim() || undefined,
+      batch: form.batch.trim().toUpperCase() || undefined,
       manufacturer: form.manufacturer.trim() || undefined,
       sku: form.sku.trim() || undefined,
       taxPercent: Number(form.taxPercent) || 0,
@@ -1773,7 +1773,7 @@ function AddProductDialog({
             <FieldInline label="Batch">
               <Input
                 value={form.batch}
-                onChange={(e) => setForm({ ...form, batch: e.target.value })}
+                onChange={(e) => setForm({ ...form, batch: e.target.value.toUpperCase() })}
               />
             </FieldInline>
 

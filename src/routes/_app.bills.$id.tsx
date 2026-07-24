@@ -363,7 +363,7 @@ function BillDetailPage() {
                       {it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"}
                     </td>
                     <td className="py-3 px-2 text-left align-top font-mono text-[10px] uppercase text-muted-foreground whitespace-nowrap">
-                      {it.batch || "-"}
+                      {String(it.batch || "-").toUpperCase()}
                     </td>
                     <td className="py-3 px-2 text-center align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">
                       {expFormatted}
