@@ -255,9 +255,10 @@ function AddPurchasePage() {
     if (!editFrom && !duplicateFrom) {
       try {
         const navigationEntries = performance.getEntriesByType("navigation");
-        const isReload = navigationEntries[0] 
-          ? (navigationEntries[0] as PerformanceNavigationTiming).type === "reload"
-          : performance.navigation?.type === 1;
+        const navTiming = navigationEntries[0] as PerformanceNavigationTiming | undefined;
+        const isReload = navTiming 
+          ? navTiming.type === "reload" && navTiming.name.includes("/purchases/new")
+          : performance.navigation?.type === 1 && window.location.pathname === "/purchases/new";
 
         if (isReload) {
           localStorage.removeItem("medistock_draft_purchase");
