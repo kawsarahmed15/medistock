@@ -1200,11 +1200,12 @@ function AddPurchasePage() {
           </div>
 
           <div className="overflow-x-auto w-full border border-border rounded-lg shadow-sm min-h-[500px] max-h-[700px] no-scrollbar">
-            <table className="w-full text-sm text-left border-collapse min-w-[1420px]">
+            <table className="w-full text-sm text-left border-collapse min-w-[1530px]">
               <thead className="bg-muted/70 sticky top-0 z-10">
                 <tr className="border-b text-muted-foreground font-semibold text-[13px]">
                   <th className="py-3 px-3 w-[260px]">Medicine Name</th>
                   <th className="py-3 px-3 w-[120px]">Batch No.</th>
+                  <th className="py-3 px-3 w-[110px]">HSN Code</th>
                   <th className="py-3 px-3 w-[145px]">Expiry Date</th>
                   <th className="py-3 px-3 w-[90px]">Pack Size</th>
                   <th className="py-3 px-3 w-[95px] text-right">Purchase Qty</th>
@@ -1299,10 +1300,22 @@ function AddPurchasePage() {
                         />
                       </td>
 
-                      {/* Expiry */}
+                      {/* HSN Code */}
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][2] = el)}
+                          placeholder="HSN Code"
+                          value={line.hsn || ""}
+                          onChange={(e) => updateLine(idx, "hsn", e.target.value.toUpperCase())}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 2)}
+                          className="h-9 text-sm font-mono uppercase px-3"
+                        />
+                      </td>
+
+                      {/* Expiry */}
+                      <td className="p-2">
+                        <Input
+                          ref={(el) => (gridRefs.current[idx][3] = el)}
                           type="text"
                           placeholder="MM/YY"
                           maxLength={5}
@@ -1328,7 +1341,7 @@ function AddPurchasePage() {
                             }
                             updateLine(idx, "expiry", val);
                           }}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 2)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 3)}
                           className="h-9 text-sm px-2 text-center"
                         />
                       </td>
@@ -1336,11 +1349,11 @@ function AddPurchasePage() {
                       {/* Pack */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][3] = el)}
+                          ref={(el) => (gridRefs.current[idx][4] = el)}
                           placeholder="10x15"
                           value={line.pack}
                           onChange={(e) => updateLine(idx, "pack", e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 3)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 4)}
                           className="h-9 text-sm text-center px-2"
                         />
                       </td>
@@ -1348,12 +1361,12 @@ function AddPurchasePage() {
                       {/* Purchase Qty */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][4] = el)}
+                          ref={(el) => (gridRefs.current[idx][5] = el)}
                           type="number"
                           min="1"
                           value={line.qty || ""}
                           onChange={(e) => updateLine(idx, "qty", parseInt(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 4)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 5)}
                           className="h-9 text-sm text-right px-3"
                         />
                       </td>
@@ -1361,12 +1374,12 @@ function AddPurchasePage() {
                       {/* Free Qty */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][5] = el)}
+                          ref={(el) => (gridRefs.current[idx][6] = el)}
                           type="number"
                           min="0"
                           value={line.freeQty || ""}
                           onChange={(e) => updateLine(idx, "freeQty", parseInt(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 5)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 6)}
                           className="h-9 text-sm text-right px-3"
                         />
                       </td>
@@ -1374,12 +1387,12 @@ function AddPurchasePage() {
                       {/* Buy Rate */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][6] = el)}
+                          ref={(el) => (gridRefs.current[idx][7] = el)}
                           type="number"
                           step="0.01"
                           value={line.costPrice || ""}
                           onChange={(e) => updateLine(idx, "costPrice", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 6)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 7)}
                           className="h-9 text-sm text-right font-mono px-3"
                         />
                       </td>
@@ -1387,12 +1400,12 @@ function AddPurchasePage() {
                       {/* MRP */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][7] = el)}
+                          ref={(el) => (gridRefs.current[idx][8] = el)}
                           type="number"
                           step="0.01"
                           value={line.mrp || ""}
                           onChange={(e) => updateLine(idx, "mrp", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 7)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 8)}
                           className="h-9 text-sm text-right font-mono px-3"
                         />
                       </td>
@@ -1400,12 +1413,12 @@ function AddPurchasePage() {
                       {/* Sale Price */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][8] = el)}
+                          ref={(el) => (gridRefs.current[idx][9] = el)}
                           type="number"
                           step="0.01"
                           value={line.saleRate || ""}
                           onChange={(e) => updateLine(idx, "saleRate", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 8)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 9)}
                           className="h-9 text-sm text-right font-mono px-3"
                         />
                       </td>
@@ -1413,12 +1426,12 @@ function AddPurchasePage() {
                       {/* GST */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][9] = el)}
+                          ref={(el) => (gridRefs.current[idx][10] = el)}
                           type="number"
                           step="0.1"
                           value={line.taxPercent || ""}
                           onChange={(e) => updateLine(idx, "taxPercent", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 9)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 10)}
                           className="h-9 text-sm text-right px-3"
                         />
                       </td>
