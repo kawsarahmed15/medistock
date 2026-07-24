@@ -122,6 +122,19 @@ function ProductDetails() {
     loadData();
   }, [id]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (batchDialogOpen) return;
+        e.preventDefault();
+        navigate({ to: "/inventory" });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigate, batchDialogOpen]);
+
   const startEdit = () => {
     setEditForm({
       name: product.name,
@@ -353,7 +366,7 @@ function ProductDetails() {
       <div className="flex flex-wrap items-center justify-between gap-4 bg-background p-4 rounded-lg border shadow-soft">
         <div className="flex items-center gap-4">
           <Link to="/inventory">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="Back to Inventory (Esc)">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
