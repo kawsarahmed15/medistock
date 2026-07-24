@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS product_batches (
   id CHAR(36) PRIMARY KEY,
   product_id CHAR(36) NOT NULL,
   batch_no VARCHAR(120) NOT NULL,
+  sku VARCHAR(100) NULL,
   expiry_date DATE NOT NULL,
   manufacture_date DATE NULL,
   purchase_price DECIMAL(12,2) NOT NULL DEFAULT 0,

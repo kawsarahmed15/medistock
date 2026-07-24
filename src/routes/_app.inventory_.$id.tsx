@@ -101,6 +101,7 @@ function ProductDetails() {
     mrp: "",
     sellingPrice: "",
     availableQty: "",
+    sku: "",
   });
 
   async function loadData() {
@@ -217,6 +218,7 @@ function ProductDetails() {
       mrp: "",
       sellingPrice: "",
       availableQty: "",
+      sku: "",
     });
     setBatchDialogOpen(true);
   };
@@ -236,6 +238,7 @@ function ProductDetails() {
       mrp: String(batch.mrp || 0),
       sellingPrice: String(batch.selling_price || 0),
       availableQty: String(batch.available_qty || 0),
+      sku: batch.sku || "",
     });
     setBatchDialogOpen(true);
   };
@@ -267,6 +270,7 @@ function ProductDetails() {
       mrp: Number(batchForm.mrp) || 0,
       sellingPrice: Number(batchForm.sellingPrice) || 0,
       availableQty: Number(batchForm.availableQty) || 0,
+      sku: batchForm.sku ? batchForm.sku.trim().toUpperCase() : null,
     };
 
     setSubmitting(true);
@@ -440,6 +444,7 @@ function ProductDetails() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">Batch No</TableHead>
+                      <TableHead className="text-xs">HSN Code</TableHead>
                       <TableHead className="text-xs">Expiry</TableHead>
                       <TableHead className="text-right text-xs">Stock</TableHead>
                       <TableHead className="text-right text-xs">Purchase Price</TableHead>
@@ -455,6 +460,7 @@ function ProductDetails() {
                       return (
                         <TableRow key={b.id}>
                           <TableCell className="font-semibold text-xs uppercase">{String(b.batch_no || "").toUpperCase()}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">{b.sku || "—"}</TableCell>
                            <TableCell className="text-xs">
                             <span className={isExpired ? "text-red-500 font-semibold" : ""}>
                               {(() => {
@@ -593,6 +599,15 @@ function ProductDetails() {
                 }}
                 placeholder="e.g. 10/28 or 2028-10-31"
                 required
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">HSN Code</Label>
+              <Input
+                value={batchForm.sku}
+                onChange={(e) => setBatchForm({ ...batchForm, sku: e.target.value.toUpperCase() })}
+                placeholder="e.g. 3004"
               />
             </div>
 

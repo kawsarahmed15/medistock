@@ -895,6 +895,7 @@ function InventoryPage() {
               <TableHead>Medicine Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Batch</TableHead>
+              <TableHead>HSN Code</TableHead>
               <TableHead>Expiry</TableHead>
               <TableHead className="text-right">Purchase Price</TableHead>
               <TableHead className="text-right">MRP</TableHead>
@@ -972,6 +973,7 @@ function InventoryPage() {
                     </TableCell>
                     <TableCell>{p.category}</TableCell>
                     <TableCell className="font-semibold text-xs uppercase">{String(p.batch || "").toUpperCase()}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
                     <TableCell>
                       <span
                         className={cn(

@@ -147,10 +147,10 @@ router.post("/", async (req, res, next) => {
           );
 
           if (existingBatch.length > 0) {
-            // Batch exists: Increase quantity only, do NOT overwrite details
+            // Batch exists: Increase quantity, update sku if null
             await conn.query(
-              `UPDATE product_batches SET available_qty = available_qty + ? WHERE id = ?`,
-              [addedStock, existingBatch[0].id]
+              `UPDATE product_batches SET available_qty = available_qty + ?, sku = COALESCE(sku, ?) WHERE id = ?`,
+              [addedStock, item.sku || item.hsn || null, existingBatch[0].id]
             );
           } else {
             // Batch does not exist: Create a new batch
@@ -160,8 +160,8 @@ router.post("/", async (req, res, next) => {
             const sellingPriceVal = item.saleRate != null ? Number(item.saleRate) : mrpVal;
 
             await conn.query(
-              `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 newBatchId,
                 item.productId,
@@ -170,7 +170,8 @@ router.post("/", async (req, res, next) => {
                 costPriceVal,
                 mrpVal,
                 sellingPriceVal,
-                addedStock
+                addedStock,
+                item.sku || item.hsn || null
               ]
             );
           }

@@ -166,7 +166,7 @@ router.get("/", async (req, res, next) => {
     const ids = products.map((p) => p.id);
     const placeholders = ids.map(() => "?").join(",");
     const [batches] = await pool.query(
-      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at
+      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at, sku
        FROM product_batches
        WHERE product_id IN (${placeholders})`,
       ids,
@@ -204,7 +204,7 @@ router.get("/:id", async (req, res, next) => {
     if (!product) throw buildApiError(404, "Product not found");
 
     const [batches] = await pool.query(
-      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at
+      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at, sku
        FROM product_batches
        WHERE product_id = ?`,
       [product.id],
@@ -271,8 +271,8 @@ router.post("/", async (req, res, next) => {
       // Always create a default batch record if stock is entered or if we explicitly have a batch/expiry
       if (stockToImport > 0 || body.batch || body.expiry) {
         await conn.query(
-          `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             generateId(),
             id,
@@ -281,7 +281,8 @@ router.post("/", async (req, res, next) => {
             purchasePriceVal,
             mrpVal,
             sellingPriceVal,
-            stockToImport
+            stockToImport,
+            body.sku ? String(body.sku).trim() : null
           ]
         );
 
@@ -360,7 +361,7 @@ router.post("/", async (req, res, next) => {
       const product = pRows[0];
 
       const [bRows] = await conn.query(
-        `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at
+        `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at, sku
          FROM product_batches
          WHERE product_id = ?`,
         [id],
@@ -703,7 +704,7 @@ router.post("/:id/decrement", async (req, res, next) => {
 router.post("/:productId/batches", async (req, res, next) => {
   try {
     const { productId } = req.params;
-    const { batchNo, expiryDate, manufactureDate, purchasePrice, mrp, sellingPrice, availableQty, stripQty, supplierId, invoiceId } = req.body;
+    const { batchNo, expiryDate, manufactureDate, purchasePrice, mrp, sellingPrice, availableQty, stripQty, supplierId, invoiceId, sku } = req.body;
 
     if (!batchNo || !batchNo.trim()) {
       throw buildApiError(400, "Batch number is required");
@@ -714,8 +715,8 @@ router.post("/:productId/batches", async (req, res, next) => {
 
     const batchId = generateId();
     await pool.query(
-      `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, sku)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         batchId,
         productId,
@@ -728,7 +729,8 @@ router.post("/:productId/batches", async (req, res, next) => {
         Number(availableQty || 0),
         stripQty != null ? Number(stripQty) : null,
         supplierId || null,
-        invoiceId || null
+        invoiceId || null,
+        sku || null
       ]
     );
 
@@ -769,6 +771,7 @@ router.patch("/batches/:batchId", async (req, res, next) => {
       stripQty: "strip_qty",
       supplierId: "supplier_id",
       invoiceId: "invoice_id",
+      sku: "sku",
     };
 
     for (const [inputKey, dbKey] of Object.entries(map)) {
