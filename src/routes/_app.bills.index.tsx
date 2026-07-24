@@ -685,10 +685,16 @@ function BillsPage() {
                             type="number"
                             min={0}
                             max={Math.abs(it.qty)}
-                            value={returnQuantities[itemKey] ?? 0}
+                            placeholder=""
+                            value={returnQuantities[itemKey] || ""}
                             onChange={(e) => {
-                              const val = Math.min(Math.abs(it.qty), Math.max(0, parseInt(e.target.value) || 0));
-                              setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
+                              const raw = e.target.value;
+                              if (raw === "") {
+                                setReturnQuantities((prev) => ({ ...prev, [itemKey]: 0 }));
+                              } else {
+                                const val = Math.min(Math.abs(it.qty), Math.max(0, parseInt(raw) || 0));
+                                setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
+                              }
                             }}
                           />
                         </div>
