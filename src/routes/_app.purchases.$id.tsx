@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { ArrowLeft, Truck, Printer, Download, Pill, FileText, CheckCircle } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
+import { downloadPurchasePdf } from "@/lib/purchase-pdf";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -95,6 +96,9 @@ function PurchaseDetailsPage() {
           </Link>
         </Button>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => downloadPurchasePdf(purchase, meta)}>
+            <Download className="h-4 w-4 mr-2" /> Download PDF
+          </Button>
           <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="h-4 w-4 mr-2" /> Print PO
           </Button>
@@ -178,7 +182,7 @@ function PurchaseDetailsPage() {
                 LR Number: <span className="text-foreground font-mono">{meta.lrNumber}</span>
               </p>
             )}
-            {meta?.dueDate && (
+            {purchase.paymentMethod === "credit" && meta?.dueDate && (
               <p className="text-muted-foreground font-semibold text-rose-600">
                 Payment Due Date: <span>{meta.dueDate}</span>
               </p>
