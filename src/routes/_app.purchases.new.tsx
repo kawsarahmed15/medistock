@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle, ScanLine, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle, ScanLine, AlertTriangle, FileText } from "lucide-react";
 import { purchasesStore, productsStore, type Product, type Purchase } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
