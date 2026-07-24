@@ -122,7 +122,7 @@ router.post("/", async (req, res, next) => {
             req.auth.userId,
             item.productId || null,
             item.name,
-            item.sku || null,
+            item.sku || item.hsn || null,
             Number(item.qty || 0),
             item.costPrice == null ? null : Number(item.costPrice),
             Number(item.taxPercent || 0),

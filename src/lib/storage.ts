@@ -353,6 +353,7 @@ export type PurchaseItem = {
   productId: string;
   name: string;
   sku?: string;
+  hsn?: string;
   qty: number;
   freeQty: number;
   costPrice: number;
@@ -406,6 +407,7 @@ function rowToPurchase(p: any, items: any[]): Purchase {
       productId: it.product_id,
       name: it.name,
       sku: it.sku ?? undefined,
+      hsn: it.sku ?? undefined,
       qty: Number(it.qty) || 0,
       freeQty: Number(it.free_qty) || 0,
       costPrice: Number(it.cost_price) || 0,
