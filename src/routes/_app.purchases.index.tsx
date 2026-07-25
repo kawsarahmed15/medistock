@@ -995,25 +995,25 @@ function PurchasesPage() {
                               {p.paymentStatus.toUpperCase()}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-center py-2 print:hidden">
+                          <TableCell className="text-center py-2 print:hidden" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1.5">
                               {!isReturnBill && (
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs text-amber-700 hover:bg-amber-50 border-amber-200"
+                                  size="icon"
+                                  className="h-7 w-7 text-amber-700 hover:bg-amber-50 border-amber-200"
                                   onClick={() => handleOpenReturnDialog(p)}
                                   title="Process Return"
                                 >
-                                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
+                                  <RotateCcw className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                               <Button
                                 type="button"
                                 variant="outline"
-                                size="sm"
-                                className="h-7 text-xs"
+                                size="icon"
+                                className="h-7 w-7"
                                 onClick={() => downloadPurchasePdf(p, null, {
                                   pharmacyName: session?.pharmacyName,
                                   pharmacyPhone: session?.pharmacyPhone,
@@ -1024,7 +1024,7 @@ function PurchasesPage() {
                                 })}
                                 title="Download PDF"
                               >
-                                <Download className="h-3.5 w-3.5 mr-1" /> PDF
+                                <Download className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </TableCell>

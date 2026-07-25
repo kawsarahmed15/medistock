@@ -502,26 +502,28 @@ function BillsPage() {
                     )}
                     {b.paymentMethod}
                   </span>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
                     {!isReturnBill && (
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
-                        className="text-amber-700 hover:bg-amber-50"
+                        size="icon"
+                        className="h-7 w-7 text-amber-700 hover:bg-amber-50 border-amber-200"
                         onClick={() => handleOpenReturnDialog(b)}
                         title="Process Return"
                       >
-                        <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
+                        <RotateCcw className="h-3.5 w-3.5" />
                       </Button>
                     )}
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
+                      size="icon"
+                      className="h-7 w-7"
                       onClick={(e) => void handleDownload(b, e)}
+                      title="Download PDF"
                     >
-                      <Download className="h-4 w-4" /> PDF
+                      <Download className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -611,27 +613,28 @@ function BillsPage() {
                       {formatMoney(b.total)}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
                         {!isReturnBill && (
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
-                            className="text-amber-700 hover:text-amber-800 hover:bg-amber-50"
+                            className="h-7 w-7 text-amber-700 hover:bg-amber-50 border-amber-200"
                             onClick={() => handleOpenReturnDialog(b)}
-                            title="Process Sale Return"
+                            title="Process Return"
                           >
-                            <RotateCcw className="h-4 w-4" />
+                            <RotateCcw className="h-3.5 w-3.5" />
                           </Button>
                         )}
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
+                          className="h-7 w-7"
                           onClick={(e) => void handleDownload(b, e)}
-                          title="Download PDF (D)"
+                          title="Download PDF"
                         >
-                          <Download className="h-4 w-4" />
+                          <Download className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </TableCell>
