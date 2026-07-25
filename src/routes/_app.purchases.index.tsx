@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
+import { cn } from "@/lib/utils";
 import {
   Truck,
   Search,
@@ -374,6 +375,62 @@ function PurchasesPage() {
     const startIdx = (currentPage - 1) * itemsPerPage;
     return filteredAndSorted.slice(startIdx, startIdx + itemsPerPage);
   }, [filteredAndSorted, currentPage]);
+
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (focusedIdx >= paginatedData.length) setFocusedIdx(0);
+  }, [paginatedData.length, focusedIdx]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
+        return;
+      }
+      if (paginatedData.length === 0) return;
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.min(paginatedData.length - 1, i + 1);
+          rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return next;
+        });
+      } else if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.max(0, i - 1);
+          rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return next;
+        });
+      } else if (e.key === "Enter") {
+        const p = paginatedData[focusedIdx];
+        if (p) {
+          e.preventDefault();
+          handleViewDetails(p);
+        }
+      } else if (e.key === "d" || e.key === "D") {
+        const p = paginatedData[focusedIdx];
+        if (p) {
+          e.preventDefault();
+          void downloadPurchasePdf(p, null, {
+            pharmacyName: session?.pharmacyName,
+            pharmacyPhone: session?.pharmacyPhone,
+            pharmacyAddress: session?.pharmacyAddress,
+            gstNumber: session?.gstNumber,
+            drugLicNo: session?.drugLicNo,
+            billColor: session?.billColor
+          });
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paginatedData, focusedIdx, session]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -865,11 +922,28 @@ function PurchasesPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedData.map((p) => {
+                    paginatedData.map((p, idx) => {
                       const isReturnBill = p.number.startsWith("PR-");
                       const totalQty = p.items.reduce((s, it) => s + it.qty + (it.freeQty || 0), 0);
                       return (
-                        <TableRow key={p.id} className={`hover:bg-muted/30 ${isReturnBill ? "bg-amber-50/30" : ""}`}>
+                        <TableRow
+                          key={p.id}
+                          ref={(el) => {
+                            rowRefs.current[idx] = el as any;
+                          }}
+                          tabIndex={0}
+                          onFocus={() => setFocusedIdx(idx)}
+                          data-focused={idx === focusedIdx}
+                          className={cn(
+                            "animate-fade-in cursor-pointer transition-colors border-l-4 focus:outline-none",
+                            idx === focusedIdx
+                              ? "bg-primary/15 dark:bg-primary/25 border-l-primary shadow-sm ring-1 ring-primary/30 font-medium"
+                              : isReturnBill
+                                ? "bg-amber-50/40 hover:bg-amber-100/50 border-l-amber-500"
+                                : "hover:bg-muted/40 border-l-transparent"
+                          )}
+                          onClick={() => handleViewDetails(p)}
+                        >
                           <TableCell className="font-mono text-sm font-extrabold text-primary tracking-wide">
                             <div className="flex items-center gap-2">
                               <button

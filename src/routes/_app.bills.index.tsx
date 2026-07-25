@@ -27,6 +27,7 @@ import {
 import { downloadBillPdf } from "@/lib/bill-pdf";
 import { toast } from "sonner";
 import { TableSkeleton } from "@/components/loading-skeleton";
+import { cn } from "@/lib/utils";
 
 type FilterRange = "all" | "day" | "month" | "year" | "custom";
 type PayFilter = "all" | "cash" | "online" | "credit";
@@ -292,6 +293,7 @@ function BillsPage() {
         setFocusedIdx((i) => {
           const next = Math.min(filtered.length - 1, i + 1);
           rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
       } else if (e.key === "ArrowUp" || e.key === "k") {
@@ -299,6 +301,7 @@ function BillsPage() {
         setFocusedIdx((i) => {
           const next = Math.max(0, i - 1);
           rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
       } else if (e.key === "Enter") {
@@ -446,10 +449,18 @@ function BillsPage() {
             return (
               <Card
                 key={b.id}
-                className={`shadow-soft p-4 active:scale-[0.99] transition-smooth cursor-pointer hover:border-primary/30 ${
-                  isReturnBill ? "bg-amber-50/40 border-amber-200" : ""
-                }`}
-                onClick={() => routerNavigate({ to: "/bills/$id", params: { id: b.id } })}
+                className={cn(
+                  "shadow-soft p-4 active:scale-[0.99] transition-smooth cursor-pointer border-l-4",
+                  idx === focusedIdx
+                    ? "bg-primary/15 dark:bg-primary/25 border-l-primary ring-2 ring-primary/40 shadow-md font-medium"
+                    : isReturnBill
+                      ? "bg-amber-50/40 border-amber-200 border-l-amber-500 hover:border-primary/30"
+                      : "hover:border-primary/30 border-l-transparent"
+                )}
+                onClick={() => {
+                  setFocusedIdx(idx);
+                  routerNavigate({ to: "/bills/$id", params: { id: b.id } });
+                }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -554,9 +565,14 @@ function BillsPage() {
                     tabIndex={0}
                     onFocus={() => setFocusedIdx(idx)}
                     data-focused={idx === focusedIdx}
-                    className={`animate-fade-in data-[focused=true]:bg-accent/40 cursor-pointer hover:bg-muted/30 focus:outline-none focus:bg-accent/40 ${
-                      isReturnBill ? "bg-amber-50/30" : ""
-                    }`}
+                    className={cn(
+                      "animate-fade-in cursor-pointer transition-colors border-l-4 focus:outline-none",
+                      idx === focusedIdx
+                        ? "bg-primary/15 dark:bg-primary/25 border-l-primary shadow-sm ring-1 ring-primary/30 font-medium"
+                        : isReturnBill
+                          ? "bg-amber-50/40 hover:bg-amber-100/50 border-l-amber-500"
+                          : "hover:bg-muted/40 border-l-transparent"
+                    )}
                     onClick={() => routerNavigate({ to: "/bills/$id", params: { id: b.id } })}
                   >
                     <TableCell className="font-extrabold text-base text-primary font-mono tracking-wide">
