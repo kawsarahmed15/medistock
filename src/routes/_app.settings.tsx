@@ -350,7 +350,7 @@ function SettingsPage() {
               </div>
 
               <div className="space-y-2 max-w-sm mt-4">
-                <Label htmlFor="default-tax">Default Tax %</Label>
+                <Label htmlFor="default-tax">Default Selling Tax %</Label>
                 <Input
                   id="default-tax"
                   type="number"
@@ -360,7 +360,7 @@ function SettingsPage() {
                   placeholder="e.g. 12"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Default tax percentage applied when adding new products.
+                  Default tax percentage applied when selling products and generating sales invoices.
                 </p>
               </div>
             </CardContent>
