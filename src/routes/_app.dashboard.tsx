@@ -79,8 +79,15 @@ function DashboardPage() {
 
   const totalSales = billsThisMonth.reduce((s, b) => s + b.total, 0);
 
-  // Stock value = buying price × quantity (fallback to selling price if no cost set)
-  const stockValue = products.reduce((s, p) => s + (p.costPrice ?? p.price) * p.stock, 0);
+  // Stock value = sum of (batch purchase price × batch quantity) across all batches
+  const stockValue = useMemo(() => {
+    return products.reduce((total, p) => {
+      if (p.batches && p.batches.length > 0) {
+        return total + p.batches.reduce((bSum, b) => bSum + (b.costPrice ?? b.price ?? 0) * (b.stock || 0), 0);
+      }
+      return total + (p.costPrice ?? p.price ?? 0) * (p.stock || 0);
+    }, 0);
+  }, [products]);
 
   const lowStock = products.filter((p) => p.stock <= lowStockQty);
 
