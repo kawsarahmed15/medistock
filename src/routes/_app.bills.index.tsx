@@ -444,7 +444,7 @@ function BillsPage() {
             No bills in this range.
           </Card>
         ) : (
-          filtered.map((b) => {
+          filtered.map((b, idx) => {
             const isReturnBill = b.number.startsWith("SR-");
             return (
               <Card
