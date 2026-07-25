@@ -79,13 +79,13 @@ function DashboardPage() {
 
   const totalSales = billsThisMonth.reduce((s, b) => s + b.total, 0);
 
-  // Stock value = sum of (batch purchase price × batch quantity) across all batches
+  // Stock value = sum of rounded (batch purchase price × batch quantity) across all batches
   const stockValue = useMemo(() => {
     return products.reduce((total, p) => {
       if (p.batches && p.batches.length > 0) {
-        return total + p.batches.reduce((bSum, b) => bSum + (b.costPrice ?? b.price ?? 0) * (b.stock || 0), 0);
+        return total + p.batches.reduce((bSum, b) => bSum + Math.round((b.costPrice ?? b.price ?? 0) * (b.stock || 0) * 100) / 100, 0);
       }
-      return total + (p.costPrice ?? p.price ?? 0) * (p.stock || 0);
+      return total + Math.round((p.costPrice ?? p.price ?? 0) * (p.stock || 0) * 100) / 100;
     }, 0);
   }, [products]);
 
