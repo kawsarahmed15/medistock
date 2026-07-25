@@ -731,8 +731,8 @@ function AddPurchasePage() {
     });
 
     const netAmount = subtotal + totalTax - discount;
-    const grandTotal = Math.round(netAmount);
-    const roundOff = grandTotal - netAmount;
+    const grandTotal = Number(netAmount.toFixed(2));
+    const roundOff = 0;
 
     return {
       lines: mappedLines,
