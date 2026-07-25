@@ -1028,7 +1028,7 @@ function InventoryPage() {
                       {p.costPrice ? (
                         p.taxPercent && p.taxPercent > 0 ? (
                           <span>
-                            ₹{Math.round((p.costPrice / (1 + p.taxPercent / 100)) * 100) / 100} + {p.taxPercent}% GST
+                            ₹{p.costPrice.toFixed(2)} + {p.taxPercent}% GST
                           </span>
                         ) : (
                           `₹${p.costPrice.toFixed(2)}`
