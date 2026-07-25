@@ -687,125 +687,145 @@ function BillsPage() {
       {/* Process Sale Return Dialog */}
       <Dialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-amber-600" /> Process Sale Return
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="bill-select">Select Original Sales Invoice</Label>
-              <select
-                id="bill-select"
-                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={selectedBillForReturn?.id || ""}
-                onChange={(e) => {
-                  const b = bills.find((x) => x.id === e.target.value) || null;
-                  setSelectedBillForReturn(b);
-                  const qtys: Record<string, number> = {};
-                  b?.items.forEach((it, idx) => {
-                    const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
-                    qtys[itemKey] = 0;
-                  });
-                  setReturnQuantities(qtys);
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleConfirmReturn();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5 text-amber-600" /> Process Sale Return
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="bill-select">Select Original Sales Invoice</Label>
+                <select
+                  id="bill-select"
+                  className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  value={selectedBillForReturn?.id || ""}
+                  onChange={(e) => {
+                    const b = bills.find((x) => x.id === e.target.value) || null;
+                    setSelectedBillForReturn(b);
+                    const qtys: Record<string, number> = {};
+                    b?.items.forEach((it, idx) => {
+                      const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+                      qtys[itemKey] = 0;
+                    });
+                    setReturnQuantities(qtys);
+                  }}
+                >
+                  <option value="">-- Select Sales Invoice --</option>
+                  {bills.filter(b => !b.number.startsWith("SR-")).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.number} - {b.customerName || "Walk-in"} ({new Date(b.createdAt).toLocaleDateString("en-IN")}) - {formatMoney(b.total)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedBillForReturn && (
+                <div className="space-y-4 mt-4">
+                  <h4 className="text-sm font-semibold text-muted-foreground">Select Items and Quantities to Return</h4>
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                    {selectedBillForReturn.items.map((it, idx) => {
+                      const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+                      const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
+                      const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+                      const isFullyReturned = maxReturnable === 0;
+
+                      return (
+                        <div key={itemKey} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
+                          <div className="flex-1">
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              <span>{it.name}</span>
+                              {isFullyReturned && (
+                                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
+                                  Fully Returned
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              Price: {formatMoney(it.price)} | Sold Qty: <span className="font-medium text-foreground">{it.qty}</span>
+                              {alreadyReturned > 0 && (
+                                <span className="text-amber-700 font-medium"> | Returned: {alreadyReturned}</span>
+                              )}
+                              <span className="font-bold text-foreground"> | Available to Return: {maxReturnable}</span>
+                            </div>
+                          </div>
+                          <div className="w-28">
+                            <Label className="text-xs text-muted-foreground">Return Qty</Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              max={maxReturnable}
+                              disabled={isFullyReturned}
+                              placeholder={isFullyReturned ? "0" : ""}
+                              value={returnQuantities[itemKey] || ""}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void handleConfirmReturn();
+                                }
+                              }}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                if (raw === "") {
+                                  setReturnQuantities((prev) => ({ ...prev, [itemKey]: 0 }));
+                                } else {
+                                  const val = Math.min(maxReturnable, Math.max(0, parseInt(raw) || 0));
+                                  setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="return-notes">Reason / Notes for Return</Label>
+                    <Input
+                      id="return-notes"
+                      placeholder="e.g. Damaged medicine, customer changed mind, wrong order"
+                      value={returnNotes}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleConfirmReturn();
+                        }
+                      }}
+                      onChange={(e) => setReturnNotes(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="mt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setIsReturnDialogOpen(false);
+                  setSelectedBillForReturn(null);
+                  setReturnNotes("");
                 }}
               >
-                <option value="">-- Select Sales Invoice --</option>
-                {bills.filter(b => !b.number.startsWith("SR-")).map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.number} - {b.customerName || "Walk-in"} ({new Date(b.createdAt).toLocaleDateString("en-IN")}) - {formatMoney(b.total)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedBillForReturn && (
-              <div className="space-y-4 mt-4">
-                <h4 className="text-sm font-semibold text-muted-foreground">Select Items and Quantities to Return</h4>
-                <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-                  {selectedBillForReturn.items.map((it, idx) => {
-                    const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
-                    const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
-                    const maxReturnable = Math.max(0, it.qty - alreadyReturned);
-                    const isFullyReturned = maxReturnable === 0;
-
-                    return (
-                      <div key={itemKey} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
-                        <div className="flex-1">
-                          <div className="font-semibold text-foreground flex items-center gap-2">
-                            <span>{it.name}</span>
-                            {isFullyReturned && (
-                              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
-                                Fully Returned
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Price: {formatMoney(it.price)} | Sold Qty: <span className="font-medium text-foreground">{it.qty}</span>
-                            {alreadyReturned > 0 && (
-                              <span className="text-amber-700 font-medium"> | Returned: {alreadyReturned}</span>
-                            )}
-                            <span className="font-bold text-foreground"> | Available to Return: {maxReturnable}</span>
-                          </div>
-                        </div>
-                        <div className="w-28">
-                          <Label className="text-xs text-muted-foreground">Return Qty</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={maxReturnable}
-                            disabled={isFullyReturned}
-                            placeholder={isFullyReturned ? "0" : ""}
-                            value={returnQuantities[itemKey] || ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              if (raw === "") {
-                                setReturnQuantities((prev) => ({ ...prev, [itemKey]: 0 }));
-                              } else {
-                                const val = Math.min(maxReturnable, Math.max(0, parseInt(raw) || 0));
-                                setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="return-notes">Reason / Notes for Return</Label>
-                  <Input
-                    id="return-notes"
-                    placeholder="e.g. Damaged medicine, customer changed mind, wrong order"
-                    value={returnNotes}
-                    onChange={(e) => setReturnNotes(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="mt-4">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setIsReturnDialogOpen(false);
-                setSelectedBillForReturn(null);
-                setReturnNotes("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmReturn}
-              disabled={submittingReturn || !selectedBillForReturn}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
-            >
-              {submittingReturn ? "Processing..." : "Confirm Return"}
-            </Button>
-          </DialogFooter>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submittingReturn || !selectedBillForReturn}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {submittingReturn ? "Processing..." : "Confirm Return"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
