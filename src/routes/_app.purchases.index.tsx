@@ -128,6 +128,23 @@ function PurchasesPage() {
       setDraftSupplierName("");
     }
   }, []);
+
+  const handleOpenReturnDialog = (purchaseToReturn?: Purchase) => {
+    if (purchaseToReturn) {
+      setSelectedPurchaseForReturn(purchaseToReturn);
+      const qtys: Record<string, number> = {};
+      purchaseToReturn.items.forEach((it, idx) => {
+        const itemKey = it.id || `${it.productId || it.name}_${idx}`;
+        qtys[itemKey] = 0;
+      });
+      setReturnQuantities(qtys);
+    } else {
+      setSelectedPurchaseForReturn(null);
+      setReturnQuantities({});
+    }
+    setReturnNotes("");
+    setIsReturnDialogOpen(true);
+  };
   const [showSuppliersModal, setShowSuppliersModal] = useState(false);
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [kpiModalTitle, setKpiModalTitle] = useState("");
@@ -572,8 +589,13 @@ function PurchasesPage() {
               <Plus className="h-4 w-4 mr-1.5" /> New Purchase
             </Link>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setIsReturnDialogOpen(true)}>
-            <RotateCcw className="h-4 w-4 mr-1.5" /> Purchase Return
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenReturnDialog()}
+            className="border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 shadow-soft font-medium"
+          >
+            <RotateCcw className="h-4 w-4 mr-1.5" /> Process Purchase Return
           </Button>
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-1.5" /> Print Register
@@ -844,16 +866,24 @@ function PurchasesPage() {
                     </TableRow>
                   ) : (
                     paginatedData.map((p) => {
+                      const isReturnBill = p.number.startsWith("PR-");
                       const totalQty = p.items.reduce((s, it) => s + it.qty + (it.freeQty || 0), 0);
                       return (
-                        <TableRow key={p.id} className="hover:bg-muted/30">
+                        <TableRow key={p.id} className={`hover:bg-muted/30 ${isReturnBill ? "bg-amber-50/30" : ""}`}>
                           <TableCell className="font-mono text-sm font-extrabold text-primary tracking-wide">
-                            <button
-                              onClick={() => handleViewDetails(p)}
-                              className="hover:underline cursor-pointer text-left bg-transparent border-0 p-0 text-primary font-mono font-extrabold text-sm tracking-wide"
-                            >
-                              {p.number}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleViewDetails(p)}
+                                className="hover:underline cursor-pointer text-left bg-transparent border-0 p-0 text-primary font-mono font-extrabold text-sm tracking-wide"
+                              >
+                                {p.number}
+                              </button>
+                              {isReturnBill && (
+                                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
+                                  Purchase Return
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="font-mono text-sm text-foreground font-extrabold tracking-wide">
                             {p.supplierInvoice || "—"}
@@ -893,6 +923,35 @@ function PurchasesPage() {
                           </TableCell>
                           <TableCell className="text-center py-2 print:hidden">
                             <div className="flex items-center justify-center gap-1.5">
+                              {!isReturnBill && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs text-amber-700 hover:bg-amber-50 border-amber-200"
+                                  onClick={() => handleOpenReturnDialog(p)}
+                                  title="Process Return"
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => downloadPurchasePdf(p, null, {
+                                  pharmacyName: session?.pharmacyName,
+                                  pharmacyPhone: session?.pharmacyPhone,
+                                  pharmacyAddress: session?.pharmacyAddress,
+                                  gstNumber: session?.gstNumber,
+                                  drugLicNo: session?.drugLicNo,
+                                  billColor: session?.billColor
+                                })}
+                                title="Download PDF"
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1" /> PDF
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
