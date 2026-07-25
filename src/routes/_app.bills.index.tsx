@@ -91,6 +91,32 @@ function BillsPage() {
     loadBills();
   }, []);
 
+  const getAlreadyReturnedQtyForBillItem = (bill: Bill, item: Bill["items"][number]) => {
+    if (!bill || !item) return 0;
+    const billNum = bill.number;
+    const returnBills = bills.filter(
+      (b) => b.number.startsWith("SR-") && (b.customerNotes || "").includes(billNum)
+    );
+
+    let returned = 0;
+    for (const rb of returnBills) {
+      for (const rItem of rb.items) {
+        const matchProduct = (item.productId && rItem.productId)
+          ? item.productId === rItem.productId
+          : item.name.trim().toLowerCase() === rItem.name.trim().toLowerCase();
+
+        const itemBatch = String(item.batch || "").trim().toUpperCase();
+        const rItemBatch = String(rItem.batch || "").trim().toUpperCase();
+        const matchBatch = !itemBatch || !rItemBatch || itemBatch === rItemBatch;
+
+        if (matchProduct && matchBatch) {
+          returned += Math.abs(rItem.qty || 0);
+        }
+      }
+    }
+    return returned;
+  };
+
   const handleOpenReturnDialog = (billToReturn?: Bill) => {
     if (billToReturn) {
       setSelectedBillForReturn(billToReturn);
@@ -112,10 +138,18 @@ function BillsPage() {
     if (!selectedBillForReturn) return;
 
     const returnedItems = selectedBillForReturn.items
-      .filter((it, idx) => (returnQuantities[it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`] || 0) > 0)
+      .filter((it, idx) => {
+        const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+        const qty = returnQuantities[itemKey] || 0;
+        const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
+        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+        return qty > 0 && qty <= maxReturnable;
+      })
       .map((it, idx) => {
         const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
-        const qty = returnQuantities[itemKey];
+        const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
+        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+        const qty = Math.min(maxReturnable, returnQuantities[itemKey] || 0);
         return {
           productId: it.productId,
           name: it.name,
@@ -687,31 +721,47 @@ function BillsPage() {
                 <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                   {selectedBillForReturn.items.map((it, idx) => {
                     const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+                    const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
+                    const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+                    const isFullyReturned = maxReturnable === 0;
+
                     return (
                       <div key={itemKey} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
                         <div className="flex-1">
-                          <div className="font-semibold text-foreground">{it.name}</div>
+                          <div className="font-semibold text-foreground flex items-center gap-2">
+                            <span>{it.name}</span>
+                            {isFullyReturned && (
+                              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
+                                Fully Returned
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
                             Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Price: {formatMoney(it.price)} | Sold Qty: {it.qty}
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Price: {formatMoney(it.price)} | Sold Qty: <span className="font-medium text-foreground">{it.qty}</span>
+                            {alreadyReturned > 0 && (
+                              <span className="text-amber-700 font-medium"> | Returned: {alreadyReturned}</span>
+                            )}
+                            <span className="font-bold text-foreground"> | Available to Return: {maxReturnable}</span>
                           </div>
                         </div>
-                        <div className="w-24">
+                        <div className="w-28">
                           <Label className="text-xs text-muted-foreground">Return Qty</Label>
                           <Input
                             type="number"
                             min={0}
-                            max={Math.abs(it.qty)}
-                            placeholder=""
+                            max={maxReturnable}
+                            disabled={isFullyReturned}
+                            placeholder={isFullyReturned ? "0" : ""}
                             value={returnQuantities[itemKey] || ""}
                             onChange={(e) => {
                               const raw = e.target.value;
                               if (raw === "") {
                                 setReturnQuantities((prev) => ({ ...prev, [itemKey]: 0 }));
                               } else {
-                                const val = Math.min(Math.abs(it.qty), Math.max(0, parseInt(raw) || 0));
+                                const val = Math.min(maxReturnable, Math.max(0, parseInt(raw) || 0));
                                 setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
                               }
                             }}

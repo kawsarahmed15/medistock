@@ -130,6 +130,32 @@ function PurchasesPage() {
     }
   }, []);
 
+  const getAlreadyReturnedQtyForPurchaseItem = (purchase: Purchase, item: Purchase["items"][number]) => {
+    if (!purchase || !item) return 0;
+    const poNum = purchase.number;
+    const returnPurchases = purchases.filter(
+      (p) => p.number.startsWith("PR-") && (p.notes || "").includes(poNum)
+    );
+
+    let returned = 0;
+    for (const rp of returnPurchases) {
+      for (const rItem of rp.items) {
+        const matchProduct = (item.productId && rItem.productId)
+          ? item.productId === rItem.productId
+          : item.name.trim().toLowerCase() === rItem.name.trim().toLowerCase();
+
+        const itemBatch = String(item.batch || "").trim().toUpperCase();
+        const rItemBatch = String(rItem.batch || "").trim().toUpperCase();
+        const matchBatch = !itemBatch || !rItemBatch || itemBatch === rItemBatch;
+
+        if (matchProduct && matchBatch) {
+          returned += Math.abs(rItem.qty || 0);
+        }
+      }
+    }
+    return returned;
+  };
+
   const handleOpenReturnDialog = (purchaseToReturn?: Purchase) => {
     if (purchaseToReturn) {
       setSelectedPurchaseForReturn(purchaseToReturn);
@@ -160,10 +186,18 @@ function PurchasesPage() {
     if (!selectedPurchaseForReturn) return;
     
     const returnedItems = selectedPurchaseForReturn.items
-      .filter((it, idx) => (returnQuantities[it.id || `${it.productId || it.name}_${idx}`] || 0) > 0)
+      .filter((it, idx) => {
+        const itemKey = it.id || `${it.productId || it.name}_${idx}`;
+        const qty = returnQuantities[itemKey] || 0;
+        const alreadyReturned = getAlreadyReturnedQtyForPurchaseItem(selectedPurchaseForReturn, it);
+        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+        return qty > 0 && qty <= maxReturnable;
+      })
       .map((it, idx) => {
         const itemKey = it.id || `${it.productId || it.name}_${idx}`;
-        const qty = returnQuantities[itemKey];
+        const alreadyReturned = getAlreadyReturnedQtyForPurchaseItem(selectedPurchaseForReturn, it);
+        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+        const qty = Math.min(maxReturnable, returnQuantities[itemKey] || 0);
         return {
           productId: it.productId,
           name: it.name,
@@ -1211,31 +1245,47 @@ function PurchasesPage() {
                 <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                   {selectedPurchaseForReturn.items.map((it, idx) => {
                     const itemKey = it.id || `${it.productId || it.name}_${idx}`;
+                    const alreadyReturned = getAlreadyReturnedQtyForPurchaseItem(selectedPurchaseForReturn, it);
+                    const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+                    const isFullyReturned = maxReturnable === 0;
+
                     return (
                       <div key={itemKey} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
                         <div className="flex-1">
-                          <div className="font-semibold text-foreground">{it.name}</div>
+                          <div className="font-semibold text-foreground flex items-center gap-2">
+                            <span>{it.name}</span>
+                            {isFullyReturned && (
+                              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
+                                Fully Returned
+                              </Badge>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
                             Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            Cost: {formatMoney(it.costPrice)} | Purchased: {it.qty}
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Cost: {formatMoney(it.costPrice)} | Purchased: <span className="font-medium text-foreground">{it.qty}</span>
+                            {alreadyReturned > 0 && (
+                              <span className="text-amber-700 font-medium"> | Returned: {alreadyReturned}</span>
+                            )}
+                            <span className="font-bold text-foreground"> | Available to Return: {maxReturnable}</span>
                           </div>
                         </div>
-                        <div className="w-24">
+                        <div className="w-28">
                           <Label className="text-xs text-muted-foreground">Return Qty</Label>
                           <Input
                             type="number"
                             min={0}
-                            max={Math.abs(it.qty)}
-                            placeholder=""
+                            max={maxReturnable}
+                            disabled={isFullyReturned}
+                            placeholder={isFullyReturned ? "0" : ""}
                             value={returnQuantities[itemKey] || ""}
                             onChange={(e) => {
                               const raw = e.target.value;
                               if (raw === "") {
                                 setReturnQuantities((prev) => ({ ...prev, [itemKey]: 0 }));
                               } else {
-                                const val = Math.min(Math.abs(it.qty), Math.max(0, parseInt(raw) || 0));
+                                const val = Math.min(maxReturnable, Math.max(0, parseInt(raw) || 0));
                                 setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
                               }
                             }}
