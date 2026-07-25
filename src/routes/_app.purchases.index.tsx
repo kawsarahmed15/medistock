@@ -133,8 +133,12 @@ function PurchasesPage() {
   const getAlreadyReturnedQtyForPurchaseItem = (purchase: Purchase, item: Purchase["items"][number]) => {
     if (!purchase || !item) return 0;
     const poNum = purchase.number;
+    const poId = purchase.id;
     const returnPurchases = purchases.filter(
-      (p) => p.number.startsWith("PR-") && (p.notes || "").includes(poNum)
+      (p) => p.number.startsWith("PR-") && (
+        (p.notes || "").includes(poNum) ||
+        (p.notes || "").includes(poId)
+      )
     );
 
     let returned = 0;

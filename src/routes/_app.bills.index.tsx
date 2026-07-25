@@ -94,8 +94,12 @@ function BillsPage() {
   const getAlreadyReturnedQtyForBillItem = (bill: Bill, item: Bill["items"][number]) => {
     if (!bill || !item) return 0;
     const billNum = bill.number;
+    const billId = bill.id;
     const returnBills = bills.filter(
-      (b) => b.number.startsWith("SR-") && (b.customerNotes || "").includes(billNum)
+      (b) => b.number.startsWith("SR-") && (
+        (b.customerNotes || "").includes(billNum) ||
+        (b.customerNotes || "").includes(billId)
+      )
     );
 
     let returned = 0;

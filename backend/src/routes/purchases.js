@@ -13,7 +13,7 @@ router.get("/", async (req, res, next) => {
        FROM purchases
        WHERE user_id = ?
        ORDER BY created_at DESC
-       LIMIT 50`,
+       LIMIT 500`,
       [req.auth.userId],
     );
 

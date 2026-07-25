@@ -9,11 +9,11 @@ router.use(requireAuth);
 router.get("/", async (req, res, next) => {
   try {
     const [bills] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, created_at
+      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, created_at
        FROM bills
        WHERE user_id = ?
        ORDER BY created_at DESC
-       LIMIT 50`,
+       LIMIT 500`,
       [req.auth.userId],
     );
 
