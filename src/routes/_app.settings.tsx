@@ -348,21 +348,6 @@ function SettingsPage() {
                   Products with stock levels at or below this amount will be flagged as "Low Stock".
                 </p>
               </div>
-
-              <div className="space-y-2 max-w-sm mt-4">
-                <Label htmlFor="default-tax">Default Selling Tax %</Label>
-                <Input
-                  id="default-tax"
-                  type="number"
-                  step="0.01"
-                  value={defaultTax}
-                  onChange={(e) => setDefaultTax(Number(e.target.value))}
-                  placeholder="e.g. 12"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Default tax percentage applied when selling products and generating sales invoices.
-                </p>
-              </div>
             </CardContent>
           </Card>
           <Card className="shadow-soft border-border/80">
