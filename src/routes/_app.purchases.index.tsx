@@ -952,26 +952,6 @@ function PurchasesPage() {
                               >
                                 <Download className="h-3.5 w-3.5 mr-1" /> PDF
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-primary"
-                                onClick={() => handleViewDetails(p)}
-                                title="View details"
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-amber-600" title="Edit purchase">
-                                <Link to={"/purchases/new?editFrom=" + p.id}>
-                                  <Edit className="h-3.5 w-3.5" />
-                                </Link>
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-indigo-600" onClick={() => handleDuplicate(p)} title="Duplicate bill">
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-rose-600" onClick={() => handleDelete(p.id)} title="Delete Purchase">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
