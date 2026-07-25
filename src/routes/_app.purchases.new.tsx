@@ -1435,6 +1435,11 @@ function AddPurchasePage() {
                           onKeyDown={(e) => handleKeyDown(e, idx, 9)}
                           className="h-9 text-sm text-right font-mono px-3"
                         />
+                        {line.taxPercent > 0 && line.saleRate > 0 && (
+                          <div className="text-[10px] text-right font-mono text-muted-foreground mt-0.5" title="Sale Price + GST">
+                            ₹{(line.saleRate * (1 + line.taxPercent / 100)).toFixed(2)} incl. GST
+                          </div>
+                        )}
                       </td>
 
                       {/* GST */}

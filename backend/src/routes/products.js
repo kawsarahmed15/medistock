@@ -268,7 +268,8 @@ router.post("/", async (req, res, next) => {
       const taxPercentVal = body.taxPercent == null ? 0 : Number(body.taxPercent);
       const purchasePriceVal = Number((baseCostPrice * (1 + taxPercentVal / 100)).toFixed(2));
       const mrpVal = body.mrp == null ? 0 : Number(body.mrp);
-      const sellingPriceVal = body.price == null ? 0 : Number(body.price);
+      const baseSellingPrice = body.price == null ? 0 : Number(body.price);
+      const sellingPriceVal = Number((baseSellingPrice * (1 + taxPercentVal / 100)).toFixed(2));
 
       // Always create a default batch record if stock is entered or if we explicitly have a batch/expiry
       if (stockToImport > 0 || body.batch || body.expiry) {
@@ -732,6 +733,8 @@ router.post("/:productId/batches", async (req, res, next) => {
       : (prodRows[0]?.tax_percent != null ? Number(prodRows[0].tax_percent) : 0);
     const rawPurchasePrice = Number(purchasePrice || 0);
     const landedPurchasePrice = Number((rawPurchasePrice * (1 + taxPercentVal / 100)).toFixed(2));
+    const rawSellingPrice = Number(sellingPrice || 0);
+    const landedSellingPrice = Number((rawSellingPrice * (1 + taxPercentVal / 100)).toFixed(2));
 
     const batchId = generateId();
     await pool.query(
@@ -745,7 +748,7 @@ router.post("/:productId/batches", async (req, res, next) => {
         manufactureDate ? String(manufactureDate).slice(0, 10) : null,
         landedPurchasePrice,
         Number(mrp || 0),
-        Number(sellingPrice || 0),
+        landedSellingPrice,
         Number(availableQty || 0),
         stripQty != null ? Number(stripQty) : null,
         supplierId || null,
