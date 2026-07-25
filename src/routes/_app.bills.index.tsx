@@ -454,7 +454,7 @@ function BillsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-primary">{b.number}</span>
+                      <span className="font-extrabold text-base text-primary font-mono tracking-wide">{b.number}</span>
                       {isReturnBill && (
                         <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
                           Sale Return
@@ -559,7 +559,7 @@ function BillsPage() {
                     }`}
                     onClick={() => routerNavigate({ to: "/bills/$id", params: { id: b.id } })}
                   >
-                    <TableCell className="font-medium text-primary">
+                    <TableCell className="font-extrabold text-base text-primary font-mono tracking-wide">
                       <div className="flex items-center gap-2">
                         <span>{b.number}</span>
                         {isReturnBill && (

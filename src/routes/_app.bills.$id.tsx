@@ -251,8 +251,8 @@ function BillDetailPage() {
               Tax Invoice
             </h2>
             <div className="flex justify-end gap-2">
-              <span className="text-muted-foreground">Inv No:</span>
-              <span className="font-bold font-mono text-primary">{bill.number}</span>
+              <span className="text-muted-foreground font-medium">Inv No:</span>
+              <span className="font-extrabold font-mono text-base text-primary tracking-wide">{bill.number}</span>
             </div>
             <div className="flex justify-end gap-2">
               <span className="text-muted-foreground">Date:</span>

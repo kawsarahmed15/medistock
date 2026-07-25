@@ -847,15 +847,15 @@ function PurchasesPage() {
                       const totalQty = p.items.reduce((s, it) => s + it.qty + (it.freeQty || 0), 0);
                       return (
                         <TableRow key={p.id} className="hover:bg-muted/30">
-                          <TableCell className="font-mono text-xs font-semibold text-primary">
+                          <TableCell className="font-mono text-sm font-extrabold text-primary tracking-wide">
                             <button
                               onClick={() => handleViewDetails(p)}
-                              className="hover:underline cursor-pointer text-left bg-transparent border-0 p-0 text-primary font-mono font-semibold"
+                              className="hover:underline cursor-pointer text-left bg-transparent border-0 p-0 text-primary font-mono font-extrabold text-sm tracking-wide"
                             >
                               {p.number}
                             </button>
                           </TableCell>
-                          <TableCell className="font-mono text-xs text-foreground font-semibold">
+                          <TableCell className="font-mono text-sm text-foreground font-extrabold tracking-wide">
                             {p.supplierInvoice || "—"}
                           </TableCell>
                           <TableCell className="text-xs font-medium text-foreground">

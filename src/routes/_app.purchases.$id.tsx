@@ -136,12 +136,12 @@ function PurchaseDetailsPage() {
               PO Voucher
             </h2>
             <div className="flex justify-end gap-2 text-xs">
-              <span className="text-muted-foreground">PO Ref No:</span>
-              <span className="font-bold font-mono text-primary">{purchase.number}</span>
+              <span className="text-muted-foreground font-medium">PO Ref No:</span>
+              <span className="font-extrabold font-mono text-sm text-primary tracking-wide">{purchase.number}</span>
             </div>
             <div className="flex justify-end gap-2 text-xs">
-              <span className="text-muted-foreground">Invoice No:</span>
-              <span className="font-bold font-mono">{purchase.supplierInvoice || "—"}</span>
+              <span className="text-muted-foreground font-medium">Invoice No:</span>
+              <span className="font-extrabold font-mono text-sm text-foreground tracking-wide">{purchase.supplierInvoice || "—"}</span>
             </div>
             <div className="flex justify-end gap-2 text-xs">
               <span className="text-muted-foreground">Date:</span>
