@@ -185,16 +185,18 @@ router.post("/", async (req, res, next) => {
           const mrpVal = item.mrp == null ? 0 : Number(item.mrp);
           const rawSellingPrice = item.saleRate != null ? Number(item.saleRate) : mrpVal;
 
+          const itemSku = (item.sku || item.hsn || "").trim() || null;
+
           if (existingBatch.length > 0) {
-            // Batch exists: Increase quantity, update purchase_price to landed cost & selling_price to base sale rate if > 0, update sku if null
+            // Batch exists: Increase quantity, update purchase_price to landed cost & selling_price to base sale rate if > 0, update sku if null/empty
             await conn.query(
               `UPDATE product_batches 
                SET available_qty = available_qty + ?, 
                    purchase_price = CASE WHEN ? > 0 THEN ? ELSE purchase_price END, 
                    selling_price = CASE WHEN ? > 0 THEN ? ELSE selling_price END,
-                   sku = COALESCE(sku, ?) 
+                   sku = COALESCE(NULLIF(?, ''), NULLIF(sku, ''), (SELECT sku FROM products WHERE id = ?)) 
                WHERE id = ?`,
-              [addedStock, landedPurchasePrice, landedPurchasePrice, rawSellingPrice, rawSellingPrice, item.sku || item.hsn || null, existingBatch[0].id]
+              [addedStock, landedPurchasePrice, landedPurchasePrice, rawSellingPrice, rawSellingPrice, itemSku, targetProductId, existingBatch[0].id]
             );
           } else {
             // Batch does not exist: Create a new batch
@@ -202,7 +204,7 @@ router.post("/", async (req, res, next) => {
 
             await conn.query(
               `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(NULLIF(?, ''), (SELECT sku FROM products WHERE id = ?)))`,
               [
                 newBatchId,
                 targetProductId,
@@ -212,7 +214,8 @@ router.post("/", async (req, res, next) => {
                 mrpVal,
                 rawSellingPrice,
                 addedStock,
-                item.sku || item.hsn || null
+                itemSku,
+                targetProductId
               ]
             );
           }

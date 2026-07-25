@@ -556,6 +556,14 @@ router.patch("/:id", async (req, res, next) => {
       req.auth.userId,
     ]);
 
+    if (body.sku != null) {
+      const cleanSku = body.sku === "" ? null : String(body.sku).trim();
+      await pool.query(
+        "UPDATE product_batches SET sku = ? WHERE product_id = ?",
+        [cleanSku, id]
+      );
+    }
+
     res.json({ message: "Product updated" });
   } catch (error) {
     next(error);

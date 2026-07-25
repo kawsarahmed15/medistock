@@ -125,7 +125,7 @@ function rowToProduct(r: ProductRow): Product {
       pack: r.pack ?? undefined,
       batch: b.batch_no,
       manufacturer: r.manufacturer ?? undefined,
-      sku: b.sku ?? r.sku ?? undefined,
+      sku: (b.sku && b.sku !== "null" ? b.sku : r.sku) ?? undefined,
       prescription: Boolean(r.prescription),
       taxPercent: Number(r.tax_percent) || 0,
       createdAt: b.created_at,
