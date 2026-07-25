@@ -264,6 +264,7 @@ router.post("/", async (req, res, next) => {
       // 2. Insert initial batch if stock > 0 OR batch/expiry parameters are provided
       const batchNo = body.batch ? String(body.batch).trim() : "DEFAULT";
       const expiryDate = body.expiry ? String(body.expiry).slice(0, 10) : "2030-12-31";
+      const baseCostPrice = body.costPrice == null ? 0 : Number(body.costPrice);
       const taxPercentVal = body.taxPercent == null ? 0 : Number(body.taxPercent);
       const purchasePriceVal = Number((baseCostPrice * (1 + taxPercentVal / 100)).toFixed(2));
       const mrpVal = body.mrp == null ? 0 : Number(body.mrp);
