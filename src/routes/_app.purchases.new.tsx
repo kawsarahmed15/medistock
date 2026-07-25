@@ -1212,7 +1212,7 @@ function AddPurchasePage() {
             <table className="w-full text-sm text-left border-collapse min-w-[1530px]">
               <thead className="bg-muted/70 sticky top-0 z-10">
                 <tr className="border-b text-muted-foreground font-semibold text-[13px]">
-                  <th className="py-3 px-3 w-[260px]">Medicine Name</th>
+                  <th className="py-3 px-3 w-[320px]">Medicine Name</th>
                   <th className="py-3 px-3 w-[120px]">Batch No.</th>
                   <th className="py-3 px-3 w-[110px]">HSN Code</th>
                   <th className="py-3 px-3 w-[145px]">Expiry Date</th>
@@ -1257,17 +1257,17 @@ function AddPurchasePage() {
                               onKeyDown={(e) => handleKeyDown(e, idx, 0)}
                             />
                             {activeLine === idx && productSearch && (
-                              <div ref={dropdownRef} className="absolute z-50 top-full left-0 mt-1 w-full bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto no-scrollbar">
+                              <div ref={dropdownRef} className="absolute z-50 top-full left-0 mt-1 min-w-[420px] max-w-[520px] w-max bg-popover border border-border rounded-md shadow-lg max-h-56 overflow-y-auto no-scrollbar">
                                 {filteredProducts.map((p, pIdx) => (
                                   <div
                                     key={p.id}
-                                    className={`px-3 py-2 cursor-pointer text-xs transition-colors flex items-center justify-between gap-2 ${
+                                    className={`px-3 py-2 cursor-pointer text-xs transition-colors flex items-center justify-between gap-3 ${
                                       focusedProductIndex === pIdx ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted"
                                     }`}
                                     onMouseDown={() => selectProduct(idx, p)}
                                   >
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <span className="truncate">{p.name}</span>
+                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                      <span className="font-semibold text-foreground">{p.name}</span>
                                       {p.pack && (
                                         <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20 shrink-0">
                                           {p.pack}
@@ -1373,7 +1373,7 @@ function AddPurchasePage() {
                           value={line.pack}
                           onChange={(e) => updateLine(idx, "pack", e.target.value)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 4)}
-                          className="h-9 text-sm text-center px-2"
+                          className="h-9 text-sm text-center px-2 font-medium text-primary bg-primary/5"
                         />
                       </td>
 
