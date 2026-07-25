@@ -486,7 +486,7 @@ function ProductDetails() {
                             {Number(b.purchase_price) > 0 ? (
                               Number(product.tax_percent) > 0 ? (
                                 <span>
-                                  ₹{Number(b.purchase_price).toFixed(2)} + {Number(product.tax_percent)}% GST
+                                  ₹{(Math.round((Number(b.purchase_price) / (1 + Number(product.tax_percent) / 100)) * 100) / 100).toFixed(2)} + {Number(product.tax_percent)}% GST
                                 </span>
                               ) : (
                                 `₹${Number(b.purchase_price).toFixed(2)}`
