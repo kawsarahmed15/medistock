@@ -1256,12 +1256,22 @@ function AddPurchasePage() {
                                 {filteredProducts.map((p, pIdx) => (
                                   <div
                                     key={p.id}
-                                    className={`px-3 py-2 cursor-pointer text-xs transition-colors ${
+                                    className={`px-3 py-2 cursor-pointer text-xs transition-colors flex items-center justify-between gap-2 ${
                                       focusedProductIndex === pIdx ? "bg-accent text-accent-foreground font-semibold" : "hover:bg-muted"
                                     }`}
                                     onMouseDown={() => selectProduct(idx, p)}
                                   >
-                                    {p.name} <span className="text-muted-foreground text-[10px]">({p.stock} units, MRP: ₹{p.mrp})</span>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="truncate">{p.name}</span>
+                                      {p.pack && (
+                                        <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20 shrink-0">
+                                          {p.pack}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-muted-foreground text-[10px] shrink-0">
+                                      ({p.stock} units{p.mrp != null ? `, MRP: ₹${p.mrp}` : ""})
+                                    </span>
                                   </div>
                                 ))}
                                 {productSearch && !filteredProducts.some(p => p.name.toLowerCase() === productSearch.trim().toLowerCase()) && (
