@@ -1025,7 +1025,15 @@ function InventoryPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {p.costPrice ? `₹${p.costPrice.toFixed(2)}` : "—"}
+                      {p.costPrice ? (
+                        p.taxPercent && p.taxPercent > 0 ? (
+                          <span>
+                            ₹{Math.round((p.costPrice / (1 + p.taxPercent / 100)) * 100) / 100} + {p.taxPercent}% GST
+                          </span>
+                        ) : (
+                          `₹${p.costPrice.toFixed(2)}`
+                        )
+                      ) : "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {p.mrp ? `₹${p.mrp.toFixed(2)}` : "—"}

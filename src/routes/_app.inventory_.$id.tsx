@@ -483,7 +483,15 @@ function ProductDetails() {
                             {b.available_qty}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-xs">
-                            ₹{Number(b.purchase_price).toFixed(2)}
+                            {Number(b.purchase_price) > 0 ? (
+                              Number(product.tax_percent) > 0 ? (
+                                <span>
+                                  ₹{Math.round((Number(b.purchase_price) / (1 + Number(product.tax_percent) / 100)) * 100) / 100} + {Number(product.tax_percent)}% GST
+                                </span>
+                              ) : (
+                                `₹${Number(b.purchase_price).toFixed(2)}`
+                              )
+                            ) : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-xs">
                             ₹{Number(b.selling_price).toFixed(2)}
