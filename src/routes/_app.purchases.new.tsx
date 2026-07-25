@@ -798,9 +798,6 @@ function AddPurchasePage() {
     const baseCostPrice = tax > 0 && p.costPrice
       ? Math.round((p.costPrice / (1 + tax / 100)) * 100) / 100
       : (p.costPrice || 0);
-    const baseSaleRate = tax > 0 && (p.price || p.mrp)
-      ? Math.round(((p.price || p.mrp || 0) / (1 + tax / 100)) * 100) / 100
-      : (p.price || p.mrp || 0);
 
     const newLines = [...lines];
     newLines[index] = {
@@ -816,7 +813,7 @@ function AddPurchasePage() {
       pack: p.pack || "",
       genericName: p.category || "",
       hsn: p.isDraftProduct ? (p.sku || newLines[index].hsn || "") : newLines[index].hsn || "",
-      saleRate: baseSaleRate,
+      saleRate: p.price || p.mrp || 0,
       ptr: baseCostPrice,
       isDraftProduct: p.isDraftProduct,
       draftProductDetails: p.draftProductDetails,
@@ -1443,11 +1440,6 @@ function AddPurchasePage() {
                           onKeyDown={(e) => handleKeyDown(e, idx, 9)}
                           className="h-9 text-sm text-right font-mono px-3"
                         />
-                        {line.taxPercent > 0 && line.saleRate > 0 && (
-                          <div className="text-[10px] text-right font-mono text-muted-foreground mt-0.5" title="Sale Price + GST">
-                            ₹{(line.saleRate * (1 + line.taxPercent / 100)).toFixed(2)} incl. GST
-                          </div>
-                        )}
                       </td>
 
                       {/* GST */}

@@ -495,6 +495,9 @@ function ProductDetails() {
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-xs">
                             ₹{Number(b.selling_price).toFixed(2)}
+                            {Number(product.tax_percent) > 0 ? (
+                              <span className="text-[10px] text-muted-foreground"> +{Number(product.tax_percent)}% GST</span>
+                            ) : null}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-xs">
                             ₹{Number(b.mrp).toFixed(2)}

@@ -182,10 +182,9 @@ router.post("/", async (req, res, next) => {
             : Number((costPriceVal * (1 + taxPercentVal / 100)).toFixed(2));
           const mrpVal = item.mrp == null ? 0 : Number(item.mrp);
           const rawSellingPrice = item.saleRate != null ? Number(item.saleRate) : mrpVal;
-          const landedSellingPrice = Number((rawSellingPrice * (1 + taxPercentVal / 100)).toFixed(2));
 
           if (existingBatch.length > 0) {
-            // Batch exists: Increase quantity, update purchase_price & selling_price to landed values if > 0, update sku if null
+            // Batch exists: Increase quantity, update purchase_price to landed cost & selling_price to base sale rate if > 0, update sku if null
             await conn.query(
               `UPDATE product_batches 
                SET available_qty = available_qty + ?, 
@@ -193,7 +192,7 @@ router.post("/", async (req, res, next) => {
                    selling_price = CASE WHEN ? > 0 THEN ? ELSE selling_price END,
                    sku = COALESCE(sku, ?) 
                WHERE id = ?`,
-              [addedStock, landedPurchasePrice, landedPurchasePrice, landedSellingPrice, landedSellingPrice, item.sku || item.hsn || null, existingBatch[0].id]
+              [addedStock, landedPurchasePrice, landedPurchasePrice, rawSellingPrice, rawSellingPrice, item.sku || item.hsn || null, existingBatch[0].id]
             );
           } else {
             // Batch does not exist: Create a new batch
@@ -209,7 +208,7 @@ router.post("/", async (req, res, next) => {
                 item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
                 landedPurchasePrice,
                 mrpVal,
-                landedSellingPrice,
+                rawSellingPrice,
                 addedStock,
                 item.sku || item.hsn || null
               ]
