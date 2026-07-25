@@ -178,8 +178,8 @@ router.post("/", async (req, res, next) => {
           const totalUnitsVal = qtyVal + freeQtyVal;
           const totalLineCostVal = costPriceVal * qtyVal * (1 + taxPercentVal / 100);
           const landedPurchasePrice = totalUnitsVal > 0
-            ? Number((totalLineCostVal / totalUnitsVal).toFixed(2))
-            : Number((costPriceVal * (1 + taxPercentVal / 100)).toFixed(2));
+            ? Number((totalLineCostVal / totalUnitsVal).toFixed(4))
+            : Number((costPriceVal * (1 + taxPercentVal / 100)).toFixed(4));
           const mrpVal = item.mrp == null ? 0 : Number(item.mrp);
           const rawSellingPrice = item.saleRate != null ? Number(item.saleRate) : mrpVal;
 

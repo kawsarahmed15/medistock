@@ -266,7 +266,7 @@ router.post("/", async (req, res, next) => {
       const expiryDate = body.expiry ? String(body.expiry).slice(0, 10) : "2030-12-31";
       const baseCostPrice = body.costPrice == null ? 0 : Number(body.costPrice);
       const taxPercentVal = body.taxPercent == null ? 0 : Number(body.taxPercent);
-      const purchasePriceVal = Number((baseCostPrice * (1 + taxPercentVal / 100)).toFixed(2));
+      const purchasePriceVal = Number((baseCostPrice * (1 + taxPercentVal / 100)).toFixed(4));
       const mrpVal = body.mrp == null ? 0 : Number(body.mrp);
       const sellingPriceVal = body.price == null ? 0 : Number(body.price);
 
@@ -731,7 +731,7 @@ router.post("/:productId/batches", async (req, res, next) => {
       ? Number(req.body.taxPercent) 
       : (prodRows[0]?.tax_percent != null ? Number(prodRows[0].tax_percent) : 0);
     const rawPurchasePrice = Number(purchasePrice || 0);
-    const landedPurchasePrice = Number((rawPurchasePrice * (1 + taxPercentVal / 100)).toFixed(2));
+    const landedPurchasePrice = Number((rawPurchasePrice * (1 + taxPercentVal / 100)).toFixed(4));
     const rawSellingPrice = Number(sellingPrice || 0);
 
     const batchId = generateId();
