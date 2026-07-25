@@ -171,18 +171,31 @@ router.post("/", async (req, res, next) => {
             [targetProductId, itemBatchNo]
           );
 
+          const costPriceVal = item.costPrice == null ? 0 : Number(item.costPrice);
+          const taxPercentVal = item.taxPercent == null ? 0 : Number(item.taxPercent);
+          const qtyVal = Number(item.qty || 0);
+          const freeQtyVal = Number(item.freeQty || 0);
+          const totalUnitsVal = qtyVal + freeQtyVal;
+          const totalLineCostVal = costPriceVal * qtyVal * (1 + taxPercentVal / 100);
+          const landedPurchasePrice = totalUnitsVal > 0
+            ? Number((totalLineCostVal / totalUnitsVal).toFixed(2))
+            : Number((costPriceVal * (1 + taxPercentVal / 100)).toFixed(2));
+          const mrpVal = item.mrp == null ? 0 : Number(item.mrp);
+          const sellingPriceVal = item.saleRate != null ? Number(item.saleRate) : mrpVal;
+
           if (existingBatch.length > 0) {
-            // Batch exists: Increase quantity, update sku if null
+            // Batch exists: Increase quantity, update purchase_price to landed cost if > 0, update sku if null
             await conn.query(
-              `UPDATE product_batches SET available_qty = available_qty + ?, sku = COALESCE(sku, ?) WHERE id = ?`,
-              [addedStock, item.sku || item.hsn || null, existingBatch[0].id]
+              `UPDATE product_batches 
+               SET available_qty = available_qty + ?, 
+                   purchase_price = CASE WHEN ? > 0 THEN ? ELSE purchase_price END, 
+                   sku = COALESCE(sku, ?) 
+               WHERE id = ?`,
+              [addedStock, landedPurchasePrice, landedPurchasePrice, item.sku || item.hsn || null, existingBatch[0].id]
             );
           } else {
             // Batch does not exist: Create a new batch
             const newBatchId = generateId();
-            const costPriceVal = item.costPrice == null ? 0 : Number(item.costPrice);
-            const mrpVal = item.mrp == null ? 0 : Number(item.mrp);
-            const sellingPriceVal = item.saleRate != null ? Number(item.saleRate) : mrpVal;
 
             await conn.query(
               `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
@@ -192,7 +205,7 @@ router.post("/", async (req, res, next) => {
                 targetProductId,
                 itemBatchNo,
                 item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
-                costPriceVal,
+                landedPurchasePrice,
                 mrpVal,
                 sellingPriceVal,
                 addedStock,

@@ -264,7 +264,9 @@ router.post("/", async (req, res, next) => {
       // 2. Insert initial batch if stock > 0 OR batch/expiry parameters are provided
       const batchNo = body.batch ? String(body.batch).trim() : "DEFAULT";
       const expiryDate = body.expiry ? String(body.expiry).slice(0, 10) : "2030-12-31";
-      const purchasePriceVal = body.costPrice == null ? 0 : Number(body.costPrice);
+      const baseCostPrice = body.costPrice == null ? 0 : Number(body.costPrice);
+      const taxPercentVal = body.taxPercent == null ? 0 : Number(body.taxPercent);
+      const purchasePriceVal = Number((baseCostPrice * (1 + taxPercentVal / 100)).toFixed(2));
       const mrpVal = body.mrp == null ? 0 : Number(body.mrp);
       const sellingPriceVal = body.price == null ? 0 : Number(body.price);
 
@@ -724,6 +726,13 @@ router.post("/:productId/batches", async (req, res, next) => {
       throw buildApiError(400, "Expiry date is required");
     }
 
+    const [prodRows] = await pool.query("SELECT tax_percent FROM products WHERE id = ? AND user_id = ?", [productId, req.auth.userId]);
+    const taxPercentVal = req.body.taxPercent != null 
+      ? Number(req.body.taxPercent) 
+      : (prodRows[0]?.tax_percent != null ? Number(prodRows[0].tax_percent) : 0);
+    const rawPurchasePrice = Number(purchasePrice || 0);
+    const landedPurchasePrice = Number((rawPurchasePrice * (1 + taxPercentVal / 100)).toFixed(2));
+
     const batchId = generateId();
     await pool.query(
       `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, sku)
@@ -734,7 +743,7 @@ router.post("/:productId/batches", async (req, res, next) => {
         String(batchNo).trim(),
         String(expiryDate).slice(0, 10),
         manufactureDate ? String(manufactureDate).slice(0, 10) : null,
-        Number(purchasePrice || 0),
+        landedPurchasePrice,
         Number(mrp || 0),
         Number(sellingPrice || 0),
         Number(availableQty || 0),
