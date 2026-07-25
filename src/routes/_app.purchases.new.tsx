@@ -794,6 +794,14 @@ function AddPurchasePage() {
   };
 
   const selectProduct = (index: number, p: Product & { isDraftProduct?: boolean; draftProductDetails?: any }) => {
+    const tax = p.taxPercent || 0;
+    const baseCostPrice = tax > 0 && p.costPrice
+      ? Math.round((p.costPrice / (1 + tax / 100)) * 100) / 100
+      : (p.costPrice || 0);
+    const baseSaleRate = tax > 0 && (p.price || p.mrp)
+      ? Math.round(((p.price || p.mrp || 0) / (1 + tax / 100)) * 100) / 100
+      : (p.price || p.mrp || 0);
+
     const newLines = [...lines];
     newLines[index] = {
       ...newLines[index],
@@ -802,14 +810,14 @@ function AddPurchasePage() {
       qty: p.isDraftProduct && p.stock && p.stock > 0 ? p.stock : newLines[index].qty || 1,
       batch: p.isDraftProduct ? (p.batch || newLines[index].batch || "") : newLines[index].batch || "",
       expiry: p.isDraftProduct ? (p.expiry || newLines[index].expiry || "") : newLines[index].expiry || "",
-      costPrice: p.costPrice || 0,
-      taxPercent: p.taxPercent || 0,
+      costPrice: baseCostPrice,
+      taxPercent: tax,
       mrp: p.mrp || 0,
       pack: p.pack || "",
       genericName: p.category || "",
       hsn: p.isDraftProduct ? (p.sku || newLines[index].hsn || "") : newLines[index].hsn || "",
-      saleRate: p.price || p.mrp || 0,
-      ptr: p.costPrice || 0,
+      saleRate: baseSaleRate,
+      ptr: baseCostPrice,
       isDraftProduct: p.isDraftProduct,
       draftProductDetails: p.draftProductDetails,
     };
