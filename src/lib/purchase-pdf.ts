@@ -98,17 +98,17 @@ export async function downloadPurchasePdf(
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
-  doc.text(clean(pharmacyName).toUpperCase(), headerLeftX, currentY + 28);
+  doc.text(clean(pharmacyName).toUpperCase(), headerLeftX, currentY + 16);
 
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   let addrLines = pharmacyAddress ? doc.splitTextToSize(clean(pharmacyAddress), 220) : [];
   if (addrLines.length > 0) {
-    doc.text(addrLines, headerLeftX, currentY + 42);
+    doc.text(addrLines, headerLeftX, currentY + 30);
   }
 
-  let headerBottomY = currentY + 42 + addrLines.length * 12;
+  let headerBottomY = currentY + 30 + addrLines.length * 12;
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
 
@@ -136,34 +136,37 @@ export async function downloadPurchasePdf(
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Voucher No:", right - 140, rightY);
+  doc.text("Voucher No:", right - 100, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.text(clean(purchase.number), right - 70, rightY);
+  doc.text(clean(purchase.number), right - 20, rightY, { align: "right" });
 
   rightY += 12;
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Invoice No:", right - 140, rightY);
+  doc.text("Invoice No:", right - 100, rightY);
   doc.setTextColor(35, 35, 35);
   doc.setFont("helvetica", "bold");
-  doc.text(clean(purchase.supplierInvoice || "—"), right - 70, rightY);
+  doc.text(clean(purchase.supplierInvoice || "—"), right - 20, rightY, { align: "right" });
 
   rightY += 12;
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Date:", right - 140, rightY);
+  doc.text("Date:", right - 100, rightY);
   doc.setTextColor(35, 35, 35);
-  doc.text(new Date(purchase.createdAt).toLocaleDateString("en-IN"), right - 70, rightY);
+  doc.text(new Date(purchase.createdAt).toLocaleDateString("en-IN"), right - 20, rightY, {
+    align: "right",
+  });
 
   rightY += 12;
   doc.setTextColor(110, 110, 110);
-  doc.text("Time:", right - 140, rightY);
+  doc.text("Time:", right - 100, rightY);
   doc.setTextColor(35, 35, 35);
   doc.text(
     new Date(purchase.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-    right - 70,
-    rightY
+    right - 20,
+    rightY,
+    { align: "right" }
   );
 
   let y = Math.max(headerBottomY - 12, rightY) + 10;
