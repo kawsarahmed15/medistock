@@ -597,7 +597,7 @@ export async function downloadBillPdf(
     doc.text(`Rs. ${bill.advanceAmount.toFixed(2)}`, totalsValueX, ty, { align: "right" });
 
     ty += 14;
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(220, 38, 38);
     doc.text("Balance Due", rightBoxLeft + 12, ty);
@@ -614,7 +614,7 @@ export async function downloadBillPdf(
     doc.text(`Rs. ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
 
     ty += 14;
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(22, 163, 74);
     doc.text("Balance", rightBoxLeft + 12, ty);
