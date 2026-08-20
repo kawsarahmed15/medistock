@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Pill, Eye, EyeOff } from "lucide-react";
+import { Pill, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -18,6 +19,19 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get("expired") === "1") {
+      setExpired(true);
+      toast.error("Your session has expired due to inactivity. Please sign in again.", {
+        id: "session-expired-toast",
+      });
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []);
 
   useEffect(() => {
     if (ready && session) navigate({ to: "/dashboard" });
@@ -60,6 +74,16 @@ function LoginPage() {
             <h2 className="text-3xl font-bold tracking-tight mb-2">Welcome back</h2>
             <p className="text-muted-foreground">Sign in to continue to your dashboard.</p>
           </div>
+
+          {expired && (
+            <Alert variant="destructive" className="animate-fade-in border-destructive/20 bg-destructive/5 text-destructive dark:bg-destructive/10">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Session Expired</AlertTitle>
+              <AlertDescription>
+                You have been logged out due to 1 hour of inactivity. Please sign in again to resume.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="space-y-4">

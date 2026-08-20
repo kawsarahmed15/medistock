@@ -76,6 +76,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     init();
   }, []);
 
+  useEffect(() => {
+    if (!session) return;
+
+    const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 hour
+    const LAST_ACTIVE_KEY = "medistock.auth.lastActive";
+
+    // Set initial activity timestamp
+    localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
+
+    let lastWrite = Date.now();
+    const updateActivity = () => {
+      const now = Date.now();
+      // Throttle localStorage writes to once every 10 seconds
+      if (now - lastWrite > 10000) {
+        localStorage.setItem(LAST_ACTIVE_KEY, now.toString());
+        lastWrite = now;
+      }
+    };
+
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart", "mousedown"];
+    events.forEach((event) => {
+      window.addEventListener(event, updateActivity, { passive: true });
+    });
+
+    const interval = setInterval(() => {
+      // Sync logout across tabs if token was cleared elsewhere
+      const token = getAuthToken();
+      if (!token) {
+        localStorage.removeItem(LAST_ACTIVE_KEY);
+        setSession(null);
+        window.location.href = "/login";
+        return;
+      }
+
+      const lastActiveStr = localStorage.getItem(LAST_ACTIVE_KEY);
+      if (lastActiveStr) {
+        const lastActive = parseInt(lastActiveStr, 10);
+        if (Date.now() - lastActive > INACTIVITY_LIMIT) {
+          localStorage.removeItem(LAST_ACTIVE_KEY);
+          setAuthToken(null);
+          setSession(null);
+          window.location.href = "/login?expired=1";
+        }
+      }
+    }, 10000);
+
+    return () => {
+      events.forEach((event) => {
+        window.removeEventListener(event, updateActivity);
+      });
+      clearInterval(interval);
+    };
+  }, [session]);
+
   const value: AuthCtx = {
     session,
     ready,
@@ -110,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     logout: async () => {
+      localStorage.removeItem("medistock.auth.lastActive");
       setAuthToken(null);
       setSession(null);
     },
