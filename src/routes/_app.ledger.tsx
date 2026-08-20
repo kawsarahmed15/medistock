@@ -220,86 +220,160 @@ function LedgerPage() {
     });
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
+    const left = 20;
+    const right = pageWidth - 20;
 
     const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
     const pharmacyPhone = session?.pharmacyPhone || "";
     const pharmacyAddress = session?.pharmacyAddress || "";
     const gstNumber = session?.gstNumber || "";
     const drugLicNo = session?.drugLicNo || "";
+    const billColor = session?.billColor || "#1a9890";
 
+    const hexToRgb = (hex: string): [number, number, number] => {
+      const cleanHex = hex.replace("#", "");
+      const num = parseInt(cleanHex, 16);
+      return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+    };
+
+    const primaryRgb = hexToRgb(billColor);
+
+    // 1. Header Logo & Details
+    let currentY = 40;
+
+    const iconSize = 46;
+    doc.setFillColor(...primaryRgb);
+    doc.roundedRect(left, currentY, iconSize, iconSize, 6, 6, "F");
+
+    // Draw the Pill logo as PNG via SVG
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>`;
+    const pillBase64 = await new Promise<string>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        if (ctx) ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src = "data:image/svg+xml;base64," + btoa(svgStr);
+    });
+
+    doc.addImage(pillBase64, "PNG", left + 8, currentY + 8, 30, 30);
+
+    let headerLeftX = left + iconSize + 12;
+
+    doc.setTextColor(...primaryRgb);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
-    doc.setTextColor(26, 152, 144);
-    doc.text(pharmacyName.toUpperCase(), 40, 50);
+    doc.text(pharmacyName.toUpperCase(), headerLeftX, currentY + 16);
 
+    doc.setTextColor(110, 110, 110);
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    let addrLines = pharmacyAddress ? doc.splitTextToSize(pharmacyAddress, 220) : [];
+    if (addrLines.length > 0) {
+      doc.text(addrLines, headerLeftX, currentY + 30);
+    }
+
+    let headerBottomY = currentY + 30 + addrLines.length * 12;
     doc.setFontSize(9);
-    doc.setTextColor(80, 80, 80);
-    
-    let headerY = 65;
-    if (pharmacyAddress) {
-      doc.text(pharmacyAddress, 40, headerY);
-      headerY += 15;
-    }
-    if (pharmacyPhone) {
-      doc.text(`Phone: ${pharmacyPhone}`, 40, headerY);
-      headerY += 15;
-    }
-    if (gstNumber || drugLicNo) {
-      doc.text(
-        [gstNumber ? `GSTIN: ${gstNumber}` : "", drugLicNo ? `Drug Lic: ${drugLicNo}` : ""].filter(Boolean).join(" | "),
-        40,
-        headerY,
-      );
-      headerY += 20;
-    }
-
-    doc.setDrawColor(200, 200, 200);
-    doc.line(40, headerY, pageWidth - 40, headerY);
-    headerY += 25;
-
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.setTextColor(40, 40, 40);
-    doc.text("FINANCIAL TRANSACTION LEDGER", 40, headerY);
-    headerY += 15;
 
-    doc.setFont("helvetica", "normal");
+    if (pharmacyPhone) {
+      doc.text(`Phone: ${pharmacyPhone}`, headerLeftX, headerBottomY);
+      headerBottomY += 12;
+    }
+    if (gstNumber) {
+      doc.text(`GSTIN: ${gstNumber.toUpperCase()}`, headerLeftX, headerBottomY);
+      headerBottomY += 12;
+    }
+    if (drugLicNo) {
+      doc.text(`D.L.No.: ${drugLicNo.toUpperCase()}`, headerLeftX, headerBottomY);
+      headerBottomY += 12;
+    }
+
+    // Right Side Header
+    let rightY = currentY;
+    doc.setTextColor(...primaryRgb);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("LEDGER REPORT", right, rightY + 12, { align: "right" });
+
+    rightY += 30;
     doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.setFont("helvetica", "normal");
+    doc.text("Period:", right - 220, rightY);
+    doc.setTextColor(35, 35, 35);
+    doc.setFont("helvetica", "bold");
     doc.text(
-      `Period: ${start.toLocaleDateString("en-IN")} to ${end.toLocaleDateString("en-IN")}`,
-      40,
-      headerY,
+      `${start.toLocaleDateString("en-IN")} to ${end.toLocaleDateString("en-IN")}`,
+      right,
+      rightY,
+      { align: "right" }
     );
-    headerY += 25;
+
+    rightY += 14;
+    doc.setTextColor(110, 110, 110);
+    doc.setFont("helvetica", "normal");
+    doc.text("Generated:", right - 220, rightY);
+    doc.setTextColor(35, 35, 35);
+    doc.text(
+      `${new Date().toLocaleDateString("en-IN")} ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+      right,
+      rightY,
+      { align: "right" }
+    );
+
+    let y = Math.max(headerBottomY - 12, rightY) + 12;
+    doc.setDrawColor(...primaryRgb);
+    doc.setLineWidth(1.5);
+    doc.line(left, y, right, y);
+
+    // 2. Stats box (styled like customer details box in bill pdf)
+    y += 16;
+    const statsBoxTop = y;
+    const statsBoxHeight = 55;
 
     doc.setFillColor(248, 250, 252);
-    doc.rect(40, headerY, pageWidth - 80, 55, "F");
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(left, statsBoxTop, pageWidth - left * 2, statsBoxHeight, 6, 6, "FD");
 
+    // Divider lines in stats box
+    const colWidth = (pageWidth - left * 2) / 3;
+    doc.line(left + colWidth, statsBoxTop, left + colWidth, statsBoxTop + statsBoxHeight);
+    doc.line(left + colWidth * 2, statsBoxTop, left + colWidth * 2, statsBoxTop + statsBoxHeight);
+
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
-    doc.text("TOTAL SALES (+)", 60, headerY + 20);
-    doc.text("TOTAL PURCHASES (-)", 230, headerY + 20);
-    doc.text("NET CASH FLOW", 400, headerY + 20);
+    doc.text("TOTAL SALES (+)", left + 15, statsBoxTop + 18);
+    doc.text("TOTAL PURCHASES (-)", left + colWidth + 15, statsBoxTop + 18);
+    doc.text("NET CASH FLOW", left + colWidth * 2 + 15, statsBoxTop + 18);
 
-    doc.setFontSize(12);
-    doc.setTextColor(22, 163, 74);
-    doc.text(formatMoney(stats.salesTotal), 60, headerY + 40);
-    doc.setTextColor(225, 29, 72);
-    doc.text(formatMoney(stats.purchasesTotal), 230, headerY + 40);
-    doc.setTextColor(stats.netFlow >= 0 ? 22 : 225, stats.netFlow >= 0 ? 163 : 29, stats.netFlow >= 0 ? 74 : 72);
-    doc.text(formatMoney(stats.netFlow), 400, headerY + 40);
+    doc.setFontSize(14);
+    doc.setTextColor(22, 163, 74); // Green for sales
+    doc.text(formatMoney(stats.salesTotal), left + 15, statsBoxTop + 40);
+    doc.setTextColor(225, 29, 72); // Red for purchases
+    doc.text(formatMoney(stats.purchasesTotal), left + colWidth + 15, statsBoxTop + 40);
 
-    headerY += 75;
+    const isNetPositive = stats.netFlow >= 0;
+    doc.setTextColor(isNetPositive ? 22 : 225, isNetPositive ? 163 : 29, isNetPositive ? 74 : 72);
+    doc.text(formatMoney(stats.netFlow), left + colWidth * 2 + 15, statsBoxTop + 40);
 
+    y += statsBoxHeight + 16;
+
+    // 3. Transactions Table
     autoTable(doc, {
-      startY: headerY,
+      startY: y,
       head: [
-        ["Date", "Ref #", "Type", "Party", "Items Summary", "Out (Debit)", "In (Credit)"],
+        ["Date", "Ref #", "Type", "Party Name", "Items Summary", "Debit (Out)", "Credit (In)"],
       ],
       body: ledgerEntries.map((e) => [
         new Date(e.date).toLocaleDateString("en-IN"),
@@ -311,25 +385,30 @@ function LedgerPage() {
         e.type === "sale" ? e.total.toFixed(2) : "—",
       ]),
       styles: {
-        fontSize: 8,
-        cellPadding: 6,
+        fontSize: 7.5,
+        cellPadding: 5,
         lineColor: [220, 220, 220],
         lineWidth: 0.5,
+        textColor: [40, 40, 40],
+        overflow: "linebreak",
       },
       headStyles: {
-        fillColor: [26, 152, 144],
-        textColor: [255, 255, 255],
+        fillColor: [241, 245, 249],
+        textColor: [100, 116, 139],
         fontStyle: "bold",
+        halign: "center",
       },
       columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 60 },
-        2: { cellWidth: 50 },
-        3: { cellWidth: 100 },
+        0: { cellWidth: 55, halign: "center" },
+        1: { cellWidth: 55, halign: "center" },
+        2: { cellWidth: 45, halign: "center" },
+        3: { cellWidth: 95, halign: "left" },
         4: { halign: "left" },
-        5: { halign: "right", cellWidth: 65 },
-        6: { halign: "right", cellWidth: 65 },
+        5: { halign: "right", cellWidth: 60, textColor: [225, 29, 72] },
+        6: { halign: "right", cellWidth: 60, textColor: primaryRgb, fontStyle: "bold" },
       },
+      margin: { left, right: 20 },
+      theme: "grid",
     });
 
     doc.save(`ledger_report_${new Date().toISOString().slice(0, 10)}.pdf`);
