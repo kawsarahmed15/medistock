@@ -296,8 +296,11 @@ function CustomersPage() {
                   ref={(el) => (rowRefs.current[idx] = el)}
                   tabIndex={0}
                   onClick={() => setFocusedIdx(idx)}
-                  className={`flex flex-wrap items-center gap-3 py-3 animate-fade-in outline-none rounded-lg px-2 transition-colors ${
-                    focusedIdx === idx ? "bg-muted/50 border-primary/20" : "hover:bg-muted/30"
+                  onFocus={() => setFocusedIdx(idx)}
+                  className={`flex flex-wrap items-center gap-3 py-3 animate-fade-in focus:outline-none border-l-4 transition-all duration-200 px-3 my-0.5 rounded-r-lg ${
+                    focusedIdx === idx
+                      ? "bg-primary/15 dark:bg-primary/25 border-l-primary shadow-sm ring-1 ring-primary/30 font-medium"
+                      : "hover:bg-muted/40 border-l-transparent"
                   }`}
                 >
                   <div 
