@@ -46,7 +46,7 @@ function formatDate(iso: string) {
 function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[] | null>(null);
   const [q, setQ] = useState("");
-  const [period, setPeriod] = useState("this_month");
+  const [period, setPeriod] = useState("all_time");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);

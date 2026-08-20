@@ -154,10 +154,6 @@ export async function downloadBillPdf(
     doc.text(`GSTIN: ${clean(gstNumber.toUpperCase())}`, headerLeftX, headerBottomY);
     headerBottomY += 12;
   }
-  if (drugLicNo) {
-    doc.text(`D.L.No.: ${clean(drugLicNo.toUpperCase())}`, headerLeftX, headerBottomY);
-    headerBottomY += 12;
-  }
 
   // Right Side Header
   let rightY = currentY;

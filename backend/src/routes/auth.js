@@ -115,7 +115,7 @@ router.post("/login", async (req, res, next) => {
     const password = String(req.body?.password || "");
 
     const [rows] = await pool.query(
-      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, pharmacy_phone, gst_number, drug_lic_no, bill_color, signature, role, account_status, default_tax
+      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax
        FROM users
        WHERE email = ?
        LIMIT 1`,
