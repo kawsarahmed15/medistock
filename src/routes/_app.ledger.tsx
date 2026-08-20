@@ -585,19 +585,8 @@ function LedgerPage() {
                         </span>
                       </TableCell>
                       <TableCell className="font-medium text-slate-700">{e.partyName}</TableCell>
-                      <TableCell className="max-w-xs py-2">
-                        <div className="flex flex-col gap-1">
-                          {e.items.map((it, idx) => (
-                            <div key={idx} className="flex justify-between items-center text-xs bg-slate-100/60 dark:bg-slate-800/60 px-2 py-1 rounded border border-slate-200/50">
-                              <span className="truncate max-w-[170px] text-slate-700 dark:text-slate-300 font-medium" title={it.name}>
-                                {it.name}
-                              </span>
-                              <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 ml-2">
-                                x{it.qty}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                      <TableCell className="text-xs text-muted-foreground max-w-xs truncate" title={e.itemsSummary}>
+                        {e.itemsSummary}
                       </TableCell>
                       <TableCell className="text-right font-mono font-medium text-rose-600">
                         {e.type === "purchase" ? formatMoney(e.total) : "—"}
