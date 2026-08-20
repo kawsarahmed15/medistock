@@ -363,12 +363,12 @@ function LedgerPage() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(71, 85, 105); // Slate-600
-    doc.text("TOTAL SALES (+)", card1Left + 14, statsBoxTop + 16);
+    doc.text("TOTAL SALES", card1Left + 14, statsBoxTop + 16);
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(21, 128, 61); // Emerald-700
-    doc.text(formatMoneyPdf(stats.salesTotal), card1Left + cardWidth - 14, statsBoxTop + 33, { align: "right" });
+    doc.text(formatMoneyPdf(stats.salesTotal), card1Left + 14, statsBoxTop + 33);
 
     // Card 2: TOTAL PURCHASES
     const card2Left = left + cardWidth + cardGap;
@@ -380,12 +380,12 @@ function LedgerPage() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(71, 85, 105); // Slate-600
-    doc.text("TOTAL PURCHASES (-)", card2Left + 14, statsBoxTop + 16);
+    doc.text("TOTAL PURCHASES", card2Left + 14, statsBoxTop + 16);
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(190, 24, 74); // Rose-700
-    doc.text(formatMoneyPdf(stats.purchasesTotal), card2Left + cardWidth - 14, statsBoxTop + 33, { align: "right" });
+    doc.text(formatMoneyPdf(stats.purchasesTotal), card2Left + 14, statsBoxTop + 33);
 
     // Card 3: NET CASH FLOW
     const card3Left = left + (cardWidth + cardGap) * 2;
@@ -409,7 +409,7 @@ function LedgerPage() {
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(isNetPositive ? 21 : 190, isNetPositive ? 128 : 24, isNetPositive ? 61 : 74);
-    doc.text(formatMoneyPdf(stats.netFlow), card3Left + cardWidth - 14, statsBoxTop + 33, { align: "right" });
+    doc.text(formatMoneyPdf(stats.netFlow), card3Left + 14, statsBoxTop + 33);
 
     y += statsBoxHeight + 16;
 
