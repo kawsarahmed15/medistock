@@ -26,12 +26,12 @@ import {
 } from "recharts";
 import { TableSkeleton } from "@/components/loading-skeleton";
 
-type Range = "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "quarter" | "year" | "custom" | "all";
+type Range = "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "year" | "custom" | "all";
 type RevenueSearch = { range?: Range; from?: string; to?: string };
 
 export const Route = createFileRoute("/_app/revenue")({
   validateSearch: (search: Record<string, unknown>): RevenueSearch => {
-    const valid: Range[] = ["today", "yesterday", "7d", "30d", "month", "last_month", "quarter", "year", "custom", "all"];
+    const valid: Range[] = ["today", "yesterday", "7d", "30d", "month", "last_month", "year", "custom", "all"];
     const r = search.range as string | undefined;
     return {
       range: valid.includes(r as Range) ? (r as Range) : undefined,
@@ -75,9 +75,6 @@ function rangeBounds(range: Range, from?: string, to?: string): { start: Date; e
       start.setDate(1);
       end.setDate(0);
       end.setHours(23, 59, 59, 999);
-      break;
-    case "quarter":
-      start.setDate(start.getDate() - 89);
       break;
     case "year":
       start.setDate(start.getDate() - 364);
@@ -480,7 +477,6 @@ function RevenuePage() {
     "30d": "Last 30 days",
     month: "This month",
     last_month: "Last month",
-    quarter: "Last 90 days",
     year: "Last 12 months",
     custom: "Custom range",
     all: "All time",
@@ -523,7 +519,6 @@ function RevenuePage() {
               <TabsTrigger value="30d">Last 30 days</TabsTrigger>
               <TabsTrigger value="month">This month</TabsTrigger>
               <TabsTrigger value="last_month">Last month</TabsTrigger>
-              <TabsTrigger value="quarter">Last quarter</TabsTrigger>
               <TabsTrigger value="year">Last year</TabsTrigger>
               <TabsTrigger value="custom">Custom</TabsTrigger>
               <TabsTrigger value="all">All time</TabsTrigger>
