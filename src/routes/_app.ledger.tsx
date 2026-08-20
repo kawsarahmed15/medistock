@@ -32,6 +32,13 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(n);
 }
 
+function formatMoneyPdf(n: number) {
+  return new Intl.NumberFormat("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
+
 function rangeBounds(range: Range, from?: string, to?: string): { start: Date; end: Date } {
   const end = new Date();
   end.setHours(23, 59, 59, 999);
@@ -341,7 +348,7 @@ function LedgerPage() {
     // 2. Stats boxes (Three modern side-by-side cards)
     y += 16;
     const statsBoxTop = y;
-    const statsBoxHeight = 58;
+    const statsBoxHeight = 46;
     const totalWidth = pageWidth - left * 2;
     const cardGap = 12;
     const cardWidth = (totalWidth - cardGap * 2) / 3;
@@ -356,12 +363,12 @@ function LedgerPage() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(71, 85, 105); // Slate-600
-    doc.text("TOTAL SALES (+)", card1Left + 14, statsBoxTop + 20);
+    doc.text("TOTAL SALES (+)", card1Left + 14, statsBoxTop + 16);
 
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(21, 128, 61); // Emerald-700
-    doc.text(formatMoney(stats.salesTotal), card1Left + 14, statsBoxTop + 42);
+    doc.text(formatMoneyPdf(stats.salesTotal), card1Left + cardWidth - 14, statsBoxTop + 33, { align: "right" });
 
     // Card 2: TOTAL PURCHASES
     const card2Left = left + cardWidth + cardGap;
@@ -373,12 +380,12 @@ function LedgerPage() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(71, 85, 105); // Slate-600
-    doc.text("TOTAL PURCHASES (-)", card2Left + 14, statsBoxTop + 20);
+    doc.text("TOTAL PURCHASES (-)", card2Left + 14, statsBoxTop + 16);
 
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(190, 24, 74); // Rose-700
-    doc.text(formatMoney(stats.purchasesTotal), card2Left + 14, statsBoxTop + 42);
+    doc.text(formatMoneyPdf(stats.purchasesTotal), card2Left + cardWidth - 14, statsBoxTop + 33, { align: "right" });
 
     // Card 3: NET CASH FLOW
     const card3Left = left + (cardWidth + cardGap) * 2;
@@ -397,12 +404,12 @@ function LedgerPage() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(71, 85, 105); // Slate-600
-    doc.text("NET CASH FLOW", card3Left + 14, statsBoxTop + 20);
+    doc.text("NET CASH FLOW", card3Left + 14, statsBoxTop + 16);
 
-    doc.setFontSize(13);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(isNetPositive ? 21 : 190, isNetPositive ? 128 : 24, isNetPositive ? 61 : 74);
-    doc.text(formatMoney(stats.netFlow), card3Left + 14, statsBoxTop + 42);
+    doc.text(formatMoneyPdf(stats.netFlow), card3Left + cardWidth - 14, statsBoxTop + 33, { align: "right" });
 
     y += statsBoxHeight + 16;
 
