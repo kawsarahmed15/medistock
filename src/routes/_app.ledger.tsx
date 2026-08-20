@@ -338,37 +338,71 @@ function LedgerPage() {
     doc.setLineWidth(1.5);
     doc.line(left, y, right, y);
 
-    // 2. Stats box (styled like customer details box in bill pdf)
+    // 2. Stats boxes (Three modern side-by-side cards)
     y += 16;
     const statsBoxTop = y;
-    const statsBoxHeight = 55;
+    const statsBoxHeight = 58;
+    const totalWidth = pageWidth - left * 2;
+    const cardGap = 12;
+    const cardWidth = (totalWidth - cardGap * 2) / 3;
 
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(left, statsBoxTop, pageWidth - left * 2, statsBoxHeight, 6, 6, "FD");
+    // Card 1: TOTAL SALES
+    const card1Left = left;
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(187, 247, 208);
+    doc.setLineWidth(0.75);
+    doc.roundedRect(card1Left, statsBoxTop, cardWidth, statsBoxHeight, 6, 6, "FD");
 
-    // Divider lines in stats box
-    const colWidth = (pageWidth - left * 2) / 3;
-    doc.line(left + colWidth, statsBoxTop, left + colWidth, statsBoxTop + statsBoxHeight);
-    doc.line(left + colWidth * 2, statsBoxTop, left + colWidth * 2, statsBoxTop + statsBoxHeight);
-
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(100, 116, 139);
-    doc.text("TOTAL SALES (+)", left + 15, statsBoxTop + 18);
-    doc.text("TOTAL PURCHASES (-)", left + colWidth + 15, statsBoxTop + 18);
-    doc.text("NET CASH FLOW", left + colWidth * 2 + 15, statsBoxTop + 18);
+    doc.setTextColor(71, 85, 105); // Slate-600
+    doc.text("TOTAL SALES (+)", card1Left + 14, statsBoxTop + 20);
 
-    doc.setFontSize(14);
-    doc.setTextColor(22, 163, 74); // Green for sales
-    doc.text(formatMoney(stats.salesTotal), left + 15, statsBoxTop + 40);
-    doc.setTextColor(225, 29, 72); // Red for purchases
-    doc.text(formatMoney(stats.purchasesTotal), left + colWidth + 15, statsBoxTop + 40);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(21, 128, 61); // Emerald-700
+    doc.text(formatMoney(stats.salesTotal), card1Left + 14, statsBoxTop + 42);
 
+    // Card 2: TOTAL PURCHASES
+    const card2Left = left + cardWidth + cardGap;
+    doc.setFillColor(255, 241, 242);
+    doc.setDrawColor(254, 205, 211);
+    doc.setLineWidth(0.75);
+    doc.roundedRect(card2Left, statsBoxTop, cardWidth, statsBoxHeight, 6, 6, "FD");
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(71, 85, 105); // Slate-600
+    doc.text("TOTAL PURCHASES (-)", card2Left + 14, statsBoxTop + 20);
+
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(190, 24, 74); // Rose-700
+    doc.text(formatMoney(stats.purchasesTotal), card2Left + 14, statsBoxTop + 42);
+
+    // Card 3: NET CASH FLOW
+    const card3Left = left + (cardWidth + cardGap) * 2;
     const isNetPositive = stats.netFlow >= 0;
-    doc.setTextColor(isNetPositive ? 22 : 225, isNetPositive ? 163 : 29, isNetPositive ? 74 : 72);
-    doc.text(formatMoney(stats.netFlow), left + colWidth * 2 + 15, statsBoxTop + 40);
+    
+    if (isNetPositive) {
+      doc.setFillColor(240, 253, 244);
+      doc.setDrawColor(187, 247, 208);
+    } else {
+      doc.setFillColor(255, 241, 242);
+      doc.setDrawColor(254, 205, 211);
+    }
+    doc.setLineWidth(0.75);
+    doc.roundedRect(card3Left, statsBoxTop, cardWidth, statsBoxHeight, 6, 6, "FD");
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(71, 85, 105); // Slate-600
+    doc.text("NET CASH FLOW", card3Left + 14, statsBoxTop + 20);
+
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(isNetPositive ? 21 : 190, isNetPositive ? 128 : 24, isNetPositive ? 61 : 74);
+    doc.text(formatMoney(stats.netFlow), card3Left + 14, statsBoxTop + 42);
 
     y += statsBoxHeight + 16;
 
