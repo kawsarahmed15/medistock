@@ -82,6 +82,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const INACTIVITY_LIMIT = 60 * 60 * 1000; // 1 hour
     const LAST_ACTIVE_KEY = "medistock.auth.lastActive";
 
+    // Session registration
+    const generateUUID = () => {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+      }
+      return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    };
+
+    let sessionId = localStorage.getItem("medistock.auth.sessionId");
+    if (!sessionId) {
+      sessionId = generateUUID();
+      localStorage.setItem("medistock.auth.sessionId", sessionId);
+    }
+
+    const handleLogout = () => {
+      localStorage.removeItem(LAST_ACTIVE_KEY);
+      localStorage.removeItem("medistock.auth.sessionId");
+      setAuthToken(null);
+      setSession(null);
+      window.location.href = "/login?revoked=1";
+    };
+
+    const registerSession = async () => {
+      try {
+        const ua = navigator.userAgent;
+        let os = "Unknown OS";
+        let browser = "Unknown Browser";
+
+        if (ua.indexOf("Win") !== -1) os = "Windows";
+        else if (ua.indexOf("Mac") !== -1) os = "macOS";
+        else if (ua.indexOf("Linux") !== -1) os = "Linux";
+        else if (ua.indexOf("Android") !== -1) os = "Android";
+        else if (ua.indexOf("like Mac") !== -1) os = "iOS";
+
+        if (ua.indexOf("Firefox") !== -1) browser = "Firefox";
+        else if (ua.indexOf("SamsungBrowser") !== -1) browser = "Samsung Internet";
+        else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1) browser = "Opera";
+        else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1) browser = "Edge";
+        else if (ua.indexOf("Chrome") !== -1) browser = "Chrome";
+        else if (ua.indexOf("Safari") !== -1) browser = "Safari";
+
+        await apiRequest("/auth/session", {
+          method: "POST",
+          body: {
+            sessionId,
+            deviceOs: os,
+            deviceBrowser: browser,
+          },
+          auth: true,
+        });
+      } catch (err: any) {
+        console.error("Failed to register session:", err);
+        if (err instanceof Error && err.message === "Session has been revoked") {
+          handleLogout();
+        }
+      }
+    };
+
+    registerSession();
+    let lastServerCheckin = Date.now();
+
     // Set initial activity timestamp
     localStorage.setItem(LAST_ACTIVE_KEY, Date.now().toString());
 
@@ -118,6 +179,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthToken(null);
           setSession(null);
           window.location.href = "/login?expired=1";
+        } else if (Date.now() - lastServerCheckin > 2 * 60 * 1000) {
+          registerSession();
+          lastServerCheckin = Date.now();
         }
       }
     }, 10000);

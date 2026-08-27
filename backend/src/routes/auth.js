@@ -432,4 +432,85 @@ router.post("/confirm-email-change", async (req, res, next) => {
   }
 });
 
+router.post("/session", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.auth.userId;
+    const { sessionId, deviceOs, deviceBrowser } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId is required" });
+    }
+
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+
+    // Check if session already exists
+    const [existing] = await pool.query(
+      "SELECT id FROM user_sessions WHERE session_id = ? LIMIT 1",
+      [sessionId]
+    );
+
+    if (existing.length > 0) {
+      await pool.query(
+        `UPDATE user_sessions 
+         SET last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?
+         WHERE session_id = ?`,
+        [ipAddress, deviceOs || null, deviceBrowser || null, sessionId]
+      );
+    } else {
+      const id = generateId();
+      await pool.query(
+        `INSERT INTO user_sessions (id, user_id, session_id, device_os, device_browser, ip_address)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, userId, sessionId, deviceOs || null, deviceBrowser || null, ipAddress]
+      );
+    }
+
+    res.json({ message: "Session registered/updated" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/sessions", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.auth.userId;
+
+    // Clean up sessions older than 30 days
+    try {
+      await pool.query(
+        "DELETE FROM user_sessions WHERE last_active < DATE_SUB(NOW(), INTERVAL 30 DAY)"
+      );
+    } catch (cleanupErr) {
+      console.error("Failed to clean up old sessions:", cleanupErr);
+    }
+
+    const [rows] = await pool.query(
+      `SELECT session_id as sessionId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, last_active as lastActive, created_at as createdAt
+       FROM user_sessions
+       WHERE user_id = ?
+       ORDER BY last_active DESC`,
+      [userId]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/sessions/:sessionId", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.auth.userId;
+    const { sessionId } = req.params;
+
+    await pool.query(
+      "DELETE FROM user_sessions WHERE user_id = ? AND session_id = ?",
+      [userId, sessionId]
+    );
+
+    res.json({ message: "Session revoked successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export { router as authRouter };

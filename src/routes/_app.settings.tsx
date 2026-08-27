@@ -37,7 +37,7 @@ const PRESETS = [
 ];
 
 function SettingsPage() {
-  const { session, updateSession, requestEmailChange } = useAuth();
+  const { session, updateSession, requestEmailChange, logout } = useAuth();
   const [newEmail, setNewEmail] = useState("");
   const [requestingEmailChange, setRequestingEmailChange] = useState(false);
   const [pharmacyName, setPharmacyName] = useState(session?.pharmacyName ?? "");
@@ -53,30 +53,25 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [deviceInfo, setDeviceInfo] = useState({ os: "Loading...", browser: "Loading..." });
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+  const loadSessions = async () => {
+    try {
+      const data = await apiRequest<any[]>("/auth/sessions", { auth: true });
+      setSessions(data);
+    } catch (err) {
+      console.error("Failed to load sessions:", err);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
 
   useEffect(() => {
+    loadSessions();
     if (typeof window !== "undefined") {
-      const ua = navigator.userAgent;
-      let os = "Unknown OS";
-      let browser = "Unknown Browser";
-
-      // OS detection
-      if (ua.indexOf("Win") !== -1) os = "Windows";
-      else if (ua.indexOf("Mac") !== -1) os = "macOS";
-      else if (ua.indexOf("Linux") !== -1) os = "Linux";
-      else if (ua.indexOf("Android") !== -1) os = "Android";
-      else if (ua.indexOf("like Mac") !== -1) os = "iOS";
-
-      // Browser detection
-      if (ua.indexOf("Firefox") !== -1) browser = "Firefox";
-      else if (ua.indexOf("SamsungBrowser") !== -1) browser = "Samsung Internet";
-      else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1) browser = "Opera";
-      else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1) browser = "Edge";
-      else if (ua.indexOf("Chrome") !== -1) browser = "Chrome";
-      else if (ua.indexOf("Safari") !== -1) browser = "Safari";
-
-      setDeviceInfo({ os, browser });
+      setCurrentSessionId(window.localStorage.getItem("medistock.auth.sessionId"));
     }
   }, []);
 
@@ -190,6 +185,22 @@ function SettingsPage() {
       toast.error(err instanceof Error ? err.message : "Failed to request email change");
     } finally {
       setRequestingEmailChange(false);
+    }
+  };
+
+  const handleRevokeSession = async (sessId: string) => {
+    if (sessId === currentSessionId) {
+      await logout();
+      window.location.href = "/login";
+      return;
+    }
+
+    try {
+      await apiRequest(`/auth/sessions/${sessId}`, { method: "DELETE", auth: true });
+      toast.success("Device logged out successfully");
+      loadSessions();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to log out device");
     }
   };
 
@@ -547,31 +558,76 @@ function SettingsPage() {
             <CardHeader className="py-4">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <Laptop className="h-4 w-4 text-primary" />
-                Active Session
+                Active Sessions
               </CardTitle>
               <CardDescription className="text-xs">
-                The device currently logged into this account.
+                Devices currently logged into this account.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 pb-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
-                <div className="p-2 bg-primary/10 text-primary rounded-lg">
-                  {deviceInfo.os === "Android" || deviceInfo.os === "iOS" ? (
-                    <Smartphone className="h-5 w-5" />
-                  ) : (
-                    <Monitor className="h-5 w-5" />
-                  )}
+              {loadingSessions ? (
+                <div className="text-center text-xs text-muted-foreground py-4 animate-pulse">
+                  Loading active devices...
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-foreground truncate">
-                    {deviceInfo.browser} on {deviceInfo.os}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Current Device (Active)
-                  </div>
+              ) : sessions.length === 0 ? (
+                <div className="text-center text-xs text-muted-foreground py-4">
+                  No active sessions found.
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  {sessions.map((s) => {
+                    const isCurrent = s.sessionId === currentSessionId;
+                    return (
+                      <div
+                        key={s.sessionId}
+                        className={cn(
+                          "flex items-center justify-between gap-3 p-3 rounded-lg border text-xs",
+                          isCurrent ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border"
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={cn(
+                            "p-2 rounded-lg shrink-0",
+                            isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                          )}>
+                            {s.deviceOs === "Android" || s.deviceOs === "iOS" ? (
+                              <Smartphone className="h-5 w-5" />
+                            ) : (
+                              <Monitor className="h-5 w-5" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-foreground truncate">
+                              {s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              {isCurrent ? (
+                                <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                  Current Device
+                                </span>
+                              ) : (
+                                <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
+                              )}
+                              {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevokeSession(s.sessionId)}
+                          className="h-7 px-2 text-[10px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 shrink-0"
+                        >
+                          {isCurrent ? "Logout" : "Log out"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
