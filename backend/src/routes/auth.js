@@ -116,7 +116,7 @@ router.post("/login", async (req, res, next) => {
     const password = String(req.body?.password || "");
 
     const [rows] = await pool.query(
-      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax
+      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -145,29 +145,30 @@ router.post("/login", async (req, res, next) => {
       const deviceBrowser = req.body?.deviceBrowser || null;
       const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
 
+      // Assign admin_device_id if not set yet
+      let adminDeviceId = user.admin_device_id;
+      if (!adminDeviceId) {
+        await pool.query("UPDATE users SET admin_device_id = ? WHERE id = ?", [deviceId, user.id]);
+        adminDeviceId = deviceId;
+      }
+
       // Check if session already exists for this user and device
       const [existing] = await pool.query(
         "SELECT id, session_id FROM user_sessions WHERE user_id = ? AND device_id = ? LIMIT 1",
         [user.id, deviceId]
       );
 
-      // Check if user has an admin session
-      const [adminSessions] = await pool.query(
-        "SELECT id FROM user_sessions WHERE user_id = ? AND is_admin = 1 LIMIT 1",
-        [user.id]
-      );
-      const hasAdmin = adminSessions.length > 0;
+      const makeAdmin = (deviceId === adminDeviceId) ? 1 : 0;
 
       if (existing.length > 0) {
         // Update existing device session record with the new session_id
         await pool.query(
           `UPDATE user_sessions 
-           SET session_id = ?, last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?
+           SET session_id = ?, last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?, is_admin = ?
            WHERE id = ?`,
-          [sessionId, ipAddress, deviceOs, deviceBrowser, existing[0].id]
+          [sessionId, ipAddress, deviceOs, deviceBrowser, makeAdmin, existing[0].id]
         );
       } else {
-        const makeAdmin = !hasAdmin ? 1 : 0;
         await pool.query(
           `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -491,25 +492,31 @@ router.post("/session", requireAuth, async (req, res, next) => {
 
     const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
 
+    // Get user's admin_device_id
+    const [userRows] = await pool.query(
+      "SELECT admin_device_id FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    const user = userRows[0];
+    let adminDeviceId = user?.admin_device_id;
+    if (!adminDeviceId) {
+      await pool.query("UPDATE users SET admin_device_id = ? WHERE id = ?", [deviceId, userId]);
+      adminDeviceId = deviceId;
+    }
+
     // Check if session already exists for this user and device
     const [existing] = await pool.query(
-      "SELECT id, session_id, is_admin FROM user_sessions WHERE user_id = ? AND device_id = ? LIMIT 1",
+      "SELECT id, session_id FROM user_sessions WHERE user_id = ? AND device_id = ? LIMIT 1",
       [userId, deviceId]
     );
 
-    // Check if the user has an admin session
-    const [adminSessions] = await pool.query(
-      "SELECT id FROM user_sessions WHERE user_id = ? AND is_admin = 1 LIMIT 1",
-      [userId]
-    );
-    const hasAdmin = adminSessions.length > 0;
-    const makeAdmin = !hasAdmin ? 1 : 0;
+    const makeAdmin = (deviceId === adminDeviceId) ? 1 : 0;
 
     if (existing.length > 0) {
       await pool.query(
         `UPDATE user_sessions 
          SET session_id = ?, last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?,
-             is_admin = CASE WHEN is_admin = 1 THEN 1 ELSE ? END
+             is_admin = ?
          WHERE id = ?`,
         [sessionId, ipAddress, deviceOs || null, deviceBrowser || null, makeAdmin, existing[0].id]
       );
@@ -552,15 +559,27 @@ router.get("/sessions", requireAuth, async (req, res, next) => {
       console.error("Failed to clean up old sessions:", cleanupErr);
     }
 
+    const [userRows] = await pool.query(
+      "SELECT admin_device_id FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    const user = userRows[0];
+    const adminDeviceId = user?.admin_device_id;
+
     const [rows] = await pool.query(
-      `SELECT session_id as sessionId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, is_admin as isAdmin, last_active as lastActive, created_at as createdAt
+      `SELECT session_id as sessionId, device_id as deviceId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, last_active as lastActive, created_at as createdAt
        FROM user_sessions
        WHERE user_id = ?
        ORDER BY last_active DESC`,
       [userId]
     );
 
-    res.json(rows);
+    const sessionsWithAdmin = rows.map(r => ({
+      ...r,
+      isAdmin: (r.deviceId === adminDeviceId) ? 1 : 0
+    }));
+
+    res.json(sessionsWithAdmin);
   } catch (error) {
     next(error);
   }
@@ -576,45 +595,37 @@ router.delete("/sessions/:sessionId", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: "X-Session-ID header is missing" });
     }
 
-    // Get the requester's session info
+    // Get the user's admin_device_id
+    const [userRows] = await pool.query(
+      "SELECT admin_device_id FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    const user = userRows[0];
+    const adminDeviceId = user?.admin_device_id;
+
+    // Get the requester's device info
     const [reqSessionRows] = await pool.query(
-      "SELECT is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      "SELECT device_id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
       [reqSessionId, userId]
     );
     const reqSession = reqSessionRows[0];
+    const reqDeviceId = reqSession?.device_id;
 
     const isSelf = targetSessionId === reqSessionId;
-    const isAdmin = reqSession && reqSession.is_admin === 1;
+    const isAdmin = reqDeviceId && reqDeviceId === adminDeviceId;
 
     if (!isAdmin && !isSelf) {
       return res.status(403).json({ error: "Only the Admin Device can log out other devices" });
     }
-
-    // Check if target session is the admin session
-    const [targetSessionRows] = await pool.query(
-      "SELECT is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
-      [targetSessionId, userId]
-    );
-    const targetSession = targetSessionRows[0];
 
     await pool.query(
       "DELETE FROM user_sessions WHERE user_id = ? AND session_id = ?",
       [userId, targetSessionId]
     );
 
-    // If the deleted session was the admin session, transfer admin rights to another active session
-    if (targetSession && targetSession.is_admin === 1) {
-      const [remaining] = await pool.query(
-        "SELECT session_id FROM user_sessions WHERE user_id = ? ORDER BY last_active DESC LIMIT 1",
-        [userId]
-      );
-      if (remaining.length > 0) {
-        await pool.query(
-          "UPDATE user_sessions SET is_admin = 1 WHERE session_id = ?",
-          [remaining[0].session_id]
-        );
-      }
-    }
+    // Note: Since the user requested "always keep this device as admin... without this dont change the admin",
+    // we DO NOT modify the users.admin_device_id column on session revocation or logout.
+    // That way, when they log back in on that same device, they are still the admin!
 
     res.json({ message: "Session revoked successfully" });
   } catch (error) {
@@ -632,35 +643,51 @@ router.post("/sessions/:sessionId/transfer-admin", requireAuth, async (req, res,
       return res.status(400).json({ error: "X-Session-ID header is missing" });
     }
 
-    // Get the requester's session info
+    // Get the user's admin_device_id
+    const [userRows] = await pool.query(
+      "SELECT admin_device_id FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    const user = userRows[0];
+    const adminDeviceId = user?.admin_device_id;
+
+    // Get the requester's device info
     const [reqSessionRows] = await pool.query(
-      "SELECT is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      "SELECT device_id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
       [reqSessionId, userId]
     );
     const reqSession = reqSessionRows[0];
+    const reqDeviceId = reqSession?.device_id;
 
-    const isAdmin = reqSession && reqSession.is_admin === 1;
+    const isAdmin = reqDeviceId && reqDeviceId === adminDeviceId;
     if (!isAdmin) {
       return res.status(403).json({ error: "Only the Admin Device can transfer admin rights" });
     }
 
-    // Verify target session exists
+    // Get target session's device info
     const [targetSessionRows] = await pool.query(
-      "SELECT id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      "SELECT device_id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
       [targetSessionId, userId]
     );
     if (targetSessionRows.length === 0) {
       return res.status(404).json({ error: "Target session not found" });
     }
+    const targetDeviceId = targetSessionRows[0].device_id;
 
-    // Transfer admin
+    // Transfer admin device status persistently in the users table
+    await pool.query(
+      "UPDATE users SET admin_device_id = ? WHERE id = ?",
+      [targetDeviceId, userId]
+    );
+
+    // Also update the is_admin column in user_sessions for frontend reactivity if queried
     await pool.query(
       "UPDATE user_sessions SET is_admin = 0 WHERE user_id = ?",
       [userId]
     );
     await pool.query(
-      "UPDATE user_sessions SET is_admin = 1 WHERE session_id = ?",
-      [targetSessionId]
+      "UPDATE user_sessions SET is_admin = 1 WHERE device_id = ?",
+      [targetDeviceId]
     );
 
     res.json({ message: "Admin rights transferred successfully" });

@@ -40,6 +40,13 @@ async function bootstrap() {
       await pool.query("ALTER TABLE user_sessions ADD CONSTRAINT uq_user_device UNIQUE (user_id, device_id)");
       console.log("Added device_id column and unique constraint to user_sessions table");
     }
+
+    // Add admin_device_id column to users table if not exists
+    const [usersCols] = await pool.query("SHOW COLUMNS FROM users LIKE 'admin_device_id'");
+    if (usersCols.length === 0) {
+      await pool.query("ALTER TABLE users ADD COLUMN admin_device_id VARCHAR(50) NULL");
+      console.log("Added admin_device_id column to users table");
+    }
   } catch (err) {
     console.error("Migration upgrade error:", err);
   }
