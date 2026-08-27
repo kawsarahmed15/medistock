@@ -16,6 +16,7 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
   sendEmailChangeVerification,
+  sendLoginNotificationEmail,
 } from "../services/email.js";
 
 const router = Router();
@@ -134,6 +135,51 @@ router.post("/login", async (req, res, next) => {
 
     if (!user.is_verified) {
       throw buildApiError(403, "Please verify your email before logging in");
+    }
+
+    // Register session if provided
+    const sessionId = req.body?.sessionId;
+    if (sessionId) {
+      const deviceOs = req.body?.deviceOs || null;
+      const deviceBrowser = req.body?.deviceBrowser || null;
+      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+
+      // Check if session already exists
+      const [existing] = await pool.query(
+        "SELECT id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+        [sessionId, user.id]
+      );
+
+      // Check if user has an admin session
+      const [adminSessions] = await pool.query(
+        "SELECT id FROM user_sessions WHERE user_id = ? AND is_admin = 1 LIMIT 1",
+        [user.id]
+      );
+      const makeAdmin = adminSessions.length === 0 ? 1 : 0;
+
+      if (existing.length === 0) {
+        await pool.query(
+          `INSERT INTO user_sessions (id, user_id, session_id, device_os, device_browser, ip_address, is_admin)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [generateId(), user.id, sessionId, deviceOs, deviceBrowser, ipAddress, makeAdmin]
+        );
+
+        // Send new login notification email
+        await sendLoginNotificationEmail({
+          to: user.email,
+          name: user.name,
+          deviceOs,
+          deviceBrowser,
+          ipAddress,
+        });
+      } else {
+        await pool.query(
+          `UPDATE user_sessions 
+           SET last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?
+           WHERE session_id = ?`,
+          [ipAddress, deviceOs, deviceBrowser, sessionId]
+        );
+      }
     }
 
     const token = signAuthToken(user);

@@ -111,3 +111,34 @@ export async function sendEmailChangeVerification({ to, name, verificationUrl })
     console.warn("Email change email could not be sent", error);
   }
 }
+
+export async function sendLoginNotificationEmail({ to, name, deviceOs, deviceBrowser, ipAddress }) {
+  const html = `
+    <div style="font-family:Segoe UI,Arial,sans-serif;color:#111827;max-width:560px;padding:20px;border:1px solid #e5e7eb;border-radius:12px;">
+      <h2 style="font-size:20px;font-weight:700;margin-bottom:10px;color:#ef4444;">New Login Detected</h2>
+      <p style="font-size:14px;color:#374151;">Hi ${name || "there"},</p>
+      <p style="font-size:14px;color:#374151;">We detected a new login to your MediStock account.</p>
+      <div style="background:#f3f4f6;padding:15px;border-radius:8px;font-size:13px;margin:20px 0;line-height:1.6;">
+        <strong>Device:</strong> ${deviceBrowser || "Unknown Browser"} on ${deviceOs || "Unknown OS"}<br/>
+        <strong>IP Address:</strong> ${ipAddress || "Unknown IP"}<br/>
+        <strong>Time:</strong> ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} (IST)
+      </div>
+      <p style="font-size:14px;color:#374151;">If this was you, you can ignore this email. If this wasn't you, please log into your account settings immediately and log out the unauthorized device, or change your password.</p>
+      <p style="font-size:12px;color:#9ca3af;margin-top:20px;">This is an automated security notification from MediStock.</p>
+    </div>
+  `;
+
+  const text = `Hi ${name || "there"},\n\nWe detected a new login to your MediStock account.\n\nDevice: ${deviceBrowser || "Unknown Browser"} on ${deviceOs || "Unknown OS"}\nIP Address: ${ipAddress || "Unknown IP"}\nTime: ${new Date().toLocaleString()}\n\nIf this was you, you can ignore this email. If this wasn't you, please log into your account settings immediately and log out the unauthorized device, or change your password.\n\nThis is an automated security notification from MediStock.`;
+
+  try {
+    await transporter.sendMail({
+      from: config.smtp.from,
+      to,
+      subject: "Security Alert: New device login detected on MediStock",
+      html,
+      text,
+    });
+  } catch (error) {
+    console.warn("Login notification email could not be sent", error);
+  }
+}

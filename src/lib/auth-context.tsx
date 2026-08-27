@@ -198,9 +198,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     ready,
     login: async (email, password) => {
+      let sessionId = localStorage.getItem("medistock.auth.sessionId");
+      if (!sessionId) {
+        const generateUUID = () => {
+          if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+            return crypto.randomUUID();
+          }
+          return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        };
+        sessionId = generateUUID();
+        localStorage.setItem("medistock.auth.sessionId", sessionId);
+      }
+
+      const ua = navigator.userAgent;
+      let os = "Unknown OS";
+      let browser = "Unknown Browser";
+
+      if (ua.indexOf("Win") !== -1) os = "Windows";
+      else if (ua.indexOf("Mac") !== -1) os = "macOS";
+      else if (ua.indexOf("Linux") !== -1) os = "Linux";
+      else if (ua.indexOf("Android") !== -1) os = "Android";
+      else if (ua.indexOf("like Mac") !== -1) os = "iOS";
+
+      if (ua.indexOf("Firefox") !== -1) browser = "Firefox";
+      else if (ua.indexOf("SamsungBrowser") !== -1) browser = "Samsung Internet";
+      else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1) browser = "Opera";
+      else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1) browser = "Edge";
+      else if (ua.indexOf("Chrome") !== -1) browser = "Chrome";
+      else if (ua.indexOf("Safari") !== -1) browser = "Safari";
+
       const res = await apiRequest<{ token: string; user: any }>("/auth/login", {
         method: "POST",
-        body: { email, password },
+        body: {
+          email,
+          password,
+          sessionId,
+          deviceOs: os,
+          deviceBrowser: browser,
+        },
       });
       setAuthToken(res.token);
       setSession({
