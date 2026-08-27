@@ -139,15 +139,16 @@ router.post("/login", async (req, res, next) => {
 
     // Register session if provided
     const sessionId = req.body?.sessionId;
-    if (sessionId) {
+    const deviceId = req.body?.deviceId;
+    if (sessionId && deviceId) {
       const deviceOs = req.body?.deviceOs || null;
       const deviceBrowser = req.body?.deviceBrowser || null;
       const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
 
-      // Check if session already exists
+      // Check if session already exists for this user and device
       const [existing] = await pool.query(
-        "SELECT id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
-        [sessionId, user.id]
+        "SELECT id, session_id FROM user_sessions WHERE user_id = ? AND device_id = ? LIMIT 1",
+        [user.id, deviceId]
       );
 
       // Check if user has an admin session
@@ -155,13 +156,22 @@ router.post("/login", async (req, res, next) => {
         "SELECT id FROM user_sessions WHERE user_id = ? AND is_admin = 1 LIMIT 1",
         [user.id]
       );
-      const makeAdmin = adminSessions.length === 0 ? 1 : 0;
+      const hasAdmin = adminSessions.length > 0;
 
-      if (existing.length === 0) {
+      if (existing.length > 0) {
+        // Update existing device session record with the new session_id
         await pool.query(
-          `INSERT INTO user_sessions (id, user_id, session_id, device_os, device_browser, ip_address, is_admin)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [generateId(), user.id, sessionId, deviceOs, deviceBrowser, ipAddress, makeAdmin]
+          `UPDATE user_sessions 
+           SET session_id = ?, last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?
+           WHERE id = ?`,
+          [sessionId, ipAddress, deviceOs, deviceBrowser, existing[0].id]
+        );
+      } else {
+        const makeAdmin = !hasAdmin ? 1 : 0;
+        await pool.query(
+          `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [generateId(), user.id, sessionId, deviceId, deviceOs, deviceBrowser, ipAddress, makeAdmin]
         );
 
         // Send new login notification email
@@ -172,13 +182,6 @@ router.post("/login", async (req, res, next) => {
           deviceBrowser,
           ipAddress,
         });
-      } else {
-        await pool.query(
-          `UPDATE user_sessions 
-           SET last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?
-           WHERE session_id = ?`,
-          [ipAddress, deviceOs, deviceBrowser, sessionId]
-        );
       }
     }
 
@@ -481,17 +484,17 @@ router.post("/confirm-email-change", async (req, res, next) => {
 router.post("/session", requireAuth, async (req, res, next) => {
   try {
     const userId = req.auth.userId;
-    const { sessionId, deviceOs, deviceBrowser } = req.body;
-    if (!sessionId) {
-      return res.status(400).json({ error: "sessionId is required" });
+    const { sessionId, deviceId, deviceOs, deviceBrowser } = req.body;
+    if (!sessionId || !deviceId) {
+      return res.status(400).json({ error: "sessionId and deviceId are required" });
     }
 
     const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
 
-    // Check if session already exists
+    // Check if session already exists for this user and device
     const [existing] = await pool.query(
-      "SELECT id, is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
-      [sessionId, userId]
+      "SELECT id, session_id, is_admin FROM user_sessions WHERE user_id = ? AND device_id = ? LIMIT 1",
+      [userId, deviceId]
     );
 
     // Check if the user has an admin session
@@ -505,10 +508,10 @@ router.post("/session", requireAuth, async (req, res, next) => {
     if (existing.length > 0) {
       await pool.query(
         `UPDATE user_sessions 
-         SET last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?,
+         SET session_id = ?, last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?,
              is_admin = CASE WHEN is_admin = 1 THEN 1 ELSE ? END
-         WHERE session_id = ?`,
-        [ipAddress, deviceOs || null, deviceBrowser || null, makeAdmin, sessionId]
+         WHERE id = ?`,
+        [sessionId, ipAddress, deviceOs || null, deviceBrowser || null, makeAdmin, existing[0].id]
       );
       res.json({ message: "Session updated" });
     } else {
@@ -518,16 +521,16 @@ router.post("/session", requireAuth, async (req, res, next) => {
         [userId]
       );
 
-      // If sessions exist in db, but not this one -> revoked
+      // If sessions exist in db, but not this device session -> revoked
       if (totalCount[0].count > 0) {
         return res.status(401).json({ message: "Session has been revoked", revoked: true });
       }
 
       const id = generateId();
       await pool.query(
-        `INSERT INTO user_sessions (id, user_id, session_id, device_os, device_browser, ip_address, is_admin)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, userId, sessionId, deviceOs || null, deviceBrowser || null, ipAddress, makeAdmin]
+        `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, userId, sessionId, deviceId, deviceOs || null, deviceBrowser || null, ipAddress, makeAdmin]
       );
       res.json({ message: "Session registered" });
     }

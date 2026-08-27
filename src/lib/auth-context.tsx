@@ -90,6 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     };
 
+    const getOrCreateDeviceId = () => {
+      let deviceId = localStorage.getItem("medistock.auth.deviceId");
+      if (!deviceId) {
+        deviceId = generateUUID();
+        localStorage.setItem("medistock.auth.deviceId", deviceId);
+      }
+      return deviceId;
+    };
+
     let sessionId = localStorage.getItem("medistock.auth.sessionId");
     if (!sessionId) {
       sessionId = generateUUID();
@@ -127,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: "POST",
           body: {
             sessionId,
+            deviceId: getOrCreateDeviceId(),
             deviceOs: os,
             deviceBrowser: browser,
           },
@@ -207,6 +217,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const sessionId = generateUUID();
       localStorage.setItem("medistock.auth.sessionId", sessionId);
 
+      let deviceId = localStorage.getItem("medistock.auth.deviceId");
+      if (!deviceId) {
+        deviceId = generateUUID();
+        localStorage.setItem("medistock.auth.deviceId", deviceId);
+      }
+
       const ua = navigator.userAgent;
       let os = "Unknown OS";
       let browser = "Unknown Browser";
@@ -230,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email,
           password,
           sessionId,
+          deviceId,
           deviceOs: os,
           deviceBrowser: browser,
         },

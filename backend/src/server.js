@@ -31,6 +31,15 @@ async function bootstrap() {
       await pool.query("ALTER TABLE user_sessions ADD COLUMN is_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER ip_address");
       console.log("Added is_admin column to user_sessions table");
     }
+
+    // Add device_id column if not exists
+    const [cols] = await pool.query("SHOW COLUMNS FROM user_sessions LIKE 'device_id'");
+    if (cols.length === 0) {
+      await pool.query("DELETE FROM user_sessions"); // clear old sessions to prevent constraint violations
+      await pool.query("ALTER TABLE user_sessions ADD COLUMN device_id VARCHAR(50) NOT NULL AFTER session_id");
+      await pool.query("ALTER TABLE user_sessions ADD CONSTRAINT uq_user_device UNIQUE (user_id, device_id)");
+      console.log("Added device_id column and unique constraint to user_sessions table");
+    }
   } catch (err) {
     console.error("Migration upgrade error:", err);
   }
