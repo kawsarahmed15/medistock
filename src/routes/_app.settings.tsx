@@ -650,7 +650,7 @@ function SettingsPage() {
                                 size="sm"
                                 onClick={() => handleRevokeSession(s.sessionId)}
                                 className={cn(
-                                  "h-7 px-2 text-[10px] shrink-0 font-medium",
+                                  "h-8 w-[88px] text-[11px] shrink-0 font-medium px-2 text-center flex items-center justify-center",
                                   isCurrent ? "text-muted-foreground hover:bg-muted" : "text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
                                 )}
                               >
@@ -664,7 +664,7 @@ function SettingsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleTransferAdmin(s.sessionId)}
-                                className="h-7 px-2 text-[10px] text-primary border-primary/20 hover:bg-primary/5 font-medium shrink-0"
+                                className="h-8 w-[88px] text-[11px] text-primary border-primary/20 hover:bg-primary/5 font-medium px-2 text-center flex items-center justify-center shrink-0"
                               >
                                 Make Admin
                               </Button>
