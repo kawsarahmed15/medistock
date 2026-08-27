@@ -175,6 +175,8 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   device_browser VARCHAR(100) NULL,
   ip_address VARCHAR(45) NULL,
   is_admin TINYINT(1) NOT NULL DEFAULT 0,
+  last_user_activity TIMESTAMP NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'active',
   last_active TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_user_sessions_user (user_id),

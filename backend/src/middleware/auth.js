@@ -20,7 +20,7 @@ export async function requireAuth(req, res, next) {
     if (sessionId) {
       // Check if session exists in database
       const [rows] = await pool.query(
-        "SELECT id, device_id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+        "SELECT id, device_id, status FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
         [sessionId, userId]
       );
       
@@ -34,8 +34,10 @@ export async function requireAuth(req, res, next) {
         [userId]
       );
 
-      // If sessions exist in database but this specific session is missing, it is revoked!
-      if (rows.length === 0 && totalCount[0].count > 0) {
+      const isRevoked = rows.length === 0 || rows[0].status === 'logged_out';
+
+      // If sessions exist in database but this specific session is missing or logged_out, it is revoked!
+      if (isRevoked && totalCount[0].count > 0) {
         throw buildApiError(401, "Session has been revoked");
       }
     }

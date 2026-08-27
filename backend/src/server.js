@@ -47,6 +47,20 @@ async function bootstrap() {
       await pool.query("ALTER TABLE users ADD COLUMN admin_device_id VARCHAR(50) NULL");
       console.log("Added admin_device_id column to users table");
     }
+
+    // Add last_user_activity column to user_sessions if not exists
+    const [actCols] = await pool.query("SHOW COLUMNS FROM user_sessions LIKE 'last_user_activity'");
+    if (actCols.length === 0) {
+      await pool.query("ALTER TABLE user_sessions ADD COLUMN last_user_activity TIMESTAMP NULL AFTER is_admin");
+      console.log("Added last_user_activity column to user_sessions table");
+    }
+
+    // Add status column to user_sessions if not exists
+    const [statusCols] = await pool.query("SHOW COLUMNS FROM user_sessions LIKE 'status'");
+    if (statusCols.length === 0) {
+      await pool.query("ALTER TABLE user_sessions ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active' AFTER last_user_activity");
+      console.log("Added status column to user_sessions table");
+    }
   } catch (err) {
     console.error("Migration upgrade error:", err);
   }

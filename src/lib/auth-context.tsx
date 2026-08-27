@@ -113,6 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.href = "/login?revoked=1";
     };
 
+    let lastUserActivity = Date.now();
+
     const registerSession = async () => {
       try {
         const ua = navigator.userAgent;
@@ -132,6 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (ua.indexOf("Chrome") !== -1) browser = "Chrome";
         else if (ua.indexOf("Safari") !== -1) browser = "Safari";
 
+        const isUserActive = (Date.now() - lastUserActivity) < 2 * 60 * 1000;
+
         await apiRequest("/auth/session", {
           method: "POST",
           body: {
@@ -139,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             deviceId: getOrCreateDeviceId(),
             deviceOs: os,
             deviceBrowser: browser,
+            isUserActive,
           },
           auth: true,
         });
@@ -159,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let lastWrite = Date.now();
     const updateActivity = () => {
       const now = Date.now();
+      lastUserActivity = now;
       // Throttle localStorage writes to once every 10 seconds
       if (now - lastWrite > 10000) {
         localStorage.setItem(LAST_ACTIVE_KEY, now.toString());

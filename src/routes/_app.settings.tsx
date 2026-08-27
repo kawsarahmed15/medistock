@@ -60,6 +60,23 @@ function SettingsPage() {
   const loadSessions = async () => {
     try {
       const data = await apiRequest<any[]>("/auth/sessions", { auth: true });
+      
+      const mySessId = currentSessionId || (typeof window !== "undefined" ? window.localStorage.getItem("medistock.auth.sessionId") : null);
+      const currentIsAdmin = data.find(s => s.sessionId === mySessId)?.isAdmin === 1;
+
+      if (currentIsAdmin && sessions.length > 0) {
+        data.forEach(newS => {
+          if (newS.status === 'active' && newS.sessionId !== mySessId) {
+            const alreadyExisted = sessions.some(oldS => oldS.deviceId === newS.deviceId);
+            if (!alreadyExisted) {
+              toast.info("Security Alert: New device logged in!", {
+                description: `${newS.deviceBrowser || "Browser"} on ${newS.deviceOs || "OS"}`,
+              });
+            }
+          }
+        });
+      }
+
       setSessions(data);
     } catch (err) {
       console.error("Failed to load sessions:", err);
@@ -197,12 +214,15 @@ function SettingsPage() {
       return;
     }
 
+    const targetSession = sessions.find(s => s.sessionId === sessId);
+    const isAlreadyLoggedOut = targetSession?.status === 'logged_out';
+
     try {
       await apiRequest(`/auth/sessions/${sessId}`, { method: "DELETE", auth: true });
-      toast.success("Device logged out successfully");
+      toast.success(isAlreadyLoggedOut ? "Device removed successfully" : "Device logged out successfully");
       loadSessions();
     } catch (err: any) {
-      toast.error(err.message || "Failed to log out device");
+      toast.error(err.message || (isAlreadyLoggedOut ? "Failed to remove device" : "Failed to log out device"));
     }
   };
 
@@ -594,8 +614,8 @@ function SettingsPage() {
                   <div className="space-y-3">
                     {sessions.map((s) => {
                       const isCurrent = s.sessionId === currentSessionId;
-                      const lastActiveTime = new Date(s.lastActive).getTime();
-                      const isOnline = Date.now() - lastActiveTime < 5 * 60 * 1000;
+                      const userActivityTimestamp = s.lastUserActivity ? new Date(s.lastUserActivity).getTime() : new Date(s.lastActive).getTime();
+                      const isDeviceActive = isCurrent || ((Date.now() - userActivityTimestamp) < 2 * 60 * 1000);
 
                       return (
                         <div
@@ -619,19 +639,19 @@ function SettingsPage() {
                             <div className="min-w-0 flex-1 pr-3">
                               <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-foreground font-semibold text-xs">
                                 <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
-                                {isCurrent ? (
+                                {s.status === 'logged_out' ? (
+                                  <span className="text-[9px] text-zinc-500 bg-zinc-50 border border-zinc-200 px-1.5 py-0.25 rounded font-medium shrink-0">
+                                    Logged Out
+                                  </span>
+                                ) : isDeviceActive ? (
                                   <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
                                     <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
-                                    Current Device
-                                  </span>
-                                ) : isOnline ? (
-                                  <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
-                                    <span className="h-1 w-1 rounded-full bg-emerald-500" />
-                                    Active Now
+                                    Active
                                   </span>
                                 ) : (
-                                  <span className="text-[9px] text-muted-foreground bg-muted border border-border px-1.5 py-0.25 rounded font-medium shrink-0">
-                                    Active {new Date(s.lastActive).toLocaleDateString()}
+                                  <span className="text-[9px] text-amber-600 bg-amber-50 border border-amber-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
+                                    <span className="h-1 w-1 rounded-full bg-amber-500" />
+                                    Inactive
                                   </span>
                                 )}
                                 {s.isAdmin === 1 && (
@@ -657,16 +677,18 @@ function SettingsPage() {
                                 onClick={() => handleRevokeSession(s.sessionId)}
                                 className={cn(
                                   "h-6 w-[70px] text-[9.5px] shrink-0 font-medium px-1 tracking-tight text-center flex items-center justify-center",
-                                  isCurrent 
-                                    ? "text-muted-foreground border-border hover:bg-muted" 
-                                    : "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
+                                  s.status === 'logged_out'
+                                    ? "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
+                                    : isCurrent 
+                                      ? "text-muted-foreground border-border hover:bg-muted" 
+                                      : "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
                                 )}
                               >
-                                {isCurrent ? "Logout" : "Log out"}
+                                {s.status === 'logged_out' ? "Remove" : isCurrent ? "Logout" : "Log out"}
                               </Button>
                             )}
 
-                            {currentIsAdmin && !isCurrent && (
+                            {currentIsAdmin && !isCurrent && s.status === 'active' && (
                               <Button
                                 type="button"
                                 variant="outline"

@@ -161,17 +161,17 @@ router.post("/login", async (req, res, next) => {
       const makeAdmin = (deviceId === adminDeviceId) ? 1 : 0;
 
       if (existing.length > 0) {
-        // Update existing device session record with the new session_id
+        // Update existing device session record with the new session_id and set status to active
         await pool.query(
           `UPDATE user_sessions 
-           SET session_id = ?, last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?, is_admin = ?
+           SET session_id = ?, last_active = CURRENT_TIMESTAMP, last_user_activity = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?, is_admin = ?, status = 'active'
            WHERE id = ?`,
           [sessionId, ipAddress, deviceOs, deviceBrowser, makeAdmin, existing[0].id]
         );
       } else {
         await pool.query(
-          `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin, last_user_activity, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active')`,
           [generateId(), user.id, sessionId, deviceId, deviceOs, deviceBrowser, ipAddress, makeAdmin]
         );
 
@@ -485,7 +485,7 @@ router.post("/confirm-email-change", async (req, res, next) => {
 router.post("/session", requireAuth, async (req, res, next) => {
   try {
     const userId = req.auth.userId;
-    const { sessionId, deviceId, deviceOs, deviceBrowser } = req.body;
+    const { sessionId, deviceId, deviceOs, deviceBrowser, isUserActive } = req.body;
     if (!sessionId || !deviceId) {
       return res.status(400).json({ error: "sessionId and deviceId are required" });
     }
@@ -515,10 +515,11 @@ router.post("/session", requireAuth, async (req, res, next) => {
     if (existing.length > 0) {
       await pool.query(
         `UPDATE user_sessions 
-         SET session_id = ?, last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?,
-             is_admin = ?
+         SET session_id = ?, last_active = CURRENT_TIMESTAMP, 
+             last_user_activity = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE last_user_activity END,
+             ip_address = ?, device_os = ?, device_browser = ?, is_admin = ?, status = 'active'
          WHERE id = ?`,
-        [sessionId, ipAddress, deviceOs || null, deviceBrowser || null, makeAdmin, existing[0].id]
+        [sessionId, isUserActive ? 1 : 0, ipAddress, deviceOs || null, deviceBrowser || null, makeAdmin, existing[0].id]
       );
       res.json({ message: "Session updated" });
     } else {
@@ -535,9 +536,9 @@ router.post("/session", requireAuth, async (req, res, next) => {
 
       const id = generateId();
       await pool.query(
-        `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, userId, sessionId, deviceId, deviceOs || null, deviceBrowser || null, ipAddress, makeAdmin]
+        `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin, last_user_activity, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE NULL END, 'active')`,
+        [id, userId, sessionId, deviceId, deviceOs || null, deviceBrowser || null, ipAddress, makeAdmin, isUserActive ? 1 : 0]
       );
       res.json({ message: "Session registered" });
     }
@@ -555,6 +556,10 @@ router.get("/sessions", requireAuth, async (req, res, next) => {
       await pool.query(
         "DELETE FROM user_sessions WHERE last_active < DATE_SUB(NOW(), INTERVAL 30 DAY)"
       );
+      // Clean up logged out sessions older than 3 days
+      await pool.query(
+        "DELETE FROM user_sessions WHERE status = 'logged_out' AND last_active < DATE_SUB(NOW(), INTERVAL 3 DAY)"
+      );
     } catch (cleanupErr) {
       console.error("Failed to clean up old sessions:", cleanupErr);
     }
@@ -567,7 +572,7 @@ router.get("/sessions", requireAuth, async (req, res, next) => {
     const adminDeviceId = user?.admin_device_id;
 
     const [rows] = await pool.query(
-      `SELECT session_id as sessionId, device_id as deviceId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, last_active as lastActive, created_at as createdAt
+      `SELECT session_id as sessionId, device_id as deviceId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, status, last_user_activity as lastUserActivity, last_active as lastActive, created_at as createdAt
        FROM user_sessions
        WHERE user_id = ?
        ORDER BY last_active DESC`,
@@ -611,16 +616,28 @@ router.delete("/sessions/:sessionId", requireAuth, async (req, res, next) => {
       return res.status(403).json({ error: "Only the Admin Device can log out other devices" });
     }
 
-    await pool.query(
-      "DELETE FROM user_sessions WHERE user_id = ? AND session_id = ?",
+    const [sessRows] = await pool.query(
+      "SELECT status FROM user_sessions WHERE user_id = ? AND session_id = ? LIMIT 1",
       [userId, targetSessionId]
     );
 
-    // Note: Since the user requested "always keep this device as admin... without this dont change the admin",
-    // we DO NOT modify the users.admin_device_id column on session revocation or logout.
-    // That way, when they log back in on that same device, they are still the admin!
+    if (sessRows.length > 0) {
+      if (sessRows[0].status === 'logged_out') {
+        // If already logged_out, this is a manual "Remove" action. Delete permanently.
+        await pool.query(
+          "DELETE FROM user_sessions WHERE user_id = ? AND session_id = ?",
+          [userId, targetSessionId]
+        );
+      } else {
+        // Mark session as logged_out instead of deleting
+        await pool.query(
+          "UPDATE user_sessions SET status = 'logged_out', last_active = CURRENT_TIMESTAMP WHERE user_id = ? AND session_id = ?",
+          [userId, targetSessionId]
+        );
+      }
+    }
 
-    res.json({ message: "Session revoked successfully" });
+    res.json({ message: "Session updated successfully" });
   } catch (error) {
     next(error);
   }
