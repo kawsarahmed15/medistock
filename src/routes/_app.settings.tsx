@@ -642,7 +642,7 @@ function SettingsPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <div className="flex flex-col items-end gap-1 shrink-0">
                             {(isCurrent || currentIsAdmin) && (
                               <Button
                                 type="button"
@@ -650,7 +650,7 @@ function SettingsPage() {
                                 size="sm"
                                 onClick={() => handleRevokeSession(s.sessionId)}
                                 className={cn(
-                                  "h-7 w-[76px] text-[10px] shrink-0 font-medium px-1 text-center flex items-center justify-center",
+                                  "h-6 w-[70px] text-[9.5px] shrink-0 font-medium px-1 tracking-tight text-center flex items-center justify-center",
                                   isCurrent 
                                     ? "text-muted-foreground border-border hover:bg-muted" 
                                     : "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
@@ -666,7 +666,7 @@ function SettingsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleTransferAdmin(s.sessionId)}
-                                className="h-7 w-[76px] text-[10px] text-primary border-primary/20 hover:bg-primary/5 hover:border-primary font-medium px-1 text-center flex items-center justify-center shrink-0"
+                                className="h-6 w-[70px] text-[9.5px] text-primary border-primary/20 hover:bg-primary/5 hover:border-primary font-medium px-1 tracking-tight text-center flex items-center justify-center shrink-0"
                               >
                                 Make Admin
                               </Button>
