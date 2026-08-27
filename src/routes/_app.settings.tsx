@@ -638,21 +638,11 @@ function SettingsPage() {
                                   <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
                                 )}
                                 {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
-
-                                {currentIsAdmin && !isCurrent && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleTransferAdmin(s.sessionId)}
-                                    className="text-[8px] bg-primary text-primary-foreground hover:bg-primary/95 font-bold px-1.5 py-0.5 rounded shadow-sm transition-colors ml-2 shrink-0"
-                                  >
-                                    Make Admin
-                                  </button>
-                                )}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex flex-col items-end gap-1 shrink-0">
                             {(isCurrent || currentIsAdmin) && (
                               <Button
                                 type="button"
@@ -665,6 +655,18 @@ function SettingsPage() {
                                 )}
                               >
                                 {isCurrent ? "Logout" : "Log out"}
+                              </Button>
+                            )}
+
+                            {currentIsAdmin && !isCurrent && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleTransferAdmin(s.sessionId)}
+                                className="h-7 px-2 text-[10px] text-primary border-primary/20 hover:bg-primary/5 font-medium shrink-0"
+                              >
+                                Make Admin
                               </Button>
                             )}
                           </div>
