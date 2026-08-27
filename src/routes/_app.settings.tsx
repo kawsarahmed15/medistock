@@ -643,7 +643,7 @@ function SettingsPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleTransferAdmin(s.sessionId)}
-                                    className="text-[9px] text-primary hover:text-primary/80 font-bold hover:underline ml-1.5 border-l pl-1.5 border-border shrink-0"
+                                    className="text-[8px] bg-primary text-primary-foreground hover:bg-primary/95 font-bold px-1.5 py-0.5 rounded shadow-sm transition-colors ml-2 shrink-0"
                                   >
                                     Make Admin
                                   </button>
