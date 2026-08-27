@@ -629,9 +629,9 @@ function SettingsPage() {
                                       Admin Device
                                     </span>
                                   )}
-                                  {s.ipAddress && (
-                                    <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono text-muted-foreground font-normal shrink-0">
-                                      {s.ipAddress}
+                                  {s.createdAt && (
+                                    <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded text-muted-foreground font-normal shrink-0">
+                                      Logged in: {new Date(s.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                                     </span>
                                   )}
                                 </div>
@@ -654,7 +654,11 @@ function SettingsPage() {
                                     ) : (
                                       <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
                                     )}
-                                    {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
+                                    {s.createdAt && (
+                                      <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded">
+                                        Logged in: {new Date(s.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                                      </span>
+                                    )}
                                   </div>
                                 </>
                               )}
