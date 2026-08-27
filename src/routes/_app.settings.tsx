@@ -614,7 +614,7 @@ function SettingsPage() {
                                   <Monitor className="h-5 w-5" />
                               )}
                             </div>
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 pr-3">
                               <div className="font-semibold text-foreground break-words flex items-center flex-wrap gap-1">
                                 <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
                                 {s.isAdmin === 1 && (
@@ -642,7 +642,7 @@ function SettingsPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end gap-1.5 shrink-0 mr-[44px]">
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
                             {(isCurrent || currentIsAdmin) && (
                               <Button
                                 type="button"
