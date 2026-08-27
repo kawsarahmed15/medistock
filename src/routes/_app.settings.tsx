@@ -617,51 +617,34 @@ function SettingsPage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1 pr-3">
-                              {isCurrent ? (
-                                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-foreground font-semibold text-xs">
-                                  <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
+                              <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-foreground font-semibold text-xs">
+                                <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
+                                {isCurrent ? (
                                   <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
                                     <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
                                     Current Device
                                   </span>
-                                  {s.isAdmin === 1 && (
-                                    <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
-                                      Admin Device
-                                    </span>
-                                  )}
-                                  {s.createdAt && (
-                                    <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded text-muted-foreground font-normal shrink-0">
-                                      Logged in: {new Date(s.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="font-semibold text-foreground break-words flex items-center flex-wrap gap-1">
-                                    <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
-                                    {s.isAdmin === 1 && (
-                                      <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
-                                        Admin Device
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                    {isOnline ? (
-                                      <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                        Active Now
-                                      </span>
-                                    ) : (
-                                      <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
-                                    )}
-                                    {s.createdAt && (
-                                      <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded">
-                                        Logged in: {new Date(s.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
-                                      </span>
-                                    )}
-                                  </div>
-                                </>
-                              )}
+                                ) : isOnline ? (
+                                  <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
+                                    <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                                    Active Now
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] text-muted-foreground bg-muted border border-border px-1.5 py-0.25 rounded font-medium shrink-0">
+                                    Active {new Date(s.lastActive).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {s.isAdmin === 1 && (
+                                  <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
+                                    Admin Device
+                                  </span>
+                                )}
+                                {s.createdAt && (
+                                  <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded text-muted-foreground font-normal shrink-0">
+                                    Logged in: {new Date(s.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
