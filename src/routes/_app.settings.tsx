@@ -616,7 +616,7 @@ function SettingsPage() {
                             </div>
                             <div className="min-w-0 flex-1 pr-3">
                               {isCurrent ? (
-                                <div className="flex items-center flex-wrap gap-2 text-foreground font-semibold text-xs leading-none">
+                                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-foreground font-semibold text-xs">
                                   <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
                                   <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
                                     <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
