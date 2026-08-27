@@ -106,7 +106,9 @@ export function KeyboardShortcuts() {
       if (e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
         e.stopPropagation();
-        if (!routerState.location.pathname.startsWith("/inventory")) {
+        if (routerState.location.pathname === "/purchases/new") {
+          window.dispatchEvent(new CustomEvent("trigger-add-purchase-row"));
+        } else if (!routerState.location.pathname.startsWith("/inventory")) {
           navigate({ to: "/inventory" }).then(() => {
             window.dispatchEvent(new CustomEvent("trigger-add-product"));
           });

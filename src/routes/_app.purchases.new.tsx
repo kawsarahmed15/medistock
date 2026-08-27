@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link, useSearch } from "@tanstack/react-router";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Trash2, Plus, ArrowLeft, Search, Save, Printer, PlusCircle, CheckCircle, ScanLine, AlertTriangle, FileText } from "lucide-react";
 import { purchasesStore, productsStore, type Product, type Purchase } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -773,9 +773,24 @@ function AddPurchasePage() {
     }));
   }, [lines]);
 
-  const addLine = () => {
-    setLines([...lines, { productId: "", name: "", qty: 1, freeQty: 0, costPrice: 0, taxPercent: 0, batch: "", expiry: "", mrp: 0, pack: "", genericName: "", barcode: "", hsn: "", saleRate: 0, ptr: 0 }]);
-  };
+  const addLine = useCallback(() => {
+    setLines(prev => [...prev, { productId: "", name: "", qty: 1, freeQty: 0, costPrice: 0, taxPercent: 0, batch: "", expiry: "", mrp: 0, pack: "", genericName: "", barcode: "", hsn: "", saleRate: 0, ptr: 0 }]);
+  }, []);
+
+  useEffect(() => {
+    const handleAddPurchaseRow = () => {
+      addLine();
+      setTimeout(() => {
+        const lastRowIdx = lines.length;
+        gridRefs.current[lastRowIdx]?.[0]?.focus();
+      }, 50);
+    };
+
+    window.addEventListener("trigger-add-purchase-row", handleAddPurchaseRow);
+    return () => {
+      window.removeEventListener("trigger-add-purchase-row", handleAddPurchaseRow);
+    };
+  }, [addLine, lines.length]);
 
   const removeLine = (index: number) => {
     if (lines.length > 1) {
