@@ -638,23 +638,21 @@ function SettingsPage() {
                                   <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
                                 )}
                                 {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
+
+                                {currentIsAdmin && !isCurrent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTransferAdmin(s.sessionId)}
+                                    className="text-[9px] text-primary hover:text-primary/80 font-bold hover:underline ml-1.5 border-l pl-1.5 border-border shrink-0"
+                                  >
+                                    Make Admin
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {currentIsAdmin && !isCurrent && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleTransferAdmin(s.sessionId)}
-                                className="h-7 px-2 text-[10px] text-primary border-primary/20 hover:bg-primary/5 font-medium"
-                              >
-                                Make Admin
-                              </Button>
-                            )}
-                            
                             {(isCurrent || currentIsAdmin) && (
                               <Button
                                 type="button"

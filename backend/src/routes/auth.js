@@ -590,6 +590,7 @@ router.delete("/sessions/:sessionId", requireAuth, async (req, res, next) => {
     const userId = req.auth.userId;
     const targetSessionId = req.params.sessionId;
     const reqSessionId = req.auth.sessionId;
+    const reqDeviceId = req.auth.deviceId;
 
     if (!reqSessionId) {
       return res.status(400).json({ error: "X-Session-ID header is missing" });
@@ -602,14 +603,6 @@ router.delete("/sessions/:sessionId", requireAuth, async (req, res, next) => {
     );
     const user = userRows[0];
     const adminDeviceId = user?.admin_device_id;
-
-    // Get the requester's device info
-    const [reqSessionRows] = await pool.query(
-      "SELECT device_id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
-      [reqSessionId, userId]
-    );
-    const reqSession = reqSessionRows[0];
-    const reqDeviceId = reqSession?.device_id;
 
     const isSelf = targetSessionId === reqSessionId;
     const isAdmin = reqDeviceId && reqDeviceId === adminDeviceId;
@@ -638,6 +631,7 @@ router.post("/sessions/:sessionId/transfer-admin", requireAuth, async (req, res,
     const userId = req.auth.userId;
     const targetSessionId = req.params.sessionId;
     const reqSessionId = req.auth.sessionId;
+    const reqDeviceId = req.auth.deviceId;
 
     if (!reqSessionId) {
       return res.status(400).json({ error: "X-Session-ID header is missing" });
@@ -650,14 +644,6 @@ router.post("/sessions/:sessionId/transfer-admin", requireAuth, async (req, res,
     );
     const user = userRows[0];
     const adminDeviceId = user?.admin_device_id;
-
-    // Get the requester's device info
-    const [reqSessionRows] = await pool.query(
-      "SELECT device_id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
-      [reqSessionId, userId]
-    );
-    const reqSession = reqSessionRows[0];
-    const reqDeviceId = reqSession?.device_id;
 
     const isAdmin = reqDeviceId && reqDeviceId === adminDeviceId;
     if (!isAdmin) {

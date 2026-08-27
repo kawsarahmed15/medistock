@@ -15,13 +15,19 @@ export async function requireAuth(req, res, next) {
     const userId = String(payload.sub);
     const sessionId = req.headers["x-session-id"] || null;
 
+    let reqDeviceId = null;
+
     if (sessionId) {
       // Check if session exists in database
       const [rows] = await pool.query(
-        "SELECT id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+        "SELECT id, device_id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
         [sessionId, userId]
       );
       
+      if (rows.length > 0) {
+        reqDeviceId = rows[0].device_id;
+      }
+
       // Check if sessions tracking is active for this user
       const [totalCount] = await pool.query(
         "SELECT COUNT(*) as count FROM user_sessions WHERE user_id = ?",
@@ -39,6 +45,7 @@ export async function requireAuth(req, res, next) {
       email: String(payload.email || ""),
       name: String(payload.name || ""),
       sessionId,
+      deviceId: reqDeviceId,
     };
     next();
   } catch (error) {
