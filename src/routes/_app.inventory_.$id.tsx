@@ -591,7 +591,7 @@ function ProductDetails() {
       <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle className="text-base">{editingBatch ? "Edit Batch Details" : "Add New Batch"}</DialogTitle>
+            <DialogTitle className="text-base">{editingBatch ? "Edit Selling Price" : "Add New Batch"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleBatchSubmit} className="space-y-4">
             <div className="space-y-1">
