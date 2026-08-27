@@ -599,7 +599,7 @@ function SettingsPage() {
                         <div
                           key={s.sessionId}
                           className={cn(
-                            "flex items-center justify-between gap-3 p-3 rounded-lg border text-xs",
+                            "flex items-center justify-between gap-3 p-4 rounded-lg border text-xs",
                             isCurrent ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border"
                           )}
                         >
@@ -609,9 +609,9 @@ function SettingsPage() {
                               isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
                             )}>
                               {s.deviceOs === "Android" || s.deviceOs === "iOS" ? (
-                                <Smartphone className="h-5 w-5" />
+                                  <Smartphone className="h-5 w-5" />
                               ) : (
-                                <Monitor className="h-5 w-5" />
+                                  <Monitor className="h-5 w-5" />
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
@@ -642,16 +642,18 @@ function SettingsPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end gap-1 shrink-0">
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
                             {(isCurrent || currentIsAdmin) && (
                               <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleRevokeSession(s.sessionId)}
                                 className={cn(
                                   "h-8 w-[88px] text-[11px] shrink-0 font-medium px-2 text-center flex items-center justify-center",
-                                  isCurrent ? "text-muted-foreground hover:bg-muted" : "text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                                  isCurrent 
+                                    ? "text-muted-foreground border-border hover:bg-muted" 
+                                    : "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
                                 )}
                               >
                                 {isCurrent ? "Logout" : "Log out"}
@@ -664,7 +666,7 @@ function SettingsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleTransferAdmin(s.sessionId)}
-                                className="h-8 w-[88px] text-[11px] text-primary border-primary/20 hover:bg-primary/5 font-medium px-2 text-center flex items-center justify-center shrink-0"
+                                className="h-8 w-[88px] text-[11px] text-primary border-primary/20 hover:bg-primary/5 hover:border-primary font-medium px-2 text-center flex items-center justify-center shrink-0"
                               >
                                 Make Admin
                               </Button>
