@@ -204,6 +204,17 @@ function SettingsPage() {
     }
   };
 
+  const handleTransferAdmin = async (sessId: string) => {
+    if (!confirm("Are you sure you want to transfer admin rights to this device? Once transferred, only that device can manage other sessions.")) return;
+    try {
+      await apiRequest(`/auth/sessions/${sessId}/transfer-admin`, { method: "POST", auth: true });
+      toast.success("Admin rights transferred successfully");
+      loadSessions();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to transfer admin rights");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
       <div>
@@ -573,61 +584,98 @@ function SettingsPage() {
                 <div className="text-center text-xs text-muted-foreground py-4">
                   No active sessions found.
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {sessions.map((s) => {
-                    const isCurrent = s.sessionId === currentSessionId;
-                    return (
-                      <div
-                        key={s.sessionId}
-                        className={cn(
-                          "flex items-center justify-between gap-3 p-3 rounded-lg border text-xs",
-                          isCurrent ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border"
-                        )}
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className={cn(
-                            "p-2 rounded-lg shrink-0",
-                            isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                          )}>
-                            {s.deviceOs === "Android" || s.deviceOs === "iOS" ? (
-                              <Smartphone className="h-5 w-5" />
-                            ) : (
-                              <Monitor className="h-5 w-5" />
+              ) : (() => {
+                const currentSession = sessions.find((s) => s.sessionId === currentSessionId);
+                const currentIsAdmin = currentSession?.isAdmin === 1;
+
+                return (
+                  <div className="space-y-3">
+                    {sessions.map((s) => {
+                      const isCurrent = s.sessionId === currentSessionId;
+                      const lastActiveTime = new Date(s.lastActive).getTime();
+                      const isOnline = Date.now() - lastActiveTime < 5 * 60 * 1000;
+
+                      return (
+                        <div
+                          key={s.sessionId}
+                          className={cn(
+                            "flex items-center justify-between gap-3 p-3 rounded-lg border text-xs",
+                            isCurrent ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border"
+                          )}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={cn(
+                              "p-2 rounded-lg shrink-0",
+                              isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                            )}>
+                              {s.deviceOs === "Android" || s.deviceOs === "iOS" ? (
+                                <Smartphone className="h-5 w-5" />
+                              ) : (
+                                <Monitor className="h-5 w-5" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-semibold text-foreground break-words flex items-center flex-wrap gap-1">
+                                <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
+                                {s.isAdmin === 1 && (
+                                  <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
+                                    Admin Device
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                {isCurrent ? (
+                                  <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    Current Device
+                                  </span>
+                                ) : isOnline ? (
+                                  <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                    Active Now
+                                  </span>
+                                ) : (
+                                  <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
+                                )}
+                                {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {currentIsAdmin && !isCurrent && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleTransferAdmin(s.sessionId)}
+                                className="h-7 px-2 text-[10px] text-primary border-primary/20 hover:bg-primary/5 font-medium"
+                              >
+                                Make Admin
+                              </Button>
+                            )}
+                            
+                            {(isCurrent || currentIsAdmin) && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRevokeSession(s.sessionId)}
+                                className={cn(
+                                  "h-7 px-2 text-[10px] shrink-0 font-medium",
+                                  isCurrent ? "text-muted-foreground hover:bg-muted" : "text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                                )}
+                              >
+                                {isCurrent ? "Logout" : "Log out"}
+                              </Button>
                             )}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-foreground truncate">
-                              {s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
-                              {isCurrent ? (
-                                <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                  Current Device
-                                </span>
-                              ) : (
-                                <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
-                              )}
-                              {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
-                            </div>
-                          </div>
                         </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRevokeSession(s.sessionId)}
-                          className="h-7 px-2 text-[10px] text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 shrink-0"
-                        >
-                          {isCurrent ? "Logout" : "Log out"}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>

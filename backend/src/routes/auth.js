@@ -444,27 +444,47 @@ router.post("/session", requireAuth, async (req, res, next) => {
 
     // Check if session already exists
     const [existing] = await pool.query(
-      "SELECT id FROM user_sessions WHERE session_id = ? LIMIT 1",
-      [sessionId]
+      "SELECT id, is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      [sessionId, userId]
     );
+
+    // Check if the user has an admin session
+    const [adminSessions] = await pool.query(
+      "SELECT id FROM user_sessions WHERE user_id = ? AND is_admin = 1 LIMIT 1",
+      [userId]
+    );
+    const hasAdmin = adminSessions.length > 0;
+    const makeAdmin = !hasAdmin ? 1 : 0;
 
     if (existing.length > 0) {
       await pool.query(
         `UPDATE user_sessions 
-         SET last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?
+         SET last_active = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?,
+             is_admin = CASE WHEN is_admin = 1 THEN 1 ELSE ? END
          WHERE session_id = ?`,
-        [ipAddress, deviceOs || null, deviceBrowser || null, sessionId]
+        [ipAddress, deviceOs || null, deviceBrowser || null, makeAdmin, sessionId]
       );
+      res.json({ message: "Session updated" });
     } else {
+      // Check total sessions count
+      const [totalCount] = await pool.query(
+        "SELECT COUNT(*) as count FROM user_sessions WHERE user_id = ?",
+        [userId]
+      );
+
+      // If sessions exist in db, but not this one -> revoked
+      if (totalCount[0].count > 0) {
+        return res.status(401).json({ message: "Session has been revoked", revoked: true });
+      }
+
       const id = generateId();
       await pool.query(
-        `INSERT INTO user_sessions (id, user_id, session_id, device_os, device_browser, ip_address)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, userId, sessionId, deviceOs || null, deviceBrowser || null, ipAddress]
+        `INSERT INTO user_sessions (id, user_id, session_id, device_os, device_browser, ip_address, is_admin)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [id, userId, sessionId, deviceOs || null, deviceBrowser || null, ipAddress, makeAdmin]
       );
+      res.json({ message: "Session registered" });
     }
-
-    res.json({ message: "Session registered/updated" });
   } catch (error) {
     next(error);
   }
@@ -484,7 +504,7 @@ router.get("/sessions", requireAuth, async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT session_id as sessionId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, last_active as lastActive, created_at as createdAt
+      `SELECT session_id as sessionId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, is_admin as isAdmin, last_active as lastActive, created_at as createdAt
        FROM user_sessions
        WHERE user_id = ?
        ORDER BY last_active DESC`,
@@ -500,14 +520,101 @@ router.get("/sessions", requireAuth, async (req, res, next) => {
 router.delete("/sessions/:sessionId", requireAuth, async (req, res, next) => {
   try {
     const userId = req.auth.userId;
-    const { sessionId } = req.params;
+    const targetSessionId = req.params.sessionId;
+    const reqSessionId = req.auth.sessionId;
+
+    if (!reqSessionId) {
+      return res.status(400).json({ error: "X-Session-ID header is missing" });
+    }
+
+    // Get the requester's session info
+    const [reqSessionRows] = await pool.query(
+      "SELECT is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      [reqSessionId, userId]
+    );
+    const reqSession = reqSessionRows[0];
+
+    const isSelf = targetSessionId === reqSessionId;
+    const isAdmin = reqSession && reqSession.is_admin === 1;
+
+    if (!isAdmin && !isSelf) {
+      return res.status(403).json({ error: "Only the Admin Device can log out other devices" });
+    }
+
+    // Check if target session is the admin session
+    const [targetSessionRows] = await pool.query(
+      "SELECT is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      [targetSessionId, userId]
+    );
+    const targetSession = targetSessionRows[0];
 
     await pool.query(
       "DELETE FROM user_sessions WHERE user_id = ? AND session_id = ?",
-      [userId, sessionId]
+      [userId, targetSessionId]
     );
 
+    // If the deleted session was the admin session, transfer admin rights to another active session
+    if (targetSession && targetSession.is_admin === 1) {
+      const [remaining] = await pool.query(
+        "SELECT session_id FROM user_sessions WHERE user_id = ? ORDER BY last_active DESC LIMIT 1",
+        [userId]
+      );
+      if (remaining.length > 0) {
+        await pool.query(
+          "UPDATE user_sessions SET is_admin = 1 WHERE session_id = ?",
+          [remaining[0].session_id]
+        );
+      }
+    }
+
     res.json({ message: "Session revoked successfully" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/sessions/:sessionId/transfer-admin", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.auth.userId;
+    const targetSessionId = req.params.sessionId;
+    const reqSessionId = req.auth.sessionId;
+
+    if (!reqSessionId) {
+      return res.status(400).json({ error: "X-Session-ID header is missing" });
+    }
+
+    // Get the requester's session info
+    const [reqSessionRows] = await pool.query(
+      "SELECT is_admin FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      [reqSessionId, userId]
+    );
+    const reqSession = reqSessionRows[0];
+
+    const isAdmin = reqSession && reqSession.is_admin === 1;
+    if (!isAdmin) {
+      return res.status(403).json({ error: "Only the Admin Device can transfer admin rights" });
+    }
+
+    // Verify target session exists
+    const [targetSessionRows] = await pool.query(
+      "SELECT id FROM user_sessions WHERE session_id = ? AND user_id = ? LIMIT 1",
+      [targetSessionId, userId]
+    );
+    if (targetSessionRows.length === 0) {
+      return res.status(404).json({ error: "Target session not found" });
+    }
+
+    // Transfer admin
+    await pool.query(
+      "UPDATE user_sessions SET is_admin = 0 WHERE user_id = ?",
+      [userId]
+    );
+    await pool.query(
+      "UPDATE user_sessions SET is_admin = 1 WHERE session_id = ?",
+      [targetSessionId]
+    );
+
+    res.json({ message: "Admin rights transferred successfully" });
   } catch (error) {
     next(error);
   }

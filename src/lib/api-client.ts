@@ -38,6 +38,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
+    if (typeof window !== "undefined") {
+      const sessionId = window.localStorage.getItem("medistock.auth.sessionId");
+      if (sessionId) {
+        headers.set("X-Session-ID", sessionId);
+      }
+    }
   }
 
   const response = await fetch(`${getApiBase()}${path}`, {
