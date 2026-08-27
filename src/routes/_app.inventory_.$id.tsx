@@ -601,6 +601,7 @@ function ProductDetails() {
                 onChange={(e) => setBatchForm({ ...batchForm, batchNo: e.target.value.toUpperCase() })}
                 placeholder="e.g. ABC123XYZ"
                 required
+                disabled={!!editingBatch}
               />
             </div>
 
@@ -617,6 +618,7 @@ function ProductDetails() {
                 }}
                 placeholder="e.g. 10/28 or 2028-10-31"
                 required
+                disabled={!!editingBatch}
               />
             </div>
 
@@ -626,6 +628,7 @@ function ProductDetails() {
                 value={batchForm.sku}
                 onChange={(e) => setBatchForm({ ...batchForm, sku: e.target.value.toUpperCase() })}
                 placeholder="e.g. 3004"
+                disabled={!!editingBatch}
               />
             </div>
 
@@ -639,6 +642,7 @@ function ProductDetails() {
                   value={batchForm.purchasePrice}
                   onChange={(e) => setBatchForm({ ...batchForm, purchasePrice: e.target.value })}
                   placeholder="₹0.00"
+                  disabled={!!editingBatch}
                 />
               </div>
 
@@ -665,6 +669,7 @@ function ProductDetails() {
                   value={batchForm.mrp}
                   onChange={(e) => setBatchForm({ ...batchForm, mrp: e.target.value })}
                   placeholder="₹0.00"
+                  disabled={!!editingBatch}
                 />
               </div>
 
@@ -677,6 +682,7 @@ function ProductDetails() {
                   onChange={(e) => setBatchForm({ ...batchForm, availableQty: e.target.value })}
                   placeholder="e.g. 100"
                   required
+                  disabled={!!editingBatch}
                 />
               </div>
             </div>
