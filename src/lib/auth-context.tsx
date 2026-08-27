@@ -198,17 +198,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     ready,
     login: async (email, password) => {
-      let sessionId = localStorage.getItem("medistock.auth.sessionId");
-      if (!sessionId) {
-        const generateUUID = () => {
-          if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-            return crypto.randomUUID();
-          }
-          return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        };
-        sessionId = generateUUID();
-        localStorage.setItem("medistock.auth.sessionId", sessionId);
-      }
+      const generateUUID = () => {
+        if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+          return crypto.randomUUID();
+        }
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      };
+      const sessionId = generateUUID();
+      localStorage.setItem("medistock.auth.sessionId", sessionId);
 
       const ua = navigator.userAgent;
       let os = "Unknown OS";
@@ -263,7 +260,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     logout: async () => {
+      const sessionId = localStorage.getItem("medistock.auth.sessionId");
+      if (sessionId) {
+        try {
+          await apiRequest(`/auth/sessions/${sessionId}`, { method: "DELETE", auth: true });
+        } catch (err) {
+          console.error("Failed to delete session on logout:", err);
+        }
+      }
       localStorage.removeItem("medistock.auth.lastActive");
+      localStorage.removeItem("medistock.auth.sessionId");
       setAuthToken(null);
       setSession(null);
     },
