@@ -73,6 +73,8 @@ function SettingsPage() {
     if (typeof window !== "undefined") {
       setCurrentSessionId(window.localStorage.getItem("medistock.auth.sessionId"));
     }
+    const interval = setInterval(loadSessions, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

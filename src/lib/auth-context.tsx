@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthToken(null);
           setSession(null);
           window.location.href = "/login?expired=1";
-        } else if (Date.now() - lastServerCheckin > 2 * 60 * 1000) {
+        } else if (Date.now() - lastServerCheckin > 30 * 1000) {
           registerSession();
           lastServerCheckin = Date.now();
         }

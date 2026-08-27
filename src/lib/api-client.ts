@@ -54,6 +54,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
 
   const payload = (await response.json().catch(() => ({}))) as { message?: string } & T;
   if (!response.ok) {
+    if (payload.message === "Session has been revoked") {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(TOKEN_KEY);
+        window.localStorage.removeItem("medistock.auth.lastActive");
+        window.localStorage.removeItem("medistock.auth.sessionId");
+        window.location.href = "/login?revoked=1";
+      }
+    }
     throw new Error(payload.message || "Request failed");
   }
 
