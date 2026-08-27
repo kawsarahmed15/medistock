@@ -642,7 +642,7 @@ function SettingsPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end gap-1.5 shrink-0 mr-1">
+                          <div className="flex flex-col items-end gap-1.5 shrink-0 mr-3">
                             {(isCurrent || currentIsAdmin) && (
                               <Button
                                 type="button"
