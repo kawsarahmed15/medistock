@@ -615,30 +615,47 @@ function SettingsPage() {
                               )}
                             </div>
                             <div className="min-w-0 flex-1 pr-3">
-                              <div className="font-semibold text-foreground break-words flex items-center flex-wrap gap-1">
-                                <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
-                                {s.isAdmin === 1 && (
-                                  <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
-                                    Admin Device
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                {isCurrent ? (
-                                  <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              {isCurrent ? (
+                                <div className="flex items-center flex-wrap gap-2 text-foreground font-semibold text-xs leading-none">
+                                  <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
+                                  <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
+                                    <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
                                     Current Device
                                   </span>
-                                ) : isOnline ? (
-                                  <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                    Active Now
-                                  </span>
-                                ) : (
-                                  <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
-                                )}
-                                {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
-                              </div>
+                                  {s.isAdmin === 1 && (
+                                    <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
+                                      Admin Device
+                                    </span>
+                                  )}
+                                  {s.ipAddress && (
+                                    <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono text-muted-foreground font-normal shrink-0">
+                                      {s.ipAddress}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="font-semibold text-foreground break-words flex items-center flex-wrap gap-1">
+                                    <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
+                                    {s.isAdmin === 1 && (
+                                      <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
+                                        Admin Device
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                    {isOnline ? (
+                                      <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                        Active Now
+                                      </span>
+                                    ) : (
+                                      <span>Active {new Date(s.lastActive).toLocaleDateString()}</span>
+                                    )}
+                                    {s.ipAddress && <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded font-mono">{s.ipAddress}</span>}
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
 
