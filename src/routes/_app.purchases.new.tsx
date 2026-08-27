@@ -827,7 +827,7 @@ function AddPurchasePage() {
       mrp: p.mrp || 0,
       pack: p.pack || "",
       genericName: p.category || "",
-      hsn: p.isDraftProduct ? (p.sku || newLines[index].hsn || "") : newLines[index].hsn || "",
+      hsn: p.sku || (index > 0 ? newLines[index - 1]?.hsn : "") || "",
       saleRate: p.price || p.mrp || 0,
       ptr: baseCostPrice,
       isDraftProduct: p.isDraftProduct,
