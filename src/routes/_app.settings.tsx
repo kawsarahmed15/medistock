@@ -90,7 +90,7 @@ function SettingsPage() {
     if (typeof window !== "undefined") {
       setCurrentSessionId(window.localStorage.getItem("medistock.auth.sessionId"));
     }
-    const interval = setInterval(loadSessions, 15000);
+    const interval = setInterval(loadSessions, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -614,8 +614,7 @@ function SettingsPage() {
                   <div className="space-y-3">
                     {sessions.map((s) => {
                       const isCurrent = s.sessionId === currentSessionId;
-                      const userActivityTimestamp = s.lastUserActivity ? new Date(s.lastUserActivity).getTime() : new Date(s.lastActive).getTime();
-                      const isDeviceActive = isCurrent || ((Date.now() - userActivityTimestamp) < 2 * 60 * 1000);
+                      const isDeviceActive = isCurrent || s.isDeviceActive === 1;
 
                       return (
                         <div

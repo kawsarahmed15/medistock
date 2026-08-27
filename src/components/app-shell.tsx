@@ -19,6 +19,7 @@ import {
   Truck,
   Crown,
   BookOpen,
+  Bell,
 } from "lucide-react";
 import { UserProfileDialog } from "@/components/user-profile-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -30,6 +31,9 @@ import { CartFab } from "@/components/cart-fab";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/api-client";
+import { getNotifications, addNotification, NotificationItem } from "@/lib/notifications";
+import { toast } from "sonner";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -53,14 +57,81 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeFocusIndex, setActiveFocusIndex] = useState(0);
 
+  const [isAdminDevice, setIsAdminDevice] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  const dynamicNav = [
+    ...nav.slice(0, 9),
+    ...(isAdminDevice ? [{ to: "/notifications", label: "Notifications", icon: Bell }] : []),
+    nav[9],
+  ];
+
   useEffect(() => {
-    const activeIdx = nav.findIndex((item) => location.pathname.startsWith(item.to));
+    setNotifications(getNotifications());
+    const handleChanges = () => {
+      setNotifications(getNotifications());
+    };
+    window.addEventListener("medistock.notifications_changed", handleChanges);
+    return () => window.removeEventListener("medistock.notifications_changed", handleChanges);
+  }, []);
+
+  useEffect(() => {
+    const mySessId = window.localStorage.getItem("medistock.auth.sessionId");
+    if (!mySessId) return;
+
+    const pollSessions = async () => {
+      try {
+        const data = await apiRequest<any[]>("/auth/sessions", { auth: true });
+        const currentSession = data.find(s => s.sessionId === mySessId);
+        const currentIsAdmin = currentSession?.isAdmin === 1;
+        setIsAdminDevice(currentIsAdmin);
+
+        if (currentIsAdmin) {
+          const seenDevicesStr = window.localStorage.getItem("medistock.seen_devices");
+          const isFirstLoad = seenDevicesStr === null;
+          const seenDevices: string[] = seenDevicesStr ? JSON.parse(seenDevicesStr) : [];
+          
+          let updatedSeen = isFirstLoad ? data.map(s => s.deviceId) : [...seenDevices];
+          let addedAny = isFirstLoad;
+
+          if (!isFirstLoad) {
+            data.forEach(s => {
+              if (s.status === 'active' && s.sessionId !== mySessId) {
+                if (!seenDevices.includes(s.deviceId)) {
+                  addNotification("Security Alert: New Login", `${s.deviceBrowser || "Browser"} on ${s.deviceOs || "OS"} logged in.`);
+                  updatedSeen.push(s.deviceId);
+                  addedAny = true;
+                  
+                  toast.info("Security Alert: New device logged in!", {
+                    description: `${s.deviceBrowser || "Browser"} on ${s.deviceOs || "OS"}`,
+                  });
+                }
+              }
+            });
+          }
+
+          if (addedAny) {
+            window.localStorage.setItem("medistock.seen_devices", JSON.stringify(updatedSeen));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to poll sessions in AppShell:", err);
+      }
+    };
+
+    pollSessions();
+    const interval = setInterval(pollSessions, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const activeIdx = dynamicNav.findIndex((item) => location.pathname.startsWith(item.to));
     if (activeIdx !== -1) {
       setActiveFocusIndex(activeIdx);
     } else {
       setActiveFocusIndex(0);
     }
-  }, [location.pathname]);
+  }, [location.pathname, isAdminDevice]);
 
   const handleSidebarKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key === "ArrowRight") {
@@ -156,8 +227,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {nav.map(({ to, label, icon: Icon }, idx) => {
+        {dynamicNav.map(({ to, label, icon: Icon }, idx) => {
           const active = location.pathname.startsWith(to);
+          const unreadCount = to === "/notifications" ? notifications.filter(n => n.unread).length : 0;
           return (
             <Link
               key={to}
@@ -179,6 +251,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 shrink-0">
                   {count}
                 </span>
+              )}
+              {to === "/notifications" && unreadCount > 0 && (
+                <span className="rounded-full bg-rose-500 h-2 w-2 shrink-0 animate-pulse" />
               )}
             </Link>
           );

@@ -572,7 +572,14 @@ router.get("/sessions", requireAuth, async (req, res, next) => {
     const adminDeviceId = user?.admin_device_id;
 
     const [rows] = await pool.query(
-      `SELECT session_id as sessionId, device_id as deviceId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, status, last_user_activity as lastUserActivity, last_active as lastActive, created_at as createdAt
+      `SELECT session_id as sessionId, device_id as deviceId, device_os as deviceOs, device_browser as deviceBrowser, ip_address as ipAddress, status, last_user_activity as lastUserActivity, last_active as lastActive, created_at as createdAt,
+              CASE 
+                WHEN status = 'active' AND (
+                  (last_user_activity IS NOT NULL AND last_user_activity >= DATE_SUB(NOW(), INTERVAL 2 MINUTE)) OR
+                  (last_user_activity IS NULL AND last_active >= DATE_SUB(NOW(), INTERVAL 2 MINUTE))
+                ) THEN 1 
+                ELSE 0 
+              END as isDeviceActive
        FROM user_sessions
        WHERE user_id = ?
        ORDER BY last_active DESC`,
