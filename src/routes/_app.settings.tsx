@@ -16,6 +16,9 @@ import {
   Trash2,
   Edit,
   Clock,
+  Monitor,
+  Smartphone,
+  Laptop,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +52,33 @@ function SettingsPage() {
   const [defaultTax, setDefaultTax] = useState(session?.defaultTax ?? 12);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [deviceInfo, setDeviceInfo] = useState({ os: "Loading...", browser: "Loading..." });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const ua = navigator.userAgent;
+      let os = "Unknown OS";
+      let browser = "Unknown Browser";
+
+      // OS detection
+      if (ua.indexOf("Win") !== -1) os = "Windows";
+      else if (ua.indexOf("Mac") !== -1) os = "macOS";
+      else if (ua.indexOf("Linux") !== -1) os = "Linux";
+      else if (ua.indexOf("Android") !== -1) os = "Android";
+      else if (ua.indexOf("like Mac") !== -1) os = "iOS";
+
+      // Browser detection
+      if (ua.indexOf("Firefox") !== -1) browser = "Firefox";
+      else if (ua.indexOf("SamsungBrowser") !== -1) browser = "Samsung Internet";
+      else if (ua.indexOf("Opera") !== -1 || ua.indexOf("OPR") !== -1) browser = "Opera";
+      else if (ua.indexOf("Edge") !== -1 || ua.indexOf("Edg") !== -1) browser = "Edge";
+      else if (ua.indexOf("Chrome") !== -1) browser = "Chrome";
+      else if (ua.indexOf("Safari") !== -1) browser = "Safari";
+
+      setDeviceInfo({ os, browser });
+    }
+  }, []);
 
   useEffect(() => {
     if (session) {
@@ -508,6 +538,38 @@ function SettingsPage() {
                 <div className="border-t pt-1.5 flex justify-between font-bold text-foreground">
                   <span>Grand Total</span>
                   <span style={{ color: billColor }}>Rs. 125.00</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-soft border-border/80">
+            <CardHeader className="py-4">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <Laptop className="h-4 w-4 text-primary" />
+                Active Session
+              </CardTitle>
+              <CardDescription className="text-xs">
+                The device currently logged into this account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 pb-4">
+              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
+                <div className="p-2 bg-primary/10 text-primary rounded-lg">
+                  {deviceInfo.os === "Android" || deviceInfo.os === "iOS" ? (
+                    <Smartphone className="h-5 w-5" />
+                  ) : (
+                    <Monitor className="h-5 w-5" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-foreground truncate">
+                    {deviceInfo.browser} on {deviceInfo.os}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Current Device (Active)
+                  </div>
                 </div>
               </div>
             </CardContent>
