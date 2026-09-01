@@ -83,6 +83,7 @@ function EmployeesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formName, setFormName] = useState("");
+  const [formUsername, setFormUsername] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formPassword, setFormPassword] = useState("");
@@ -176,6 +177,7 @@ function EmployeesPage() {
   const openCreateModal = () => {
     setEditingEmployee(null);
     setFormName("");
+    setFormUsername("");
     setFormEmail("");
     setFormPhone("");
     setFormPassword("");
@@ -187,6 +189,7 @@ function EmployeesPage() {
   const openEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
     setFormName(emp.name);
+    setFormUsername(emp.username || "");
     setFormEmail(emp.email || "");
     setFormPhone(emp.phone || "");
     setFormPassword("");
@@ -218,6 +221,9 @@ function EmployeesPage() {
     if (!formName.trim()) {
       return toast.error("Employee name is required");
     }
+    if (!formUsername.trim()) {
+      return toast.error("Employee username is required");
+    }
 
     if (!editingEmployee && (!formPassword || formPassword.length < 4)) {
       return toast.error("Password is required and must be at least 4 characters");
@@ -228,6 +234,7 @@ function EmployeesPage() {
       if (editingEmployee) {
         await employeesStore.update(editingEmployee.id, {
           name: formName.trim(),
+          username: formUsername.trim(),
           email: formEmail.trim() || null,
           phone: formPhone.trim() || null,
           status: formStatus,
@@ -236,6 +243,7 @@ function EmployeesPage() {
       } else {
         await employeesStore.create({
           name: formName.trim(),
+          username: formUsername.trim(),
           email: formEmail.trim() || null,
           phone: formPhone.trim() || null,
           password: formPassword,
@@ -353,6 +361,7 @@ function EmployeesPage() {
         const q = query.toLowerCase();
         const matchesQuery =
           e.name.toLowerCase().includes(q) ||
+          (e.username && e.username.toLowerCase().includes(q)) ||
           (e.email && e.email.toLowerCase().includes(q)) ||
           (e.phone && e.phone.toLowerCase().includes(q));
         if (!matchesQuery) return false;
@@ -689,12 +698,12 @@ function EmployeesPage() {
 
                       {/* Login Credentials */}
                       <TableCell>
-                        <div className="text-xs font-mono text-foreground flex items-center gap-1.5">
-                          <Mail className="h-3 w-3 text-muted-foreground" />
-                          {emp.email || session?.email}
+                        <div className="text-xs font-mono font-semibold text-primary flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-primary" />
+                          @{emp.username || "no-username"}
                         </div>
                         <span className="text-[10px] text-muted-foreground">
-                          {emp.email ? "Custom Staff Email" : "Uses Store Email"}
+                          Staff Login Username
                         </span>
                       </TableCell>
 
@@ -1358,6 +1367,20 @@ function EmployeesPage() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="emp-username">Username * (Unique login ID)</Label>
+              <Input
+                id="emp-username"
+                placeholder="e.g. zafarekbal"
+                value={formUsername}
+                onChange={(e) => setFormUsername(e.target.value)}
+                required
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Employee will use this username to log in. No email required.
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="emp-phone">Phone Number (Optional)</Label>
               <Input
                 id="emp-phone"
@@ -1365,23 +1388,6 @@ function EmployeesPage() {
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="emp-email">
-                Custom Login Email (Optional)
-              </Label>
-              <Input
-                id="emp-email"
-                type="email"
-                placeholder={`Defaults to store email: ${session?.email || ""}`}
-                value={formEmail}
-                onChange={(e) => setFormEmail(e.target.value)}
-              />
-              <p className="text-[11px] text-muted-foreground">
-                Leave blank to let employee log in using your store email:{" "}
-                <strong className="text-foreground">{session?.email}</strong>.
-              </p>
             </div>
 
             {!editingEmployee && (

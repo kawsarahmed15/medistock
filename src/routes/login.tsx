@@ -99,15 +99,15 @@ function LoginPage() {
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Username or Admin Email</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-12"
-                  placeholder="john@example.com"
+                  placeholder="e.g. zafarekbal or admin@example.com"
                 />
               </div>
               <div className="space-y-2">

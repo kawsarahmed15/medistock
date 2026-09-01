@@ -194,6 +194,7 @@ CREATE TABLE IF NOT EXISTS employees (
   id CHAR(36) PRIMARY KEY,
   user_id CHAR(36) NOT NULL,
   name VARCHAR(100) NOT NULL,
+  username VARCHAR(100) NULL UNIQUE,
   email VARCHAR(190) NULL,
   phone VARCHAR(50) NULL,
   password_hash VARCHAR(255) NOT NULL,
@@ -201,6 +202,7 @@ CREATE TABLE IF NOT EXISTS employees (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_employees_user (user_id),
+  INDEX idx_employees_username (username),
   INDEX idx_employees_email (email),
   CONSTRAINT fk_employees_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -112,102 +112,80 @@ router.post("/signup", async (req, res, next) => {
 
 router.post("/login", async (req, res, next) => {
   try {
-    const email = ensureEmail(req.body?.email);
+    const rawIdentifier = String(req.body?.email || req.body?.username || "").trim();
     const password = String(req.body?.password || "");
 
-    let [rows] = await pool.query(
-      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
-       FROM users
-       WHERE email = ?
-       LIMIT 1`,
-      [email],
-    );
-    let user = rows[0];
-    let employeeRecord = null;
-
-    // If not found directly in users, check if an employee has this email
-    if (!user) {
-      const [empRows] = await pool.query(
-        `SELECT e.id as emp_id, e.user_id, e.name as emp_name, e.email as emp_email, e.password_hash as emp_password_hash, e.status as emp_status,
-                u.id, u.name, u.email, u.password_hash, u.employee_password_hash, u.is_employee_enabled, u.is_verified, u.created_at, u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number, u.drug_lic_no, u.bill_color, u.signature, u.role, u.account_status, u.expiring_days, u.low_stock_qty, u.default_tax, u.admin_device_id
-         FROM employees e
-         JOIN users u ON e.user_id = u.id
-         WHERE e.email = ? AND e.status = 'active'
-         LIMIT 1`,
-        [email],
-      );
-      if (empRows.length > 0) {
-        user = empRows[0];
-        employeeRecord = {
-          id: empRows[0].emp_id,
-          name: empRows[0].emp_name,
-          password_hash: empRows[0].emp_password_hash,
-          status: empRows[0].emp_status,
-        };
-      }
+    if (!rawIdentifier) {
+      throw buildApiError(400, "Username or Email is required");
     }
-
-    if (!user) {
-      throw buildApiError(401, "Invalid email or password");
+    if (!password) {
+      throw buildApiError(400, "Password is required");
     }
 
     let isEmployee = false;
     let employeeMeta = null;
     let ok = false;
+    let user = null;
 
-    if (employeeRecord) {
-      // Direct employee login
-      ok = await comparePassword(password, employeeRecord.password_hash);
-      if (ok) {
-        isEmployee = true;
-        employeeMeta = {
-          employeeId: employeeRecord.id,
-          employeeName: employeeRecord.name,
-        };
+    // 1. Check if identifier matches an Admin email in users table
+    const [adminRows] = await pool.query(
+      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
+       FROM users
+       WHERE LOWER(email) = LOWER(?)
+       LIMIT 1`,
+      [rawIdentifier],
+    );
+
+    if (adminRows.length > 0) {
+      user = adminRows[0];
+      const isAdminOk = await comparePassword(password, user.password_hash);
+      if (isAdminOk) {
+        ok = true;
+        isEmployee = false;
       }
-    } else {
-      // 1. Check admin password first
-      ok = await comparePassword(password, user.password_hash);
+    }
 
-      // 2. If admin password didn't match, check employees table for this pharmacy
-      if (!ok) {
-        const [storeEmployees] = await pool.query(
-          `SELECT id, name, password_hash, status
-           FROM employees
-           WHERE user_id = ? AND status = 'active'`,
-          [user.id],
-        );
+    // 2. If not logged in as Admin, check if identifier matches an Employee username in employees table
+    if (!ok) {
+      const [empRows] = await pool.query(
+        `SELECT e.id as emp_id, e.user_id, e.name as emp_name, e.username as emp_username, e.email as emp_email, e.password_hash as emp_password_hash, e.status as emp_status,
+                u.id, u.name, u.email, u.password_hash, u.employee_password_hash, u.is_employee_enabled, u.is_verified, u.created_at, u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number, u.drug_lic_no, u.bill_color, u.signature, u.role, u.account_status, u.expiring_days, u.low_stock_qty, u.default_tax, u.admin_device_id
+         FROM employees e
+         JOIN users u ON e.user_id = u.id
+         WHERE LOWER(e.username) = LOWER(?) AND e.status = 'active'
+         LIMIT 1`,
+        [rawIdentifier],
+      );
 
-        for (const emp of storeEmployees) {
-          const isEmpOk = await comparePassword(password, emp.password_hash);
-          if (isEmpOk) {
-            ok = true;
-            isEmployee = true;
-            employeeMeta = {
-              employeeId: emp.id,
-              employeeName: emp.name,
-            };
-            break;
-          }
-        }
-      }
-
-      // 3. Fallback check for legacy single employee password if enabled
-      if (!ok && user.employee_password_hash && Number(user.is_employee_enabled ?? 1) === 1) {
-        const isLegacyEmpOk = await comparePassword(password, user.employee_password_hash);
-        if (isLegacyEmpOk) {
+      if (empRows.length > 0) {
+        const isEmpOk = await comparePassword(password, empRows[0].emp_password_hash);
+        if (isEmpOk) {
           ok = true;
           isEmployee = true;
+          user = empRows[0];
           employeeMeta = {
-            employeeId: null,
-            employeeName: `${user.name} (Staff)`,
+            employeeId: empRows[0].emp_id,
+            employeeName: empRows[0].emp_name,
           };
         }
       }
     }
 
-    if (!ok) {
-      throw buildApiError(401, "Invalid email or password");
+    // 3. Fallback check for legacy single employee password if admin email was entered
+    if (!ok && user && user.employee_password_hash && Number(user.is_employee_enabled ?? 1) === 1) {
+      const isLegacyEmpOk = await comparePassword(password, user.employee_password_hash);
+      if (isLegacyEmpOk) {
+        ok = true;
+        isEmployee = true;
+        employeeMeta = {
+          employeeId: null,
+          employeeName: `${user.name} (Staff)`,
+        };
+      }
+    }
+
+    if (!ok || !user) {
+      throw buildApiError(401, "Invalid username/email or password");
     }
 
     if (!user.is_verified) {
@@ -380,6 +358,25 @@ router.post("/reset-password", async (req, res, next) => {
       throw buildApiError(400, "Reset link is invalid or expired");
     }
 
+    // Check if candidate new admin password matches any employee password
+    const [storeEmployees] = await pool.query(
+      "SELECT password_hash FROM employees WHERE user_id = ?",
+      [row.user_id],
+    );
+    for (const emp of storeEmployees) {
+      const matchesEmp = await comparePassword(newPassword, emp.password_hash);
+      if (matchesEmp) {
+        throw buildApiError(400, "Admin password cannot be the same as any employee password");
+      }
+    }
+    const [userRows] = await pool.query("SELECT employee_password_hash FROM users WHERE id = ? LIMIT 1", [row.user_id]);
+    if (userRows[0]?.employee_password_hash) {
+      const matchesLegacyEmp = await comparePassword(newPassword, userRows[0].employee_password_hash);
+      if (matchesLegacyEmp) {
+        throw buildApiError(400, "Admin password cannot be the same as any employee password");
+      }
+    }
+
     const passwordHash = await hashPassword(newPassword);
     await pool.query("UPDATE users SET password_hash = ? WHERE id = ?", [
       passwordHash,
@@ -416,6 +413,19 @@ router.post("/employee-password", requireAuth, requireAdminOnly, async (req, res
   try {
     const password = ensurePassword(req.body?.employeePassword, "Employee password");
     const isEnabled = req.body?.isEnabled !== undefined ? (req.body.isEnabled ? 1 : 0) : 1;
+
+    // Check if candidate employee password matches admin password
+    const [adminRows] = await pool.query(
+      "SELECT password_hash FROM users WHERE id = ? LIMIT 1",
+      [req.auth.userId],
+    );
+    if (adminRows.length > 0) {
+      const matchesAdmin = await comparePassword(password, adminRows[0].password_hash);
+      if (matchesAdmin) {
+        throw buildApiError(400, "Employee password cannot be the same as admin password");
+      }
+    }
+
     const passwordHash = await hashPassword(password);
 
     await pool.query(
@@ -538,6 +548,25 @@ router.post("/change-password", requireAuth, requireAdminOnly, async (req, res, 
     const ok = await comparePassword(currentPassword, user.password_hash);
     if (!ok) {
       throw buildApiError(400, "Current password is incorrect");
+    }
+
+    // Check if new admin password matches any employee password
+    const [storeEmployees] = await pool.query(
+      "SELECT password_hash FROM employees WHERE user_id = ?",
+      [req.auth.userId],
+    );
+    for (const emp of storeEmployees) {
+      const matchesEmp = await comparePassword(newPassword, emp.password_hash);
+      if (matchesEmp) {
+        throw buildApiError(400, "Admin password cannot be the same as any employee password");
+      }
+    }
+    const [adminUserRows] = await pool.query("SELECT employee_password_hash FROM users WHERE id = ? LIMIT 1", [req.auth.userId]);
+    if (adminUserRows[0]?.employee_password_hash) {
+      const matchesLegacyEmp = await comparePassword(newPassword, adminUserRows[0].employee_password_hash);
+      if (matchesLegacyEmp) {
+        throw buildApiError(400, "Admin password cannot be the same as any employee password");
+      }
     }
 
     const passwordHash = await hashPassword(newPassword);

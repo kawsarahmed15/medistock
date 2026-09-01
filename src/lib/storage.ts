@@ -480,6 +480,7 @@ export interface Employee {
   id: string;
   userId: string;
   name: string;
+  username?: string | null;
   email?: string | null;
   phone?: string | null;
   status: "active" | "disabled";
@@ -494,6 +495,7 @@ export const employeesStore = {
       id: e.id,
       userId: e.user_id,
       name: e.name,
+      username: e.username ?? null,
       email: e.email ?? null,
       phone: e.phone ?? null,
       status: e.status || "active",
@@ -501,7 +503,7 @@ export const employeesStore = {
       updatedAt: e.updated_at,
     }));
   },
-  async create(payload: { name: string; email?: string | null; phone?: string | null; password: string; status?: "active" | "disabled" }): Promise<Employee> {
+  async create(payload: { name: string; username: string; email?: string | null; phone?: string | null; password: string; status?: "active" | "disabled" }): Promise<Employee> {
     const data = await apiRequest<{ message: string; employee: any }>("/employees", {
       method: "POST",
       body: payload,
@@ -512,6 +514,7 @@ export const employeesStore = {
       id: e.id,
       userId: e.user_id,
       name: e.name,
+      username: e.username ?? null,
       email: e.email ?? null,
       phone: e.phone ?? null,
       status: e.status || "active",
@@ -519,7 +522,7 @@ export const employeesStore = {
       updatedAt: e.updated_at,
     };
   },
-  async update(id: string, payload: { name?: string; email?: string | null; phone?: string | null; status?: "active" | "disabled" }): Promise<Employee> {
+  async update(id: string, payload: { name?: string; username?: string; email?: string | null; phone?: string | null; status?: "active" | "disabled" }): Promise<Employee> {
     const data = await apiRequest<{ message: string; employee: any }>(`/employees/${id}`, {
       method: "PATCH",
       body: payload,
@@ -530,6 +533,7 @@ export const employeesStore = {
       id: e.id,
       userId: e.user_id,
       name: e.name,
+      username: e.username ?? null,
       email: e.email ?? null,
       phone: e.phone ?? null,
       status: e.status || "active",

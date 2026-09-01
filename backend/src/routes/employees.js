@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { pool } from "../db.js";
-import { buildApiError, generateId, hashPassword } from "../utils.js";
+import { buildApiError, generateId, hashPassword, comparePassword } from "../utils.js";
 import { requireAdminOnly } from "../middleware/auth.js";
 
 const router = Router();
@@ -12,7 +12,7 @@ router.use(requireAdminOnly);
 router.get("/", async (req, res, next) => {
   try {
     const [employees] = await pool.query(
-      `SELECT id, user_id, name, email, phone, status, created_at, updated_at
+      `SELECT id, user_id, name, username, email, phone, status, created_at, updated_at
        FROM employees
        WHERE user_id = ?
        ORDER BY created_at DESC`,
@@ -29,6 +29,7 @@ router.get("/", async (req, res, next) => {
 router.post("/", async (req, res, next) => {
   try {
     const name = String(req.body?.name || "").trim();
+    const username = String(req.body?.username || "").trim();
     const email = req.body?.email ? String(req.body.email).trim().toLowerCase() : null;
     const phone = req.body?.phone ? String(req.body.phone).trim() : null;
     const password = String(req.body?.password || "");
@@ -40,21 +41,48 @@ router.post("/", async (req, res, next) => {
     if (name.length > 100) {
       throw buildApiError(400, "Employee name is too long (max 100 characters)");
     }
+    if (!username) {
+      throw buildApiError(400, "Employee username is required");
+    }
+    if (username.length > 100) {
+      throw buildApiError(400, "Employee username is too long (max 100 characters)");
+    }
     if (!password || password.length < 4) {
       throw buildApiError(400, "Employee password must be at least 4 characters");
+    }
+
+    // Check if username is already taken
+    const [dupUser] = await pool.query(
+      "SELECT id FROM employees WHERE LOWER(username) = LOWER(?) LIMIT 1",
+      [username],
+    );
+    if (dupUser.length > 0) {
+      throw buildApiError(400, "Username already in use");
+    }
+
+    // Check if employee password matches admin password
+    const [adminRows] = await pool.query(
+      "SELECT password_hash FROM users WHERE id = ? LIMIT 1",
+      [req.auth.userId],
+    );
+    if (adminRows.length > 0) {
+      const matchesAdmin = await comparePassword(password, adminRows[0].password_hash);
+      if (matchesAdmin) {
+        throw buildApiError(400, "Employee password cannot be the same as admin password");
+      }
     }
 
     const passwordHash = await hashPassword(password);
     const employeeId = generateId();
 
     await pool.query(
-      `INSERT INTO employees (id, user_id, name, email, phone, password_hash, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [employeeId, req.auth.userId, name, email, phone, passwordHash, status],
+      `INSERT INTO employees (id, user_id, name, username, email, phone, password_hash, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [employeeId, req.auth.userId, name, username, email, phone, passwordHash, status],
     );
 
     const [rows] = await pool.query(
-      `SELECT id, user_id, name, email, phone, status, created_at, updated_at
+      `SELECT id, user_id, name, username, email, phone, status, created_at, updated_at
        FROM employees
        WHERE id = ? LIMIT 1`,
       [employeeId],
@@ -69,11 +97,12 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-// Update employee details (name, email, phone, status)
+// Update employee details (name, username, email, phone, status)
 router.patch("/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
     const name = req.body?.name !== undefined ? String(req.body.name).trim() : undefined;
+    const username = req.body?.username !== undefined ? String(req.body.username).trim() : undefined;
     const email = req.body?.email !== undefined ? (req.body.email ? String(req.body.email).trim().toLowerCase() : null) : undefined;
     const phone = req.body?.phone !== undefined ? (req.body.phone ? String(req.body.phone).trim() : null) : undefined;
     const status = req.body?.status !== undefined ? (req.body.status === "disabled" ? "disabled" : "active") : undefined;
@@ -93,6 +122,18 @@ router.patch("/:id", async (req, res, next) => {
       if (!name) throw buildApiError(400, "Employee name cannot be empty");
       updates.push("name = ?");
       values.push(name);
+    }
+    if (username !== undefined) {
+      if (!username) throw buildApiError(400, "Employee username cannot be empty");
+      const [dupUser] = await pool.query(
+        "SELECT id FROM employees WHERE LOWER(username) = LOWER(?) AND id != ? LIMIT 1",
+        [username, id],
+      );
+      if (dupUser.length > 0) {
+        throw buildApiError(400, "Username already in use");
+      }
+      updates.push("username = ?");
+      values.push(username);
     }
     if (email !== undefined) {
       updates.push("email = ?");
@@ -116,7 +157,7 @@ router.patch("/:id", async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, user_id, name, email, phone, status, created_at, updated_at
+      `SELECT id, user_id, name, username, email, phone, status, created_at, updated_at
        FROM employees
        WHERE id = ? LIMIT 1`,
       [id],
@@ -147,6 +188,18 @@ router.patch("/:id/password", async (req, res, next) => {
     );
     if (existing.length === 0) {
       throw buildApiError(404, "Employee not found");
+    }
+
+    // Check if employee password matches admin password
+    const [adminRows] = await pool.query(
+      "SELECT password_hash FROM users WHERE id = ? LIMIT 1",
+      [req.auth.userId],
+    );
+    if (adminRows.length > 0) {
+      const matchesAdmin = await comparePassword(password, adminRows[0].password_hash);
+      if (matchesAdmin) {
+        throw buildApiError(400, "Employee password cannot be the same as admin password");
+      }
     }
 
     const passwordHash = await hashPassword(password);

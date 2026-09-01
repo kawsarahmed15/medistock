@@ -37,6 +37,7 @@ async function runMigration() {
     await safeAddColumn("bills", "employee_id", "CHAR(36) NULL AFTER created_by_name");
     await safeAddColumn("bills", "approved_at", "TIMESTAMP NULL AFTER employee_id");
     await safeAddColumn("bills", "approved_by", "VARCHAR(100) NULL AFTER approved_at");
+    await safeAddColumn("employees", "username", "VARCHAR(100) NULL UNIQUE AFTER name");
 
     console.log("MySQL migration completed successfully.");
   } finally {
