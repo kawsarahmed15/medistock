@@ -275,8 +275,11 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
 type BillResponse = BillRow & { items: BillItemRow[] };
 
 export const billsStore = {
-  async list(status?: "all" | "completed" | "pending" | "rejected"): Promise<Bill[]> {
-    const qs = status && status !== "all" ? `?status=${status}` : "";
+  async list(status?: "all" | "completed" | "pending" | "rejected", employeeId?: string): Promise<Bill[]> {
+    const params = new URLSearchParams();
+    if (status && status !== "all") params.append("status", status);
+    if (employeeId) params.append("employeeId", employeeId);
+    const qs = params.toString() ? `?${params.toString()}` : "";
     const data = await apiRequest<BillResponse[]>(`/bills${qs}`, { auth: true });
     return data.map((b) => rowToBill(b, b.items || []));
   },

@@ -34,6 +34,12 @@ router.get("/", async (req, res, next) => {
       query += ` AND status = 'rejected'`;
     }
 
+    const employeeIdParam = req.query.employeeId ? String(req.query.employeeId).trim() : null;
+    if (employeeIdParam) {
+      query += ` AND (employee_id = ? OR created_by_name = ?)`;
+      params.push(employeeIdParam, employeeIdParam);
+    }
+
     query += ` ORDER BY created_at DESC LIMIT 500`;
 
     const [bills] = await pool.query(query, params);
