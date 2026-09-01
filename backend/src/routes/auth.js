@@ -115,28 +115,94 @@ router.post("/login", async (req, res, next) => {
     const email = ensureEmail(req.body?.email);
     const password = String(req.body?.password || "");
 
-    const [rows] = await pool.query(
+    let [rows] = await pool.query(
       `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
        FROM users
        WHERE email = ?
        LIMIT 1`,
       [email],
     );
-    const user = rows[0];
+    let user = rows[0];
+    let employeeRecord = null;
+
+    // If not found directly in users, check if an employee has this email
+    if (!user) {
+      const [empRows] = await pool.query(
+        `SELECT e.id as emp_id, e.user_id, e.name as emp_name, e.email as emp_email, e.password_hash as emp_password_hash, e.status as emp_status,
+                u.id, u.name, u.email, u.password_hash, u.employee_password_hash, u.is_employee_enabled, u.is_verified, u.created_at, u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number, u.drug_lic_no, u.bill_color, u.signature, u.role, u.account_status, u.expiring_days, u.low_stock_qty, u.default_tax, u.admin_device_id
+         FROM employees e
+         JOIN users u ON e.user_id = u.id
+         WHERE e.email = ? AND e.status = 'active'
+         LIMIT 1`,
+        [email],
+      );
+      if (empRows.length > 0) {
+        user = empRows[0];
+        employeeRecord = {
+          id: empRows[0].emp_id,
+          name: empRows[0].emp_name,
+          password_hash: empRows[0].emp_password_hash,
+          status: empRows[0].emp_status,
+        };
+      }
+    }
 
     if (!user) {
       throw buildApiError(401, "Invalid email or password");
     }
 
     let isEmployee = false;
-    let ok = await comparePassword(password, user.password_hash);
+    let employeeMeta = null;
+    let ok = false;
 
-    // If admin password didn't match, check if employee password matches
-    if (!ok && user.employee_password_hash && Number(user.is_employee_enabled ?? 1) === 1) {
-      const isEmpOk = await comparePassword(password, user.employee_password_hash);
-      if (isEmpOk) {
-        ok = true;
+    if (employeeRecord) {
+      // Direct employee login
+      ok = await comparePassword(password, employeeRecord.password_hash);
+      if (ok) {
         isEmployee = true;
+        employeeMeta = {
+          employeeId: employeeRecord.id,
+          employeeName: employeeRecord.name,
+        };
+      }
+    } else {
+      // 1. Check admin password first
+      ok = await comparePassword(password, user.password_hash);
+
+      // 2. If admin password didn't match, check employees table for this pharmacy
+      if (!ok) {
+        const [storeEmployees] = await pool.query(
+          `SELECT id, name, password_hash, status
+           FROM employees
+           WHERE user_id = ? AND status = 'active'`,
+          [user.id],
+        );
+
+        for (const emp of storeEmployees) {
+          const isEmpOk = await comparePassword(password, emp.password_hash);
+          if (isEmpOk) {
+            ok = true;
+            isEmployee = true;
+            employeeMeta = {
+              employeeId: emp.id,
+              employeeName: emp.name,
+            };
+            break;
+          }
+        }
+      }
+
+      // 3. Fallback check for legacy single employee password if enabled
+      if (!ok && user.employee_password_hash && Number(user.is_employee_enabled ?? 1) === 1) {
+        const isLegacyEmpOk = await comparePassword(password, user.employee_password_hash);
+        if (isLegacyEmpOk) {
+          ok = true;
+          isEmployee = true;
+          employeeMeta = {
+            employeeId: null,
+            employeeName: `${user.name} (Staff)`,
+          };
+        }
       }
     }
 
@@ -172,7 +238,6 @@ router.post("/login", async (req, res, next) => {
       const makeAdmin = (!isEmployee && deviceId === adminDeviceId) ? 1 : 0;
 
       if (existing.length > 0) {
-        // Update existing device session record with the new session_id and set status to active
         await pool.query(
           `UPDATE user_sessions 
            SET session_id = ?, last_active = CURRENT_TIMESTAMP, last_user_activity = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?, is_admin = ?, status = 'active'
@@ -189,7 +254,7 @@ router.post("/login", async (req, res, next) => {
         // Send new login notification email
         await sendLoginNotificationEmail({
           to: user.email,
-          name: isEmployee ? `${user.name} (Staff)` : user.name,
+          name: isEmployee ? (employeeMeta?.employeeName || `${user.name} (Staff)`) : user.name,
           deviceOs,
           deviceBrowser,
           ipAddress,
@@ -197,8 +262,8 @@ router.post("/login", async (req, res, next) => {
       }
     }
 
-    const token = signAuthToken(user, isEmployee);
-    res.json({ token, user: sanitizeUser(user, isEmployee) });
+    const token = signAuthToken(user, isEmployee, employeeMeta);
+    res.json({ token, user: sanitizeUser(user, isEmployee, employeeMeta) });
   } catch (error) {
     next(error);
   }
@@ -338,7 +403,10 @@ router.get("/me", requireAuth, async (req, res, next) => {
     if (!user) {
       throw buildApiError(401, "Unauthorized");
     }
-    res.json({ user: sanitizeUser(user, req.auth.isEmployee) });
+    const employeeMeta = req.auth.isEmployee
+      ? { employeeId: req.auth.employeeId, employeeName: req.auth.employeeName }
+      : null;
+    res.json({ user: sanitizeUser(user, req.auth.isEmployee, employeeMeta) });
   } catch (error) {
     next(error);
   }

@@ -28,6 +28,7 @@ import { Route as AppPurchasesRouteImport } from './routes/_app.purchases'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
 import { Route as AppLedgerRouteImport } from './routes/_app.ledger'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
+import { Route as AppEmployeesRouteImport } from './routes/_app.employees'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCustomersRouteImport } from './routes/_app.customers'
 import { Route as AppCreditRouteImport } from './routes/_app.credit'
@@ -134,6 +135,11 @@ const AppInventoryRoute = AppInventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEmployeesRoute = AppEmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -204,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/credit': typeof AppCreditRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
+  '/employees': typeof AppEmployeesRoute
   '/inventory': typeof AppInventoryRoute
   '/ledger': typeof AppLedgerRoute
   '/notifications': typeof AppNotificationsRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/credit': typeof AppCreditRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
+  '/employees': typeof AppEmployeesRoute
   '/inventory': typeof AppInventoryRoute
   '/ledger': typeof AppLedgerRoute
   '/notifications': typeof AppNotificationsRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   '/_app/credit': typeof AppCreditRoute
   '/_app/customers': typeof AppCustomersRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/employees': typeof AppEmployeesRoute
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/ledger': typeof AppLedgerRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/credit'
     | '/customers'
     | '/dashboard'
+    | '/employees'
     | '/inventory'
     | '/ledger'
     | '/notifications'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/credit'
     | '/customers'
     | '/dashboard'
+    | '/employees'
     | '/inventory'
     | '/ledger'
     | '/notifications'
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/_app/credit'
     | '/_app/customers'
     | '/_app/dashboard'
+    | '/_app/employees'
     | '/_app/inventory'
     | '/_app/ledger'
     | '/_app/notifications'
@@ -525,6 +537,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/employees': {
+      id: '/_app/employees'
+      path: '/employees'
+      fullPath: '/employees'
+      preLoaderRoute: typeof AppEmployeesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -641,6 +660,7 @@ interface AppRouteChildren {
   AppCreditRoute: typeof AppCreditRoute
   AppCustomersRoute: typeof AppCustomersRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppEmployeesRoute: typeof AppEmployeesRoute
   AppInventoryRoute: typeof AppInventoryRoute
   AppLedgerRoute: typeof AppLedgerRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -658,6 +678,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCreditRoute: AppCreditRoute,
   AppCustomersRoute: AppCustomersRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppEmployeesRoute: AppEmployeesRoute,
   AppInventoryRoute: AppInventoryRoute,
   AppLedgerRoute: AppLedgerRoute,
   AppNotificationsRoute: AppNotificationsRoute,

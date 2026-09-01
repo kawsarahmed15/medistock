@@ -60,6 +60,8 @@ export type Bill = {
   paymentMethod: PaymentMethod;
   status: "completed" | "pending" | "rejected";
   createdByRole?: "admin" | "employee";
+  createdByName?: string;
+  employeeId?: string;
   approvedAt?: string;
   approvedBy?: string;
   createdAt: string;
@@ -206,6 +208,8 @@ type BillRow = {
   total: number | string;
   status?: "completed" | "pending" | "rejected";
   created_by_role?: "admin" | "employee";
+  created_by_name?: string | null;
+  employee_id?: string | null;
   approved_at?: string | null;
   approved_by?: string | null;
   created_at: string;
@@ -246,6 +250,8 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     total: Number(b.total) || 0,
     status: b.status || "completed",
     createdByRole: b.created_by_role || "admin",
+    createdByName: b.created_by_name ?? undefined,
+    employeeId: b.employee_id ?? undefined,
     approvedAt: b.approved_at ?? undefined,
     approvedBy: b.approved_by ?? undefined,
     createdAt: b.created_at,
@@ -465,4 +471,87 @@ export const purchasesStore = {
     });
     return rowToPurchase(data, data.items || []);
   }
+};
+
+export interface Employee {
+  id: string;
+  userId: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  status: "active" | "disabled";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const employeesStore = {
+  async list(): Promise<Employee[]> {
+    const data = await apiRequest<{ employees: any[] }>("/employees", { auth: true });
+    return (data.employees || []).map((e) => ({
+      id: e.id,
+      userId: e.user_id,
+      name: e.name,
+      email: e.email ?? null,
+      phone: e.phone ?? null,
+      status: e.status || "active",
+      createdAt: e.created_at,
+      updatedAt: e.updated_at,
+    }));
+  },
+  async create(payload: { name: string; email?: string | null; phone?: string | null; password: string; status?: "active" | "disabled" }): Promise<Employee> {
+    const data = await apiRequest<{ message: string; employee: any }>("/employees", {
+      method: "POST",
+      body: payload,
+      auth: true,
+    });
+    const e = data.employee;
+    return {
+      id: e.id,
+      userId: e.user_id,
+      name: e.name,
+      email: e.email ?? null,
+      phone: e.phone ?? null,
+      status: e.status || "active",
+      createdAt: e.created_at,
+      updatedAt: e.updated_at,
+    };
+  },
+  async update(id: string, payload: { name?: string; email?: string | null; phone?: string | null; status?: "active" | "disabled" }): Promise<Employee> {
+    const data = await apiRequest<{ message: string; employee: any }>(`/employees/${id}`, {
+      method: "PATCH",
+      body: payload,
+      auth: true,
+    });
+    const e = data.employee;
+    return {
+      id: e.id,
+      userId: e.user_id,
+      name: e.name,
+      email: e.email ?? null,
+      phone: e.phone ?? null,
+      status: e.status || "active",
+      createdAt: e.created_at,
+      updatedAt: e.updated_at,
+    };
+  },
+  async updatePassword(id: string, password: string): Promise<void> {
+    await apiRequest(`/employees/${id}/password`, {
+      method: "PATCH",
+      body: { password },
+      auth: true,
+    });
+  },
+  async toggleStatus(id: string, status: "active" | "disabled"): Promise<void> {
+    await apiRequest(`/employees/${id}/status`, {
+      method: "PATCH",
+      body: { status },
+      auth: true,
+    });
+  },
+  async delete(id: string): Promise<void> {
+    await apiRequest(`/employees/${id}`, {
+      method: "DELETE",
+      auth: true,
+    });
+  },
 };

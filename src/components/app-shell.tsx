@@ -17,9 +17,9 @@ import {
   ShieldCheck,
   CreditCard,
   Truck,
-  Crown,
   BookOpen,
   Bell,
+  UserCheck,
 } from "lucide-react";
 import { UserProfileDialog } from "@/components/user-profile-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -42,6 +42,7 @@ const adminNav = [
   { to: "/cart", label: "Cart", icon: ShoppingBag },
   { to: "/bills", label: "Bills", icon: ReceiptText },
   { to: "/customers", label: "Customers", icon: Users },
+  { to: "/employees", label: "Employees", icon: UserCheck },
   { to: "/purchases", label: "Purchases", icon: Truck },
   { to: "/credit", label: "Credit", icon: CreditCard },
   { to: "/ledger", label: "Ledger", icon: BookOpen },
@@ -72,9 +73,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const dynamicNav = isEmployee
     ? [...employeeNav]
     : [
-        ...adminNav.slice(0, 9),
+        ...adminNav.slice(0, 10),
         ...(isAdminDevice ? [{ to: "/notifications", label: "Notifications", icon: Bell }] : []),
-        adminNav[9],
+        adminNav[10],
       ];
 
   const checkPendingBills = async () => {

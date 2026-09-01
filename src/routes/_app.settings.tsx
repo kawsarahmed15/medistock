@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiRequest } from "@/lib/api-client";
@@ -624,6 +624,17 @@ function SettingsPage() {
                   </div>
                 </div>
               </form>
+
+              <div className="pt-3 border-t flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="text-xs text-muted-foreground">
+                  Need to manage multiple staff accounts or view the staff directory?
+                </div>
+                <Button asChild variant="outline" size="sm" className="shadow-xs gap-1.5 shrink-0">
+                  <Link to="/employees">
+                    <Users className="h-4 w-4 text-primary" /> Open Staff Directory →
+                  </Link>
+                </Button>
+              </div>
 
               {session?.hasEmployeePassword && (
                 <div className="pt-2 border-t flex justify-end">

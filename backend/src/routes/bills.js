@@ -21,7 +21,7 @@ router.get("/pending-count", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const statusParam = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
-    let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, approved_at, approved_by, created_at
+    let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, created_by_name, employee_id, approved_at, approved_by, created_at
        FROM bills
        WHERE user_id = ?`;
     const params = [req.auth.userId];
@@ -74,7 +74,7 @@ router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method,
-              subtotal, tax, discount, total, status, created_by_role, approved_at, approved_by, created_at
+              subtotal, tax, discount, total, status, created_by_role, created_by_name, employee_id, approved_at, approved_by, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
        LIMIT 1`,
@@ -106,7 +106,9 @@ router.post("/", async (req, res, next) => {
     const isEmployee = Boolean(req.auth.isEmployee);
     const billStatus = isEmployee ? "pending" : "completed";
     const createdByRole = isEmployee ? "employee" : "admin";
-    const defaultCashier = isEmployee ? (req.auth.name || "Staff") : (req.auth.name || "Admin");
+    const createdByName = req.auth.employeeName || req.auth.name || (isEmployee ? "Staff" : "Admin");
+    const employeeId = req.auth.employeeId || null;
+    const defaultCashier = createdByName;
 
     const created = await withTransaction(async (conn) => {
       const prefix = isReturn ? "SR" : "INV";
@@ -122,8 +124,8 @@ router.post("/", async (req, res, next) => {
       const id = generateId();
       await conn.query(
         `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes,
-             cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, created_by_name, employee_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           req.auth.userId,
@@ -144,6 +146,8 @@ router.post("/", async (req, res, next) => {
           Number(body.total || 0),
           billStatus,
           createdByRole,
+          createdByName,
+          employeeId,
         ],
       );
 

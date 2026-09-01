@@ -48,6 +48,8 @@ export async function requireAuth(req, res, next) {
       name: String(payload.name || ""),
       role: String(payload.role || ""),
       isEmployee: Boolean(payload.isEmployee),
+      employeeId: payload.employeeId || null,
+      employeeName: payload.employeeName || null,
       sessionId,
       deviceId: reqDeviceId,
     };

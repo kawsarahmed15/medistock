@@ -282,8 +282,8 @@ function BillDetailPage() {
             </div>
             <p className="text-muted-foreground text-xs leading-relaxed">
               {isEmployee
-                ? `This bill was created by you (${bill.cashier || "Staff"}) and is pending approval from the store admin. It will not be added to full store stock or accounting until confirmed.`
-                : `This bill was created by ${bill.cashier || "Staff"} and requires your confirmation before stock is deducted and revenue is recorded in the system.`}
+                ? `This bill was created by you (${bill.createdByName || bill.cashier || "Staff"}) and is pending approval from the store admin. It will not be added to full store stock or accounting until confirmed.`
+                : `This bill was created by staff member "${bill.createdByName || bill.cashier || "Staff"}" and requires your confirmation before stock is deducted and revenue is recorded in the system.`}
             </p>
           </div>
         </div>

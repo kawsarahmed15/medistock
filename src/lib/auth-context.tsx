@@ -14,6 +14,8 @@ export type Session = {
   signature?: string;
   role?: string;
   isEmployee?: boolean;
+  employeeId?: string;
+  employeeName?: string;
   hasEmployeePassword?: boolean;
   isEmployeeEnabled?: boolean;
   accountStatus?: string;
@@ -69,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             signature: res.user.signature,
             role: res.user.role,
             isEmployee: Boolean(res.user.isEmployee),
+            employeeId: res.user.employeeId,
+            employeeName: res.user.employeeName,
             hasEmployeePassword: Boolean(res.user.hasEmployeePassword),
             isEmployeeEnabled: Boolean(res.user.isEmployeeEnabled),
             accountStatus: res.user.accountStatus,
@@ -280,6 +284,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signature: res.user.signature,
         role: res.user.role,
         isEmployee: Boolean(res.user.isEmployee),
+        employeeId: res.user.employeeId,
+        employeeName: res.user.employeeName,
         hasEmployeePassword: Boolean(res.user.hasEmployeePassword),
         isEmployeeEnabled: Boolean(res.user.isEmployeeEnabled),
         accountStatus: res.user.accountStatus,

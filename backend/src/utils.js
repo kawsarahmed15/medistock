@@ -23,14 +23,18 @@ export async function comparePassword(password, hash) {
   return bcrypt.compare(password, hash);
 }
 
-export function signAuthToken(user, isEmployee = false) {
+export function signAuthToken(user, isEmployee = false, employeeMeta = null) {
+  const empName = employeeMeta?.employeeName || (isEmployee ? `${user.name} (Staff)` : user.name);
+  const empId = employeeMeta?.employeeId || null;
   return jwt.sign(
     {
       sub: user.id,
       email: user.email,
-      name: isEmployee ? `${user.name} (Staff)` : user.name,
+      name: isEmployee ? empName : user.name,
       role: isEmployee ? "employee" : (user.role || "retailer"),
       isEmployee: Boolean(isEmployee),
+      employeeId: empId,
+      employeeName: empName,
     },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn },
@@ -41,11 +45,13 @@ export function verifyAuthToken(token) {
   return jwt.verify(token, config.jwtSecret);
 }
 
-export function sanitizeUser(row, isEmployee = false) {
+export function sanitizeUser(row, isEmployee = false, employeeMeta = null) {
   const employeeFlag = Boolean(isEmployee || row.is_employee || row.isEmployee);
+  const empName = employeeMeta?.employeeName || (employeeFlag ? `${row.name} (Staff)` : row.name);
+  const empId = employeeMeta?.employeeId || null;
   return {
     id: row.id,
-    name: employeeFlag ? `${row.name} (Staff)` : row.name,
+    name: employeeFlag ? empName : row.name,
     email: row.email,
     isVerified: Boolean(row.is_verified),
     pharmacyName: row.pharmacy_name || undefined,
@@ -57,6 +63,8 @@ export function sanitizeUser(row, isEmployee = false) {
     signature: row.signature || undefined,
     role: employeeFlag ? "employee" : (row.role || "retailer"),
     isEmployee: employeeFlag,
+    employeeId: empId,
+    employeeName: empName,
     hasEmployeePassword: Boolean(row.employee_password_hash),
     isEmployeeEnabled: row.is_employee_enabled !== undefined && row.is_employee_enabled !== null ? Boolean(row.is_employee_enabled) : true,
     accountStatus: row.account_status || "active",

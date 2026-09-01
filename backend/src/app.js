@@ -10,6 +10,7 @@ import { customersRouter } from "./routes/customers.js";
 import { adminRouter } from "./routes/admin.js";
 import { purchasesRouter } from "./routes/purchases.js";
 import { subscriptionRouter } from "./routes/subscription.js";
+import { employeesRouter } from "./routes/employees.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { requireAuth } from "./middleware/auth.js";
 import { requireActiveSubscription } from "./middleware/subscription.js";
@@ -44,6 +45,7 @@ app.use("/api/bills", requireAuth, requireActiveSubscription, billsRouter);
 app.use("/api/customers", requireAuth, requireActiveSubscription, customersRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/purchases", requireAuth, requireActiveSubscription, purchasesRouter);
+app.use("/api/employees", requireAuth, requireActiveSubscription, employeesRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
