@@ -9,7 +9,7 @@ router.get("/", async (req, res, next) => {
   try {
     let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, payment_method, advance_amount, total, created_at
        FROM bills
-       WHERE user_id = ? AND (status IS NULL OR status != 'rejected')`;
+       WHERE user_id = ? AND (status IS NULL OR status = 'completed')`;
     let paymentsQuery = `SELECT customer_phone, customer_name, amount, created_at 
        FROM customer_payments 
        WHERE user_id = ?`;

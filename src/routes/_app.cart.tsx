@@ -15,13 +15,12 @@ import {
   PackagePlus,
   ScanLine,
   Keyboard,
-  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
-import { billsStore, productsStore, customersStore, type Product, type Customer as SavedCustomer } from "@/lib/storage";
+import { billsStore, productsStore, type Product } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -112,15 +111,10 @@ function CartPage() {
   const [addOpen, setAddOpen] = useState(false);
   const browseButtonRef = useRef<HTMLButtonElement>(null);
   const [productList, setProductList] = useState<Product[]>([]);
-  const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
 
   useEffect(() => {
     productsStore.list().then(setProductList).catch(() => {});
   }, [addOpen, cart.items.length]);
-
-  useEffect(() => {
-    customersStore.list().then(setSavedCustomers).catch(() => {});
-  }, [customerOpen]);
 
   useEffect(() => {
     if (search.newSale) {
@@ -668,51 +662,28 @@ function CartPage() {
 
         <div className="space-y-4">
           <Card className="shadow-soft">
-            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base flex items-center gap-2">
                 <UserRound className="h-4 w-4 text-primary" /> Customer
               </CardTitle>
-              <div className="flex items-center gap-1">
-                {hasCustomer && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground hover:text-rose-600"
-                    onClick={() => {
-                      cart.setCustomer({ name: "", phone: "", address: "", drugLicNo: "", gstin: "", notes: "" });
-                      toast.info("Cleared customer details (Walk-in)");
-                    }}
-                    title="Clear Customer"
-                  >
-                    Clear
-                  </Button>
-                )}
-                <Button
-                  variant={hasCustomer ? "outline" : "default"}
-                  size="sm"
-                  className="h-7 text-xs px-2.5 shadow-xs"
-                  onClick={() => setCustomerOpen(true)}
-                  disabled={cart.items.length === 0}
-                >
-                  <Pencil className="h-3 w-3 mr-1" /> {hasCustomer ? "Edit" : "Add Details"}
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCustomerOpen(true)}
+                disabled={cart.items.length === 0}
+              >
+                <Pencil className="h-3.5 w-3.5" /> {hasCustomer ? "Edit" : "Add"}
+              </Button>
             </CardHeader>
-            <CardContent className="text-sm space-y-2">
+            <CardContent className="text-sm">
               {hasCustomer ? (
-                <div className="space-y-1.5 bg-muted/40 p-2.5 rounded-lg border">
-                  {cart.customer.name && (
-                    <div className="font-semibold text-foreground flex items-center gap-1.5">
-                      <span>{cart.customer.name}</span>
-                    </div>
-                  )}
+                <div className="space-y-1">
+                  {cart.customer.name && <div className="font-medium">{cart.customer.name}</div>}
                   {cart.customer.phone && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
-                      <span>Phone: {cart.customer.phone}</span>
-                    </div>
+                    <div className="text-muted-foreground">{cart.customer.phone}</div>
                   )}
                   {cart.customer.address && (
-                    <div className="text-xs text-muted-foreground whitespace-pre-wrap mt-0.5 leading-snug">
+                    <div className="text-muted-foreground whitespace-pre-wrap mt-0.5 leading-snug">
                       {cart.customer.address}
                     </div>
                   )}
@@ -727,47 +698,13 @@ function CartPage() {
                     </div>
                   )}
                   {cart.customer.notes && (
-                    <div className="text-xs text-muted-foreground mt-1.5 p-1.5 rounded bg-background border whitespace-pre-wrap">
+                    <div className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">
                       {cart.customer.notes}
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Walk-in customer (default).</p>
-                  {savedCustomers.length > 0 && (
-                    <div className="space-y-1.5 pt-1 border-t">
-                      <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 text-amber-500" />
-                        <span>Quick-pick past customer:</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {savedCustomers.slice(0, 3).map((sc) => (
-                          <button
-                            key={`sidebar-cpick-${sc.phone}-${sc.name}`}
-                            type="button"
-                            onClick={() => {
-                              cart.setCustomer({
-                                name: sc.name,
-                                phone: sc.phone || "",
-                                address: sc.address || "",
-                                drugLicNo: sc.drugLicNo || "",
-                                gstin: sc.gstin || "",
-                                notes: sc.notes || "",
-                              });
-                              cart.setCustomerSubmitted(true);
-                              toast.success(`Selected customer: ${sc.name}`);
-                            }}
-                            className="text-[11px] px-2 py-0.5 rounded-md bg-secondary hover:bg-primary hover:text-primary-foreground transition-colors font-medium border border-border text-foreground truncate max-w-[150px]"
-                            title={`Pick ${sc.name} (${sc.phone})`}
-                          >
-                            {sc.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <p className="text-muted-foreground">Walk-in customer.</p>
               )}
             </CardContent>
           </Card>
