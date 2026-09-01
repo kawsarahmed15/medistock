@@ -13,6 +13,9 @@ export type Session = {
   billColor?: string;
   signature?: string;
   role?: string;
+  isEmployee?: boolean;
+  hasEmployeePassword?: boolean;
+  isEmployeeEnabled?: boolean;
   accountStatus?: string;
   expiryDays?: number;
   lowStockQty?: number;
@@ -22,7 +25,7 @@ export type Session = {
 type AuthCtx = {
   session: Session | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<Session>;
   signup: (
     name: string,
     email: string,
@@ -35,6 +38,9 @@ type AuthCtx = {
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   requestEmailChange: (newEmail: string) => Promise<void>;
   confirmEmailChange: (token: string) => Promise<void>;
+  setEmployeePassword: (password: string, isEnabled?: boolean) => Promise<void>;
+  toggleEmployeeStatus: (isEnabled: boolean) => Promise<void>;
+  removeEmployeePassword: () => Promise<void>;
   updateSession: (patch: Partial<Session>) => void;
 };
 
@@ -62,6 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             billColor: res.user.billColor,
             signature: res.user.signature,
             role: res.user.role,
+            isEmployee: Boolean(res.user.isEmployee),
+            hasEmployeePassword: Boolean(res.user.hasEmployeePassword),
+            isEmployeeEnabled: Boolean(res.user.isEmployeeEnabled),
             accountStatus: res.user.accountStatus,
             expiryDays: res.user.expiryDays,
             lowStockQty: res.user.lowStockQty,
@@ -258,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
       setAuthToken(res.token);
-      setSession({
+      const newSession: Session = {
         userId: res.user.id,
         name: res.user.name,
         email: res.user.email,
@@ -270,11 +279,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         billColor: res.user.billColor,
         signature: res.user.signature,
         role: res.user.role,
+        isEmployee: Boolean(res.user.isEmployee),
+        hasEmployeePassword: Boolean(res.user.hasEmployeePassword),
+        isEmployeeEnabled: Boolean(res.user.isEmployeeEnabled),
         accountStatus: res.user.accountStatus,
         expiryDays: res.user.expiryDays,
         lowStockQty: res.user.lowStockQty,
         defaultTax: res.user.defaultTax,
-      });
+      };
+      setSession(newSession);
+      return newSession;
     },
     signup: async (name, email, password, pharmacyName, role) => {
       await apiRequest("/auth/signup", {
@@ -321,6 +335,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: "POST",
         body: { token },
       });
+    },
+    setEmployeePassword: async (password, isEnabled = true) => {
+      await apiRequest("/auth/employee-password", {
+        method: "POST",
+        body: { employeePassword: password, isEnabled },
+        auth: true,
+      });
+      if (session) {
+        setSession({ ...session, hasEmployeePassword: true, isEmployeeEnabled: isEnabled });
+      }
+    },
+    toggleEmployeeStatus: async (isEnabled) => {
+      await apiRequest("/auth/employee-status", {
+        method: "PATCH",
+        body: { isEnabled },
+        auth: true,
+      });
+      if (session) {
+        setSession({ ...session, isEmployeeEnabled: isEnabled });
+      }
+    },
+    removeEmployeePassword: async () => {
+      await apiRequest("/auth/employee-password", {
+        method: "DELETE",
+        auth: true,
+      });
+      if (session) {
+        setSession({ ...session, hasEmployeePassword: false, isEmployeeEnabled: false });
+      }
     },
     updateSession: (patch: Partial<Session>) => {
       if (session) setSession({ ...session, ...patch });

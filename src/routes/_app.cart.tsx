@@ -231,9 +231,15 @@ function CartPage() {
         tax: cart.tax,
         total: cart.total,
       });
-      await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)));
+
+      if (!session?.isEmployee) {
+        await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)));
+        toast.success(`Bill ${bill.number} generated`);
+      } else {
+        toast.success(`Bill ${bill.number} submitted for Admin confirmation (Pending)`);
+      }
+
       cart.clear();
-      toast.success(`Bill ${bill.number} generated`);
       navigate({ to: "/bills/$id", params: { id: bill.id } });
     } catch (e) {
       toast.error((e as Error).message || "Failed to generate bill");

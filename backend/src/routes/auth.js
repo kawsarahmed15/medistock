@@ -10,7 +10,7 @@ import {
   sanitizeUser,
   signAuthToken,
 } from "../utils.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireAdminOnly } from "../middleware/auth.js";
 import { config } from "../config.js";
 import {
   sendPasswordResetEmail,
@@ -116,7 +116,7 @@ router.post("/login", async (req, res, next) => {
     const password = String(req.body?.password || "");
 
     const [rows] = await pool.query(
-      `SELECT id, name, email, password_hash, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
+      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
        FROM users
        WHERE email = ?
        LIMIT 1`,
@@ -128,7 +128,18 @@ router.post("/login", async (req, res, next) => {
       throw buildApiError(401, "Invalid email or password");
     }
 
-    const ok = await comparePassword(password, user.password_hash);
+    let isEmployee = false;
+    let ok = await comparePassword(password, user.password_hash);
+
+    // If admin password didn't match, check if employee password matches
+    if (!ok && user.employee_password_hash && Number(user.is_employee_enabled ?? 1) === 1) {
+      const isEmpOk = await comparePassword(password, user.employee_password_hash);
+      if (isEmpOk) {
+        ok = true;
+        isEmployee = true;
+      }
+    }
+
     if (!ok) {
       throw buildApiError(401, "Invalid email or password");
     }
@@ -145,9 +156,9 @@ router.post("/login", async (req, res, next) => {
       const deviceBrowser = req.body?.deviceBrowser || null;
       const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
 
-      // Assign admin_device_id if not set yet
+      // Assign admin_device_id if not set yet and logging in as admin
       let adminDeviceId = user.admin_device_id;
-      if (!adminDeviceId) {
+      if (!adminDeviceId && !isEmployee) {
         await pool.query("UPDATE users SET admin_device_id = ? WHERE id = ?", [deviceId, user.id]);
         adminDeviceId = deviceId;
       }
@@ -158,7 +169,7 @@ router.post("/login", async (req, res, next) => {
         [user.id, deviceId]
       );
 
-      const makeAdmin = (deviceId === adminDeviceId) ? 1 : 0;
+      const makeAdmin = (!isEmployee && deviceId === adminDeviceId) ? 1 : 0;
 
       if (existing.length > 0) {
         // Update existing device session record with the new session_id and set status to active
@@ -178,7 +189,7 @@ router.post("/login", async (req, res, next) => {
         // Send new login notification email
         await sendLoginNotificationEmail({
           to: user.email,
-          name: user.name,
+          name: isEmployee ? `${user.name} (Staff)` : user.name,
           deviceOs,
           deviceBrowser,
           ipAddress,
@@ -186,8 +197,8 @@ router.post("/login", async (req, res, next) => {
       }
     }
 
-    const token = signAuthToken(user);
-    res.json({ token, user: sanitizeUser(user) });
+    const token = signAuthToken(user, isEmployee);
+    res.json({ token, user: sanitizeUser(user, isEmployee) });
   } catch (error) {
     next(error);
   }
@@ -320,23 +331,76 @@ router.post("/reset-password", async (req, res, next) => {
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
     if (!user) {
       throw buildApiError(401, "Unauthorized");
     }
-    res.json({ user: sanitizeUser(user) });
+    res.json({ user: sanitizeUser(user, req.auth.isEmployee) });
   } catch (error) {
     next(error);
   }
 });
 
-router.patch("/profile", requireAuth, async (req, res, next) => {
+router.post("/employee-password", requireAuth, requireAdminOnly, async (req, res, next) => {
+  try {
+    const password = ensurePassword(req.body?.employeePassword, "Employee password");
+    const isEnabled = req.body?.isEnabled !== undefined ? (req.body.isEnabled ? 1 : 0) : 1;
+    const passwordHash = await hashPassword(password);
+
+    await pool.query(
+      "UPDATE users SET employee_password_hash = ?, is_employee_enabled = ? WHERE id = ?",
+      [passwordHash, isEnabled, req.auth.userId],
+    );
+
+    res.json({
+      message: "Employee password updated successfully",
+      hasEmployeePassword: true,
+      isEmployeeEnabled: Boolean(isEnabled),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/employee-status", requireAuth, requireAdminOnly, async (req, res, next) => {
+  try {
+    const isEnabled = req.body?.isEnabled ? 1 : 0;
+    await pool.query(
+      "UPDATE users SET is_employee_enabled = ? WHERE id = ?",
+      [isEnabled, req.auth.userId],
+    );
+    res.json({
+      message: isEnabled ? "Employee access enabled" : "Employee access disabled",
+      isEmployeeEnabled: Boolean(isEnabled),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/employee-password", requireAuth, requireAdminOnly, async (req, res, next) => {
+  try {
+    await pool.query(
+      "UPDATE users SET employee_password_hash = NULL, is_employee_enabled = 0 WHERE id = ?",
+      [req.auth.userId],
+    );
+    res.json({
+      message: "Employee password removed",
+      hasEmployeePassword: false,
+      isEmployeeEnabled: false,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/profile", requireAuth, requireAdminOnly, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -380,7 +444,7 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT id, name, email, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
 
@@ -390,7 +454,7 @@ router.patch("/profile", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/change-password", requireAuth, async (req, res, next) => {
+router.post("/change-password", requireAuth, requireAdminOnly, async (req, res, next) => {
   try {
     const currentPassword = String(req.body?.currentPassword || "");
     const newPassword = ensurePassword(req.body?.newPassword, "New password");
@@ -420,7 +484,7 @@ router.post("/change-password", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/request-email-change", requireAuth, async (req, res, next) => {
+router.post("/request-email-change", requireAuth, requireAdminOnly, async (req, res, next) => {
   try {
     const newEmail = ensureEmail(req.body?.newEmail);
 

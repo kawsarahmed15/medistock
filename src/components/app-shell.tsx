@@ -35,7 +35,7 @@ import { apiRequest } from "@/lib/api-client";
 import { getNotifications, addNotification, NotificationItem } from "@/lib/notifications";
 import { toast } from "sonner";
 
-const nav = [
+const adminNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inventory", label: "Inventory", icon: Package },
   { to: "/sell", label: "Sell", icon: ShoppingCart },
@@ -46,6 +46,12 @@ const nav = [
   { to: "/credit", label: "Credit", icon: CreditCard },
   { to: "/ledger", label: "Ledger", icon: BookOpen },
   { to: "/settings", label: "Settings", icon: Settings },
+] as const;
+
+const employeeNav = [
+  { to: "/inventory", label: "Inventory (Stock)", icon: Package },
+  { to: "/sell", label: "New Sale", icon: ShoppingCart },
+  { to: "/cart", label: "Cart", icon: ShoppingBag },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -59,12 +65,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const [isAdminDevice, setIsAdminDevice] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [pendingBillsCount, setPendingBillsCount] = useState(0);
 
-  const dynamicNav = [
-    ...nav.slice(0, 9),
-    ...(isAdminDevice ? [{ to: "/notifications", label: "Notifications", icon: Bell }] : []),
-    nav[9],
-  ];
+  const isEmployee = Boolean(session?.isEmployee);
+
+  const dynamicNav = isEmployee
+    ? [...employeeNav]
+    : [
+        ...adminNav.slice(0, 9),
+        ...(isAdminDevice ? [{ to: "/notifications", label: "Notifications", icon: Bell }] : []),
+        adminNav[9],
+      ];
+
+  const checkPendingBills = async () => {
+    if (isEmployee) return;
+    try {
+      const res = await apiRequest<{ count: number }>("/bills/pending-count", { auth: true });
+      setPendingBillsCount(res.count || 0);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    checkPendingBills();
+    const interval = setInterval(checkPendingBills, 10000);
+    return () => clearInterval(interval);
+  }, [isEmployee]);
 
   useEffect(() => {
     setNotifications(getNotifications());
@@ -215,14 +242,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       className="h-full flex flex-col border-r border-sidebar-border bg-sidebar shadow-soft overflow-hidden print:hidden"
     >
       <div className="flex items-center gap-2 px-6 py-5 border-b border-sidebar-border">
-        <div className="h-9 w-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow shrink-0">
-          <Pill className="h-5 w-5 text-primary-foreground" />
+        <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shadow-glow shrink-0", isEmployee ? "bg-amber-500 text-white" : "bg-gradient-primary text-primary-foreground")}>
+          <Pill className="h-5 w-5" />
         </div>
         <div className="min-w-0">
           <div className="font-semibold text-sidebar-foreground leading-tight truncate">
             MediStock
           </div>
-          <div className="text-[11px] text-muted-foreground truncate">Pharmacy Suite</div>
+          <div className="text-[11px] text-muted-foreground truncate">
+            {isEmployee ? (
+              <span className="text-amber-600 dark:text-amber-400 font-medium">Employee Panel</span>
+            ) : (
+              "Pharmacy Suite"
+            )}
+          </div>
         </div>
       </div>
 
@@ -252,6 +285,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   {count}
                 </span>
               )}
+              {to === "/bills" && pendingBillsCount > 0 && (
+                <span className="rounded-full bg-amber-500 text-white text-[10px] font-semibold px-2 py-0.5 shrink-0 animate-pulse" title={`${pendingBillsCount} pending bills awaiting approval`}>
+                  {pendingBillsCount}
+                </span>
+              )}
               {to === "/notifications" && unreadCount > 0 && (
                 <span className="rounded-full bg-rose-500 h-2 w-2 shrink-0 animate-pulse" />
               )}
@@ -264,26 +302,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => {
-            onNavigate?.();
-            setProfileOpen(true);
+            if (!isEmployee) {
+              onNavigate?.();
+              setProfileOpen(true);
+            }
           }}
           tabIndex={activeFocusIndex === 10 ? 0 : -1}
           onFocus={() => setActiveFocusIndex(10)}
-          className="sidebar-focus-item w-full text-left rounded-lg px-3 py-2 hover:bg-sidebar-accent/60 transition-smooth flex items-center gap-3"
-          aria-label="Open profile"
+          className={cn("sidebar-focus-item w-full text-left rounded-lg px-3 py-2 transition-smooth flex items-center gap-3", isEmployee ? "cursor-default opacity-90" : "hover:bg-sidebar-accent/60")}
+          aria-label="User info"
         >
-          <div className="h-9 w-9 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground text-sm font-semibold shadow-glow shrink-0">
+          <div className={cn("h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold shadow-glow shrink-0", isEmployee ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30" : "bg-gradient-primary text-primary-foreground")}>
             {(session?.name || session?.email || "U").charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium text-sidebar-foreground truncate">
-              {session?.name}
+            <div className="text-xs font-medium text-sidebar-foreground truncate flex items-center gap-1.5">
+              <span>{session?.name}</span>
+              {isEmployee && (
+                <span className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold px-1.5 py-0.5 rounded border border-amber-500/20">
+                  Staff
+                </span>
+              )}
             </div>
             <div className="text-[11px] text-muted-foreground truncate">{session?.email}</div>
           </div>
-          <UserCog className="h-4 w-4 text-muted-foreground shrink-0" />
+          {!isEmployee && <UserCog className="h-4 w-4 text-muted-foreground shrink-0" />}
         </button>
-        {session?.role === "superadmin" && (
+        {session?.role === "superadmin" && !isEmployee && (
           <Link
             to="/admin/dashboard"
             onClick={onNavigate}
@@ -298,8 +343,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           variant="ghost"
           size="sm"
           onClick={() => void logout()}
-          tabIndex={activeFocusIndex === (session?.role === "superadmin" ? 12 : 11) ? 0 : -1}
-          onFocus={() => setActiveFocusIndex(session?.role === "superadmin" ? 12 : 11)}
+          tabIndex={activeFocusIndex === (session?.role === "superadmin" && !isEmployee ? 12 : 11) ? 0 : -1}
+          onFocus={() => setActiveFocusIndex(session?.role === "superadmin" && !isEmployee ? 12 : 11)}
           className="sidebar-focus-item w-full justify-start gap-2"
         >
           <LogOut className="h-4 w-4" /> Sign out
@@ -373,6 +418,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 min-w-0 max-w-md animate-fade-in">
           <GlobalSearch />
         </div>
+
+        {isEmployee && (
+          <div className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0">
+            <ShieldCheck className="h-3.5 w-3.5" /> Employee Mode
+          </div>
+        )}
 
         <div className="hidden md:flex flex-1" />
 

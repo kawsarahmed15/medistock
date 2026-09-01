@@ -1,21 +1,42 @@
 import { Router } from "express";
 import { pool, withTransaction } from "../db.js";
 import { buildApiError, generateId } from "../utils.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireAdminOnly } from "../middleware/auth.js";
 
 const router = Router();
 router.use(requireAuth);
 
-router.get("/", async (req, res, next) => {
+router.get("/pending-count", async (req, res, next) => {
   try {
-    const [bills] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, created_at
-       FROM bills
-       WHERE user_id = ?
-       ORDER BY created_at DESC
-       LIMIT 500`,
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) AS count FROM bills WHERE user_id = ? AND status = 'pending'`,
       [req.auth.userId],
     );
+    res.json({ count: Number(rows[0]?.count || 0) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/", async (req, res, next) => {
+  try {
+    const statusParam = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
+    let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, approved_at, approved_by, created_at
+       FROM bills
+       WHERE user_id = ?`;
+    const params = [req.auth.userId];
+
+    if (statusParam === "pending") {
+      query += ` AND status = 'pending'`;
+    } else if (statusParam === "completed") {
+      query += ` AND (status = 'completed' OR status IS NULL)`;
+    } else if (statusParam === "rejected") {
+      query += ` AND status = 'rejected'`;
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT 500`;
+
+    const [bills] = await pool.query(query, params);
 
     if (bills.length === 0) {
       res.json([]);
@@ -53,7 +74,7 @@ router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method,
-              subtotal, tax, discount, total, created_at
+              subtotal, tax, discount, total, status, created_by_role, approved_at, approved_by, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
        LIMIT 1`,
@@ -82,6 +103,11 @@ router.post("/", async (req, res, next) => {
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];
     const isReturn = !!body.isReturn;
+    const isEmployee = Boolean(req.auth.isEmployee);
+    const billStatus = isEmployee ? "pending" : "completed";
+    const createdByRole = isEmployee ? "employee" : "admin";
+    const defaultCashier = isEmployee ? (req.auth.name || "Staff") : (req.auth.name || "Admin");
+
     const created = await withTransaction(async (conn) => {
       const prefix = isReturn ? "SR" : "INV";
       const [maxRows] = await conn.query(
@@ -96,8 +122,8 @@ router.post("/", async (req, res, next) => {
       const id = generateId();
       await conn.query(
         `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes,
-             cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           req.auth.userId,
@@ -108,7 +134,7 @@ router.post("/", async (req, res, next) => {
           body.customerDrugLicNo || null,
           body.customerGstin || null,
           body.customerNotes || null,
-          body.cashier || null,
+          body.cashier || defaultCashier,
           ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
           Number(body.advanceAmount || 0),
           ["cash", "online"].includes(body.advancePaymentMethod) ? body.advancePaymentMethod : "cash",
@@ -116,6 +142,8 @@ router.post("/", async (req, res, next) => {
           Number(body.tax || 0),
           Number(body.discount || 0),
           Number(body.total || 0),
+          billStatus,
+          createdByRole,
         ],
       );
 
@@ -142,10 +170,9 @@ router.post("/", async (req, res, next) => {
           ],
         );
 
-        if (isReturn) {
+        if (isReturn && !isEmployee) {
           let targetProductId = item.productId || null;
 
-          // If product ID is given, check if it exists in products table
           if (targetProductId) {
             const [pCheck] = await conn.query(
               "SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1",
@@ -156,7 +183,6 @@ router.post("/", async (req, res, next) => {
             }
           }
 
-          // If product ID wasn't found or wasn't provided, try matching by name or SKU
           if (!targetProductId && (item.name || item.sku)) {
             const [pMatch] = await conn.query(
               "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
@@ -172,20 +198,17 @@ router.post("/", async (req, res, next) => {
             if (returnQty > 0) {
               const itemBatchNo = item.batch ? String(item.batch).trim() : "DEFAULT";
 
-              // Check if batch already exists for this product
               const [existingBatch] = await conn.query(
                 `SELECT id FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1`,
                 [targetProductId, itemBatchNo]
               );
 
               if (existingBatch.length > 0) {
-                // Batch exists: Increase quantity and update SKU if null
                 await conn.query(
                   `UPDATE product_batches SET available_qty = available_qty + ?, sku = COALESCE(sku, ?) WHERE id = ?`,
                   [returnQty, item.sku || null, existingBatch[0].id]
                 );
               } else {
-                // Batch was deleted when stock hit 0 or doesn't exist: Recreate batch with same details
                 const newBatchId = generateId();
                 await conn.query(
                   `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
@@ -204,7 +227,6 @@ router.post("/", async (req, res, next) => {
                 );
               }
 
-              // Fetch sum of all batches for product history balance
               const [sumRows] = await conn.query(
                 "SELECT SUM(available_qty) AS total FROM product_batches WHERE product_id = ?",
                 [targetProductId]
@@ -228,12 +250,12 @@ router.post("/", async (req, res, next) => {
         }
       }
 
-      return { id, number: invoiceNo };
+      return { id, number: invoiceNo, status: billStatus };
     });
 
     const [rows] = await pool.query(
       `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method,
-              advance_amount, advance_payment_method, subtotal, tax, discount, total, created_at
+              advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, approved_at, approved_by, created_at
        FROM bills
        WHERE user_id = ? AND id = ?
        LIMIT 1`,
@@ -245,4 +267,148 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+router.post("/:id/approve", requireAdminOnly, async (req, res, next) => {
+  try {
+    const billId = req.params.id;
+
+    await withTransaction(async (conn) => {
+      const [rows] = await conn.query(
+        `SELECT id, number, status FROM bills WHERE id = ? AND user_id = ? LIMIT 1 FOR UPDATE`,
+        [billId, req.auth.userId]
+      );
+      const bill = rows[0];
+      if (!bill) {
+        throw buildApiError(404, "Bill not found");
+      }
+      if (bill.status !== "pending") {
+        throw buildApiError(400, `Bill is already ${bill.status}`);
+      }
+
+      const [items] = await conn.query(
+        `SELECT id, product_id, name, sku, batch, qty, free_qty, price, cost_price FROM bill_items WHERE bill_id = ? AND user_id = ?`,
+        [billId, req.auth.userId]
+      );
+
+      // Decrement stock for all items in the pending bill
+      for (const item of items) {
+        let targetProductId = item.product_id;
+        if (!targetProductId && (item.name || item.sku)) {
+          const [pMatch] = await conn.query(
+            "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
+            [req.auth.userId, item.name, item.sku || "___NO_SKU___"]
+          );
+          if (pMatch.length > 0) {
+            targetProductId = pMatch[0].id;
+          }
+        }
+
+        if (targetProductId) {
+          const totalItemQty = Number(item.qty || 0) + Number(item.free_qty || 0);
+          if (totalItemQty > 0) {
+            let batches = [];
+            if (item.batch) {
+              const [bMatch] = await conn.query(
+                "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1",
+                [targetProductId, item.batch]
+              );
+              batches = bMatch;
+            }
+
+            if (batches.length === 0) {
+              const [allBatches] = await conn.query(
+                "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? ORDER BY expiry_date ASC",
+                [targetProductId]
+              );
+              batches = allBatches;
+            }
+
+            let remainingToDec = totalItemQty;
+            for (let idx = 0; idx < batches.length; idx++) {
+              const b = batches[idx];
+              if (remainingToDec <= 0) break;
+              
+              if (idx === batches.length - 1 && remainingToDec > b.available_qty) {
+                const nextQty = b.available_qty - remainingToDec;
+                await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
+                remainingToDec = 0;
+              } else {
+                const toDec = Math.min(b.available_qty, remainingToDec);
+                if (toDec > 0) {
+                  const nextQty = b.available_qty - toDec;
+                  if (nextQty <= 0 && batches.length > 1) {
+                    await conn.query("DELETE FROM product_batches WHERE id = ?", [b.id]);
+                  } else {
+                    await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
+                  }
+                  remainingToDec -= toDec;
+                }
+              }
+            }
+
+            const [sumRows] = await conn.query(
+              "SELECT COALESCE(SUM(available_qty), 0) AS total FROM product_batches WHERE product_id = ?",
+              [targetProductId]
+            );
+            const nextStock = Number(sumRows[0]?.total || 0);
+
+            await conn.query(
+              `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+               VALUES (?, ?, ?, 'sale', ?, ?, ?)`,
+              [
+                generateId(),
+                req.auth.userId,
+                targetProductId,
+                totalItemQty,
+                nextStock,
+                `Confirmed employee bill ${bill.number} by ${req.auth.name || "Admin"}`
+              ]
+            );
+          }
+        }
+      }
+
+      await conn.query(
+        `UPDATE bills SET status = 'completed', approved_at = NOW(), approved_by = ? WHERE id = ? AND user_id = ?`,
+        [req.auth.name || "Admin", billId, req.auth.userId]
+      );
+    });
+
+    const [updated] = await pool.query(
+      `SELECT id, number, status, approved_at, approved_by FROM bills WHERE id = ? AND user_id = ? LIMIT 1`,
+      [billId, req.auth.userId]
+    );
+
+    res.json({ message: "Bill approved and confirmed successfully", bill: updated[0] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/:id/reject", requireAdminOnly, async (req, res, next) => {
+  try {
+    const billId = req.params.id;
+    const [rows] = await pool.query(
+      `SELECT id, number, status FROM bills WHERE id = ? AND user_id = ? LIMIT 1`,
+      [billId, req.auth.userId]
+    );
+    const bill = rows[0];
+    if (!bill) {
+      throw buildApiError(404, "Bill not found");
+    }
+    if (bill.status !== "pending") {
+      throw buildApiError(400, `Bill is already ${bill.status}`);
+    }
+
+    await pool.query(
+      `UPDATE bills SET status = 'rejected', approved_at = NOW(), approved_by = ? WHERE id = ? AND user_id = ?`,
+      [req.auth.name || "Admin", billId, req.auth.userId]
+    );
+
+    res.json({ message: "Bill rejected", status: "rejected" });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export { router as billsRouter };
+

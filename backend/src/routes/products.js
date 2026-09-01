@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool, withTransaction } from "../db.js";
 import { buildApiError, generateId } from "../utils.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireAdminOnly } from "../middleware/auth.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -217,7 +217,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 // POST create a product
-router.post("/", async (req, res, next) => {
+router.post("/", requireAdminOnly, async (req, res, next) => {
   try {
     const body = req.body || {};
 
@@ -396,7 +396,7 @@ router.get("/:id/history", async (req, res, next) => {
 });
 
 // POST adjust stock (stock inward/outward)
-router.post("/:id/stock", async (req, res, next) => {
+router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
   try {
     const { action, quantity, notes, supplierName, supplierPhone, supplierInvoice, batch: reqBatch } = req.body;
     if (!["stock_in", "stock_out", "purchase", "adjustment"].includes(action)) {
@@ -491,7 +491,7 @@ router.post("/:id/stock", async (req, res, next) => {
 });
 
 // PATCH update product details
-router.patch("/:id", async (req, res, next) => {
+router.patch("/:id", requireAdminOnly, async (req, res, next) => {
   try {
     const id = String(req.params.id || "");
     const body = req.body || {};
@@ -571,7 +571,7 @@ router.patch("/:id", async (req, res, next) => {
 });
 
 // DELETE a product (only allowed if stock is 0)
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireAdminOnly, async (req, res, next) => {
   try {
     const [stockRows] = await pool.query(
       `SELECT COALESCE(SUM(available_qty), 0) AS total_stock
@@ -595,7 +595,7 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 // POST decrement product stock (handles specific batch ID or applies FEFO)
-router.post("/:id/decrement", async (req, res, next) => {
+router.post("/:id/decrement", requireAdminOnly, async (req, res, next) => {
   try {
     const qty = Number(req.body?.qty || 0);
     if (!Number.isFinite(qty) || qty <= 0) {
@@ -722,7 +722,7 @@ router.post("/:id/decrement", async (req, res, next) => {
 // ─── Batch Management Endpoints ───────────────────────────────────────────────
 
 // Create a new batch for a product
-router.post("/:productId/batches", async (req, res, next) => {
+router.post("/:productId/batches", requireAdminOnly, async (req, res, next) => {
   try {
     const { productId } = req.params;
     const { batchNo, expiryDate, manufactureDate, purchasePrice, mrp, sellingPrice, availableQty, stripQty, supplierId, invoiceId, sku } = req.body;
@@ -781,7 +781,7 @@ router.post("/:productId/batches", async (req, res, next) => {
 });
 
 // Update a batch
-router.patch("/batches/:batchId", async (req, res, next) => {
+router.patch("/batches/:batchId", requireAdminOnly, async (req, res, next) => {
   try {
     const { batchId } = req.params;
     const body = req.body || {};
@@ -835,8 +835,6 @@ router.patch("/batches/:batchId", async (req, res, next) => {
       await pool.query("DELETE FROM product_batches WHERE id = ?", [batchId]);
     }
 
-
-
     res.json({ message: "Batch updated successfully" });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
@@ -848,7 +846,7 @@ router.patch("/batches/:batchId", async (req, res, next) => {
 });
 
 // Delete a batch
-router.delete("/batches/:batchId", async (req, res, next) => {
+router.delete("/batches/:batchId", requireAdminOnly, async (req, res, next) => {
   try {
     const { batchId } = req.params;
     await pool.query("DELETE FROM product_batches WHERE id = ?", [batchId]);

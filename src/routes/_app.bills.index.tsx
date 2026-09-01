@@ -1,6 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Banknote, Download, Eye, ReceiptText, Search, Smartphone, CreditCard, RotateCcw, Plus } from "lucide-react";
+import {
+  Banknote,
+  Download,
+  Eye,
+  ReceiptText,
+  Search,
+  Smartphone,
+  CreditCard,
+  RotateCcw,
+  Plus,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+} from "lucide-react";
 import { billsStore, type Bill } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -31,7 +45,8 @@ import { cn } from "@/lib/utils";
 
 type FilterRange = "all" | "day" | "month" | "year" | "custom";
 type PayFilter = "all" | "cash" | "online" | "credit";
-type BillsSearch = { range?: FilterRange; from?: string; to?: string; pay?: PayFilter };
+type StatusTab = "all" | "pending" | "completed" | "returns";
+type BillsSearch = { range?: FilterRange; from?: string; to?: string; pay?: PayFilter; status?: StatusTab };
 
 export const Route = createFileRoute("/_app/bills/")({
   validateSearch: (search: Record<string, unknown>): BillsSearch => {
@@ -39,11 +54,14 @@ export const Route = createFileRoute("/_app/bills/")({
     const valid: FilterRange[] = ["all", "day", "month", "year", "custom"];
     const p = search.pay as string | undefined;
     const validPay: PayFilter[] = ["all", "cash", "online", "credit"];
+    const s = search.status as string | undefined;
+    const validStatus: StatusTab[] = ["all", "pending", "completed", "returns"];
     return {
       range: valid.includes(r as FilterRange) ? (r as FilterRange) : undefined,
       from: typeof search.from === "string" ? search.from : undefined,
       to: typeof search.to === "string" ? search.to : undefined,
       pay: validPay.includes(p as PayFilter) ? (p as PayFilter) : undefined,
+      status: validStatus.includes(s as StatusTab) ? (s as StatusTab) : undefined,
     };
   },
   component: BillsPage,
@@ -58,11 +76,13 @@ function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const routerNavigate = useNavigate();
   const range: FilterRange = search.range ?? "all";
   const pay: PayFilter = search.pay ?? "all";
+  const statusTab: StatusTab = search.status ?? "all";
   const [focusedIdx, setFocusedIdx] = useState(0);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
@@ -90,6 +110,41 @@ function BillsPage() {
   useEffect(() => {
     loadBills();
   }, []);
+
+  const handleApproveBill = async (b: Bill, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setActionLoading(b.id);
+    try {
+      await billsStore.approve(b.id);
+      toast.success(`Bill ${b.number} approved! Stock decremented and registered.`);
+      loadBills();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to approve bill");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRejectBill = async (b: Bill, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!confirm(`Are you sure you want to reject bill ${b.number}?`)) return;
+    setActionLoading(b.id);
+    try {
+      await billsStore.reject(b.id);
+      toast.success(`Bill ${b.number} rejected.`);
+      loadBills();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reject bill");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const getAlreadyReturnedQtyForBillItem = (bill: Bill, item: Bill["items"][number]) => {
     if (!bill || !item) return 0;
@@ -234,6 +289,15 @@ function BillsPage() {
       replace: true,
     });
 
+  const setStatus = (s: StatusTab) => {
+    navigate({
+      search: (prev: BillsSearch) => ({ ...prev, status: s === "all" ? undefined : s }),
+      replace: true,
+    });
+  };
+
+  const pendingCount = useMemo(() => bills.filter((b) => b.status === "pending").length, [bills]);
+
   const filtered = useMemo(() => {
     const now = new Date();
     let from: Date | null = null;
@@ -254,6 +318,11 @@ function BillsPage() {
     }
 
     return bills.filter((b) => {
+      // Status tab filter
+      if (statusTab === "pending" && b.status !== "pending") return false;
+      if (statusTab === "completed" && (b.status === "pending" || b.status === "rejected" || b.number.startsWith("SR-"))) return false;
+      if (statusTab === "returns" && !b.number.startsWith("SR-")) return false;
+
       const t = new Date(b.createdAt).getTime();
       if (from && t < from.getTime()) return false;
       if (to && t > to.getTime()) return false;
@@ -262,22 +331,23 @@ function BillsPage() {
       if (
         q &&
         !b.number.toLowerCase().includes(q) &&
-        !(b.customerName ?? "").toLowerCase().includes(q)
+        !(b.customerName ?? "").toLowerCase().includes(q) &&
+        !(b.cashier ?? "").toLowerCase().includes(q)
       )
         return false;
       return true;
     });
-  }, [bills, range, search.from, search.to, query, pay]);
+  }, [bills, range, search.from, search.to, query, pay, statusTab]);
 
-  const totalForRange = filtered.reduce((s, b) => s + b.total, 0);
+  const totalForRange = filtered.reduce((s, b) => (b.status === "rejected" ? s : s + b.total), 0);
   const cashTotal = filtered
-    .filter((b) => b.paymentMethod === "cash")
+    .filter((b) => b.paymentMethod === "cash" && b.status !== "rejected")
     .reduce((s, b) => s + b.total, 0);
   const onlineTotal = filtered
-    .filter((b) => b.paymentMethod === "online")
+    .filter((b) => b.paymentMethod === "online" && b.status !== "rejected")
     .reduce((s, b) => s + b.total, 0);
   const creditTotal = filtered
-    .filter((b) => b.paymentMethod === "credit")
+    .filter((b) => b.paymentMethod === "credit" && b.status !== "rejected")
     .reduce((s, b) => s + b.total, 0);
 
   const setPay = (p: PayFilter) => {
@@ -398,6 +468,30 @@ function BillsPage() {
         </div>
       </div>
 
+      {/* Status Filter Tabs */}
+      <Card className="shadow-soft p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <Tabs
+          value={statusTab}
+          onValueChange={(v) => setStatus(v as StatusTab)}
+          className="w-full sm:w-auto"
+        >
+          <TabsList className="flex flex-wrap h-auto">
+            <TabsTrigger value="all">All Bills</TabsTrigger>
+            <TabsTrigger value="pending" className="relative flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-amber-500" />
+              <span>Pending Approvals</span>
+              {pendingCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="completed">Completed Sales</TabsTrigger>
+            <TabsTrigger value="returns">Sale Returns</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </Card>
+
       <Card className="shadow-soft p-4 flex flex-col lg:flex-row lg:items-end gap-4">
         <Tabs
           value={range}
@@ -484,6 +578,8 @@ function BillsPage() {
         ) : (
           filtered.map((b, idx) => {
             const isReturnBill = b.number.startsWith("SR-");
+            const isPending = b.status === "pending";
+            const isRejected = b.status === "rejected";
             return (
               <Card
                 key={b.id}
@@ -491,9 +587,13 @@ function BillsPage() {
                   "shadow-soft p-4 active:scale-[0.99] transition-smooth cursor-pointer border-l-4",
                   idx === focusedIdx
                     ? "bg-primary/15 dark:bg-primary/25 border-l-primary ring-2 ring-primary/40 shadow-md font-medium"
-                    : isReturnBill
-                      ? "bg-amber-50/40 border-amber-200 border-l-amber-500 hover:border-primary/30"
-                      : "hover:border-primary/30 border-l-transparent"
+                    : isPending
+                      ? "bg-amber-500/10 border-amber-500/40 border-l-amber-500 hover:border-amber-500"
+                      : isRejected
+                        ? "bg-rose-500/10 border-rose-300 border-l-rose-500 opacity-75"
+                        : isReturnBill
+                          ? "bg-amber-50/40 border-amber-200 border-l-amber-500 hover:border-primary/30"
+                          : "hover:border-primary/30 border-l-transparent"
                 )}
                 onClick={() => {
                   setFocusedIdx(idx);
@@ -502,16 +602,31 @@ function BillsPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-extrabold text-base text-primary font-mono tracking-wide">{b.number}</span>
+                      {isPending && (
+                        <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px] gap-1 px-1.5 py-0">
+                          <Clock className="h-3 w-3" /> Pending
+                        </Badge>
+                      )}
+                      {isRejected && (
+                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                          Rejected
+                        </Badge>
+                      )}
                       {isReturnBill && (
                         <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
                           Sale Return
                         </Badge>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(b.createdAt).toLocaleString()}
+                    <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                      <span>{new Date(b.createdAt).toLocaleString()}</span>
+                      {b.cashier && (
+                        <span className="text-[11px] bg-muted px-1.5 py-0.2 rounded font-medium">
+                          By: {b.cashier}
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm mt-1.5 truncate">{b.customerName ?? "Walk-in"}</div>
                   </div>
@@ -524,7 +639,7 @@ function BillsPage() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between">
+                <div className="mt-3 flex items-center justify-between gap-2">
                   <span
                     className={
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize " +
@@ -540,8 +655,31 @@ function BillsPage() {
                     )}
                     {b.paymentMethod}
                   </span>
-                  <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {!isReturnBill && (
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {isPending && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-2 text-rose-600 hover:bg-rose-50 border-rose-200"
+                          onClick={(e) => handleRejectBill(b, e)}
+                          disabled={actionLoading === b.id}
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-7 text-xs px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          onClick={(e) => handleApproveBill(b, e)}
+                          disabled={actionLoading === b.id}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                        </Button>
+                      </>
+                    )}
+                    {!isReturnBill && !isPending && (
                       <Button
                         type="button"
                         variant="outline"
@@ -577,8 +715,10 @@ function BillsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Invoice</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Customer</TableHead>
+              <TableHead>Staff / Cashier</TableHead>
               <TableHead>Payment</TableHead>
               <TableHead className="text-right">Items</TableHead>
               <TableHead className="text-right">Total</TableHead>
@@ -588,7 +728,7 @@ function BillsPage() {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-12">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
                   <ReceiptText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   No bills in this range.
                 </TableCell>
@@ -596,6 +736,8 @@ function BillsPage() {
             ) : (
               filtered.map((b, idx) => {
                 const isReturnBill = b.number.startsWith("SR-");
+                const isPending = b.status === "pending";
+                const isRejected = b.status === "rejected";
                 return (
                   <TableRow
                     key={b.id}
@@ -609,9 +751,13 @@ function BillsPage() {
                       "animate-fade-in cursor-pointer transition-colors border-l-4 focus:outline-none",
                       idx === focusedIdx
                         ? "bg-primary/15 dark:bg-primary/25 border-l-primary shadow-sm ring-1 ring-primary/30 font-medium"
-                        : isReturnBill
-                          ? "bg-amber-50/40 hover:bg-amber-100/50 border-l-amber-500"
-                          : "hover:bg-muted/40 border-l-transparent"
+                        : isPending
+                          ? "bg-amber-500/5 hover:bg-amber-500/10 border-l-amber-500"
+                          : isRejected
+                            ? "bg-rose-500/5 opacity-75 border-l-rose-500"
+                            : isReturnBill
+                              ? "bg-amber-50/40 hover:bg-amber-100/50 border-l-amber-500"
+                              : "hover:bg-muted/40 border-l-transparent"
                     )}
                     onClick={() => routerNavigate({ to: "/bills/$id", params: { id: b.id } })}
                   >
@@ -625,10 +771,30 @@ function BillsPage() {
                         )}
                       </div>
                     </TableCell>
+                    <TableCell>
+                      {isPending ? (
+                        <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-xs gap-1 font-medium">
+                          <Clock className="h-3 w-3" /> Pending
+                        </Badge>
+                      ) : isRejected ? (
+                        <Badge variant="destructive" className="text-xs">
+                          Rejected
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                          Completed
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {new Date(b.createdAt).toLocaleString()}
                     </TableCell>
                     <TableCell>{b.customerName ?? "Walk-in"}</TableCell>
+                    <TableCell>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {b.cashier || "Admin"}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <span
                         className={
@@ -652,17 +818,45 @@ function BillsPage() {
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {!isReturnBill && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7 text-amber-700 hover:bg-amber-50 border-amber-200"
-                            onClick={() => handleOpenReturnDialog(b)}
-                            title="Process Return"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </Button>
+                        {isPending ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs px-2 text-rose-600 hover:bg-rose-50 border-rose-200"
+                              onClick={(e) => handleRejectBill(b, e)}
+                              disabled={actionLoading === b.id}
+                              title="Reject Bill"
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-7 text-xs px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={(e) => handleApproveBill(b, e)}
+                              disabled={actionLoading === b.id}
+                              title="Confirm & Deduct Stock"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            {!isReturnBill && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7 text-amber-700 hover:bg-amber-50 border-amber-200"
+                                onClick={() => handleOpenReturnDialog(b)}
+                                title="Process Return"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </>
                         )}
                         <Button
                           type="button"

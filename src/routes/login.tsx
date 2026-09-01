@@ -34,15 +34,26 @@ function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (ready && session) navigate({ to: "/dashboard" });
+    if (ready && session) {
+      if (session.isEmployee) {
+        navigate({ to: "/sell" });
+      } else {
+        navigate({ to: "/dashboard" });
+      }
+    }
   }, [ready, session, navigate]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
-      navigate({ to: "/dashboard" });
+      const s = await login(email, password);
+      if (s?.isEmployee) {
+        toast.success("Signed in to Employee Panel");
+        navigate({ to: "/sell" });
+      } else {
+        navigate({ to: "/dashboard" });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {

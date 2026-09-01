@@ -19,7 +19,16 @@ import {
   Monitor,
   Smartphone,
   Laptop,
+  Users,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/settings")({
@@ -37,9 +46,13 @@ const PRESETS = [
 ];
 
 function SettingsPage() {
-  const { session, updateSession, requestEmailChange, logout } = useAuth();
+  const { session, updateSession, requestEmailChange, logout, setEmployeePassword, toggleEmployeeStatus, removeEmployeePassword } = useAuth();
   const [newEmail, setNewEmail] = useState("");
   const [requestingEmailChange, setRequestingEmailChange] = useState(false);
+  const [employeePasswordInput, setEmployeePasswordInput] = useState("");
+  const [showEmployeePassword, setShowEmployeePassword] = useState(false);
+  const [savingEmployeePassword, setSavingEmployeePassword] = useState(false);
+  const [togglingEmployeeStatus, setTogglingEmployeeStatus] = useState(false);
   const [pharmacyName, setPharmacyName] = useState(session?.pharmacyName ?? "");
   const [pharmacyPhone, setPharmacyPhone] = useState(session?.pharmacyPhone ?? "");
   const [pharmacyAddress, setPharmacyAddress] = useState(session?.pharmacyAddress ?? "");
@@ -184,6 +197,46 @@ function SettingsPage() {
       fileInputRef.current.value = "";
     }
     toast.info("Signature cleared. Remember to save changes.");
+  };
+
+  const handleSaveEmployeePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employeePasswordInput || employeePasswordInput.length < 4) {
+      toast.error("Employee password must be at least 4 characters.");
+      return;
+    }
+    setSavingEmployeePassword(true);
+    try {
+      await setEmployeePassword(employeePasswordInput, true);
+      toast.success("Employee password saved successfully!");
+      setEmployeePasswordInput("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to set employee password.");
+    } finally {
+      setSavingEmployeePassword(false);
+    }
+  };
+
+  const handleToggleEmployee = async (checked: boolean) => {
+    setTogglingEmployeeStatus(true);
+    try {
+      await toggleEmployeeStatus(checked);
+      toast.success(checked ? "Staff / Employee access enabled." : "Staff / Employee access disabled.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update employee status.");
+    } finally {
+      setTogglingEmployeeStatus(false);
+    }
+  };
+
+  const handleRemoveEmployee = async () => {
+    if (!confirm("Are you sure you want to remove the employee password? Staff will no longer be able to log in.")) return;
+    try {
+      await removeEmployeePassword();
+      toast.success("Employee password removed.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove employee password.");
+    }
   };
 
   const handleRequestEmailChange = async (e: React.FormEvent) => {
@@ -465,6 +518,126 @@ function SettingsPage() {
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Staff & Employee Access Section */}
+          <Card className="shadow-soft border-border/80">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Users className="h-5 w-5 text-primary" />
+                    Employee Section & Staff Access
+                  </CardTitle>
+                  <CardDescription>
+                    Configure a dedicated password for your pharmacy staff to log in with limited privileges.
+                  </CardDescription>
+                </div>
+                <div>
+                  {session?.hasEmployeePassword ? (
+                    session?.isEmployeeEnabled ? (
+                      <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">
+                        Access Active
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-amber-600 border-amber-500/30">
+                        Access Paused
+                      </Badge>
+                    )
+                  ) : (
+                    <Badge variant="secondary" className="text-muted-foreground">
+                      Not Configured
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 text-xs space-y-2">
+                <div className="font-semibold text-foreground flex items-center gap-1.5">
+                  <KeyRound className="h-4 w-4 text-primary" />
+                  How Employee Login Works:
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground leading-relaxed">
+                  <li>
+                    Staff log in using your store email: <strong className="text-foreground font-mono">{session?.email}</strong>
+                  </li>
+                  <li>
+                    When staff enter the <strong>Employee Password</strong>, the system opens the restricted <strong>Employee Panel</strong>.
+                  </li>
+                  <li>
+                    Staff can <strong>only check inventory stock</strong> and <strong>generate sales bills</strong>.
+                  </li>
+                  <li>
+                    Bills created by staff are saved as <strong>Pending</strong>. Stock is deducted and sales are officially recorded only after you confirm and approve them.
+                  </li>
+                </ul>
+              </div>
+
+              {session?.hasEmployeePassword && (
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">Enable Staff Login</div>
+                    <div className="text-xs text-muted-foreground">
+                      Toggle staff access on or off at any time.
+                    </div>
+                  </div>
+                  <Switch
+                    checked={Boolean(session?.isEmployeeEnabled)}
+                    onCheckedChange={handleToggleEmployee}
+                    disabled={togglingEmployeeStatus}
+                  />
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEmployeePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employee-password">
+                    {session?.hasEmployeePassword ? "Update Employee Password" : "Set Employee Password"}
+                  </Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        id="employee-password"
+                        type={showEmployeePassword ? "text" : "password"}
+                        placeholder="Enter employee password (min 4 characters)"
+                        value={employeePasswordInput}
+                        onChange={(e) => setEmployeePasswordInput(e.target.value)}
+                        className="pr-10 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEmployeePassword(!showEmployeePassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showEmployeePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={savingEmployeePassword || !employeePasswordInput.trim()}
+                      className="shadow-soft"
+                    >
+                      {savingEmployeePassword ? "Saving..." : "Save Password"}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+
+              {session?.hasEmployeePassword && (
+                <div className="pt-2 border-t flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs gap-1.5"
+                    onClick={handleRemoveEmployee}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Remove Employee Password
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

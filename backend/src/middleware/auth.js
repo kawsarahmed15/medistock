@@ -46,6 +46,8 @@ export async function requireAuth(req, res, next) {
       userId,
       email: String(payload.email || ""),
       name: String(payload.name || ""),
+      role: String(payload.role || ""),
+      isEmployee: Boolean(payload.isEmployee),
       sessionId,
       deviceId: reqDeviceId,
     };
@@ -57,4 +59,11 @@ export async function requireAuth(req, res, next) {
       next(buildApiError(401, "Unauthorized"));
     }
   }
+}
+
+export function requireAdminOnly(req, res, next) {
+  if (req.auth?.isEmployee) {
+    return next(buildApiError(403, "Access restricted to Administrator only"));
+  }
+  next();
 }

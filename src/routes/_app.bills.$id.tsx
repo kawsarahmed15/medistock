@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, Printer, Pill } from "lucide-react";
+import { ArrowLeft, Download, Printer, Pill, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
 import QRCode from "react-qr-code";
 import { billsStore, type Bill } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { downloadBillPdf } from "@/lib/bill-pdf";
 import { useAuth } from "@/lib/auth-context";
 import { BillDetailSkeleton } from "@/components/loading-skeleton";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/bills/$id")({
   component: BillDetailPage,
@@ -70,12 +71,14 @@ function BillDetailPage() {
   const navigate = useNavigate();
   const [bill, setBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const { session } = useAuth();
+  const isEmployee = Boolean(session?.isEmployee);
 
   const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
   const pharmacyAddress = session?.pharmacyAddress || "";
 
-  // Backspace → go back to bills list (guarded when typing)
+  // Backspace → go back to bills list or sell page (guarded when typing)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Backspace") return;
@@ -85,33 +88,62 @@ function BillDetailPage() {
         (e.target as HTMLElement)?.isContentEditable;
       if (isTyping) return;
       e.preventDefault();
-      void navigate({ to: "/bills" });
+      if (isEmployee) {
+        void navigate({ to: "/sell" });
+      } else {
+        void navigate({ to: "/bills" });
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [navigate]);
+  }, [navigate, isEmployee]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+  const loadBill = () => {
     billsStore
       .get(id)
       .then((b) => {
-        if (!cancelled) {
-          setBill(b);
-          setLoading(false);
-        }
+        setBill(b);
+        setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) {
-          setBill(null);
-          setLoading(false);
-        }
+        setBill(null);
+        setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    loadBill();
   }, [id]);
+
+  const handleApprove = async () => {
+    if (!bill) return;
+    setActionLoading(true);
+    try {
+      await billsStore.approve(bill.id);
+      toast.success(`Bill ${bill.number} approved and confirmed! Stock updated.`);
+      loadBill();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to approve bill");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!bill) return;
+    if (!confirm(`Are you sure you want to reject bill ${bill.number}?`)) return;
+    setActionLoading(true);
+    try {
+      await billsStore.reject(bill.id);
+      toast.success(`Bill ${bill.number} has been rejected.`);
+      loadBill();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reject bill");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (loading) return <BillDetailSkeleton />;
 
@@ -120,7 +152,9 @@ function BillDetailPage() {
       <div className="text-center py-20">
         <p className="text-sm text-muted-foreground">Bill not found.</p>
         <Button asChild variant="outline" className="mt-4">
-          <Link to="/bills">Back to bills</Link>
+          <Link to={isEmployee ? "/sell" : "/bills"}>
+            {isEmployee ? "Back to New Sale" : "Back to bills"}
+          </Link>
         </Button>
       </div>
     );
@@ -174,16 +208,42 @@ function BillDetailPage() {
       />
 
       {/* Action Bar (Hidden in Print) */}
-      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background sticky top-0 z-10 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background sticky top-0 z-10 py-4 border-b">
         <Button asChild variant="ghost" size="sm">
-          <Link to="/bills">
-            <ArrowLeft className="h-4 w-4 mr-2" /> All bills
+          <Link to={isEmployee ? "/sell" : "/bills"}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            {isEmployee ? "Back to Sales" : "All bills"}
             <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
               Backspace
             </kbd>
           </Link>
         </Button>
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
+          {!isEmployee && bill.status === "pending" && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-rose-600 hover:bg-rose-50 border-rose-200 dark:hover:bg-rose-950/30"
+                onClick={handleReject}
+                disabled={actionLoading}
+              >
+                <XCircle className="h-4 w-4 mr-1.5" />
+                Reject
+              </Button>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                onClick={handleApprove}
+                disabled={actionLoading}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                Confirm & Add to Stock
+              </Button>
+            </>
+          )}
+
           <Button variant="outline" size="sm" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Print</span>
@@ -199,16 +259,47 @@ function BillDetailPage() {
                 drugLicNo: session?.drugLicNo,
                 billColor: session?.billColor,
                 signature: session?.signature,
+                print: false,
               })
             }
-            className="shadow-soft"
           >
             <Download className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Download PDF</span>
-            <span className="sm:hidden">PDF</span>
+            Download PDF
           </Button>
         </div>
       </div>
+
+      {/* Pending Status Alert Banner */}
+      {bill.status === "pending" && (
+        <div className="print:hidden rounded-lg bg-amber-500/10 border border-amber-500/30 p-4 text-amber-900 dark:text-amber-200 flex items-start gap-3 shadow-xs">
+          <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0 animate-pulse" />
+          <div className="space-y-1 text-sm">
+            <div className="font-semibold flex items-center gap-2">
+              <span>Pending Admin Confirmation</span>
+              <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                Pending
+              </span>
+            </div>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              {isEmployee
+                ? `This bill was created by you (${bill.cashier || "Staff"}) and is pending approval from the store admin. It will not be added to full store stock or accounting until confirmed.`
+                : `This bill was created by ${bill.cashier || "Staff"} and requires your confirmation before stock is deducted and revenue is recorded in the system.`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {bill.status === "rejected" && (
+        <div className="print:hidden rounded-lg bg-rose-500/10 border border-rose-500/30 p-4 text-rose-900 dark:text-rose-200 flex items-start gap-3">
+          <XCircle className="h-5 w-5 text-rose-600 dark:text-rose-400 mt-0.5 shrink-0" />
+          <div className="space-y-1 text-sm">
+            <div className="font-semibold">Bill Rejected</div>
+            <p className="text-muted-foreground text-xs">
+              This bill was rejected by administrator {bill.approvedBy ? `(${bill.approvedBy})` : ""}. No stock was deducted.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Invoice Document */}
       <div className="bg-card text-card-foreground p-8 sm:p-10 shadow-lg print:shadow-none print:p-0 print:m-0 w-full min-h-[297mm] mx-auto border print:border-none relative rounded-xl">
@@ -250,6 +341,20 @@ function BillDetailPage() {
             <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">
               Tax Invoice
             </h2>
+            {bill.status === "pending" && (
+              <div className="flex justify-end mb-1">
+                <span className="text-xs bg-amber-500 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase">
+                  Pending Confirmation
+                </span>
+              </div>
+            )}
+            {bill.status === "rejected" && (
+              <div className="flex justify-end mb-1">
+                <span className="text-xs bg-rose-500 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase">
+                  Rejected
+                </span>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <span className="text-muted-foreground font-medium">Inv No:</span>
               <span className="font-extrabold font-mono text-base text-primary tracking-wide">{bill.number}</span>
@@ -271,6 +376,14 @@ function BillDetailPage() {
               <span className="text-muted-foreground">Cashier:</span>
               <span className="font-medium">{bill.cashier || "Admin"}</span>
             </div>
+            {bill.status && bill.status !== "completed" && (
+              <div className="flex justify-end gap-2">
+                <span className="text-muted-foreground">Status:</span>
+                <span className={bill.status === "pending" ? "font-bold text-amber-600 dark:text-amber-400 uppercase" : "font-bold text-rose-600 uppercase"}>
+                  {bill.status}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

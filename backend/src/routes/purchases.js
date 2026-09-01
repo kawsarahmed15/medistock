@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { pool, withTransaction } from "../db.js";
 import { buildApiError, generateId } from "../utils.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireAdminOnly } from "../middleware/auth.js";
 
 const router = Router();
 router.use(requireAuth);
+router.use(requireAdminOnly);
 
 router.get("/", async (req, res, next) => {
   try {

@@ -58,6 +58,10 @@ export type Bill = {
   advanceAmount: number;
   advancePaymentMethod?: "cash" | "online";
   paymentMethod: PaymentMethod;
+  status: "completed" | "pending" | "rejected";
+  createdByRole?: "admin" | "employee";
+  approvedAt?: string;
+  approvedBy?: string;
   createdAt: string;
   cashier?: string;
 };
@@ -200,6 +204,10 @@ type BillRow = {
   tax: number | string;
   discount?: number | string;
   total: number | string;
+  status?: "completed" | "pending" | "rejected";
+  created_by_role?: "admin" | "employee";
+  approved_at?: string | null;
+  approved_by?: string | null;
   created_at: string;
 };
 type BillItemRow = {
@@ -236,6 +244,10 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     tax: Number(b.tax) || 0,
     discount: Number(b.discount) || 0,
     total: Number(b.total) || 0,
+    status: b.status || "completed",
+    createdByRole: b.created_by_role || "admin",
+    approvedAt: b.approved_at ?? undefined,
+    approvedBy: b.approved_by ?? undefined,
     createdAt: b.created_at,
     items: items.map((it) => ({
       productId: it.product_id ?? "",
@@ -257,17 +269,32 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
 type BillResponse = BillRow & { items: BillItemRow[] };
 
 export const billsStore = {
-  async list(): Promise<Bill[]> {
-    const data = await apiRequest<BillResponse[]>("/bills", { auth: true });
+  async list(status?: "all" | "completed" | "pending" | "rejected"): Promise<Bill[]> {
+    const qs = status && status !== "all" ? `?status=${status}` : "";
+    const data = await apiRequest<BillResponse[]>(`/bills${qs}`, { auth: true });
     return data.map((b) => rowToBill(b, b.items || []));
+  },
+  async getPendingCount(): Promise<number> {
+    try {
+      const data = await apiRequest<{ count: number }>("/bills/pending-count", { auth: true });
+      return data.count || 0;
+    } catch {
+      return 0;
+    }
   },
   async get(id: string): Promise<Bill | null> {
     const data = await apiRequest<BillResponse>(`/bills/${id}`, { auth: true });
     return data ? rowToBill(data, data.items || []) : null;
   },
-  async add(b: Omit<Bill, "id" | "number" | "createdAt">): Promise<Bill> {
+  async add(b: Omit<Bill, "id" | "number" | "createdAt" | "status" | "approvedAt" | "approvedBy"> & { status?: string }): Promise<Bill> {
     const data = await apiRequest<BillResponse>("/bills", { method: "POST", body: b, auth: true });
     return rowToBill(data, data.items || []);
+  },
+  async approve(id: string): Promise<void> {
+    await apiRequest(`/bills/${id}/approve`, { method: "POST", auth: true });
+  },
+  async reject(id: string): Promise<void> {
+    await apiRequest(`/bills/${id}/reject`, { method: "POST", auth: true });
   },
 };
 

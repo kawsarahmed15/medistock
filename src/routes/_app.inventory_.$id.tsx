@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -67,6 +68,8 @@ export const Route = createFileRoute("/_app/inventory_/$id")({
 function ProductDetails() {
   const navigate = useNavigate();
   const { id } = useParams({ from: "/_app/inventory_/$id" });
+  const { session } = useAuth();
+  const isEmployee = Boolean(session?.isEmployee);
   const [product, setProduct] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,15 +378,17 @@ function ProductDetails() {
             <p className="text-sm text-muted-foreground">{product.category}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            className="gap-2 shadow-soft hover:bg-destructive/90"
-          >
-            <Trash2 className="w-4 h-4" /> Delete Product
-          </Button>
-        </div>
+        {!isEmployee && (
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              className="gap-2 shadow-soft hover:bg-destructive/90"
+            >
+              <Trash2 className="w-4 h-4" /> Delete Product
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -441,7 +446,7 @@ function ProductDetails() {
             <CardContent className="p-0">
               {(!product.batches || product.batches.length === 0) ? (
                 <div className="text-center text-muted-foreground py-10 text-xs font-medium">
-                  No active batches for this medicine. Register stock via Purchase Bill.
+                  No active batches for this medicine.
                 </div>
               ) : (
                 <Table>
@@ -451,10 +456,10 @@ function ProductDetails() {
                       <TableHead className="text-xs">HSN Code</TableHead>
                       <TableHead className="text-xs">Expiry</TableHead>
                       <TableHead className="text-right text-xs">Stock</TableHead>
-                      <TableHead className="text-right text-xs">Purchase Price</TableHead>
+                      {!isEmployee && <TableHead className="text-right text-xs">Purchase Price</TableHead>}
                       <TableHead className="text-right text-xs">Selling Price</TableHead>
                       <TableHead className="text-right text-xs">MRP</TableHead>
-                      <TableHead className="text-right text-xs">Actions</TableHead>
+                      {!isEmployee && <TableHead className="text-right text-xs">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -482,16 +487,18 @@ function ProductDetails() {
                           <TableCell className="text-right tabular-nums text-xs font-medium">
                             {b.available_qty}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-xs">
-                            {Number(b.purchase_price) > 0 ? (
-                              <>
-                                ₹{(Math.round((Number(b.purchase_price) / (1 + Number(product.tax_percent) / 100)) * 100) / 100).toFixed(2)}
-                                {Number(product.tax_percent) > 0 ? (
-                                  <span className="text-[10px] text-muted-foreground"> +{Number(product.tax_percent)}% GST</span>
-                                ) : null}
-                              </>
-                            ) : "—"}
-                          </TableCell>
+                          {!isEmployee && (
+                            <TableCell className="text-right tabular-nums text-xs">
+                              {Number(b.purchase_price) > 0 ? (
+                                <>
+                                  ₹{(Math.round((Number(b.purchase_price) / (1 + Number(product.tax_percent) / 100)) * 100) / 100).toFixed(2)}
+                                  {Number(product.tax_percent) > 0 ? (
+                                    <span className="text-[10px] text-muted-foreground"> +{Number(product.tax_percent)}% GST</span>
+                                  ) : null}
+                                </>
+                              ) : "—"}
+                            </TableCell>
+                          )}
                           <TableCell className="text-right tabular-nums text-xs">
                             ₹{Number(b.selling_price).toFixed(2)}
                             {Number(product.tax_percent) > 0 ? (
@@ -501,26 +508,28 @@ function ProductDetails() {
                           <TableCell className="text-right tabular-nums text-xs">
                             ₹{Number(b.mrp).toFixed(2)}
                           </TableCell>
-                          <TableCell className="text-right flex items-center justify-end gap-1.5 py-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-primary hover:text-primary"
-                              onClick={() => openEditBatch(b)}
-                              title="Edit batch"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteBatch(b.id, b.batch_no)}
-                              title="Delete batch"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </TableCell>
+                          {!isEmployee && (
+                            <TableCell className="text-right flex items-center justify-end gap-1.5 py-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-primary hover:text-primary"
+                                onClick={() => openEditBatch(b)}
+                                title="Edit batch"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteBatch(b.id, b.batch_no)}
+                                title="Delete batch"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}

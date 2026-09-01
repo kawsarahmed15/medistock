@@ -23,12 +23,14 @@ export async function comparePassword(password, hash) {
   return bcrypt.compare(password, hash);
 }
 
-export function signAuthToken(user) {
+export function signAuthToken(user, isEmployee = false) {
   return jwt.sign(
     {
       sub: user.id,
       email: user.email,
-      name: user.name,
+      name: isEmployee ? `${user.name} (Staff)` : user.name,
+      role: isEmployee ? "employee" : (user.role || "retailer"),
+      isEmployee: Boolean(isEmployee),
     },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn },
@@ -39,10 +41,11 @@ export function verifyAuthToken(token) {
   return jwt.verify(token, config.jwtSecret);
 }
 
-export function sanitizeUser(row) {
+export function sanitizeUser(row, isEmployee = false) {
+  const employeeFlag = Boolean(isEmployee || row.is_employee || row.isEmployee);
   return {
     id: row.id,
-    name: row.name,
+    name: employeeFlag ? `${row.name} (Staff)` : row.name,
     email: row.email,
     isVerified: Boolean(row.is_verified),
     pharmacyName: row.pharmacy_name || undefined,
@@ -52,7 +55,10 @@ export function sanitizeUser(row) {
     drugLicNo: row.drug_lic_no || undefined,
     billColor: row.bill_color || undefined,
     signature: row.signature || undefined,
-    role: row.role || "user",
+    role: employeeFlag ? "employee" : (row.role || "retailer"),
+    isEmployee: employeeFlag,
+    hasEmployeePassword: Boolean(row.employee_password_hash),
+    isEmployeeEnabled: row.is_employee_enabled !== undefined && row.is_employee_enabled !== null ? Boolean(row.is_employee_enabled) : true,
     accountStatus: row.account_status || "active",
     expiryDays: row.expiring_days || 60,
     lowStockQty: row.low_stock_qty || 10,

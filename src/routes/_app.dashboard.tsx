@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   IndianRupee,
   TrendingUp,
+  Clock,
 } from "lucide-react";
 import { productsStore, billsStore, type Product, type Bill } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +61,9 @@ function DashboardPage() {
     };
   }, []);
 
+  const completedBills = useMemo(() => bills.filter((b) => b.status === "completed" || !b.status), [bills]);
+  const pendingBills = useMemo(() => bills.filter((b) => b.status === "pending"), [bills]);
+
   // Month-to-date: strictly bounded to the current calendar month
   const { monthStart, monthEnd } = useMemo(() => {
     const d = new Date();
@@ -70,11 +74,11 @@ function DashboardPage() {
 
   const billsThisMonth = useMemo(
     () =>
-      bills.filter((b) => {
+      completedBills.filter((b) => {
         const t = new Date(b.createdAt).getTime();
         return t >= monthStart && t <= monthEnd;
       }),
-    [bills, monthStart, monthEnd],
+    [completedBills, monthStart, monthEnd],
   );
 
   const totalSales = billsThisMonth.reduce((s, b) => s + b.total, 0);
@@ -119,7 +123,7 @@ function DashboardPage() {
       });
     }
     const map = new Map(days.map((d) => [d.key, d]));
-    for (const b of bills) {
+    for (const b of completedBills) {
       const d = new Date(b.createdAt);
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -129,7 +133,7 @@ function DashboardPage() {
       if (row) row.revenue += b.total;
     }
     return days;
-  }, [bills]);
+  }, [completedBills]);
 
   const trendDelta = useMemo(() => {
     const half = Math.floor(trendData.length / 2);
@@ -219,6 +223,29 @@ function DashboardPage() {
           </Button>
         </div>
       </div>
+
+      {pendingBills.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-soft">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
+              <Clock className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold">
+                {pendingBills.length} Employee Bill{pendingBills.length === 1 ? "" : "s"} Awaiting Approval
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Staff submitted sales invoices that require your review and confirmation before stock is deducted.
+              </p>
+            </div>
+          </div>
+          <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs">
+            <Link to="/bills" search={{ status: "pending" }}>
+              Review & Approve Bills →
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((s, i) => (

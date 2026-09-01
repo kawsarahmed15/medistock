@@ -620,31 +620,34 @@ function InventoryPage() {
             <ScanLine className="h-4 w-4" />
             <span className="hidden sm:inline">Scan HSN</span>
           </Button>
-          <Link to="/purchases/new">
-            <Button className="shadow-soft">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">New purchase</span>
-              <span className="sm:hidden">Purchase</span>
-            </Button>
-          </Link>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Name" className="col-span-full">
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
-                    required
-                    list="product-names"
-                  />
-                  <RecentOptions
-                    id="product-names"
-                    options={Array.from(new Set(items.map((i) => i.name)))}
-                  />
-                </Field>
+          {!session?.isEmployee && (
+            <Link to="/purchases/new">
+              <Button className="shadow-soft">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">New purchase</span>
+                <span className="sm:hidden">Purchase</span>
+              </Button>
+            </Link>
+          )}
+          {!session?.isEmployee && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={submit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Name" className="col-span-full">
+                    <Input
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
+                      required
+                      list="product-names"
+                    />
+                    <RecentOptions
+                      id="product-names"
+                      options={Array.from(new Set(items.map((i) => i.name)))}
+                    />
+                  </Field>
                 <Field label="Category">
                   <Input
                     value={form.category}
@@ -905,6 +908,7 @@ function InventoryPage() {
               </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 
@@ -918,7 +922,7 @@ function InventoryPage() {
               <TableHead>Batch</TableHead>
               <TableHead>HSN Code</TableHead>
               <TableHead>Expiry</TableHead>
-              <TableHead className="text-right">Purchase Price</TableHead>
+              {!session?.isEmployee && <TableHead className="text-right">Purchase Price</TableHead>}
               <TableHead className="text-right">MRP</TableHead>
               <TableHead className="text-right">Selling Price</TableHead>
               <TableHead className="text-right">Available Qty</TableHead>
@@ -928,7 +932,7 @@ function InventoryPage() {
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={session?.isEmployee ? 9 : 10} className="text-center text-muted-foreground py-10">
                   {items.length === 0
                     ? "No products yet. Add your first one to get started."
                     : "No products match your search."}
@@ -1024,16 +1028,18 @@ function InventoryPage() {
                               : ""}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {p.costPrice ? (
-                        <>
-                          ₹{(Math.round((p.costPrice / (1 + p.taxPercent / 100)) * 100) / 100).toFixed(2)}
-                          {p.taxPercent && p.taxPercent > 0 ? (
-                            <span className="text-[10px] text-muted-foreground"> +{p.taxPercent}% GST</span>
-                          ) : null}
-                        </>
-                      ) : "—"}
-                    </TableCell>
+                    {!session?.isEmployee && (
+                      <TableCell className="text-right tabular-nums">
+                        {p.costPrice ? (
+                          <>
+                            ₹{(Math.round((p.costPrice / (1 + p.taxPercent / 100)) * 100) / 100).toFixed(2)}
+                            {p.taxPercent && p.taxPercent > 0 ? (
+                              <span className="text-[10px] text-muted-foreground"> +{p.taxPercent}% GST</span>
+                            ) : null}
+                          </>
+                        ) : "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right tabular-nums">
                       {p.mrp ? `₹${p.mrp.toFixed(2)}` : "—"}
                     </TableCell>
