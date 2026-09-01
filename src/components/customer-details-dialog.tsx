@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { UserRound, Search, Phone, History, MapPin } from "lucide-react";
+import { UserRound, Search, Phone, History, MapPin, Check } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { customersStore, type Customer as SavedCustomer } from "@/lib/storage";
 import {
@@ -54,24 +54,50 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
   }, [saved, pickQuery]);
 
   const pick = (c: SavedCustomer) => {
-    setForm((prev) => ({
+    setForm({
       name: c.name,
-      phone: c.phone || prev.phone,
-      address: c.address || prev.address,
-      drugLicNo: c.drugLicNo || prev.drugLicNo,
-      gstin: c.gstin || prev.gstin,
-      notes: c.notes || prev.notes,
-    }));
+      phone: c.phone || "",
+      address: c.address || "",
+      drugLicNo: c.drugLicNo || "",
+      gstin: c.gstin || "",
+      notes: c.notes || "",
+    });
     setShowPicker(false);
     setPickQuery("");
+    setNameFocused(false);
+  };
+
+  // Find exact matching past customer by name
+  const exactNameMatch = useMemo(() => {
+    const needle = form.name.trim().toLowerCase();
+    if (!needle) return null;
+    return saved.find((c) => c.name.toLowerCase() === needle) || null;
+  }, [saved, form.name]);
+
+  // Handle typing name: if an exact match is typed or pasted, populate details
+  const handleNameChange = (val: string) => {
+    const trimmed = val.trim().toLowerCase();
+    const exactMatch = trimmed ? saved.find((c) => c.name.toLowerCase() === trimmed) : null;
+    
+    setForm((prev) => {
+      if (exactMatch) {
+        return {
+          name: val,
+          phone: exactMatch.phone || prev.phone,
+          address: exactMatch.address || prev.address,
+          drugLicNo: exactMatch.drugLicNo || prev.drugLicNo,
+          gstin: exactMatch.gstin || prev.gstin,
+          notes: exactMatch.notes || prev.notes,
+        };
+      }
+      return { ...prev, name: val };
+    });
   };
 
   const nameMatches = useMemo(() => {
     const needle = form.name.trim().toLowerCase();
     if (needle.length < 1) return [];
-    const filtered = saved.filter((c) => c.name.toLowerCase().includes(needle));
-    if (filtered.length === 1 && filtered[0].name.toLowerCase() === needle) return [];
-    return filtered.slice(0, 4);
+    return saved.filter((c) => c.name.toLowerCase().includes(needle)).slice(0, 5);
   }, [saved, form.name]);
 
   useEffect(() => {
@@ -141,7 +167,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs"
+                className="h-6 px-2 text-xs font-medium"
                 onClick={() => setShowPicker((v) => !v)}
               >
                 {showPicker ? "Hide" : "Quick pick"}
@@ -155,7 +181,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                     value={pickQuery}
                     onChange={(e) => setPickQuery(e.target.value)}
                     placeholder="Search name or phone"
-                    className="pl-8 h-8 text-xs"
+                    className="pl-8 h-8 text-xs bg-background"
                     autoFocus
                   />
                 </div>
@@ -208,7 +234,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
               maxLength={100}
               onFocus={() => setNameFocused(true)}
               onBlur={() => setTimeout(() => setNameFocused(false), 200)}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => handleNameChange(e.target.value)}
               onKeyDown={handleNameKeyDown}
               placeholder="e.g. Asha Verma"
               autoComplete="off"
@@ -235,6 +261,25 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                     </div>
                   </button>
                 ))}
+              </div>
+            )}
+            {exactNameMatch && (
+              <div className="flex items-center justify-between text-xs text-primary bg-primary/10 border border-primary/20 px-2 py-1 rounded mt-1 animate-fade-in">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    Past details loaded for <strong>{exactNameMatch.name}</strong> ({exactNameMatch.phone || "No phone"})
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1.5 text-[11px] font-medium hover:bg-primary/20 shrink-0 ml-1"
+                  onClick={() => pick(exactNameMatch)}
+                >
+                  Reload
+                </Button>
               </div>
             )}
           </div>
