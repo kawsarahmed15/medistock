@@ -193,16 +193,11 @@ function SellPage() {
   }, []);
 
   useEffect(() => {
-    // If the cart is empty and the customer details are not yet submitted, redirect to the cart page to fill details.
-    if (cart.items.length === 0 && !cart.customerSubmitted) {
-      navigate({ to: "/cart", search: { newSale: 1 } as never });
-    } else {
-      const input = document.getElementById("sell-search-input");
-      if (input) {
-        input.focus();
-      }
+    const input = document.getElementById("sell-search-input");
+    if (input) {
+      input.focus();
     }
-  }, [cart.items.length, cart.customerSubmitted]);
+  }, []);
 
   const openQtyPicker = (p: ProductWithBatches) => {
     setQtyProduct(p);
