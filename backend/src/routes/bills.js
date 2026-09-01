@@ -8,10 +8,21 @@ router.use(requireAuth);
 
 router.get("/pending-count", async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT COUNT(*) AS count FROM bills WHERE user_id = ? AND status = 'pending'`,
-      [req.auth.userId],
-    );
+    let query = `SELECT COUNT(*) AS count FROM bills WHERE user_id = ? AND status = 'pending'`;
+    const params = [req.auth.userId];
+
+    if (req.auth.isEmployee) {
+      const empName = req.auth.employeeName || req.auth.name;
+      if (req.auth.employeeId) {
+        query += ` AND (employee_id = ? OR created_by_name = ? OR cashier = ?)`;
+        params.push(req.auth.employeeId, empName, empName);
+      } else {
+        query += ` AND (created_by_name = ? OR cashier = ?)`;
+        params.push(empName, empName);
+      }
+    }
+
+    const [rows] = await pool.query(query, params);
     res.json({ count: Number(rows[0]?.count || 0) });
   } catch (error) {
     next(error);
@@ -26,18 +37,29 @@ router.get("/", async (req, res, next) => {
        WHERE user_id = ?`;
     const params = [req.auth.userId];
 
+    if (req.auth.isEmployee) {
+      const empName = req.auth.employeeName || req.auth.name;
+      if (req.auth.employeeId) {
+        query += ` AND (employee_id = ? OR created_by_name = ? OR cashier = ?)`;
+        params.push(req.auth.employeeId, empName, empName);
+      } else {
+        query += ` AND (created_by_name = ? OR cashier = ?)`;
+        params.push(empName, empName);
+      }
+    } else {
+      const employeeIdParam = req.query.employeeId ? String(req.query.employeeId).trim() : null;
+      if (employeeIdParam) {
+        query += ` AND (employee_id = ? OR created_by_name = ?)`;
+        params.push(employeeIdParam, employeeIdParam);
+      }
+    }
+
     if (statusParam === "pending") {
       query += ` AND status = 'pending'`;
     } else if (statusParam === "completed") {
       query += ` AND (status = 'completed' OR status IS NULL)`;
     } else if (statusParam === "rejected") {
       query += ` AND status = 'rejected'`;
-    }
-
-    const employeeIdParam = req.query.employeeId ? String(req.query.employeeId).trim() : null;
-    if (employeeIdParam) {
-      query += ` AND (employee_id = ? OR created_by_name = ?)`;
-      params.push(employeeIdParam, employeeIdParam);
     }
 
     query += ` ORDER BY created_at DESC LIMIT 500`;
@@ -78,14 +100,26 @@ router.get("/", async (req, res, next) => {
 
 router.get("/:id", async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method,
+    let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method,
               subtotal, tax, discount, total, status, created_by_role, created_by_name, employee_id, approved_at, approved_by, created_at
        FROM bills
-       WHERE user_id = ? AND id = ?
-       LIMIT 1`,
-      [req.auth.userId, req.params.id],
-    );
+       WHERE user_id = ? AND id = ?`;
+    const params = [req.auth.userId, req.params.id];
+
+    if (req.auth.isEmployee) {
+      const empName = req.auth.employeeName || req.auth.name;
+      if (req.auth.employeeId) {
+        query += ` AND (employee_id = ? OR created_by_name = ? OR cashier = ?)`;
+        params.push(req.auth.employeeId, empName, empName);
+      } else {
+        query += ` AND (created_by_name = ? OR cashier = ?)`;
+        params.push(empName, empName);
+      }
+    }
+
+    query += ` LIMIT 1`;
+
+    const [rows] = await pool.query(query, params);
     const bill = rows[0];
     if (!bill) {
       throw buildApiError(404, "Bill not found");

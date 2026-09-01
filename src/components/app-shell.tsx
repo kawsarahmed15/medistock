@@ -53,6 +53,7 @@ const employeeNav = [
   { to: "/inventory", label: "Inventory (Stock)", icon: Package },
   { to: "/sell", label: "New Sale", icon: ShoppingCart },
   { to: "/cart", label: "Cart", icon: ShoppingBag },
+  { to: "/bills", label: "My Bills", icon: ReceiptText },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -79,7 +80,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ];
 
   const checkPendingBills = async () => {
-    if (isEmployee) return;
     try {
       const res = await apiRequest<{ count: number }>("/bills/pending-count", { auth: true });
       setPendingBillsCount(res.count || 0);
@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     checkPendingBills();
     const interval = setInterval(checkPendingBills, 10000);
     return () => clearInterval(interval);
-  }, [isEmployee]);
+  }, []);
 
   useEffect(() => {
     setNotifications(getNotifications());

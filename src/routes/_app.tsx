@@ -28,10 +28,10 @@ function AppLayout() {
         p.startsWith("/sell") ||
         p.startsWith("/cart") ||
         p.startsWith("/inventory") ||
-        (p.startsWith("/bills/") && p !== "/bills" && p !== "/bills/");
+        p.startsWith("/bills");
 
       if (!isAllowed) {
-        toast.error("Employee mode: Only Inventory and Sales are accessible.");
+        toast.error("Employee mode: Restricted to Inventory, Sales, and Bills.");
         navigate({ to: "/sell" });
       }
     }

@@ -210,9 +210,9 @@ function BillDetailPage() {
       {/* Action Bar (Hidden in Print) */}
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background sticky top-0 z-10 py-4 border-b">
         <Button asChild variant="ghost" size="sm">
-          <Link to={isEmployee ? "/sell" : "/bills"}>
+          <Link to="/bills">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            {isEmployee ? "Back to Sales" : "All bills"}
+            {isEmployee ? "My Bills" : "All Bills"}
             <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
               Backspace
             </kbd>
@@ -268,6 +268,24 @@ function BillDetailPage() {
           </Button>
         </div>
       </div>
+
+      {/* Approved Status Alert Banner */}
+      {bill.status === "completed" && bill.approvedBy && (
+        <div className="print:hidden rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3.5 text-emerald-900 dark:text-emerald-200 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 text-sm">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div>
+              <span className="font-semibold text-emerald-800 dark:text-emerald-300">Sale Approved & Confirmed</span>
+              <span className="text-xs text-muted-foreground ml-2">
+                by {bill.approvedBy} {bill.approvedAt ? `on ${new Date(bill.approvedAt).toLocaleString()}` : ""}
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+            Approved
+          </span>
+        </div>
+      )}
 
       {/* Pending Status Alert Banner */}
       {bill.status === "pending" && (
