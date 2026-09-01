@@ -104,6 +104,188 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
+  for (const item of items) {
+    let targetProductId = item.productId || item.product_id || null;
+
+    // 1. Verify targetProductId actually exists in products table for this user
+    if (targetProductId) {
+      const [pCheck] = await conn.query(
+        "SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1",
+        [userId, targetProductId]
+      );
+      if (pCheck.length === 0) {
+        targetProductId = null;
+      }
+    }
+
+    // 2. Fallback: match by product name or sku if ID was not valid or not found
+    if (!targetProductId && (item.name || item.sku)) {
+      const [pMatch] = await conn.query(
+        "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
+        [userId, item.name, item.sku || "___NO_SKU___"]
+      );
+      if (pMatch.length > 0) {
+        targetProductId = pMatch[0].id;
+      }
+    }
+
+    // 3. If targetProductId is valid in products table, deduct batch stock & log history
+    if (targetProductId) {
+      const totalItemQty = Math.abs(Number(item.qty || 0)) + Math.abs(Number(item.freeQty || item.free_qty || 0));
+      if (totalItemQty > 0) {
+        let batches = [];
+        if (item.batch) {
+          const [bMatch] = await conn.query(
+            "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1",
+            [targetProductId, String(item.batch).trim()]
+          );
+          batches = bMatch;
+        }
+
+        if (batches.length === 0) {
+          const [allBatches] = await conn.query(
+            "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? ORDER BY expiry_date ASC",
+            [targetProductId]
+          );
+          batches = allBatches;
+        }
+
+        let remainingToDec = totalItemQty;
+        for (let idx = 0; idx < batches.length; idx++) {
+          const b = batches[idx];
+          if (remainingToDec <= 0) break;
+
+          if (idx === batches.length - 1 && remainingToDec > b.available_qty) {
+            const nextQty = b.available_qty - remainingToDec;
+            await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
+            remainingToDec = 0;
+          } else {
+            const toDec = Math.min(b.available_qty, remainingToDec);
+            if (toDec > 0) {
+              const nextQty = b.available_qty - toDec;
+              if (nextQty <= 0 && batches.length > 1) {
+                await conn.query("DELETE FROM product_batches WHERE id = ?", [b.id]);
+              } else {
+                await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
+              }
+              remainingToDec -= toDec;
+            }
+          }
+        }
+
+        const [sumRows] = await conn.query(
+          "SELECT COALESCE(SUM(available_qty), 0) AS total FROM product_batches WHERE product_id = ?",
+          [targetProductId]
+        );
+        const nextStock = Number(sumRows[0]?.total || 0);
+
+        try {
+          await conn.query(
+            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+             VALUES (?, ?, ?, 'sale', ?, ?, ?)`,
+            [
+              generateId(),
+              userId,
+              targetProductId,
+              totalItemQty,
+              nextStock,
+              `Sale via ${invoiceNo} by ${actorName || "Admin"}`
+            ]
+          );
+        } catch (histErr) {
+          console.warn("Product history log skipped:", histErr.message);
+        }
+      }
+    }
+  }
+}
+
+async function applyReturnStock(conn, userId, items, invoiceNo) {
+  for (const item of items) {
+    let targetProductId = item.productId || item.product_id || null;
+
+    if (targetProductId) {
+      const [pCheck] = await conn.query(
+        "SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1",
+        [userId, targetProductId]
+      );
+      if (pCheck.length === 0) {
+        targetProductId = null;
+      }
+    }
+
+    if (!targetProductId && (item.name || item.sku)) {
+      const [pMatch] = await conn.query(
+        "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
+        [userId, item.name, item.sku || "___NO_SKU___"]
+      );
+      if (pMatch.length > 0) {
+        targetProductId = pMatch[0].id;
+      }
+    }
+
+    if (targetProductId) {
+      const returnQty = Math.abs(Number(item.qty || 0)) + Math.abs(Number(item.freeQty || item.free_qty || 0));
+      if (returnQty > 0) {
+        const itemBatchNo = item.batch ? String(item.batch).trim() : "DEFAULT";
+
+        const [existingBatch] = await conn.query(
+          `SELECT id FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1`,
+          [targetProductId, itemBatchNo]
+        );
+
+        if (existingBatch.length > 0) {
+          await conn.query(
+            `UPDATE product_batches SET available_qty = available_qty + ?, sku = COALESCE(sku, ?) WHERE id = ?`,
+            [returnQty, item.sku || null, existingBatch[0].id]
+          );
+        } else {
+          const newBatchId = generateId();
+          await conn.query(
+            `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              newBatchId,
+              targetProductId,
+              itemBatchNo,
+              item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
+              Number(item.costPrice || 0),
+              Number(item.mrp || 0),
+              Number(item.price || 0),
+              returnQty,
+              item.sku || null,
+            ]
+          );
+        }
+
+        const [sumRows] = await conn.query(
+          "SELECT COALESCE(SUM(available_qty), 0) AS total FROM product_batches WHERE product_id = ?",
+          [targetProductId]
+        );
+        const nextStock = Number(sumRows[0]?.total || 0);
+
+        try {
+          await conn.query(
+            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
+             VALUES (?, ?, ?, 'return', ?, ?, ?)`,
+            [
+              generateId(),
+              userId,
+              targetProductId,
+              returnQty,
+              nextStock,
+              `Customer return via ${invoiceNo}`,
+            ]
+          );
+        } catch (histErr) {
+          console.warn("Product history return log skipped:", histErr.message);
+        }
+      }
+    }
+  }
+}
+
 router.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
@@ -122,7 +304,7 @@ router.post("/", async (req, res, next) => {
         `SELECT MAX(CAST(SUBSTRING_INDEX(number, '-', -1) AS UNSIGNED)) AS maxNo
          FROM bills
          WHERE user_id = ? AND number LIKE ?`,
-        [req.auth.userId, `${prefix}-%`],
+         [req.auth.userId, `${prefix}-%`],
       );
       const nextNo = Number(maxRows[0]?.maxNo || 0) + 1;
       const invoiceNo = `${prefix}-${String(nextNo).padStart(4, "0")}`;
@@ -179,84 +361,13 @@ router.post("/", async (req, res, next) => {
             Number(item.freeQty || 0),
           ],
         );
+      }
 
-        if (isReturn && !isEmployee) {
-          let targetProductId = item.productId || null;
-
-          if (targetProductId) {
-            const [pCheck] = await conn.query(
-              "SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1",
-              [req.auth.userId, targetProductId]
-            );
-            if (pCheck.length === 0) {
-              targetProductId = null;
-            }
-          }
-
-          if (!targetProductId && (item.name || item.sku)) {
-            const [pMatch] = await conn.query(
-              "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
-              [req.auth.userId, item.name, item.sku || "___NO_SKU___"]
-            );
-            if (pMatch.length > 0) {
-              targetProductId = pMatch[0].id;
-            }
-          }
-
-          if (targetProductId) {
-            const returnQty = Math.abs(Number(item.qty || 0)) + Math.abs(Number(item.freeQty || 0));
-            if (returnQty > 0) {
-              const itemBatchNo = item.batch ? String(item.batch).trim() : "DEFAULT";
-
-              const [existingBatch] = await conn.query(
-                `SELECT id FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1`,
-                [targetProductId, itemBatchNo]
-              );
-
-              if (existingBatch.length > 0) {
-                await conn.query(
-                  `UPDATE product_batches SET available_qty = available_qty + ?, sku = COALESCE(sku, ?) WHERE id = ?`,
-                  [returnQty, item.sku || null, existingBatch[0].id]
-                );
-              } else {
-                const newBatchId = generateId();
-                await conn.query(
-                  `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                  [
-                    newBatchId,
-                    targetProductId,
-                    itemBatchNo,
-                    item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
-                    Number(item.costPrice || 0),
-                    Number(item.mrp || 0),
-                    Number(item.price || 0),
-                    returnQty,
-                    item.sku || null,
-                  ]
-                );
-              }
-
-              const [sumRows] = await conn.query(
-                "SELECT SUM(available_qty) AS total FROM product_batches WHERE product_id = ?",
-                [targetProductId]
-              );
-              const nextStock = Number(sumRows[0].total || 0);
-
-              await conn.query(
-                `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-                 VALUES (?, ?, ?, 'return', ?, ?, ?)`,
-                [
-                  generateId(),
-                  req.auth.userId,
-                  targetProductId,
-                  returnQty,
-                  nextStock,
-                  `Customer return via ${invoiceNo}`,
-                ]
-              );
-            }
-          }
+      if (!isEmployee) {
+        if (isReturn) {
+          await applyReturnStock(conn, req.auth.userId, items, invoiceNo);
+        } else {
+          await applyStockDeduction(conn, req.auth.userId, items, invoiceNo, req.auth.name || "Admin");
         }
       }
 
@@ -299,82 +410,11 @@ router.post("/:id/approve", requireAdminOnly, async (req, res, next) => {
         [billId, req.auth.userId]
       );
 
-      // Decrement stock for all items in the pending bill
-      for (const item of items) {
-        let targetProductId = item.product_id;
-        if (!targetProductId && (item.name || item.sku)) {
-          const [pMatch] = await conn.query(
-            "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
-            [req.auth.userId, item.name, item.sku || "___NO_SKU___"]
-          );
-          if (pMatch.length > 0) {
-            targetProductId = pMatch[0].id;
-          }
-        }
-
-        if (targetProductId) {
-          const totalItemQty = Number(item.qty || 0) + Number(item.free_qty || 0);
-          if (totalItemQty > 0) {
-            let batches = [];
-            if (item.batch) {
-              const [bMatch] = await conn.query(
-                "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1",
-                [targetProductId, item.batch]
-              );
-              batches = bMatch;
-            }
-
-            if (batches.length === 0) {
-              const [allBatches] = await conn.query(
-                "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? ORDER BY expiry_date ASC",
-                [targetProductId]
-              );
-              batches = allBatches;
-            }
-
-            let remainingToDec = totalItemQty;
-            for (let idx = 0; idx < batches.length; idx++) {
-              const b = batches[idx];
-              if (remainingToDec <= 0) break;
-              
-              if (idx === batches.length - 1 && remainingToDec > b.available_qty) {
-                const nextQty = b.available_qty - remainingToDec;
-                await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
-                remainingToDec = 0;
-              } else {
-                const toDec = Math.min(b.available_qty, remainingToDec);
-                if (toDec > 0) {
-                  const nextQty = b.available_qty - toDec;
-                  if (nextQty <= 0 && batches.length > 1) {
-                    await conn.query("DELETE FROM product_batches WHERE id = ?", [b.id]);
-                  } else {
-                    await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
-                  }
-                  remainingToDec -= toDec;
-                }
-              }
-            }
-
-            const [sumRows] = await conn.query(
-              "SELECT COALESCE(SUM(available_qty), 0) AS total FROM product_batches WHERE product_id = ?",
-              [targetProductId]
-            );
-            const nextStock = Number(sumRows[0]?.total || 0);
-
-            await conn.query(
-              `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-               VALUES (?, ?, ?, 'sale', ?, ?, ?)`,
-              [
-                generateId(),
-                req.auth.userId,
-                targetProductId,
-                totalItemQty,
-                nextStock,
-                `Confirmed employee bill ${bill.number} by ${req.auth.name || "Admin"}`
-              ]
-            );
-          }
-        }
+      const isReturn = bill.number.startsWith("SR-");
+      if (isReturn) {
+        await applyReturnStock(conn, req.auth.userId, items, bill.number);
+      } else {
+        await applyStockDeduction(conn, req.auth.userId, items, bill.number, req.auth.name || "Admin");
       }
 
       await conn.query(
