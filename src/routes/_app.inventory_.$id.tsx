@@ -555,39 +555,42 @@ function ProductDetails() {
               ) : (
                 <div className="max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
                   <div className="relative border-l border-border ml-3 space-y-6 pb-4 pt-1">
-                    {history.map((record: any) => (
-                      <div key={record.id} className="relative pl-6">
-                        <div
-                          className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background ${
-                            record.action === "sale" || record.action === "stock_out"
-                              ? "bg-rose-500"
-                              : "bg-emerald-500"
-                          }`}
-                        />
-                        <div className="flex justify-between items-start mb-1 text-xs">
-                          <div>
-                            <span className="font-semibold capitalize">
-                              {record.action.replace("_", " ")}
-                            </span>
-                            <span
-                              className={`ml-2 font-bold ${record.quantity > 0 ? "text-emerald-500" : "text-rose-500"}`}
-                            >
-                              {record.quantity > 0 ? "+" : ""}
-                              {record.quantity}
+                    {history.map((record: any) => {
+                      const isDeduction = record.action === "sale" || record.action === "stock_out";
+                      const qtyVal = Math.abs(Number(record.quantity || 0));
+                      const displayQtyStr = isDeduction ? `-${qtyVal}` : `+${qtyVal}`;
+
+                      return (
+                        <div key={record.id} className="relative pl-6">
+                          <div
+                            className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background ${
+                              isDeduction ? "bg-rose-500" : "bg-emerald-500"
+                            }`}
+                          />
+                          <div className="flex justify-between items-start mb-1 text-xs">
+                            <div>
+                              <span className="font-semibold capitalize">
+                                {record.action.replace("_", " ")}
+                              </span>
+                              <span
+                                className={`ml-2 font-bold ${isDeduction ? "text-rose-500" : "text-emerald-500"}`}
+                              >
+                                {displayQtyStr}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(record.created_at).toLocaleString()}
                             </span>
                           </div>
-                          <span className="text-[10px] text-muted-foreground">
-                            {new Date(record.created_at).toLocaleString()}
-                          </span>
+                          <div className="text-[10px] text-muted-foreground">
+                            Balance total stock: {record.balance}
+                            {record.notes && (
+                              <p className="mt-1 text-foreground italic">"{record.notes}"</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          Balance total stock: {record.balance}
-                          {record.notes && (
-                            <p className="mt-1 text-foreground italic">"{record.notes}"</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

@@ -203,34 +203,31 @@ function BillsPage() {
   const handleConfirmReturn = async () => {
     if (!selectedBillForReturn) return;
 
-    const returnedItems = selectedBillForReturn.items
-      .filter((it, idx) => {
-        const itemKey = getItemKey(it, idx);
-        const qty = returnQuantities[itemKey] || 0;
-        const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
-        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
-        return qty > 0 && qty <= maxReturnable;
-      })
-      .map((it, idx) => {
-        const itemKey = getItemKey(it, idx);
-        const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
-        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
-        const qty = Math.min(maxReturnable, returnQuantities[itemKey] || 0);
-        return {
-          productId: it.productId || "",
+    const returnedItems: Array<any> = [];
+    selectedBillForReturn.items.forEach((it, idx) => {
+      const itemKey = getItemKey(it, idx);
+      const userQty = returnQuantities[itemKey] || 0;
+      const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
+      const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+      const qtyToReturn = Math.min(maxReturnable, Math.max(0, userQty));
+
+      if (qtyToReturn > 0) {
+        returnedItems.push({
+          productId: (it.productId || "").trim(),
           name: it.name,
           sku: it.sku,
           price: it.price,
           costPrice: it.costPrice,
-          qty: -qty, // Negative quantity for sale return
+          qty: -qtyToReturn, // Negative quantity for sale return
           freeQty: 0,
           taxPercent: it.taxPercent,
           mrp: it.mrp,
           batch: it.batch,
           pack: it.pack,
           expiry: it.expiry,
-        };
-      });
+        });
+      }
+    });
 
     if (returnedItems.length === 0) {
       toast.error("Please select at least one item to return with quantity greater than 0");
