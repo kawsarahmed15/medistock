@@ -345,9 +345,9 @@ router.post("/", requireAdminOnly, async (req, res, next) => {
           );
 
           await conn.query(
-            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-             VALUES (?, ?, ?, 'purchase', ?, ?, ?)`,
-            [generateId(), req.auth.userId, id, stockToImport, stockToImport, `Added initial stock via PO ${poNo}`]
+            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes, invoice_no)
+             VALUES (?, ?, ?, 'purchase', ?, ?, ?, ?)`,
+            [generateId(), req.auth.userId, id, stockToImport, stockToImport, `Added initial stock via PO ${poNo}`, poNo]
           );
         }
       }
@@ -383,7 +383,7 @@ router.post("/", requireAdminOnly, async (req, res, next) => {
 router.get("/:id/history", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, action, quantity, balance, notes, created_at
+      `SELECT id, action, quantity, balance, notes, invoice_no, created_at
        FROM product_history
        WHERE product_id = ? AND user_id = ?
        ORDER BY created_at DESC`,
@@ -467,9 +467,10 @@ router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
       );
       const totalStock = Number(sumRows[0].total || 0);
 
+      const invNo = req.body.invoiceNo || req.body.invoice || supplierInvoice || null;
       await conn.query(
-        `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes, invoice_no)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           generateId(),
           req.auth.userId,
@@ -477,7 +478,8 @@ router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
           action === "stock_out" ? "stock_out" : "purchase",
           qty,
           totalStock,
-          notes || `Stock adjustment (${action}) for batch ${targetBatchNo}`
+          notes || (invNo ? `Stock ${action} via ${invNo}` : `Stock adjustment (${action}) for batch ${targetBatchNo}`),
+          invNo
         ],
       );
 

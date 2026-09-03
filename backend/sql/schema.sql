@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS product_history (
   quantity INT NOT NULL,
   balance INT NOT NULL,
   notes VARCHAR(255) NULL,
+  invoice_no VARCHAR(100) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_history_user (user_id),
   INDEX idx_history_product (product_id),

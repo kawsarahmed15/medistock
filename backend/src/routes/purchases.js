@@ -243,9 +243,9 @@ router.post("/", async (req, res, next) => {
           const nextStock = Number(sumRows[0].total || 0);
 
           await conn.query(
-            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [generateId(), req.auth.userId, targetProductId, historyAction, addedStock, nextStock, historyNotes]
+            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes, invoice_no)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [generateId(), req.auth.userId, targetProductId, historyAction, addedStock, nextStock, historyNotes, poNo]
           );
         }
       }

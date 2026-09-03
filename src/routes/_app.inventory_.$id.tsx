@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   Edit,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -560,6 +561,9 @@ function ProductDetails() {
                       const qtyVal = Math.abs(Number(record.quantity || 0));
                       const displayQtyStr = isDeduction ? `-${qtyVal}` : `+${qtyVal}`;
 
+                      // Extract invoice / PO / reference number
+                      const invNo = record.invoice_no || record.invoiceNo || record.notes?.match(/(?:INV|SR|PO|INIT)-[A-Za-z0-9]+/i)?.[0] || null;
+
                       return (
                         <div key={record.id} className="relative pl-6">
                           <div
@@ -568,15 +572,33 @@ function ProductDetails() {
                             }`}
                           />
                           <div className="flex justify-between items-start mb-1 text-xs">
-                            <div>
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold capitalize">
                                 {record.action.replace("_", " ")}
                               </span>
                               <span
-                                className={`ml-2 font-bold ${isDeduction ? "text-rose-500" : "text-emerald-500"}`}
+                                className={`font-bold ${isDeduction ? "text-rose-500" : "text-emerald-500"}`}
                               >
                                 {displayQtyStr}
                               </span>
+                              {invNo && (
+                                invNo.startsWith("INV-") || invNo.startsWith("SR-") ? (
+                                  <Link
+                                    to="/bills"
+                                    search={{ range: "all" }}
+                                    className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 font-semibold transition-colors"
+                                    title="Click to view bills"
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                    Invoice: {invNo}
+                                  </Link>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-semibold">
+                                    <FileText className="w-3 h-3" />
+                                    Ref: {invNo}
+                                  </span>
+                                )
+                              )}
                             </div>
                             <span className="text-[10px] text-muted-foreground">
                               {new Date(record.created_at).toLocaleString()}

@@ -38,6 +38,18 @@ async function runMigration() {
     await safeAddColumn("bills", "approved_at", "TIMESTAMP NULL AFTER employee_id");
     await safeAddColumn("bills", "approved_by", "VARCHAR(100) NULL AFTER approved_at");
     await safeAddColumn("employees", "username", "VARCHAR(100) NULL UNIQUE AFTER name");
+    await safeAddColumn("product_history", "invoice_no", "VARCHAR(100) NULL AFTER notes");
+
+    try {
+      await connection.query(`
+        UPDATE product_history 
+        SET invoice_no = REGEXP_SUBSTR(notes, '(INV|SR|PO|INIT)-[A-Za-z0-9]+') 
+        WHERE (invoice_no IS NULL OR invoice_no = '') 
+          AND notes REGEXP '(INV|SR|PO|INIT)-[A-Za-z0-9]+'
+      `);
+    } catch (e) {
+      // Ignore if REGEXP_SUBSTR is not supported or no rows
+    }
 
     console.log("MySQL migration completed successfully.");
   } finally {

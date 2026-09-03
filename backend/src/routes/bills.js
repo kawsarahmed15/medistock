@@ -243,15 +243,16 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
 
         try {
           await conn.query(
-            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-             VALUES (?, ?, ?, 'sale', ?, ?, ?)`,
+            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes, invoice_no)
+             VALUES (?, ?, ?, 'sale', ?, ?, ?, ?)`,
             [
               generateId(),
               userId,
               targetProductId,
               totalItemQty,
               nextStock,
-              `Sale via ${invoiceNo} by ${actorName || "Admin"}`
+              `Sale via ${invoiceNo} by ${actorName || "Admin"}`,
+              invoiceNo
             ]
           );
         } catch (histErr) {
@@ -357,8 +358,8 @@ async function applyReturnStock(conn, userId, items, invoiceNo) {
 
         try {
           await conn.query(
-            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-             VALUES (?, ?, ?, 'return', ?, ?, ?)`,
+            `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes, invoice_no)
+             VALUES (?, ?, ?, 'return', ?, ?, ?, ?)`,
             [
               generateId(),
               userId,
@@ -366,6 +367,7 @@ async function applyReturnStock(conn, userId, items, invoiceNo) {
               returnQty,
               nextStock,
               `Customer return via ${invoiceNo}`,
+              invoiceNo
             ]
           );
         } catch (histErr) {
