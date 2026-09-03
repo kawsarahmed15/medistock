@@ -29,14 +29,29 @@ app.use(express.json({ limit: "1mb" }));
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === "/me" || req.path === "/session",
+  message: { message: "Too many authentication requests, please try again later." },
+});
+
+const strictAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many login or signup attempts. Please try again after 15 minutes." },
 });
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+
+app.use("/api/auth/login", strictAuthLimiter);
+app.use("/api/auth/signup", strictAuthLimiter);
+app.use("/api/auth/forgot-password", strictAuthLimiter);
+app.use("/api/auth/reset-password", strictAuthLimiter);
 
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/subscription", subscriptionRouter);

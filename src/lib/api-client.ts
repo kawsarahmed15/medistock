@@ -62,6 +62,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
         window.location.href = "/login?revoked=1";
       }
     }
+    if (response.status === 429) {
+      const errMsg = payload.message || payload.error || "Too many requests. Please wait a moment and try again.";
+      throw new Error(errMsg);
+    }
     const errMsg = payload.message || payload.error || (response.statusText ? `Server error (${response.status}: ${response.statusText})` : `Server error (${response.status})`);
     throw new Error(errMsg);
   }
