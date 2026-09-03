@@ -233,7 +233,6 @@ function CartPage() {
       });
 
       if (!session?.isEmployee) {
-        await Promise.all(cart.items.map((i) => productsStore.decrementStock(i.product.id, i.qty)));
         toast.success(`Bill ${bill.number} generated`);
       } else {
         toast.success(`Bill ${bill.number} submitted for Admin confirmation (Pending)`);

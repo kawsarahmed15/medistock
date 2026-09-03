@@ -140,22 +140,33 @@ router.post("/", async (req, res, next) => {
         );
 
         // Update product stock and cost price using batch-wise logic
-        let targetProductId = item.productId || null;
+        let rawId = (item.productId && String(item.productId).trim()) || (item.product_id && String(item.product_id).trim()) || null;
+        let targetProductId = null;
 
-        if (targetProductId) {
+        if (rawId && rawId !== "") {
           const [pCheck] = await conn.query(
             "SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1",
-            [req.auth.userId, targetProductId]
+            [req.auth.userId, rawId]
           );
-          if (pCheck.length === 0) {
-            targetProductId = null;
+          if (pCheck.length > 0) {
+            targetProductId = pCheck[0].id;
+          } else {
+            const [bCheck] = await conn.query(
+              "SELECT b.product_id FROM product_batches b JOIN products p ON b.product_id = p.id WHERE p.user_id = ? AND b.id = ? LIMIT 1",
+              [req.auth.userId, rawId]
+            );
+            if (bCheck.length > 0) {
+              targetProductId = bCheck[0].product_id;
+            }
           }
         }
 
-        if (!targetProductId && (item.name || item.sku || item.hsn)) {
+        if (!targetProductId && item.name) {
           const [pMatch] = await conn.query(
-            "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
-            [req.auth.userId, item.name, item.sku || item.hsn || "___NO_SKU___"]
+            `SELECT id FROM products 
+             WHERE user_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) 
+             LIMIT 1`,
+            [req.auth.userId, String(item.name).trim()]
           );
           if (pMatch.length > 0) {
             targetProductId = pMatch[0].id;
