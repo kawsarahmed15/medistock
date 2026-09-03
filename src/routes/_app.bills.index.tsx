@@ -146,6 +146,11 @@ function BillsPage() {
     }
   };
 
+  const getItemKey = (it: { productId?: string; name: string }, idx: number) => {
+    const pId = (it.productId || "").trim();
+    return pId ? `${pId}_${idx}` : `${it.name.trim()}_${idx}`;
+  };
+
   const getAlreadyReturnedQtyForBillItem = (bill: Bill, item: Bill["items"][number]) => {
     if (!bill || !item) return 0;
     const billNum = bill.number;
@@ -160,8 +165,10 @@ function BillsPage() {
     let returned = 0;
     for (const rb of returnBills) {
       for (const rItem of rb.items) {
-        const matchProduct = (item.productId && rItem.productId)
-          ? item.productId === rItem.productId
+        const p1 = (item.productId || "").trim();
+        const p2 = (rItem.productId || "").trim();
+        const matchProduct = (p1 && p2)
+          ? p1 === p2
           : item.name.trim().toLowerCase() === rItem.name.trim().toLowerCase();
 
         const itemBatch = String(item.batch || "").trim().toUpperCase();
@@ -181,7 +188,7 @@ function BillsPage() {
       setSelectedBillForReturn(billToReturn);
       const qtys: Record<string, number> = {};
       billToReturn.items.forEach((it, idx) => {
-        const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+        const itemKey = getItemKey(it, idx);
         qtys[itemKey] = 0;
       });
       setReturnQuantities(qtys);
@@ -198,19 +205,19 @@ function BillsPage() {
 
     const returnedItems = selectedBillForReturn.items
       .filter((it, idx) => {
-        const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+        const itemKey = getItemKey(it, idx);
         const qty = returnQuantities[itemKey] || 0;
         const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
         const maxReturnable = Math.max(0, it.qty - alreadyReturned);
         return qty > 0 && qty <= maxReturnable;
       })
       .map((it, idx) => {
-        const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+        const itemKey = getItemKey(it, idx);
         const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
         const maxReturnable = Math.max(0, it.qty - alreadyReturned);
         const qty = Math.min(maxReturnable, returnQuantities[itemKey] || 0);
         return {
-          productId: it.productId,
+          productId: it.productId || "",
           name: it.name,
           sku: it.sku,
           price: it.price,
@@ -924,7 +931,7 @@ function BillsPage() {
                     setSelectedBillForReturn(b);
                     const qtys: Record<string, number> = {};
                     b?.items.forEach((it, idx) => {
-                      const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+                      const itemKey = getItemKey(it, idx);
                       qtys[itemKey] = 0;
                     });
                     setReturnQuantities(qtys);
@@ -944,7 +951,7 @@ function BillsPage() {
                   <h4 className="text-sm font-semibold text-muted-foreground">Select Items and Quantities to Return</h4>
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                     {selectedBillForReturn.items.map((it, idx) => {
-                      const itemKey = it.productId ? `${it.productId}_${idx}` : `${it.name}_${idx}`;
+                      const itemKey = getItemKey(it, idx);
                       const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
                       const maxReturnable = Math.max(0, it.qty - alreadyReturned);
                       const isFullyReturned = maxReturnable === 0;

@@ -237,7 +237,8 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
 
 async function applyReturnStock(conn, userId, items, invoiceNo) {
   for (const item of items) {
-    let targetProductId = item.productId || item.product_id || null;
+    let rawId = (item.productId && String(item.productId).trim()) || (item.product_id && String(item.product_id).trim()) || null;
+    let targetProductId = rawId && rawId !== "" ? rawId : null;
 
     if (targetProductId) {
       const [pCheck] = await conn.query(
@@ -251,11 +252,27 @@ async function applyReturnStock(conn, userId, items, invoiceNo) {
 
     if (!targetProductId && (item.name || item.sku)) {
       const [pMatch] = await conn.query(
-        "SELECT id FROM products WHERE user_id = ? AND (name = ? OR (sku IS NOT NULL AND sku = ?)) LIMIT 1",
-        [userId, item.name, item.sku || "___NO_SKU___"]
+        `SELECT id FROM products 
+         WHERE user_id = ? AND (LOWER(TRIM(name)) = LOWER(TRIM(?)) OR (sku IS NOT NULL AND sku = ?)) 
+         LIMIT 1`,
+        [userId, item.name ? String(item.name).trim() : "", item.sku ? String(item.sku).trim() : "___NO_SKU___"]
       );
       if (pMatch.length > 0) {
         targetProductId = pMatch[0].id;
+      }
+    }
+
+    if (!targetProductId && item.batch) {
+      const [bMatch] = await conn.query(
+        `SELECT b.product_id 
+         FROM product_batches b 
+         JOIN products p ON b.product_id = p.id 
+         WHERE p.user_id = ? AND LOWER(TRIM(b.batch_no)) = LOWER(TRIM(?)) 
+         LIMIT 1`,
+        [userId, String(item.batch).trim()]
+      );
+      if (bMatch.length > 0) {
+        targetProductId = bMatch[0].product_id;
       }
     }
 
@@ -265,7 +282,7 @@ async function applyReturnStock(conn, userId, items, invoiceNo) {
         const itemBatchNo = item.batch ? String(item.batch).trim() : "DEFAULT";
 
         const [existingBatch] = await conn.query(
-          `SELECT id FROM product_batches WHERE product_id = ? AND batch_no = ? LIMIT 1`,
+          `SELECT id FROM product_batches WHERE product_id = ? AND LOWER(TRIM(batch_no)) = LOWER(TRIM(?)) LIMIT 1`,
           [targetProductId, itemBatchNo]
         );
 
@@ -284,7 +301,7 @@ async function applyReturnStock(conn, userId, items, invoiceNo) {
               targetProductId,
               itemBatchNo,
               item.expiry ? String(item.expiry).slice(0, 10) : "2030-12-31",
-              Number(item.costPrice || 0),
+              Number(item.costPrice || item.cost_price || 0),
               Number(item.mrp || 0),
               Number(item.price || 0),
               returnQty,
@@ -440,7 +457,7 @@ router.post("/:id/approve", requireAdminOnly, async (req, res, next) => {
       }
 
       const [items] = await conn.query(
-        `SELECT id, product_id, name, sku, batch, qty, free_qty, price, cost_price FROM bill_items WHERE bill_id = ? AND user_id = ?`,
+        `SELECT id, product_id, name, sku, batch, qty, free_qty, price, cost_price, expiry, mrp FROM bill_items WHERE bill_id = ? AND user_id = ?`,
         [billId, req.auth.userId]
       );
 

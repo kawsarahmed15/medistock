@@ -149,7 +149,7 @@ router.get("/:phone/credit-history", async (req, res, next) => {
     const [bills] = await pool.query(
       `SELECT id, number, total as amount, created_at, 'bill' as type 
        FROM bills 
-       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit'
+       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit' AND (status IS NULL OR status != 'rejected')
        ORDER BY created_at DESC`,
       [req.auth.userId, phone],
     );
@@ -162,7 +162,7 @@ router.get("/:phone/credit-history", async (req, res, next) => {
        UNION ALL
        SELECT id, advance_amount as amount, advance_payment_method as method, created_at, 'payment' as type, 1 as is_advance
        FROM bills
-       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit' AND advance_amount > 0
+       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit' AND advance_amount > 0 AND (status IS NULL OR status != 'rejected')
        ORDER BY created_at DESC`,
       [req.auth.userId, phone, req.auth.userId, phone],
     );
