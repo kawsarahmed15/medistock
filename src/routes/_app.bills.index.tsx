@@ -275,6 +275,32 @@ function BillsPage() {
     }
   };
 
+  const returnSummary = useMemo(() => {
+    if (!selectedBillForReturn) return { totalQty: 0, subtotal: 0, tax: 0, total: 0 };
+    let subtotal = 0;
+    let tax = 0;
+    let totalQty = 0;
+
+    selectedBillForReturn.items.forEach((it, idx) => {
+      const itemKey = getItemKey(it, idx);
+      const qty = returnQuantities[itemKey] || 0;
+      if (qty > 0) {
+        totalQty += qty;
+        const lineCost = it.price * qty;
+        const lineTax = lineCost * ((it.taxPercent || 0) / 100);
+        subtotal += lineCost;
+        tax += lineTax;
+      }
+    });
+
+    return {
+      totalQty,
+      subtotal,
+      tax,
+      total: subtotal + tax,
+    };
+  }, [selectedBillForReturn, returnQuantities]);
+
   const setRange = (r: FilterRange) => {
     navigate({
       search: (prev: BillsSearch) => ({ ...prev, range: r === "all" ? undefined : r }),
@@ -952,6 +978,10 @@ function BillsPage() {
                       const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
                       const maxReturnable = Math.max(0, it.qty - alreadyReturned);
                       const isFullyReturned = maxReturnable === 0;
+                      const itemReturnQty = returnQuantities[itemKey] || 0;
+                      const itemLineCost = it.price * itemReturnQty;
+                      const itemLineTax = itemLineCost * ((it.taxPercent || 0) / 100);
+                      const itemLineTotal = itemLineCost + itemLineTax;
 
                       return (
                         <div key={itemKey} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
@@ -974,6 +1004,13 @@ function BillsPage() {
                               )}
                               <span className="font-bold text-foreground"> | Available to Return: {maxReturnable}</span>
                             </div>
+                            {itemReturnQty > 0 && (
+                              <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 mt-1">
+                                <span className="inline-block bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700">
+                                  Return Amount: {itemReturnQty} × {formatMoney(it.price)} = {formatMoney(itemLineTotal)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div className="w-28">
                             <Label className="text-xs text-muted-foreground">Return Qty</Label>
@@ -1005,6 +1042,24 @@ function BillsPage() {
                       );
                     })}
                   </div>
+
+                  {returnSummary.totalQty > 0 && (
+                    <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3.5 flex items-center justify-between shadow-xs">
+                      <div>
+                        <div className="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wider">
+                          Total Return Sale Amount
+                        </div>
+                        <div className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                          {returnSummary.totalQty} item{returnSummary.totalQty === 1 ? "" : "s"} selected
+                          {returnSummary.tax > 0 && ` (Subtotal: ${formatMoney(returnSummary.subtotal)} + Tax: ${formatMoney(returnSummary.tax)})`}
+                        </div>
+                      </div>
+                      <div className="text-xl font-black text-amber-700 dark:text-amber-300 tabular-nums">
+                        {formatMoney(returnSummary.total)}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-1.5">
                     <Label htmlFor="return-notes">Reason / Notes for Return</Label>
                     <Input
