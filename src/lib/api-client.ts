@@ -52,7 +52,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     body: options.body == null ? undefined : JSON.stringify(options.body),
   });
 
-  const payload = (await response.json().catch(() => ({}))) as { message?: string } & T;
+  const payload = (await response.json().catch(() => ({}))) as { message?: string; error?: string } & T;
   if (!response.ok) {
     if (payload.message === "Session has been revoked") {
       if (typeof window !== "undefined") {
@@ -62,7 +62,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
         window.location.href = "/login?revoked=1";
       }
     }
-    throw new Error(payload.message || "Request failed");
+    const errMsg = payload.message || payload.error || (response.statusText ? `Server error (${response.status}: ${response.statusText})` : `Server error (${response.status})`);
+    throw new Error(errMsg);
   }
 
   return payload;

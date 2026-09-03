@@ -196,47 +196,58 @@ router.post("/login", async (req, res, next) => {
     const sessionId = req.body?.sessionId;
     const deviceId = req.body?.deviceId;
     if (sessionId && deviceId) {
-      const deviceOs = req.body?.deviceOs || null;
-      const deviceBrowser = req.body?.deviceBrowser || null;
-      const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+      try {
+        const cleanSessionId = String(sessionId).trim().substring(0, 50);
+        const cleanDeviceId = String(deviceId).trim().substring(0, 50);
+        const deviceOs = req.body?.deviceOs ? String(req.body.deviceOs).trim().substring(0, 100) : null;
+        const deviceBrowser = req.body?.deviceBrowser ? String(req.body.deviceBrowser).trim().substring(0, 100) : null;
+        const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+        const ipAddress = rawIp ? String(rawIp).split(',')[0].trim().substring(0, 45) : null;
 
-      // Assign admin_device_id if not set yet and logging in as admin
-      let adminDeviceId = user.admin_device_id;
-      if (!adminDeviceId && !isEmployee) {
-        await pool.query("UPDATE users SET admin_device_id = ? WHERE id = ?", [deviceId, user.id]);
-        adminDeviceId = deviceId;
-      }
+        // Assign admin_device_id if not set yet and logging in as admin
+        let adminDeviceId = user.admin_device_id;
+        if (!adminDeviceId && !isEmployee) {
+          await pool.query("UPDATE users SET admin_device_id = ? WHERE id = ?", [cleanDeviceId, user.id]);
+          adminDeviceId = cleanDeviceId;
+        }
 
-      // Check if session already exists for this user and device
-      const [existing] = await pool.query(
-        "SELECT id, session_id FROM user_sessions WHERE user_id = ? AND device_id = ? LIMIT 1",
-        [user.id, deviceId]
-      );
-
-      const makeAdmin = (!isEmployee && deviceId === adminDeviceId) ? 1 : 0;
-
-      if (existing.length > 0) {
-        await pool.query(
-          `UPDATE user_sessions 
-           SET session_id = ?, last_active = CURRENT_TIMESTAMP, last_user_activity = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?, is_admin = ?, status = 'active'
-           WHERE id = ?`,
-          [sessionId, ipAddress, deviceOs, deviceBrowser, makeAdmin, existing[0].id]
-        );
-      } else {
-        await pool.query(
-          `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin, last_user_activity, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active')`,
-          [generateId(), user.id, sessionId, deviceId, deviceOs, deviceBrowser, ipAddress, makeAdmin]
+        // Check if session already exists for this user and device
+        const [existing] = await pool.query(
+          "SELECT id, session_id FROM user_sessions WHERE user_id = ? AND device_id = ? LIMIT 1",
+          [user.id, cleanDeviceId]
         );
 
-        // Send new login notification email
-        await sendLoginNotificationEmail({
-          to: user.email,
-          name: isEmployee ? (employeeMeta?.employeeName || `${user.name} (Staff)`) : user.name,
-          deviceOs,
-          deviceBrowser,
-          ipAddress,
-        });
+        const makeAdmin = (!isEmployee && cleanDeviceId === adminDeviceId) ? 1 : 0;
+
+        if (existing.length > 0) {
+          await pool.query(
+            `UPDATE user_sessions 
+             SET session_id = ?, last_active = CURRENT_TIMESTAMP, last_user_activity = CURRENT_TIMESTAMP, ip_address = ?, device_os = ?, device_browser = ?, is_admin = ?, status = 'active'
+             WHERE id = ?`,
+            [cleanSessionId, ipAddress, deviceOs, deviceBrowser, makeAdmin, existing[0].id]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO user_sessions (id, user_id, session_id, device_id, device_os, device_browser, ip_address, is_admin, last_user_activity, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 'active')`,
+            [generateId(), user.id, cleanSessionId, cleanDeviceId, deviceOs, deviceBrowser, ipAddress, makeAdmin]
+          );
+
+          // Send new login notification email
+          try {
+            await sendLoginNotificationEmail({
+              to: user.email,
+              name: isEmployee ? (employeeMeta?.employeeName || `${user.name} (Staff)`) : user.name,
+              deviceOs,
+              deviceBrowser,
+              ipAddress,
+            });
+          } catch (mailErr) {
+            console.warn("Could not send login notification email:", mailErr.message);
+          }
+        }
+      } catch (sessionErr) {
+        console.warn("Could not register user session during login:", sessionErr.message);
       }
     }
 
