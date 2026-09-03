@@ -233,6 +233,8 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
       }
     }
   }
+}
+
 async function applyReturnStock(conn, userId, items, invoiceNo) {
   for (const item of items) {
     let rawId = (item.productId && String(item.productId).trim()) || (item.product_id && String(item.product_id).trim()) || null;
@@ -521,5 +523,5 @@ router.post("/:id/reject", requireAdminOnly, async (req, res, next) => {
   }
 });
 
-export default router;
+export { router as billsRouter };
 
