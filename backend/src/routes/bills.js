@@ -233,35 +233,45 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
       }
     }
   }
-}
-
 async function applyReturnStock(conn, userId, items, invoiceNo) {
   for (const item of items) {
     let rawId = (item.productId && String(item.productId).trim()) || (item.product_id && String(item.product_id).trim()) || null;
-    let targetProductId = rawId && rawId !== "" ? rawId : null;
+    let targetProductId = null;
 
-    if (targetProductId) {
+    if (rawId && rawId !== "") {
+      // 1. Check if rawId matches a product in products table
       const [pCheck] = await conn.query(
         "SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1",
-        [userId, targetProductId]
+        [userId, rawId]
       );
-      if (pCheck.length === 0) {
-        targetProductId = null;
+      if (pCheck.length > 0) {
+        targetProductId = pCheck[0].id;
+      } else {
+        // 2. Check if rawId matches a batch ID in product_batches table
+        const [bCheck] = await conn.query(
+          "SELECT b.product_id FROM product_batches b JOIN products p ON b.product_id = p.id WHERE p.user_id = ? AND b.id = ? LIMIT 1",
+          [userId, rawId]
+        );
+        if (bCheck.length > 0) {
+          targetProductId = bCheck[0].product_id;
+        }
       }
     }
 
-    if (!targetProductId && (item.name || item.sku)) {
+    // 3. Fallback to exact product name match ONLY (Do NOT match by SKU/HSN code because HSN is shared across products)
+    if (!targetProductId && item.name) {
       const [pMatch] = await conn.query(
         `SELECT id FROM products 
-         WHERE user_id = ? AND (LOWER(TRIM(name)) = LOWER(TRIM(?)) OR (sku IS NOT NULL AND sku = ?)) 
+         WHERE user_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) 
          LIMIT 1`,
-        [userId, item.name ? String(item.name).trim() : "", item.sku ? String(item.sku).trim() : "___NO_SKU___"]
+        [userId, String(item.name).trim()]
       );
       if (pMatch.length > 0) {
         targetProductId = pMatch[0].id;
       }
     }
 
+    // 4. Fallback to matching product_batches by batch_no
     if (!targetProductId && item.batch) {
       const [bMatch] = await conn.query(
         `SELECT b.product_id 
@@ -511,5 +521,5 @@ router.post("/:id/reject", requireAdminOnly, async (req, res, next) => {
   }
 });
 
-export { router as billsRouter };
+export default router;
 
