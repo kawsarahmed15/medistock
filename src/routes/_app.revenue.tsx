@@ -110,6 +110,8 @@ function RevenuePage() {
     "revenue" | "profit" | "tax" | "cash" | "online" | "credit" | null
   >(null);
 
+  const [monthlyRange, setMonthlyRange] = useState<"6m" | "12m" | "24m">("12m");
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -410,30 +412,33 @@ function RevenuePage() {
     return days;
   }, [filteredBills, start, end, isHourly]);
 
-  // Monthly revenue across the range (last 24 months max)
+  // Monthly revenue across multiple months (6, 12, or 24 months ending at current month)
   const monthlyData = useMemo(() => {
+    const monthsCount = monthlyRange === "6m" ? 6 : monthlyRange === "24m" ? 24 : 12;
     const months: { key: string; label: string; revenue: number }[] = [];
-    const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
-    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
-    const cur = new Date(startMonth);
-    while (cur.getTime() <= endMonth.getTime() && months.length < 24) {
-      const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
+    const endDate = new Date();
+    const currentYear = endDate.getFullYear();
+    const currentMonth = endDate.getMonth();
+
+    for (let i = monthsCount - 1; i >= 0; i--) {
+      const d = new Date(currentYear, currentMonth - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       months.push({
         key,
-        label: cur.toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+        label: d.toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
         revenue: 0,
       });
-      cur.setMonth(cur.getMonth() + 1);
     }
+
     const map = new Map(months.map((m) => [m.key, m]));
-    for (const b of filteredBills) {
+    for (const b of bills) {
       const d = new Date(b.createdAt);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const row = map.get(key);
       if (row) row.revenue += b.total;
     }
     return months;
-  }, [filteredBills, start, end]);
+  }, [bills, monthlyRange]);
 
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; revenue: number; qty: number }>();
@@ -671,10 +676,50 @@ function RevenuePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle className="text-base">Monthly revenue</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div>
+              <CardTitle className="text-base">Monthly revenue</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Revenue comparison across months
+              </p>
+            </div>
+            <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg border text-xs">
+              <button
+                type="button"
+                onClick={() => setMonthlyRange("6m")}
+                className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                  monthlyRange === "6m"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                6M
+              </button>
+              <button
+                type="button"
+                onClick={() => setMonthlyRange("12m")}
+                className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                  monthlyRange === "12m"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                12M
+              </button>
+              <button
+                type="button"
+                onClick={() => setMonthlyRange("24m")}
+                className={`px-2 py-1 rounded-md font-medium transition-colors ${
+                  monthlyRange === "24m"
+                    ? "bg-background text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                24M
+              </button>
+            </div>
           </CardHeader>
-          <CardContent className="h-72">
+          <CardContent className="h-72 pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <defs>
@@ -687,6 +732,7 @@ function RevenuePage() {
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                  interval={0}
                 />
                 <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} />
                 <Tooltip
