@@ -233,7 +233,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     >
       <div className="flex items-center gap-2 px-6 py-5 border-b border-sidebar-border">
         <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shadow-glow shrink-0", isEmployee ? "bg-amber-500 text-white" : "bg-gradient-primary text-primary-foreground")}>
-          {isEmployee ? <UserCheck className="h-5 w-5" /> : <businessModule.icon className="h-5 w-5" />}
+          <Pill className="h-5 w-5" />
         </div>
         <div className="min-w-0">
           <div className="font-semibold text-sidebar-foreground leading-tight truncate">
@@ -243,7 +243,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {isEmployee ? (
               <span className="text-amber-600 dark:text-amber-400 font-medium">Employee Panel</span>
             ) : (
-              <span className="font-medium text-foreground/80">{businessModule.badgeLabel}</span>
+              "Pharmacy Suite"
             )}
           </div>
         </div>
