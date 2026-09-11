@@ -12,8 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { apiRequest } from "@/lib/api-client";
+import { getBusinessModule } from "@/features";
+import { cn } from "@/lib/utils";
 import { Link } from "@tanstack/react-router";
-import { UserCog, KeyRound, Mail, LogOut, Crown } from "lucide-react";
+import { UserCog, KeyRound, Mail, LogOut, Crown, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -29,6 +31,8 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
   const [pwd, setPwd] = useState("");
   const [pwd2, setPwd2] = useState("");
   const [savingPwd, setSavingPwd] = useState(false);
+
+  const businessModule = getBusinessModule(session?.role);
 
   useEffect(() => {
     if (open) {
@@ -104,16 +108,34 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
 
         <div className="space-y-5">
           {/* Account snapshot */}
-          <div className="rounded-lg border p-3 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-semibold shadow-glow">
-              {(session?.name || session?.email || "U").charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <div className="font-medium truncate">{session?.name ?? "—"}</div>
-              <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                {session?.email}
+          <div className="rounded-lg border p-3.5 space-y-2.5">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-semibold shadow-glow shrink-0">
+                {(session?.name || session?.email || "U").charAt(0).toUpperCase()}
               </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium truncate flex items-center gap-2">
+                  <span>{session?.name ?? "—"}</span>
+                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", businessModule.badgeClass)}>
+                    {businessModule.badgeLabel}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {session?.email}
+                </div>
+              </div>
+            </div>
+
+            {/* Category permanent lock notice */}
+            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground bg-muted/30 px-2.5 py-1.5 rounded-md">
+              <div className="flex items-center gap-1.5">
+                <businessModule.icon className="h-3.5 w-3.5 text-foreground/80" />
+                <span className="font-medium text-foreground">{businessModule.name}</span>
+              </div>
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                <Lock className="h-3 w-3" /> Locked Category
+              </span>
             </div>
           </div>
 

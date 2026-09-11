@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Pill, Building2, Store } from "lucide-react";
+import { Pill, Building2, Store, Building, Lock, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth-context";
+import { getAllBusinessModules, type BusinessCategory } from "@/features";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/signup")({
   component: SignupPage,
@@ -18,8 +20,11 @@ function SignupPage() {
   const [pharmacyName, setPharmacyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"retailer" | "wholesaler">("retailer");
+  const [role, setRole] = useState<BusinessCategory>("retailer");
   const [loading, setLoading] = useState(false);
+
+  const modules = getAllBusinessModules();
+  const activeModule = modules.find((m) => m.category === role) || modules[0];
 
   useEffect(() => {
     if (ready && session) navigate({ to: "/dashboard" });
@@ -71,37 +76,69 @@ function SignupPage() {
           </div>
 
           <form onSubmit={onSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <Label>Business Type</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setRole("retailer")}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${role === "retailer" ? "border-primary bg-primary/5 shadow-soft" : "border-border hover:border-primary/50"}`}
-                >
-                  <Store
-                    className={`w-6 h-6 mb-2 ${role === "retailer" ? "text-primary" : "text-muted-foreground"}`}
-                  />
-                  <span
-                    className={`text-sm font-semibold ${role === "retailer" ? "text-foreground" : "text-muted-foreground"}`}
-                  >
-                    Retailer
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold text-foreground">Select Business Category</Label>
+                <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Permanent Selection
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5">
+                {modules.map((m) => {
+                  const Icon = m.icon;
+                  const isSelected = role === m.category;
+                  return (
+                    <button
+                      key={m.category}
+                      type="button"
+                      onClick={() => setRole(m.category)}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all text-center relative",
+                        isSelected
+                          ? "border-primary bg-primary/5 shadow-soft ring-1 ring-primary/20"
+                          : "border-border hover:border-primary/40 bg-card/40"
+                      )}
+                    >
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                          <Check className="h-2.5 w-2.5" />
+                        </div>
+                      )}
+                      <Icon
+                        className={cn(
+                          "w-5 h-5 mb-1.5",
+                          isSelected ? "text-primary" : "text-muted-foreground"
+                        )}
+                      />
+                      <span
+                        className={cn(
+                          "text-xs font-semibold leading-tight",
+                          isSelected ? "text-foreground" : "text-muted-foreground"
+                        )}
+                      >
+                        {m.shortTitle}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Dynamic summary of selected category */}
+              <div className="rounded-lg border border-border/80 bg-muted/30 p-3 text-xs space-y-1.5 animate-fade-in">
+                <div className="font-semibold text-foreground flex items-center justify-between">
+                  <span>{activeModule.name}</span>
+                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", activeModule.badgeClass)}>
+                    {activeModule.badgeLabel}
                   </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("wholesaler")}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${role === "wholesaler" ? "border-primary bg-primary/5 shadow-soft" : "border-border hover:border-primary/50"}`}
-                >
-                  <Building2
-                    className={`w-6 h-6 mb-2 ${role === "wholesaler" ? "text-primary" : "text-muted-foreground"}`}
-                  />
-                  <span
-                    className={`text-sm font-semibold ${role === "wholesaler" ? "text-foreground" : "text-muted-foreground"}`}
-                  >
-                    Wholesaler
-                  </span>
-                </button>
+                </div>
+                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  {activeModule.signupPitch}
+                </p>
+                <div className="pt-1 border-t border-border/60 text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Lock className="h-3 w-3 text-amber-500 shrink-0" />
+                  <span>Category cannot be changed after account creation to protect ledger & tax records.</span>
+                </div>
               </div>
             </div>
 

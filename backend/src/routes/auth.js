@@ -55,7 +55,8 @@ router.post("/signup", async (req, res, next) => {
     const name = ensureName(req.body?.name);
     const email = ensureEmail(req.body?.email);
     const password = ensurePassword(req.body?.password);
-    const role = req.body?.role === "wholesaler" ? "wholesaler" : "retailer";
+    const allowedRoles = ["retailer", "wholesaler", "enterprise"];
+    const role = allowedRoles.includes(req.body?.role) ? req.body.role : "retailer";
     const pharmacyName = String(req.body?.pharmacyName || "").trim() || null;
 
     const [existing] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
@@ -79,13 +80,20 @@ router.post("/signup", async (req, res, next) => {
       [generateId(), userId, tokenHash],
     );
 
-    // Auto-create trial subscription
+    // Auto-create trial subscription for matching category plan
     try {
       const [planRows] = await pool.query(
-        `SELECT id, trial_days FROM subscription_plans WHERE is_active = 1 ORDER BY sort_order ASC LIMIT 1`,
+        `SELECT id, trial_days FROM subscription_plans WHERE is_active = 1 AND LOWER(name) = LOWER(?) LIMIT 1`,
+        [role]
       );
-      if (planRows.length > 0) {
-        const plan = planRows[0];
+      let plan = planRows[0];
+      if (!plan) {
+        const [defaultPlans] = await pool.query(
+          `SELECT id, trial_days FROM subscription_plans WHERE is_active = 1 ORDER BY sort_order ASC LIMIT 1`
+        );
+        plan = defaultPlans[0];
+      }
+      if (plan) {
         const trialDays = plan.trial_days || 14;
         const now = new Date();
         const trialEndsAt = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);

@@ -33,21 +33,8 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/api-client";
 import { getNotifications, addNotification, NotificationItem } from "@/lib/notifications";
+import { getBusinessModule } from "@/features";
 import { toast } from "sonner";
-
-const adminNav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/inventory", label: "Inventory", icon: Package },
-  { to: "/sell", label: "Sell", icon: ShoppingCart },
-  { to: "/cart", label: "Cart", icon: ShoppingBag },
-  { to: "/bills", label: "Bills", icon: ReceiptText },
-  { to: "/customers", label: "Customers", icon: Users },
-  { to: "/employees", label: "Employees", icon: UserCheck },
-  { to: "/purchases", label: "Purchases", icon: Truck },
-  { to: "/credit", label: "Credit", icon: CreditCard },
-  { to: "/ledger", label: "Ledger", icon: BookOpen },
-  { to: "/settings", label: "Settings", icon: Settings },
-] as const;
 
 const employeeNav = [
   { to: "/inventory", label: "Inventory (Stock)", icon: Package },
@@ -70,13 +57,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [pendingBillsCount, setPendingBillsCount] = useState(0);
 
   const isEmployee = Boolean(session?.isEmployee);
+  const businessModule = getBusinessModule(session?.role);
+  const moduleNav = businessModule.navigation;
 
   const dynamicNav = isEmployee
     ? [...employeeNav]
     : [
-        ...adminNav.slice(0, 10),
+        ...moduleNav.slice(0, 10),
         ...(isAdminDevice ? [{ to: "/notifications", label: "Notifications", icon: Bell }] : []),
-        adminNav[10],
+        moduleNav[10] || { to: "/settings", label: "Settings", icon: Settings },
       ];
 
   const checkPendingBills = async () => {
@@ -244,7 +233,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     >
       <div className="flex items-center gap-2 px-6 py-5 border-b border-sidebar-border">
         <div className={cn("h-9 w-9 rounded-xl flex items-center justify-center shadow-glow shrink-0", isEmployee ? "bg-amber-500 text-white" : "bg-gradient-primary text-primary-foreground")}>
-          <Pill className="h-5 w-5" />
+          {isEmployee ? <UserCheck className="h-5 w-5" /> : <businessModule.icon className="h-5 w-5" />}
         </div>
         <div className="min-w-0">
           <div className="font-semibold text-sidebar-foreground leading-tight truncate">
@@ -254,7 +243,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {isEmployee ? (
               <span className="text-amber-600 dark:text-amber-400 font-medium">Employee Panel</span>
             ) : (
-              "Pharmacy Suite"
+              <span className="font-medium text-foreground/80">{businessModule.badgeLabel}</span>
             )}
           </div>
         </div>
@@ -319,9 +308,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="min-w-0 flex-1">
             <div className="text-xs font-medium text-sidebar-foreground truncate flex items-center gap-1.5">
               <span>{session?.name}</span>
-              {isEmployee && (
+              {isEmployee ? (
                 <span className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold px-1.5 py-0.5 rounded border border-amber-500/20">
                   Staff
+                </span>
+              ) : (
+                <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded border", businessModule.badgeClass)}>
+                  {businessModule.shortTitle}
                 </span>
               )}
             </div>
@@ -420,9 +413,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <GlobalSearch />
         </div>
 
-        {isEmployee && (
+        {isEmployee ? (
           <div className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0">
             <ShieldCheck className="h-3.5 w-3.5" /> Employee Mode
+          </div>
+        ) : (
+          <div className={cn("hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold shrink-0 border", businessModule.badgeClass)}>
+            <businessModule.icon className="h-3.5 w-3.5" />
+            <span>{businessModule.badgeLabel}</span>
           </div>
         )}
 

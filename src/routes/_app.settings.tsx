@@ -30,6 +30,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { getBusinessModule } from "@/features";
 
 export const Route = createFileRoute("/_app/settings")({
   component: SettingsPage,
@@ -47,6 +48,7 @@ const PRESETS = [
 
 function SettingsPage() {
   const { session, updateSession, requestEmailChange, logout, setEmployeePassword, toggleEmployeeStatus, removeEmployeePassword } = useAuth();
+  const businessModule = getBusinessModule(session?.role);
   const [newEmail, setNewEmail] = useState("");
   const [requestingEmailChange, setRequestingEmailChange] = useState(false);
   const [employeePasswordInput, setEmployeePasswordInput] = useState("");
@@ -313,6 +315,30 @@ function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Permanent Business Category */}
+              <div className="rounded-lg border border-border/80 bg-muted/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <businessModule.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-foreground flex items-center gap-2">
+                      <span>{businessModule.name}</span>
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", businessModule.badgeClass)}>
+                        {businessModule.badgeLabel}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {businessModule.subtitle}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+                  <Lock className="h-3 w-3" />
+                  <span>Permanent (Non-transferable)</span>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="pharmacy-name">Pharmacy / Clinic Name</Label>
                 <Input

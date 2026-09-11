@@ -23,6 +23,12 @@ import {
   CartesianGrid,
 } from "recharts";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
+import {
+  resolveBusinessCategory,
+  RetailerDashboardBanner,
+  WholesalerDashboardBanner,
+  EnterpriseDashboardBanner,
+} from "@/features";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: DashboardPage,
@@ -201,13 +207,24 @@ function DashboardPage() {
     },
   ];
 
+  const category = resolveBusinessCategory(session?.role);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Category banner */}
+      {category === "enterprise" ? (
+        <EnterpriseDashboardBanner />
+      ) : category === "wholesaler" ? (
+        <WholesalerDashboardBanner />
+      ) : (
+        <RetailerDashboardBanner />
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Overview of your pharmacy at a glance.
+            Overview of your pharmacy operations, inventory, and revenue.
           </p>
         </div>
         <div className="flex gap-2">
