@@ -15,6 +15,10 @@ import {
   PackagePlus,
   ScanLine,
   Keyboard,
+  FileText,
+  Bookmark,
+  Save,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +36,8 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerDetailsDialog } from "@/components/customer-details-dialog";
+import { DraftBillsDialog } from "@/components/draft-bills-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { SkuScanner } from "@/components/sku-scanner";
 import { cn } from "@/lib/utils";
@@ -109,6 +115,7 @@ function CartPage() {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [draftsOpen, setDraftsOpen] = useState(false);
   const browseButtonRef = useRef<HTMLButtonElement>(null);
   const [productList, setProductList] = useState<Product[]>([]);
 
@@ -130,6 +137,17 @@ function CartPage() {
     window.addEventListener("trigger-new-bill", handler);
     return () => window.removeEventListener("trigger-new-bill", handler);
   }, []);
+
+  const handleSaveDraft = () => {
+    if (cart.items.length === 0) {
+      toast.error("Cart is empty. Add items first before saving draft.");
+      return;
+    }
+    const d = cart.saveAsDraft();
+    toast.success(`Saved to Draft Bills: ${d.name}`, {
+      description: "Draft is preserved safely. Product stock is not decreased.",
+    });
+  };
 
   // ── Cart item keyboard selection state ─────────────────────────────────────
   const [selectedIdx, setSelectedIdx] = useState<number>(-1);
@@ -238,7 +256,7 @@ function CartPage() {
         toast.success(`Bill ${bill.number} submitted for Admin confirmation (Pending)`);
       }
 
-      cart.clear();
+      cart.clear({ removeDraft: true });
       navigate({ to: "/bills/$id", params: { id: bill.id } });
     } catch (e) {
       toast.error((e as Error).message || "Failed to generate bill");
@@ -363,6 +381,36 @@ function CartPage() {
 
   return (
     <div className="space-y-6">
+      {cart.activeDraftRestored && (
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs animate-fade-in shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              <strong>Draft in Progress:</strong> Your in-progress bill was preserved. You can edit items and generate the bill when ready.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px] bg-background/80 border-amber-500/30 hover:bg-background"
+              onClick={() => setDraftsOpen(true)}
+            >
+              View Drafts ({cart.drafts.length})
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-amber-700 hover:text-foreground"
+              onClick={() => cart.dismissRestoredBanner()}
+              title="Dismiss banner"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight flex items-center gap-2">
@@ -372,7 +420,34 @@ function CartPage() {
             Review items, choose payment, and finalize the sale.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setDraftsOpen(true)}
+            className="relative gap-1.5"
+            title="Saved Draft Bills"
+          >
+            <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <span>Drafts</span>
+            {cart.drafts.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+                {cart.drafts.length}
+              </Badge>
+            )}
+          </Button>
+
+          {cart.items.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleSaveDraft}
+              className="gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+              title="Save current bill as draft without decreasing stock"
+            >
+              <Save className="h-4 w-4" />
+              <span>Save as Draft</span>
+            </Button>
+          )}
+
           <Button
             ref={browseButtonRef}
             variant="outline"
@@ -910,6 +985,20 @@ function CartPage() {
                     ? "Add Rx photo or reference"
                     : "Generate bill"}
               </Button>
+
+              {cart.items.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full mt-2 gap-1.5 border-dashed border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                  onClick={handleSaveDraft}
+                  title="Save current bill as draft"
+                >
+                  <Save className="h-4 w-4" />
+                  Save as Draft (No stock change)
+                </Button>
+              )}
+
               <p className="text-xs text-center text-muted-foreground">
                 Press <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-semibold">F9</kbd> to generate bill
               </p>
@@ -920,6 +1009,7 @@ function CartPage() {
 
       <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
       <CartAddDialog open={addOpen} onOpenChange={setAddOpen} />
+      <DraftBillsDialog open={draftsOpen} onOpenChange={setDraftsOpen} />
 
       {/* Delete confirmation dialog */}
       <CartDeleteConfirm

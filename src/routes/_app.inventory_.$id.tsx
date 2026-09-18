@@ -561,8 +561,8 @@ function ProductDetails() {
                       const qtyVal = Math.abs(Number(record.quantity || 0));
                       const displayQtyStr = isDeduction ? `-${qtyVal}` : `+${qtyVal}`;
 
-                      // Extract invoice / PO / reference number
-                      const invNo = record.invoice_no || record.invoiceNo || record.notes?.match(/(?:INV|SR|PO|INIT)-[A-Za-z0-9]+/i)?.[0] || null;
+                      // Extract invoice / PO / reference / bill number
+                      const invNo = record.invoice_no || record.invoiceNo || record.notes?.match(/(?:INV|SR|PO|PR|INIT|ADJ|BATCH|REF|IN|OUT)-[A-Za-z0-9-]+/i)?.[0] || null;
 
                       return (
                         <div key={record.id} className="relative pl-6">
@@ -581,23 +581,55 @@ function ProductDetails() {
                               >
                                 {displayQtyStr}
                               </span>
-                              {invNo && (
-                                invNo.startsWith("INV-") || invNo.startsWith("SR-") ? (
+                              {invNo ? (
+                                invNo.startsWith("INV-") ? (
                                   <Link
                                     to="/bills"
-                                    search={{ range: "all" }}
-                                    className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 font-semibold transition-colors"
-                                    title="Click to view bills"
+                                    search={{ status: "completed" }}
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 font-bold transition-colors shadow-xs"
+                                    title="Click to view sales bill"
                                   >
-                                    <FileText className="w-3 h-3" />
-                                    Invoice: {invNo}
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Bill #: {invNo}
+                                  </Link>
+                                ) : invNo.startsWith("SR-") ? (
+                                  <Link
+                                    to="/bills"
+                                    search={{ status: "returns" }}
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-800 dark:text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 font-bold transition-colors shadow-xs"
+                                    title="Click to view sale return bill"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Return Bill #: {invNo}
+                                  </Link>
+                                ) : invNo.startsWith("PO-") ? (
+                                  <Link
+                                    to="/purchases"
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/30 hover:bg-blue-500/25 font-bold transition-colors shadow-xs"
+                                    title="Click to view purchase order"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Purchase Bill #: {invNo}
+                                  </Link>
+                                ) : invNo.startsWith("PR-") ? (
+                                  <Link
+                                    to="/purchases"
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/30 hover:bg-purple-500/25 font-bold transition-colors shadow-xs"
+                                    title="Click to view purchase return"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    Purchase Return #: {invNo}
                                   </Link>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-semibold">
-                                    <FileText className="w-3 h-3" />
-                                    Ref: {invNo}
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-muted text-foreground border border-border/80 font-bold">
+                                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                                    Bill / Ref #: {invNo}
                                   </span>
                                 )
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground">
+                                  Ref: Manual / ERP
+                                </span>
                               )}
                             </div>
                             <span className="text-[10px] text-muted-foreground">
@@ -605,7 +637,7 @@ function ProductDetails() {
                             </span>
                           </div>
                           <div className="text-[10px] text-muted-foreground">
-                            Balance total stock: {record.balance}
+                            Balance total stock: <span className="font-semibold text-foreground">{record.balance}</span>
                             {record.notes && (
                               <p className="mt-1 text-foreground italic">"{record.notes}"</p>
                             )}

@@ -14,9 +14,16 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
+  FileText,
+  Trash2,
+  ArrowRight,
+  Package,
+  UserRound,
 } from "lucide-react";
 import { billsStore, type Bill } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
+import { useCart, type DraftBill } from "@/lib/cart-context";
+import { DraftBillsDialog } from "@/components/draft-bills-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,7 +52,7 @@ import { cn } from "@/lib/utils";
 
 type FilterRange = "all" | "day" | "month" | "year" | "custom";
 type PayFilter = "all" | "cash" | "online" | "credit";
-type StatusTab = "all" | "pending" | "completed" | "returns";
+type StatusTab = "all" | "pending" | "completed" | "drafts" | "returns";
 type BillsSearch = { range?: FilterRange; from?: string; to?: string; pay?: PayFilter; status?: StatusTab };
 
 export const Route = createFileRoute("/_app/bills/")({
@@ -55,7 +62,7 @@ export const Route = createFileRoute("/_app/bills/")({
     const p = search.pay as string | undefined;
     const validPay: PayFilter[] = ["all", "cash", "online", "credit"];
     const s = search.status as string | undefined;
-    const validStatus: StatusTab[] = ["all", "pending", "completed", "returns"];
+    const validStatus: StatusTab[] = ["all", "pending", "completed", "drafts", "returns"];
     return {
       range: valid.includes(r as FilterRange) ? (r as FilterRange) : undefined,
       from: typeof search.from === "string" ? search.from : undefined,
@@ -73,10 +80,12 @@ function formatMoney(n: number) {
 
 function BillsPage() {
   const { session } = useAuth();
+  const cart = useCart();
   const [bills, setBills] = useState<Bill[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [draftsOpen, setDraftsOpen] = useState(false);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const routerNavigate = useNavigate();
@@ -92,6 +101,28 @@ function BillsPage() {
   const [returnQuantities, setReturnQuantities] = useState<Record<string, number>>({});
   const [returnNotes, setReturnNotes] = useState("");
   const [submittingReturn, setSubmittingReturn] = useState(false);
+
+  const handleProcessDraft = (d: DraftBill, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    cart.loadDraft(d.id);
+    toast.success("Draft loaded into active bill", {
+      description: "You can edit items or proceed to generate the bill.",
+    });
+    routerNavigate({ to: "/cart" });
+  };
+
+  const handleDeleteDraft = (d: DraftBill, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (!confirm(`Are you sure you want to delete draft "${d.name}"?`)) return;
+    cart.deleteDraft(d.id);
+    toast.success("Draft bill deleted", {
+      description: "Product stocks remain unchanged.",
+    });
+  };
 
   const loadBills = () => {
     setLoading(true);
@@ -369,6 +400,20 @@ function BillsPage() {
     });
   }, [bills, range, search.from, search.to, query, pay, statusTab]);
 
+  const filteredDrafts = useMemo(() => {
+    return cart.drafts.filter((d) => {
+      const q = query.toLowerCase();
+      if (
+        q &&
+        !d.name.toLowerCase().includes(q) &&
+        !(d.customer?.name ?? "").toLowerCase().includes(q) &&
+        !(d.customer?.phone ?? "").toLowerCase().includes(q)
+      )
+        return false;
+      return true;
+    });
+  }, [cart.drafts, query]);
+
   const totalForRange = filtered.reduce((s, b) => (b.status === "rejected" ? s : s + b.total), 0);
   const cashTotal = filtered
     .filter((b) => b.paymentMethod === "cash" && b.status !== "rejected")
@@ -525,6 +570,15 @@ function BillsPage() {
             <TabsTrigger value="completed">
               {session?.isEmployee ? "Approved / Completed" : "Completed Sales"}
             </TabsTrigger>
+            <TabsTrigger value="drafts" className="relative flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-amber-500" />
+              <span>Draft Bills</span>
+              {cart.drafts.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+                  {cart.drafts.length}
+                </span>
+              )}
+            </TabsTrigger>
             {!session?.isEmployee && <TabsTrigger value="returns">Sale Returns</TabsTrigger>}
           </TabsList>
         </Tabs>
@@ -608,7 +662,71 @@ function BillsPage() {
 
       {/* Mobile: card list */}
       <div className="space-y-3 md:hidden">
-        {filtered.length === 0 ? (
+        {statusTab === "drafts" ? (
+          filteredDrafts.length === 0 ? (
+            <Card className="shadow-soft p-10 text-center text-muted-foreground">
+              <FileText className="h-8 w-8 mx-auto mb-2 opacity-50 text-amber-500" />
+              No draft bills found.
+            </Card>
+          ) : (
+            filteredDrafts.map((d) => (
+              <Card
+                key={d.id}
+                className="shadow-soft p-4 border-l-4 border-l-amber-500 bg-amber-500/5 transition-smooth"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-sm text-foreground">{d.name}</span>
+                      <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
+                        Draft
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(d.updatedAt || d.createdAt).toLocaleString()}
+                    </div>
+                    <div className="text-sm mt-1 truncate font-medium">
+                      {d.customer?.name ? `${d.customer.name} (${d.customer.phone || "No phone"})` : "Walk-in"}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-semibold tabular-nums text-foreground">
+                      {formatMoney(d.total)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {d.items.length} item{d.items.length === 1 ? "" : "s"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-border/60">
+                  <span className="text-[11px] text-muted-foreground">
+                    Stock unaffected
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="h-7 text-xs px-2.5 gap-1 shadow-xs"
+                      onClick={(e) => handleProcessDraft(d, e)}
+                    >
+                      <span>Process</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleDeleteDraft(d, e)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )
+        ) : filtered.length === 0 ? (
           <Card className="shadow-soft p-10 text-center text-muted-foreground">
             <ReceiptText className="h-8 w-8 mx-auto mb-2 opacity-50" />
             No bills in this range.
@@ -681,7 +799,7 @@ function BillsPage() {
                   <span
                     className={
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize " +
-                      (b.paymentMethod === "cash"
+                        (b.paymentMethod === "cash"
                         ? "bg-success/15 text-success"
                         : "bg-primary/10 text-primary")
                     }
@@ -758,11 +876,11 @@ function BillsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Invoice</TableHead>
+              <TableHead>{statusTab === "drafts" ? "Draft Name" : "Invoice"}</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Customer</TableHead>
-              <TableHead>Staff / Cashier</TableHead>
+              {statusTab !== "drafts" && <TableHead>Staff / Cashier</TableHead>}
               <TableHead>Payment</TableHead>
               <TableHead className="text-right">Items</TableHead>
               <TableHead className="text-right">Total</TableHead>
@@ -770,7 +888,78 @@ function BillsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {statusTab === "drafts" ? (
+              filteredDrafts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-12">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50 text-amber-500" />
+                    No draft bills found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredDrafts.map((d) => (
+                  <TableRow
+                    key={d.id}
+                    className="animate-fade-in hover:bg-amber-500/5 transition-colors border-l-4 border-l-amber-500"
+                  >
+                    <TableCell className="font-bold text-sm text-foreground">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-amber-600 shrink-0" />
+                        <span>{d.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                        Draft (No Stock Decrease)
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {new Date(d.updatedAt || d.createdAt).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      {d.customer?.name ? (
+                        <span>
+                          {d.customer.name} {d.customer.phone ? `(${d.customer.phone})` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground italic">Walk-in</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="capitalize text-xs font-medium">
+                      {d.paymentMethod || "cash"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {d.items.length} ({d.items.reduce((s, i) => s + i.qty, 0)} units)
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-bold">
+                      {formatMoney(d.total)}
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 text-xs px-2.5 gap-1 shadow-xs"
+                          onClick={(e) => handleProcessDraft(d, e)}
+                        >
+                          <span>Process &amp; Generate</span>
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => handleDeleteDraft(d, e)}
+                          title="Delete draft"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )
+            ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
                   <ReceiptText className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -1101,6 +1290,8 @@ function BillsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DraftBillsDialog open={draftsOpen} onOpenChange={setDraftsOpen} />
     </div>
   );
 }

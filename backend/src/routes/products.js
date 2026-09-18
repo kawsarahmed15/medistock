@@ -467,7 +467,7 @@ router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
       );
       const totalStock = Number(sumRows[0].total || 0);
 
-      const invNo = req.body.invoiceNo || req.body.invoice || supplierInvoice || null;
+      const invNo = req.body.invoiceNo || req.body.invoice || supplierInvoice || (action === "stock_out" ? `OUT-${Date.now().toString().slice(-6)}` : `IN-${Date.now().toString().slice(-6)}`);
       await conn.query(
         `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes, invoice_no)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -478,7 +478,7 @@ router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
           action === "stock_out" ? "stock_out" : "purchase",
           qty,
           totalStock,
-          notes || (invNo ? `Stock ${action} via ${invNo}` : `Stock adjustment (${action}) for batch ${targetBatchNo}`),
+          notes || `Stock ${action} via Ref #${invNo}`,
           invNo
         ],
       );
@@ -766,10 +766,11 @@ router.post("/:productId/batches", requireAdminOnly, async (req, res, next) => {
     );
 
     // Insert history
+    const batchRef = invoiceId ? String(invoiceId).trim() : `BATCH-${String(batchNo).trim()}`;
     await pool.query(
-      `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes)
-       VALUES (?, ?, ?, 'purchase', ?, (SELECT SUM(available_qty) FROM product_batches WHERE product_id = ?), ?)`,
-      [generateId(), req.auth.userId, productId, Number(availableQty || 0), productId, `Batch ${batchNo} created via ERP`]
+      `INSERT INTO product_history (id, user_id, product_id, action, quantity, balance, notes, invoice_no)
+       VALUES (?, ?, ?, 'purchase', ?, (SELECT SUM(available_qty) FROM product_batches WHERE product_id = ?), ?, ?)`,
+      [generateId(), req.auth.userId, productId, Number(availableQty || 0), productId, `Batch ${batchNo} created via ERP`, batchRef]
     );
 
     res.status(201).json({ id: batchId, message: "Batch created successfully" });

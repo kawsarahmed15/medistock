@@ -303,6 +303,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     logout: async () => {
+      try {
+        window.dispatchEvent(new CustomEvent("medistock-save-cart-draft"));
+      } catch {
+        // ignore
+      }
       const sessionId = localStorage.getItem("medistock.auth.sessionId");
       if (sessionId) {
         try {

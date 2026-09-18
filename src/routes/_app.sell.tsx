@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { FileWarning, Plus, Search } from "lucide-react";
+import { FileWarning, Plus, Search, FileText } from "lucide-react";
 import { productsStore, type Product } from "@/lib/storage";
 import { useCart } from "@/lib/cart-context";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { CustomerDetailsDialog } from "@/components/customer-details-dialog";
+import { DraftBillsDialog } from "@/components/draft-bills-dialog";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +41,7 @@ function SellPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [draftsOpen, setDraftsOpen] = useState(false);
   const [qtyProduct, setQtyProduct] = useState<ProductWithBatches | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<Product | null>(null);
   const [qtyValue, setQtyValue] = useState(1);
@@ -255,14 +258,30 @@ function SellPage() {
             Tap a product to add it. Use the floating cart button to checkout.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate({ to: "/cart" })}
-          disabled={cart.count === 0}
-        >
-          <ShoppingCart className="h-4 w-4" />
-          {cart.count > 0 ? `Open cart (${cart.count})` : "Cart empty"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setDraftsOpen(true)}
+            className="gap-1.5"
+            title="Saved Draft Bills"
+          >
+            <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <span>Drafts</span>
+            {cart.drafts.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+                {cart.drafts.length}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate({ to: "/cart" })}
+            disabled={cart.count === 0}
+          >
+            <ShoppingCart className="h-4 w-4" />
+            {cart.count > 0 ? `Open cart (${cart.count})` : "Cart empty"}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
@@ -492,6 +511,7 @@ function SellPage() {
       </Dialog>
 
       <CustomerDetailsDialog open={customerOpen} onOpenChange={handleCustomerOpenChange} />
+      <DraftBillsDialog open={draftsOpen} onOpenChange={setDraftsOpen} />
     </div>
   );
 }
