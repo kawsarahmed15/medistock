@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool, withTransaction } from "../db.js";
 import { buildApiError, generateId } from "../utils.js";
-import { requireAuth, requireAdminOnly } from "../middleware/auth.js";
+import { requireAuth, requireAdminOnly, requirePermission } from "../middleware/auth.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -217,7 +217,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 // POST create a product
-router.post("/", requireAdminOnly, async (req, res, next) => {
+router.post("/", requirePermission("products.create"), async (req, res, next) => {
   try {
     const body = req.body || {};
 
@@ -396,7 +396,7 @@ router.get("/:id/history", async (req, res, next) => {
 });
 
 // POST adjust stock (stock inward/outward)
-router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
+router.post("/:id/stock", requirePermission("inventory.adjust"), async (req, res, next) => {
   try {
     const { action, quantity, notes, supplierName, supplierPhone, supplierInvoice, batch: reqBatch } = req.body;
     if (!["stock_in", "stock_out", "purchase", "adjustment"].includes(action)) {
@@ -465,7 +465,7 @@ router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
         "SELECT SUM(available_qty) AS total FROM product_batches WHERE product_id = ?",
         [product.id]
       );
-      const totalStock = Number(sumRows[0].total || 0);
+      const totalStock = Number(sumRows[0]?.total || 0);
 
       const invNo = req.body.invoiceNo || req.body.invoice || supplierInvoice || (action === "stock_out" ? `OUT-${Date.now().toString().slice(-6)}` : `IN-${Date.now().toString().slice(-6)}`);
       await conn.query(
@@ -480,7 +480,7 @@ router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
           totalStock,
           notes || `Stock ${action} via Ref #${invNo}`,
           invNo
-        ],
+        ]
       );
 
       return { stock: totalStock };
@@ -493,7 +493,7 @@ router.post("/:id/stock", requireAdminOnly, async (req, res, next) => {
 });
 
 // PATCH update product details
-router.patch("/:id", requireAdminOnly, async (req, res, next) => {
+router.patch("/:id", requirePermission("products.edit"), async (req, res, next) => {
   try {
     const id = String(req.params.id || "");
     const body = req.body || {};
@@ -573,7 +573,7 @@ router.patch("/:id", requireAdminOnly, async (req, res, next) => {
 });
 
 // DELETE a product (only allowed if stock is 0)
-router.delete("/:id", requireAdminOnly, async (req, res, next) => {
+router.delete("/:id", requirePermission("products.delete"), async (req, res, next) => {
   try {
     const [stockRows] = await pool.query(
       `SELECT COALESCE(SUM(available_qty), 0) AS total_stock
@@ -597,7 +597,7 @@ router.delete("/:id", requireAdminOnly, async (req, res, next) => {
 });
 
 // POST decrement product stock - Disabled to guarantee stock is only deducted under a verified bill
-router.post("/:id/decrement", requireAdminOnly, async (req, res, next) => {
+router.post("/:id/decrement", requirePermission("inventory.adjust"), async (req, res, next) => {
   try {
     throw buildApiError(400, "Direct stock decrement is disabled. Stock can only be deducted under a generated bill with invoice reference.");
   } catch (error) {
@@ -608,7 +608,7 @@ router.post("/:id/decrement", requireAdminOnly, async (req, res, next) => {
 // ─── Batch Management Endpoints ───────────────────────────────────────────────
 
 // Create a new batch for a product
-router.post("/:productId/batches", requireAdminOnly, async (req, res, next) => {
+router.post("/:productId/batches", requirePermission("batch.create"), async (req, res, next) => {
   try {
     const { productId } = req.params;
     const { batchNo, expiryDate, manufactureDate, purchasePrice, mrp, sellingPrice, availableQty, stripQty, supplierId, invoiceId, sku } = req.body;
@@ -668,7 +668,7 @@ router.post("/:productId/batches", requireAdminOnly, async (req, res, next) => {
 });
 
 // Update a batch
-router.patch("/batches/:batchId", requireAdminOnly, async (req, res, next) => {
+router.patch("/batches/:batchId", requirePermission("batch.edit"), async (req, res, next) => {
   try {
     const { batchId } = req.params;
     const body = req.body || {};
@@ -733,7 +733,7 @@ router.patch("/batches/:batchId", requireAdminOnly, async (req, res, next) => {
 });
 
 // Delete a batch
-router.delete("/batches/:batchId", requireAdminOnly, async (req, res, next) => {
+router.delete("/batches/:batchId", requirePermission("batch.delete"), async (req, res, next) => {
   try {
     const { batchId } = req.params;
     await pool.query("DELETE FROM product_batches WHERE id = ?", [batchId]);

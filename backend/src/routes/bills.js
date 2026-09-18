@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { pool, withTransaction } from "../db.js";
 import { buildApiError, generateId } from "../utils.js";
-import { requireAuth, requireAdminOnly } from "../middleware/auth.js";
+import { requireAuth, requireAdminOnly, requirePermission } from "../middleware/auth.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -29,7 +29,7 @@ router.get("/pending-count", async (req, res, next) => {
   }
 });
 
-router.get("/", async (req, res, next) => {
+router.get("/", requirePermission("sale.view"), async (req, res, next) => {
   try {
     const statusParam = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
     let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, created_by_name, employee_id, approved_at, approved_by, created_at
@@ -378,7 +378,7 @@ async function applyReturnStock(conn, userId, items, invoiceNo) {
   }
 }
 
-router.post("/", async (req, res, next) => {
+router.post("/", requirePermission("sale.create"), async (req, res, next) => {
   try {
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];
@@ -489,7 +489,7 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-router.post("/:id/approve", requireAdminOnly, async (req, res, next) => {
+router.post("/:id/approve", requirePermission(["sale.approve", "sale.edit"]), async (req, res, next) => {
   try {
     const billId = req.params.id;
 
@@ -535,7 +535,7 @@ router.post("/:id/approve", requireAdminOnly, async (req, res, next) => {
   }
 });
 
-router.post("/:id/reject", requireAdminOnly, async (req, res, next) => {
+router.post("/:id/reject", requirePermission(["sale.reject", "sale.edit"]), async (req, res, next) => {
   try {
     const billId = req.params.id;
     const [rows] = await pool.query(

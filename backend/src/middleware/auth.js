@@ -1,5 +1,6 @@
 import { buildApiError, verifyAuthToken } from "../utils.js";
 import { pool } from "../db.js";
+import { hasPermission } from "../permissions.js";
 
 export async function requireAuth(req, res, next) {
   try {
@@ -72,6 +73,21 @@ export async function requireAuth(req, res, next) {
       next(buildApiError(401, "Unauthorized"));
     }
   }
+}
+
+export function requirePermission(permission) {
+  return (req, res, next) => {
+    if (!req.auth) {
+      return next(buildApiError(401, "Unauthorized"));
+    }
+
+    const granted = hasPermission(req.auth, permission);
+    if (!granted) {
+      const permName = Array.isArray(permission) ? permission.join(" or ") : permission;
+      return next(buildApiError(403, `Permission denied: ${permName} required`));
+    }
+    next();
+  };
 }
 
 export function requireAdminOnly(req, res, next) {

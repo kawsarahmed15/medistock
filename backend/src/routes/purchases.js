@@ -1,13 +1,12 @@
 import { Router } from "express";
 import { pool, withTransaction } from "../db.js";
 import { buildApiError, generateId } from "../utils.js";
-import { requireAuth, requireAdminOnly } from "../middleware/auth.js";
+import { requireAuth, requirePermission } from "../middleware/auth.js";
 
 const router = Router();
 router.use(requireAuth);
-router.use(requireAdminOnly);
 
-router.get("/", async (req, res, next) => {
+router.get("/", requirePermission("purchase.view"), async (req, res, next) => {
   try {
     const [purchases] = await pool.query(
       `SELECT id, number, supplier_name, supplier_phone, supplier_invoice, notes, payment_status, payment_method, amount_paid, subtotal, tax, discount, total, created_at, created_by
@@ -50,7 +49,7 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", requirePermission("purchase.view"), async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT id, number, supplier_name, supplier_phone, supplier_invoice, notes, payment_status, payment_method, amount_paid, subtotal, tax, discount, total, created_at, created_by
@@ -77,7 +76,7 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-router.post("/", async (req, res, next) => {
+router.post("/", requirePermission("purchase.create"), async (req, res, next) => {
   try {
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];

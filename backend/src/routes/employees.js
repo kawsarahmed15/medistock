@@ -1,15 +1,12 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { buildApiError, generateId, hashPassword, comparePassword } from "../utils.js";
-import { requireAdminOnly } from "../middleware/auth.js";
+import { requirePermission } from "../middleware/auth.js";
 
 const router = Router();
 
-// Protect all employee routes to Admin only
-router.use(requireAdminOnly);
-
 // List all employees for the current pharmacy owner
-router.get("/", async (req, res, next) => {
+router.get("/", requirePermission("employees.view"), async (req, res, next) => {
   try {
     const [employees] = await pool.query(
       `SELECT id, user_id, name, username, email, phone, role, status, created_at, updated_at
@@ -26,7 +23,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // Create a new employee
-router.post("/", async (req, res, next) => {
+router.post("/", requirePermission("employees.create"), async (req, res, next) => {
   try {
     const name = String(req.body?.name || "").trim();
     const username = String(req.body?.username || "").trim();
@@ -99,7 +96,7 @@ router.post("/", async (req, res, next) => {
 });
 
 // Update employee details (name, username, email, phone, status)
-router.patch("/:id", async (req, res, next) => {
+router.patch("/:id", requirePermission("employees.edit"), async (req, res, next) => {
   try {
     const { id } = req.params;
     const name = req.body?.name !== undefined ? String(req.body.name).trim() : undefined;
@@ -179,7 +176,7 @@ router.patch("/:id", async (req, res, next) => {
 });
 
 // Update employee password
-router.patch("/:id/password", async (req, res, next) => {
+router.patch("/:id/password", requirePermission("employees.edit"), async (req, res, next) => {
   try {
     const { id } = req.params;
     const password = String(req.body?.password || "");
@@ -221,7 +218,7 @@ router.patch("/:id/password", async (req, res, next) => {
 });
 
 // Toggle employee status
-router.patch("/:id/status", async (req, res, next) => {
+router.patch("/:id/status", requirePermission("employees.edit"), async (req, res, next) => {
   try {
     const { id } = req.params;
     const status = req.body?.status === "disabled" ? "disabled" : "active";
@@ -246,7 +243,7 @@ router.patch("/:id/status", async (req, res, next) => {
 });
 
 // Delete an employee
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requirePermission("employees.delete"), async (req, res, next) => {
   try {
     const { id } = req.params;
 

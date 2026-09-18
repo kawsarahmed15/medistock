@@ -36,6 +36,25 @@ import { getNotifications, addNotification, NotificationItem } from "@/lib/notif
 import { getBusinessModule } from "@/features";
 import { toast } from "sonner";
 
+import { useBusiness } from "@/lib/business-context";
+import type { Permission } from "@/lib/permissions";
+
+const routePermissionMap: Record<string, Permission | Permission[]> = {
+  "/dashboard": ["reports.view", "sale.view", "inventory.view"],
+  "/inventory": ["inventory.view", "products.view"],
+  "/sell": ["sale.create", "sale.retail", "sale.wholesale"],
+  "/cart": ["sale.create", "sale.retail", "sale.wholesale"],
+  "/bills": ["sale.view"],
+  "/customers": ["customer.view"],
+  "/employees": ["employees.view"],
+  "/purchases": ["purchase.view"],
+  "/credit": ["customer.credit", "customer.ledger"],
+  "/ledger": ["customer.ledger", "customer.credit"],
+  "/revenue": ["reports.view"],
+  "/settings": ["settings.view", "settings.manage"],
+  "/notifications": ["settings.view", "reports.view"],
+};
+
 const employeeNav = [
   { to: "/inventory", label: "Inventory (Stock)", icon: Package },
   { to: "/sell", label: "New Sale", icon: ShoppingCart },
@@ -45,6 +64,7 @@ const employeeNav = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { session, logout } = useAuth();
+  const { can, isOwner, isAdmin } = useBusiness();
   const { theme, toggle } = useTheme();
   const { count } = useCart();
   const location = useLocation();
@@ -60,13 +80,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const businessModule = getBusinessModule(session?.businessType || session?.role);
   const moduleNav = businessModule.navigation;
 
-  const dynamicNav = isEmployee
-    ? [...employeeNav]
-    : [
-        ...moduleNav.slice(0, 10),
-        ...(isAdminDevice ? [{ to: "/notifications", label: "Notifications", icon: Bell }] : []),
-        moduleNav[10] || { to: "/settings", label: "Settings", icon: Settings },
-      ];
+  // Build nav based on RBAC permissions while maintaining full backward compatibility
+  const fullNav = [
+    ...moduleNav.slice(0, 10),
+    ...(isAdminDevice ? [{ to: "/notifications", label: "Notifications", icon: Bell }] : []),
+    moduleNav[10] || { to: "/settings", label: "Settings", icon: Settings },
+  ];
+
+  const dynamicNav = isOwner || isAdmin
+    ? fullNav
+    : fullNav.filter((item) => {
+        const required = routePermissionMap[item.to];
+        if (!required) return true;
+        return can(required);
+      });
 
   const checkPendingBills = async () => {
     try {

@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { pool } from "../db.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requirePermission } from "../middleware/auth.js";
+import { generateId } from "../utils.js";
 
 const router = Router();
 router.use(requireAuth);
 
-router.get("/", async (req, res, next) => {
+router.get("/", requirePermission("customer.view"), async (req, res, next) => {
   try {
     let billsQuery = `SELECT customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, payment_method, advance_amount, total, created_at
        FROM bills
@@ -93,9 +94,7 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-import { generateId } from "../utils.js";
-
-router.get("/payments/all", async (req, res, next) => {
+router.get("/payments/all", requirePermission(["customer.credit", "customer.ledger"]), async (req, res, next) => {
   try {
     const params = [req.auth.userId];
     let query = `SELECT id, amount, payment_method as method, created_at, customer_name, customer_phone FROM customer_payments WHERE user_id = ?`;
@@ -115,7 +114,7 @@ router.get("/payments/all", async (req, res, next) => {
   }
 });
 
-router.post("/pay", async (req, res, next) => {
+router.post("/pay", requirePermission(["customer.credit", "customer.ledger", "customer.create"]), async (req, res, next) => {
   try {
     const { phone, name, amount, method, notes } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ error: "Invalid amount" });
@@ -141,7 +140,7 @@ router.post("/pay", async (req, res, next) => {
   }
 });
 
-router.get("/:phone/credit-history", async (req, res, next) => {
+router.get("/:phone/credit-history", requirePermission(["customer.credit", "customer.ledger"]), async (req, res, next) => {
   try {
     const phone = req.params.phone;
 
@@ -176,7 +175,7 @@ router.get("/:phone/credit-history", async (req, res, next) => {
   }
 });
 
-router.put("/:phone", async (req, res, next) => {
+router.put("/:phone", requirePermission("customer.edit"), async (req, res, next) => {
   try {
     const oldPhone = req.params.phone;
     const { name, phone, address, drugLicNo, gstin, notes } = req.body;
