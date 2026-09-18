@@ -100,6 +100,20 @@ function loadSavedDrafts(): DraftBill[] {
   }
 }
 
+function getNextDraftSerial(draftList: DraftBill[]): number {
+  let maxSerial = 0;
+  for (const d of draftList) {
+    const match = d.name?.match(/Draft #(\d+)/i);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num > maxSerial) {
+        maxSerial = num;
+      }
+    }
+  }
+  return maxSerial + 1;
+}
+
 function saveDraftsToStorage(drafts: DraftBill[]) {
   if (typeof window === "undefined") return;
   try {
@@ -285,6 +299,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const handleSaveOnLogout = () => {
       const current = stateRef.current;
       if (current.items.length > 0) {
+        const existingDrafts = loadSavedDrafts();
+        const existingDraft = current.activeDraftId
+          ? existingDrafts.find((d) => d.id === current.activeDraftId)
+          : null;
+
         // Save into drafts list
         const sub = current.items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
         const tx = current.items.reduce((s, i) => s + ((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price) * (i.product.taxPercent ?? 0)) / 100, 0);
@@ -293,14 +312,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         const now = new Date();
         const formattedDate = now.toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-        const draftTitle = current.customer.name
-          ? `Draft - ${current.customer.name} (Saved on Logout)`
-          : `Draft (${formattedDate} - Logout)`;
+        const isWalkIn = !current.customer.name || current.customer.name.toLowerCase() === "walk-in customer";
+
+        let draftTitle = "";
+        if (existingDraft?.name) {
+          draftTitle = existingDraft.name;
+        } else if (!isWalkIn && current.customer.name) {
+          draftTitle = `Draft - ${current.customer.name} (Saved on Logout)`;
+        } else {
+          const nextSerial = getNextDraftSerial(existingDrafts);
+          draftTitle = `Draft #${nextSerial} (${formattedDate} - Logout)`;
+        }
 
         const draftObj: DraftBill = {
           id: current.activeDraftId || `draft_${Date.now()}`,
           name: draftTitle,
-          createdAt: now.toISOString(),
+          createdAt: existingDraft?.createdAt || now.toISOString(),
           updatedAt: now.toISOString(),
           customer: current.customer,
           items: current.items,
@@ -315,7 +342,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
           total: tot,
         };
 
-        const existingDrafts = loadSavedDrafts();
         const updatedDrafts = [draftObj, ...existingDrafts.filter((d) => d.id !== draftObj.id)];
         saveDraftsToStorage(updatedDrafts);
       }
@@ -433,6 +459,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // ── Draft Methods ──────────────────────────────────────────────────────────
   const saveAsDraft = (customTitle?: string): DraftBill => {
+    const existingDraft = activeDraftId ? drafts.find((d) => d.id === activeDraftId) : null;
     const draftId = activeDraftId || `draft_${Date.now()}`;
     const now = new Date();
     const formattedTime = now.toLocaleDateString("en-IN", {
@@ -443,16 +470,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
 
     const isWalkIn = !customer.name || customer.name.toLowerCase() === "walk-in customer";
-    const title = customTitle || (
-      !isWalkIn && customer.name
-        ? `Draft - ${customer.name} (₹${total})`
-        : `Draft #${drafts.length + 1} (${formattedTime})`
-    );
+    let title = customTitle;
+    if (!title) {
+      if (existingDraft?.name) {
+        // Name remains constant for the same draft (e.g. Draft #1 stays Draft #1)
+        title = existingDraft.name;
+      } else if (!isWalkIn && customer.name) {
+        title = `Draft - ${customer.name} (₹${total})`;
+      } else {
+        const nextSerial = getNextDraftSerial(drafts);
+        title = `Draft #${nextSerial} (${formattedTime})`;
+      }
+    }
+
+    const createdAt = existingDraft?.createdAt || now.toISOString();
 
     const newDraft: DraftBill = {
       id: draftId,
       name: title,
-      createdAt: now.toISOString(),
+      createdAt,
       updatedAt: now.toISOString(),
       customer: { ...customer },
       items: [...items],
