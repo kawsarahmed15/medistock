@@ -1,6 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiRequest, setAuthToken, getAuthToken } from "./api-client";
 
+export type BusinessType = "retailer" | "wholesaler" | "enterprise" | string;
+export type UserRole =
+  | "owner"
+  | "admin"
+  | "manager"
+  | "staff"
+  | "cashier"
+  | "accountant"
+  | "warehouse_manager"
+  | "sales_manager"
+  | "purchase_manager"
+  | string;
+
 export type Session = {
   userId: string;
   name: string;
@@ -12,7 +25,14 @@ export type Session = {
   drugLicNo?: string;
   billColor?: string;
   signature?: string;
+  // Legacy field preserved for 100% backward compatibility
   role?: string;
+  // Decoupled architecture fields
+  businessId?: string;
+  businessType?: BusinessType;
+  businessName?: string;
+  businessSettings?: Record<string, any> | null;
+  userRole?: UserRole;
   isEmployee?: boolean;
   employeeId?: string;
   employeeName?: string;
@@ -69,7 +89,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             drugLicNo: res.user.drugLicNo,
             billColor: res.user.billColor,
             signature: res.user.signature,
+            // Legacy field
             role: res.user.role,
+            // Decoupled architecture fields
+            businessId: res.user.businessId || res.user.id,
+            businessType: res.user.businessType || res.user.role || "retailer",
+            businessName: res.user.businessName || res.user.pharmacyName || res.user.name,
+            businessSettings: res.user.businessSettings || null,
+            userRole: res.user.userRole || (res.user.isEmployee ? "staff" : "owner"),
             isEmployee: Boolean(res.user.isEmployee),
             employeeId: res.user.employeeId,
             employeeName: res.user.employeeName,
@@ -283,6 +310,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         billColor: res.user.billColor,
         signature: res.user.signature,
         role: res.user.role,
+        businessId: res.user.businessId || res.user.id,
+        businessType: res.user.businessType || res.user.role || "retailer",
+        businessName: res.user.businessName || res.user.pharmacyName || res.user.name,
+        businessSettings: res.user.businessSettings || null,
+        userRole: res.user.userRole || (res.user.isEmployee ? "staff" : "owner"),
         isEmployee: Boolean(res.user.isEmployee),
         employeeId: res.user.employeeId,
         employeeName: res.user.employeeName,

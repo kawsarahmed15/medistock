@@ -21,21 +21,31 @@ const modulesMap: Record<BusinessCategory, BusinessModuleConfig> = {
 };
 
 /**
- * Resolves a role string to a valid BusinessCategory.
+ * Resolves a businessType or role (or session-like object) to a valid BusinessCategory.
  * Defaults to "retailer" for standard users or staff.
  */
-export function resolveBusinessCategory(role?: string): BusinessCategory {
-  const normalized = String(role || "").toLowerCase().trim();
+export function resolveBusinessCategory(
+  target?: { businessType?: string; role?: string } | string | null
+): BusinessCategory {
+  let value = "";
+  if (typeof target === "string") {
+    value = target;
+  } else if (target && typeof target === "object") {
+    value = target.businessType || target.role || "";
+  }
+  const normalized = String(value || "").toLowerCase().trim();
   if (normalized === "enterprise") return "enterprise";
   if (normalized === "wholesaler") return "wholesaler";
   return "retailer";
 }
 
 /**
- * Returns the module configuration for a given role / category.
+ * Returns the module configuration for a given businessType / role / category.
  */
-export function getBusinessModule(role?: string): BusinessModuleConfig {
-  const cat = resolveBusinessCategory(role);
+export function getBusinessModule(
+  target?: { businessType?: string; role?: string } | string | null
+): BusinessModuleConfig {
+  const cat = resolveBusinessCategory(target);
   return modulesMap[cat] || retailerConfig;
 }
 
@@ -47,12 +57,12 @@ export function getAllBusinessModules(): BusinessModuleConfig[] {
 }
 
 /**
- * Checks if a specific capability is enabled for the given role/category.
+ * Checks if a specific capability is enabled for the given businessType/role/category.
  */
 export function isCapabilityEnabled(
-  role: string | undefined,
+  target: { businessType?: string; role?: string } | string | null | undefined,
   capability: keyof BusinessModuleConfig["capabilities"]
 ): boolean {
-  const moduleConfig = getBusinessModule(role);
+  const moduleConfig = getBusinessModule(target);
   return Boolean(moduleConfig.capabilities[capability]);
 }

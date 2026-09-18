@@ -42,6 +42,11 @@ export async function requireAuth(req, res, next) {
       }
     }
 
+    const businessType =
+      payload.businessType ||
+      (payload.role && ["retailer", "wholesaler", "enterprise"].includes(payload.role) ? payload.role : "retailer");
+    const userRole = payload.userRole || (payload.isEmployee ? "staff" : "owner");
+
     req.auth = {
       userId,
       email: String(payload.email || ""),
@@ -50,6 +55,12 @@ export async function requireAuth(req, res, next) {
       isEmployee: Boolean(payload.isEmployee),
       employeeId: payload.employeeId || null,
       employeeName: payload.employeeName || null,
+      // Decoupled architecture fields
+      businessId: payload.businessId || userId,
+      businessType,
+      businessName: payload.businessName || null,
+      userRole,
+      businessSettings: payload.businessSettings || null,
       sessionId,
       deviceId: reqDeviceId,
     };

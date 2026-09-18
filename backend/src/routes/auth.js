@@ -67,9 +67,9 @@ router.post("/signup", async (req, res, next) => {
     const userId = generateId();
     const passwordHash = await hashPassword(password);
     await pool.query(
-      `INSERT INTO users (id, name, email, password_hash, is_verified, role, pharmacy_name)
-       VALUES (?, ?, ?, ?, 0, ?, ?)`,
-      [userId, name, email, passwordHash, role, pharmacyName],
+      `INSERT INTO users (id, name, email, password_hash, is_verified, role, business_type, pharmacy_name)
+       VALUES (?, ?, ?, ?, 0, ?, ?, ?)`,
+      [userId, name, email, passwordHash, role, role, pharmacyName],
     );
 
     const token = generateToken();
@@ -137,7 +137,7 @@ router.post("/login", async (req, res, next) => {
 
     // 1. Check if identifier matches an Admin email in users table
     const [adminRows] = await pool.query(
-      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
+      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, business_type, business_settings, account_status, expiring_days, low_stock_qty, default_tax, admin_device_id
        FROM users
        WHERE LOWER(email) = LOWER(?)
        LIMIT 1`,
@@ -156,8 +156,8 @@ router.post("/login", async (req, res, next) => {
     // 2. If not logged in as Admin, check if identifier matches an Employee username in employees table
     if (!ok) {
       const [empRows] = await pool.query(
-        `SELECT e.id as emp_id, e.user_id, e.name as emp_name, e.username as emp_username, e.email as emp_email, e.password_hash as emp_password_hash, e.status as emp_status,
-                u.id, u.name, u.email, u.password_hash, u.employee_password_hash, u.is_employee_enabled, u.is_verified, u.created_at, u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number, u.drug_lic_no, u.bill_color, u.signature, u.role, u.account_status, u.expiring_days, u.low_stock_qty, u.default_tax, u.admin_device_id
+        `SELECT e.id as emp_id, e.user_id, e.name as emp_name, e.username as emp_username, e.email as emp_email, e.role as emp_role, e.password_hash as emp_password_hash, e.status as emp_status,
+                u.id, u.name, u.email, u.password_hash, u.employee_password_hash, u.is_employee_enabled, u.is_verified, u.created_at, u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number, u.drug_lic_no, u.bill_color, u.signature, u.role, u.business_type, u.business_settings, u.account_status, u.expiring_days, u.low_stock_qty, u.default_tax, u.admin_device_id
          FROM employees e
          JOIN users u ON e.user_id = u.id
          WHERE LOWER(e.username) = LOWER(?) AND e.status = 'active'
@@ -174,6 +174,7 @@ router.post("/login", async (req, res, next) => {
           employeeMeta = {
             employeeId: empRows[0].emp_id,
             employeeName: empRows[0].emp_name,
+            employeeRole: empRows[0].emp_role || "staff",
           };
         }
       }
@@ -188,6 +189,7 @@ router.post("/login", async (req, res, next) => {
         employeeMeta = {
           employeeId: null,
           employeeName: `${user.name} (Staff)`,
+          employeeRole: "staff",
         };
       }
     }
@@ -412,7 +414,7 @@ router.post("/reset-password", async (req, res, next) => {
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, password_hash, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, business_type, business_settings, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -420,7 +422,7 @@ router.get("/me", requireAuth, async (req, res, next) => {
       throw buildApiError(401, "Unauthorized");
     }
     const employeeMeta = req.auth.isEmployee
-      ? { employeeId: req.auth.employeeId, employeeName: req.auth.employeeName }
+      ? { employeeId: req.auth.employeeId, employeeName: req.auth.employeeName, employeeRole: req.auth.userRole || "staff" }
       : null;
     res.json({ user: sanitizeUser(user, req.auth.isEmployee, employeeMeta) });
   } catch (error) {
@@ -497,7 +499,7 @@ router.delete("/employee-password", requireAuth, requireAdminOnly, async (req, r
 router.patch("/profile", requireAuth, requireAdminOnly, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, email, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, business_type, business_settings, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
     const user = rows[0];
@@ -521,9 +523,13 @@ router.patch("/profile", requireAuth, requireAdminOnly, async (req, res, next) =
       req.body.lowStockQty !== undefined ? Number(req.body.lowStockQty) || 10 : user.low_stock_qty;
     const defaultTax =
       req.body.defaultTax !== undefined ? Number(req.body.defaultTax) : user.default_tax;
+    const businessSettings =
+      req.body.businessSettings !== undefined
+        ? (typeof req.body.businessSettings === "string" ? req.body.businessSettings : JSON.stringify(req.body.businessSettings))
+        : (typeof user.business_settings === "object" ? JSON.stringify(user.business_settings) : user.business_settings);
 
     await pool.query(
-      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_phone = ?, pharmacy_address = ?, gst_number = ?, drug_lic_no = ?, bill_color = ?, signature = ?, expiring_days = ?, low_stock_qty = ?, default_tax = ? WHERE id = ?",
+      "UPDATE users SET name = ?, pharmacy_name = ?, pharmacy_phone = ?, pharmacy_address = ?, gst_number = ?, drug_lic_no = ?, bill_color = ?, signature = ?, expiring_days = ?, low_stock_qty = ?, default_tax = ?, business_settings = ? WHERE id = ?",
       [
         name,
         pharmacyName,
@@ -536,12 +542,13 @@ router.patch("/profile", requireAuth, requireAdminOnly, async (req, res, next) =
         expiryDays,
         lowStockQty,
         defaultTax,
+        businessSettings,
         req.auth.userId,
       ],
     );
 
     const [updatedRows] = await pool.query(
-      `SELECT id, name, email, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
+      `SELECT id, name, email, employee_password_hash, is_employee_enabled, is_verified, created_at, pharmacy_name, pharmacy_phone, pharmacy_address, gst_number, drug_lic_no, bill_color, signature, role, business_type, business_settings, account_status, expiring_days, low_stock_qty, default_tax FROM users WHERE id = ? LIMIT 1`,
       [req.auth.userId],
     );
 

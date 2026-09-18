@@ -38,7 +38,23 @@ async function runMigration() {
     await safeAddColumn("bills", "approved_at", "TIMESTAMP NULL AFTER employee_id");
     await safeAddColumn("bills", "approved_by", "VARCHAR(100) NULL AFTER approved_at");
     await safeAddColumn("employees", "username", "VARCHAR(100) NULL UNIQUE AFTER name");
+    await safeAddColumn("employees", "role", "VARCHAR(50) NOT NULL DEFAULT 'staff' AFTER phone");
     await safeAddColumn("product_history", "invoice_no", "VARCHAR(100) NULL AFTER notes");
+    await safeAddColumn("users", "business_type", "VARCHAR(50) NOT NULL DEFAULT 'retailer' AFTER role");
+    await safeAddColumn("users", "business_settings", "JSON NULL AFTER business_type");
+
+    try {
+      await connection.query(`
+        UPDATE users
+        SET business_type = CASE
+          WHEN role IN ('wholesaler', 'enterprise', 'retailer') THEN role
+          ELSE 'retailer'
+        END
+        WHERE business_type IS NULL OR business_type = '' OR business_type = 'retailer';
+      `);
+    } catch (e) {
+      // Ignore if error
+    }
 
     try {
       await connection.query(`

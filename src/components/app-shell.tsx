@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [pendingBillsCount, setPendingBillsCount] = useState(0);
 
   const isEmployee = Boolean(session?.isEmployee);
-  const businessModule = getBusinessModule(session?.role);
+  const businessModule = getBusinessModule(session?.businessType || session?.role);
   const moduleNav = businessModule.navigation;
 
   const dynamicNav = isEmployee

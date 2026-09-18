@@ -26,6 +26,13 @@ export async function comparePassword(password, hash) {
 export function signAuthToken(user, isEmployee = false, employeeMeta = null) {
   const empName = employeeMeta?.employeeName || (isEmployee ? `${user.name} (Staff)` : user.name);
   const empId = employeeMeta?.employeeId || null;
+  const businessType =
+    user.business_type ||
+    user.businessType ||
+    (user.role && ["retailer", "wholesaler", "enterprise"].includes(user.role) ? user.role : "retailer");
+  const businessName = user.pharmacy_name || user.pharmacyName || user.name;
+  const userRole = isEmployee ? (employeeMeta?.employeeRole || "staff") : "owner";
+
   return jwt.sign(
     {
       sub: user.id,
@@ -35,6 +42,12 @@ export function signAuthToken(user, isEmployee = false, employeeMeta = null) {
       isEmployee: Boolean(isEmployee),
       employeeId: empId,
       employeeName: empName,
+      // Decoupled architecture fields
+      businessId: user.id,
+      businessType,
+      businessName,
+      userRole,
+      businessSettings: user.business_settings || user.businessSettings || null,
     },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn },
@@ -49,6 +62,30 @@ export function sanitizeUser(row, isEmployee = false, employeeMeta = null) {
   const employeeFlag = Boolean(isEmployee || row.is_employee || row.isEmployee);
   const empName = employeeMeta?.employeeName || (employeeFlag ? `${row.name} (Staff)` : row.name);
   const empId = employeeMeta?.employeeId || null;
+  const businessType =
+    row.business_type ||
+    row.businessType ||
+    (row.role && ["retailer", "wholesaler", "enterprise"].includes(row.role) ? row.role : "retailer");
+  const businessName = row.pharmacy_name || row.name;
+  const userRole = employeeFlag
+    ? (employeeMeta?.employeeRole || row.employee_role || row.emp_role || "staff")
+    : "owner";
+
+  let parsedSettings = null;
+  if (row.business_settings || row.businessSettings) {
+    if (typeof row.business_settings === "object") {
+      parsedSettings = row.business_settings;
+    } else if (typeof row.businessSettings === "object") {
+      parsedSettings = row.businessSettings;
+    } else {
+      try {
+        parsedSettings = JSON.parse(row.business_settings || row.businessSettings);
+      } catch {
+        parsedSettings = null;
+      }
+    }
+  }
+
   return {
     id: row.id,
     name: employeeFlag ? empName : row.name,
@@ -61,10 +98,17 @@ export function sanitizeUser(row, isEmployee = false, employeeMeta = null) {
     drugLicNo: row.drug_lic_no || undefined,
     billColor: row.bill_color || undefined,
     signature: row.signature || undefined,
+    // Legacy field preserved for 100% backward compatibility
     role: employeeFlag ? "employee" : (row.role || "retailer"),
     isEmployee: employeeFlag,
     employeeId: empId,
     employeeName: empName,
+    // Decoupled architecture fields
+    businessId: row.id,
+    businessType,
+    businessName,
+    businessSettings: parsedSettings,
+    userRole,
     hasEmployeePassword: Boolean(row.employee_password_hash),
     isEmployeeEnabled: row.is_employee_enabled !== undefined && row.is_employee_enabled !== null ? Boolean(row.is_employee_enabled) : true,
     accountStatus: row.account_status || "active",

@@ -12,7 +12,7 @@ router.use(requireAdminOnly);
 router.get("/", async (req, res, next) => {
   try {
     const [employees] = await pool.query(
-      `SELECT id, user_id, name, username, email, phone, status, created_at, updated_at
+      `SELECT id, user_id, name, username, email, phone, role, status, created_at, updated_at
        FROM employees
        WHERE user_id = ?
        ORDER BY created_at DESC`,
@@ -32,6 +32,7 @@ router.post("/", async (req, res, next) => {
     const username = String(req.body?.username || "").trim();
     const email = req.body?.email ? String(req.body.email).trim().toLowerCase() : null;
     const phone = req.body?.phone ? String(req.body.phone).trim() : null;
+    const role = req.body?.role ? String(req.body.role).trim() : "staff";
     const password = String(req.body?.password || "");
     const status = req.body?.status === "disabled" ? "disabled" : "active";
 
@@ -76,13 +77,13 @@ router.post("/", async (req, res, next) => {
     const employeeId = generateId();
 
     await pool.query(
-      `INSERT INTO employees (id, user_id, name, username, email, phone, password_hash, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [employeeId, req.auth.userId, name, username, email, phone, passwordHash, status],
+      `INSERT INTO employees (id, user_id, name, username, email, phone, role, password_hash, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [employeeId, req.auth.userId, name, username, email, phone, role, passwordHash, status],
     );
 
     const [rows] = await pool.query(
-      `SELECT id, user_id, name, username, email, phone, status, created_at, updated_at
+      `SELECT id, user_id, name, username, email, phone, role, status, created_at, updated_at
        FROM employees
        WHERE id = ? LIMIT 1`,
       [employeeId],
@@ -105,6 +106,7 @@ router.patch("/:id", async (req, res, next) => {
     const username = req.body?.username !== undefined ? String(req.body.username).trim() : undefined;
     const email = req.body?.email !== undefined ? (req.body.email ? String(req.body.email).trim().toLowerCase() : null) : undefined;
     const phone = req.body?.phone !== undefined ? (req.body.phone ? String(req.body.phone).trim() : null) : undefined;
+    const role = req.body?.role !== undefined ? String(req.body.role).trim() : undefined;
     const status = req.body?.status !== undefined ? (req.body.status === "disabled" ? "disabled" : "active") : undefined;
 
     const [existing] = await pool.query(
@@ -143,6 +145,10 @@ router.patch("/:id", async (req, res, next) => {
       updates.push("phone = ?");
       values.push(phone);
     }
+    if (role !== undefined) {
+      updates.push("role = ?");
+      values.push(role);
+    }
     if (status !== undefined) {
       updates.push("status = ?");
       values.push(status);
@@ -157,7 +163,7 @@ router.patch("/:id", async (req, res, next) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, user_id, name, username, email, phone, status, created_at, updated_at
+      `SELECT id, user_id, name, username, email, phone, role, status, created_at, updated_at
        FROM employees
        WHERE id = ? LIMIT 1`,
       [id],
