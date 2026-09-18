@@ -185,6 +185,13 @@ function SellPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.add]);
 
+  // Auto-prompt Customer Details on New Sell if not already submitted
+  useEffect(() => {
+    if (!cart.customerSubmitted || search.new) {
+      setCustomerOpen(true);
+    }
+  }, [cart.customerSubmitted, search.new]);
+
   // Handle Alt+N shortcut via custom event
   useEffect(() => {
     const handler = () => {
@@ -227,9 +234,6 @@ function SellPage() {
     toast.success(`${selectedBatch.name} (Batch: ${String(selectedBatch.batch || "").toUpperCase()}) × ${qtyValue} added`);
     setQtyProduct(null);
     setSelectedBatch(null);
-    if (isFirst && !cart.customerSubmitted) {
-      setCustomerOpen(true);
-    }
   };
 
   const maxQty = selectedBatch
@@ -239,13 +243,9 @@ function SellPage() {
   const handleCustomerOpenChange = (open: boolean) => {
     setCustomerOpen(open);
     if (!open) {
-      if (cart.customerSubmitted) {
-        navigate({ to: "/cart" });
-      } else {
-        setTimeout(() => {
-          document.getElementById("sell-search-input")?.focus();
-        }, 100);
-      }
+      setTimeout(() => {
+        document.getElementById("sell-search-input")?.focus();
+      }, 100);
     }
   };
 
@@ -258,7 +258,18 @@ function SellPage() {
             Tap a product to add it. Use the floating cart button to checkout.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCustomerOpen(true)}
+            className="gap-1.5 h-9"
+          >
+            <span className="text-xs text-muted-foreground">Customer:</span>
+            <span className="font-semibold text-xs text-foreground truncate max-w-[130px]">
+              {cart.customer.name || "Walk-in"}
+            </span>
+          </Button>
           <Button
             variant="outline"
             onClick={() => setDraftsOpen(true)}

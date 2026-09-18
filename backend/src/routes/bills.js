@@ -390,6 +390,15 @@ router.post("/", async (req, res, next) => {
     const employeeId = req.auth.employeeId || null;
     const defaultCashier = createdByName;
 
+    if (body.paymentMethod === "credit") {
+      const cName = (body.customerName || "").trim().toLowerCase();
+      const cPhone = (body.customerPhone || "").trim();
+      const isWalkIn = !cName || cName === "walk-in customer" || cName === "walk-in" || cName === "walkin";
+      if (isWalkIn || !cPhone) {
+        throw buildApiError(400, "Credit sales require a registered customer with name and phone number. Walk-in customers can only pay with Cash or Online.");
+      }
+    }
+
     const created = await withTransaction(async (conn) => {
       const prefix = isReturn ? "SR" : "INV";
       const [maxRows] = await conn.query(

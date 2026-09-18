@@ -139,9 +139,21 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
     onOpenChange(false);
   };
 
-  const skip = () => {
+  const handleWalkIn = () => {
+    setCustomer({
+      name: "Walk-in Customer",
+      phone: "",
+      address: "",
+      drugLicNo: "",
+      gstin: "",
+      notes: "",
+    });
     setCustomerSubmitted(true);
     onOpenChange(false);
+  };
+
+  const skip = () => {
+    handleWalkIn();
   };
 
   return (
@@ -152,9 +164,34 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
             <UserRound className="h-4 w-4 text-primary" /> Customer details
           </DialogTitle>
           <DialogDescription>
-            Add the customer's details for this sale, or pick from past customers.
+            Add the customer's details for this sale, pick from past customers, or continue as a walk-in.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Walk-in Customer Card */}
+        <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5 flex items-center justify-between gap-3 shadow-xs">
+          <div className="space-y-0.5 min-w-0">
+            <div className="font-semibold text-sm flex items-center gap-1.5 text-foreground">
+              <UserRound className="h-4 w-4 text-primary shrink-0" />
+              <span>Walk-in Customer</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-snug">
+              Instant checkout without details.{" "}
+              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                Cash & Online only
+              </span>
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            className="h-8 px-3 text-xs font-semibold shadow-soft shrink-0"
+            onClick={handleWalkIn}
+          >
+            Walk-in
+          </Button>
+        </div>
 
         {/* Quick-pick from past customers */}
         {saved.length > 0 && (

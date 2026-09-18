@@ -442,8 +442,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       minute: "2-digit",
     });
 
+    const isWalkIn = !customer.name || customer.name.toLowerCase() === "walk-in customer";
     const title = customTitle || (
-      customer.name
+      !isWalkIn && customer.name
         ? `Draft - ${customer.name} (₹${total})`
         : `Draft #${drafts.length + 1} (${formattedTime})`
     );
@@ -453,7 +454,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       name: title,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
-      customer,
+      customer: { ...customer },
       items: [...items],
       paymentMethod,
       advanceAmount,
@@ -473,7 +474,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
-    setActiveDraftId(draftId);
+    // Reset active cart so it doesn't show this draft bill anymore and is ready for a fresh bill
+    setItems([]);
+    setCustomer(emptyCustomer);
+    setCustomerSubmitted(false);
+    setPaymentMethod("cash");
+    setAdvanceAmount(0);
+    setAdvancePaymentMethod("cash");
+    setDiscountValue(0);
+    setDiscountType("percentage");
+    setActiveDraftId(null);
+    setActiveDraftRestored(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(ACTIVE_CART_STORAGE_KEY);
+    }
+
     return newDraft;
   };
 

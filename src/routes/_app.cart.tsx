@@ -144,8 +144,8 @@ function CartPage() {
       return;
     }
     const d = cart.saveAsDraft();
-    toast.success(`Saved to Draft Bills: ${d.name}`, {
-      description: "Draft is preserved safely. Product stock is not decreased.",
+    toast.success(`Bill moved to Drafts: ${d.name}`, {
+      description: "Draft is preserved safely. Cart is cleared and ready for a new sale.",
     });
   };
 
@@ -199,15 +199,22 @@ function CartPage() {
       return;
     }
 
-    if (cart.customer.name && !cart.customer.phone?.trim()) {
-      toast.error("Phone number is mandatory when adding a customer.");
+    const isWalkIn =
+      !cart.customer.name?.trim() ||
+      cart.customer.name.trim().toLowerCase() === "walk-in customer" ||
+      cart.customer.name.trim().toLowerCase() === "walk-in" ||
+      cart.customer.name.trim().toLowerCase() === "walkin";
+
+    if (!isWalkIn && cart.customer.name && !cart.customer.phone?.trim()) {
+      toast.error("Phone number is mandatory when adding a registered customer.");
       return;
     }
-    if (
-      cart.paymentMethod === "credit" &&
-      (!cart.customer.name?.trim() || !cart.customer.phone?.trim())
-    ) {
-      toast.error("Customer name and phone number are mandatory for credit payments.");
+
+    if (cart.paymentMethod === "credit" && (isWalkIn || !cart.customer.phone?.trim())) {
+      toast.error("Credit sales cannot be generated for Walk-in Customers.", {
+        description: "Customer name and phone number are required for credit. Walk-in customers can only pay with Cash or Online.",
+      });
+      setCustomerOpen(true);
       return;
     }
 
@@ -812,9 +819,49 @@ function CartPage() {
                   label="Credit"
                   Icon={CreditCard}
                   active={cart.paymentMethod === "credit"}
-                  onClick={() => cart.setPaymentMethod("credit")}
+                  onClick={() => {
+                    const isWalkIn =
+                      !cart.customer.name?.trim() ||
+                      cart.customer.name.trim().toLowerCase() === "walk-in customer" ||
+                      cart.customer.name.trim().toLowerCase() === "walk-in" ||
+                      cart.customer.name.trim().toLowerCase() === "walkin";
+
+                    if (isWalkIn || !cart.customer.phone?.trim()) {
+                      toast.info("Credit bills require registered customer details.", {
+                        description: "Please enter customer name & phone number. Walk-in customers cannot generate bills in credit.",
+                      });
+                      setCustomerOpen(true);
+                    }
+                    cart.setPaymentMethod("credit");
+                  }}
                 />
               </div>
+
+              {cart.paymentMethod === "credit" && (
+                (!cart.customer.name?.trim() ||
+                  cart.customer.name.trim().toLowerCase() === "walk-in customer" ||
+                  cart.customer.name.trim().toLowerCase() === "walk-in" ||
+                  cart.customer.name.trim().toLowerCase() === "walkin" ||
+                  !cart.customer.phone?.trim()) && (
+                  <div className="mt-3 text-xs bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 p-2.5 rounded-lg flex items-start justify-between gap-2 animate-fade-in">
+                    <div className="space-y-0.5">
+                      <span className="font-semibold">Customer details required:</span>
+                      <p className="text-[11px] text-muted-foreground">
+                        Credit bills cannot be generated for Walk-in Customers. Please provide customer name and phone.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[11px] px-2 shrink-0 border-amber-500/40 hover:bg-amber-500/20"
+                      onClick={() => setCustomerOpen(true)}
+                    >
+                      Enter Details
+                    </Button>
+                  </div>
+                )
+              )}
 
               {cart.paymentMethod === "credit" && (
                 <div className="mt-4 space-y-1.5 animate-fade-in">
