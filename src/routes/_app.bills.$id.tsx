@@ -470,8 +470,10 @@ function BillDetailPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {bill.items.map((it, idx) => {
+                // lineAmount = pre-tax amount (price × qty)
+                // The summary section separately shows GST, so Amount here is pre-tax
+                // to ensure: SUM(Amount) = Taxable Amount in summary
                 const lineAmount = it.price * it.qty;
-                const taxAmount = (lineAmount * it.taxPercent) / 100;
 
                 const expFormatted = it.expiry
                   ? (() => {
@@ -516,7 +518,7 @@ function BillDetailPage() {
                       {it.price.toFixed(2)}
                     </td>
                     <td className="py-3 px-2 text-right align-top font-mono font-bold text-primary">
-                      {(lineAmount + taxAmount).toFixed(2)}
+                      {lineAmount.toFixed(2)}
                     </td>
                   </tr>
                 );

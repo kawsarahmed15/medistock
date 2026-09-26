@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, useCallback, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import {
   Banknote,
   FileWarning,
@@ -194,6 +195,17 @@ function CartPage() {
 
   const checkout = async () => {
     if (cart.items.length === 0 || submitting) return;
+
+    // Flush any pending price-input changes: blur the active element so its
+    // onBlur fires and calls setCustomPrice, then wrap in flushSync so React
+    // commits that state update synchronously before we read cart.items below.
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active.tagName === "INPUT" && (active as HTMLInputElement).type === "number") {
+      flushSync(() => {
+        active.blur();
+      });
+    }
+
     if (rxBlocked) {
       toast.error("Prescription reference is required for Rx items. Add it below.");
       return;
@@ -623,15 +635,21 @@ function CartPage() {
                                   <input
                                     type="number"
                                     step="0.01"
-                                    key={`${i.product.id}-${i.customPrice ?? i.product.price}`}
+                                    key={`${i.product.id}-price-input`}
                                     className="w-16 h-6 px-1.5 border rounded bg-background text-foreground outline-none font-medium focus:ring-1 focus:ring-primary text-xs"
-                                    defaultValue={i.customPrice !== undefined ? i.customPrice : i.product.price}
+                                    value={i.customPrice !== undefined ? i.customPrice : i.product.price}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value);
+                                      if (!isNaN(val) && val > 0) {
+                                        cart.setCustomPrice(i.product.id, val);
+                                      }
+                                    }}
                                     onBlur={(e) => {
                                       const val = parseFloat(e.target.value);
                                       const cost = i.product.costPrice ?? 0;
                                       if (isNaN(val) || val <= cost) {
                                         toast.error(`Price must be higher than buying price (${formatMoney(cost)}). Please fix the price.`);
-                                        e.target.value = String(i.customPrice !== undefined ? i.customPrice : i.product.price);
+                                        cart.setCustomPrice(i.product.id, i.product.price);
                                       } else {
                                         cart.setCustomPrice(i.product.id, val);
                                       }

@@ -374,8 +374,7 @@ export async function downloadBillPdf(
     ],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
-      const tax = (line * it.taxPercent) / 100;
-      let nameStr = clean(it.name);
+      const nameStr = clean(it.name);
 
       return [
         String(idx + 1),
@@ -395,7 +394,7 @@ export async function downloadBillPdf(
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         `${it.taxPercent}%`,
         it.price.toFixed(2),
-        (line + tax).toFixed(2),
+        line.toFixed(2),
       ];
     }),
     styles: {
