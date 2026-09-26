@@ -444,15 +444,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const subtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
-  const tax = items.reduce(
+  const rawSubtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
+  const subtotal = Number(rawSubtotal.toFixed(2));
+  const rawTax = items.reduce(
     (s, i) =>
       s + ((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price) * (i.product.taxPercent ?? 0)) / 100,
     0,
   );
+  const tax = Number(rawTax.toFixed(2));
 
-  const discount =
+  const rawDiscount =
     discountType === "percentage" ? ((subtotal + tax) * discountValue) / 100 : discountValue;
+  const discount = Number(rawDiscount.toFixed(2));
 
   const total = Math.round(Math.max(0, subtotal + tax - discount));
   const count = items.reduce((s, i) => s + i.qty, 0);

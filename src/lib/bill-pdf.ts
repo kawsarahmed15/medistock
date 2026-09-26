@@ -511,7 +511,7 @@ export async function downloadBillPdf(
 
   let boxHeight = 138;
   if ((bill.discount || 0) > 0) boxHeight += 16;
-  if (roundOff !== 0) boxHeight += 12;
+  if (Math.abs(roundOff) >= 0.005) boxHeight += 12;
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(220, 220, 220);
@@ -562,7 +562,7 @@ export async function downloadBillPdf(
   doc.setDrawColor(220, 220, 220);
   doc.line(rightBoxLeft + 12, ty, totalsValueX, ty);
 
-  if (roundOff !== 0) {
+  if (Math.abs(roundOff) >= 0.005) {
     ty += 12;
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");

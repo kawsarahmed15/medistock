@@ -306,7 +306,7 @@ export async function downloadPurchasePdf(
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         `${it.taxPercent}%`,
         it.costPrice.toFixed(2),
-        (line + tax).toFixed(2),
+        line.toFixed(2),
       ];
     }),
     styles: {
@@ -461,7 +461,7 @@ export async function downloadPurchasePdf(
   doc.setDrawColor(220, 220, 220);
   doc.line(rightBoxLeft + 12, ty, totalsValueX, ty);
 
-  if (roundOff !== 0) {
+  if (Math.abs(roundOff) >= 0.005) {
     ty += 12;
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");

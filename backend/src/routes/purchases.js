@@ -93,6 +93,25 @@ router.post("/", async (req, res, next) => {
       const nextNo = Number(maxRows[0]?.maxNo || 0) + 1;
       const poNo = `${prefix}-${String(nextNo).padStart(4, "0")}`;
 
+      let calcSubtotal = 0;
+      let calcTax = 0;
+      for (const item of items) {
+        const itemQty = Number(item.qty || 0);
+        const itemCost = Number(item.costPrice || 0);
+        const itemTaxPercent = Number(item.taxPercent || 0);
+        const line = itemQty * itemCost;
+        calcSubtotal += line;
+        calcTax += (line * itemTaxPercent) / 100;
+      }
+      calcSubtotal = Number(calcSubtotal.toFixed(2));
+      calcTax = Number(calcTax.toFixed(2));
+      const discountVal = Number(body.discount || 0);
+      const calcTotal = Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
+
+      const purchaseSubtotal = items.length > 0 ? calcSubtotal : Number(body.subtotal || 0);
+      const purchaseTax = items.length > 0 ? calcTax : Number(body.tax || 0);
+      const purchaseTotal = items.length > 0 ? calcTotal : Number(body.total || 0);
+
       const id = generateId();
       await conn.query(
         `INSERT INTO purchases (id, user_id, number, supplier_name, supplier_phone, supplier_invoice, notes, created_by, payment_status, payment_method, amount_paid, subtotal, tax, discount, total)
@@ -109,10 +128,10 @@ router.post("/", async (req, res, next) => {
           body.paymentStatus || "unpaid",
           body.paymentMethod || "cash",
           Number(body.amountPaid || 0),
-          Number(body.subtotal || 0),
-          Number(body.tax || 0),
-          Number(body.discount || 0),
-          Number(body.total || 0),
+          purchaseSubtotal,
+          purchaseTax,
+          discountVal,
+          purchaseTotal,
         ],
       );
 

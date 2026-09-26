@@ -594,7 +594,7 @@ function BillDetailPage() {
                 <span>SGST</span>
                 <span className="font-mono text-foreground">{sgst.toFixed(2)}</span>
               </div>
-              {roundOff !== 0 && (
+              {Math.abs(roundOff) >= 0.005 && (
                 <div className="flex justify-between text-xs text-muted-foreground pt-1">
                   <span>Round Off</span>
                   <span className="font-mono">

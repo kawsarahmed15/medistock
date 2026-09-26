@@ -234,7 +234,7 @@ function PurchaseDetailsPage() {
                     <TableCell className="text-right font-mono text-muted-foreground">₹{(it.mrp || 0).toFixed(2)}</TableCell>
                     <TableCell className="text-center">{it.taxPercent}%</TableCell>
                     <TableCell className="text-right font-mono">₹{it.costPrice.toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-mono font-bold text-primary">₹{(lineAmount + taxAmount).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono font-bold text-primary">₹{lineAmount.toFixed(2)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -277,7 +277,7 @@ function PurchaseDetailsPage() {
                   <span className="font-mono">-{formatMoney(purchase.discount)}</span>
                 </div>
               )}
-              {roundOff !== 0 && (
+              {Math.abs(roundOff) >= 0.005 && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Round Off</span>
                   <span className="font-mono">

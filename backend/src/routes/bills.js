@@ -410,6 +410,25 @@ router.post("/", async (req, res, next) => {
       const nextNo = Number(maxRows[0]?.maxNo || 0) + 1;
       const invoiceNo = `${prefix}-${String(nextNo).padStart(4, "0")}`;
 
+      let calcSubtotal = 0;
+      let calcTax = 0;
+      for (const item of items) {
+        const itemQty = Number(item.qty || 0);
+        const itemPrice = Number(item.price || 0);
+        const itemTaxPercent = Number(item.taxPercent || item.tax_percent || 0);
+        const line = itemQty * itemPrice;
+        calcSubtotal += line;
+        calcTax += (line * itemTaxPercent) / 100;
+      }
+      calcSubtotal = Number(calcSubtotal.toFixed(2));
+      calcTax = Number(calcTax.toFixed(2));
+      const discountVal = Number(body.discount || 0);
+      const calcTotal = Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
+
+      const billSubtotal = items.length > 0 ? calcSubtotal : Number(body.subtotal || 0);
+      const billTax = items.length > 0 ? calcTax : Number(body.tax || 0);
+      const billTotal = items.length > 0 ? calcTotal : Number(body.total || 0);
+
       const id = generateId();
       await conn.query(
         `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes,
@@ -429,10 +448,10 @@ router.post("/", async (req, res, next) => {
           ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
           Number(body.advanceAmount || 0),
           ["cash", "online"].includes(body.advancePaymentMethod) ? body.advancePaymentMethod : "cash",
-          Number(body.subtotal || 0),
-          Number(body.tax || 0),
-          Number(body.discount || 0),
-          Number(body.total || 0),
+          billSubtotal,
+          billTax,
+          discountVal,
+          billTotal,
           billStatus,
           createdByRole,
           createdByName,
