@@ -139,6 +139,20 @@ router.get("/:id", async (req, res, next) => {
 });
 
 async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
+  if (!items || items.length === 0) return;
+
+  // Idempotency check: prevent duplicate stock deduction for the same invoice
+  if (invoiceNo) {
+    const [existing] = await conn.query(
+      `SELECT id FROM product_history WHERE user_id = ? AND invoice_no = ? AND action = 'sale' LIMIT 1`,
+      [userId, invoiceNo]
+    );
+    if (existing.length > 0) {
+      console.warn(`[Stock] Stock deduction already applied for invoice ${invoiceNo}. Skipping duplicate deduction.`);
+      return;
+    }
+  }
+
   for (const item of items) {
     let rawId = (item.productId && String(item.productId).trim()) || (item.product_id && String(item.product_id).trim()) || null;
     let targetProductId = null;
@@ -206,7 +220,7 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
 
         if (batches.length === 0) {
           const [allBatches] = await conn.query(
-            "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? ORDER BY expiry_date ASC",
+            "SELECT id, batch_no, available_qty FROM product_batches WHERE product_id = ? ORDER BY (available_qty > 0) DESC, expiry_date ASC",
             [targetProductId]
           );
           batches = allBatches;
@@ -225,11 +239,9 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
             const toDec = Math.min(b.available_qty, remainingToDec);
             if (toDec > 0) {
               const nextQty = b.available_qty - toDec;
-              if (nextQty <= 0 && batches.length > 1) {
-                await conn.query("DELETE FROM product_batches WHERE id = ?", [b.id]);
-              } else {
-                await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
-              }
+              // Never delete the batch entity from product_batches even if stock is 0,
+              // so batch metadata (MRP, batch number, expiry date, purchase price) remains intact.
+              await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [Math.max(0, nextQty), b.id]);
               remainingToDec -= toDec;
             }
           }
@@ -264,6 +276,20 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
 }
 
 async function applyReturnStock(conn, userId, items, invoiceNo) {
+  if (!items || items.length === 0) return;
+
+  // Idempotency check: prevent duplicate return stock restoration for the same return invoice
+  if (invoiceNo) {
+    const [existing] = await conn.query(
+      `SELECT id FROM product_history WHERE user_id = ? AND invoice_no = ? AND action = 'return' LIMIT 1`,
+      [userId, invoiceNo]
+    );
+    if (existing.length > 0) {
+      console.warn(`[Stock] Return stock already applied for invoice ${invoiceNo}. Skipping duplicate return.`);
+      return;
+    }
+  }
+
   for (const item of items) {
     let rawId = (item.productId && String(item.productId).trim()) || (item.product_id && String(item.product_id).trim()) || null;
     let targetProductId = null;

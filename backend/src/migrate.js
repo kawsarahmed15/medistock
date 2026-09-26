@@ -71,6 +71,13 @@ async function runMigration() {
            WHERE bi.user_id = ? AND b.number LIKE 'INV-%'
              AND (bi.product_id = ? OR bi.product_id IN (SELECT id FROM product_batches WHERE product_id = ?) ${batch ? 'OR LOWER(TRIM(bi.batch)) = LOWER(TRIM(?))' : ''})
              AND ABS(TIMESTAMPDIFF(SECOND, b.created_at, ?)) <= 60
+             AND NOT EXISTS (
+               SELECT 1 FROM product_history ph_dup
+               WHERE ph_dup.user_id = r.user_id 
+                 AND ph_dup.product_id = r.product_id 
+                 AND ph_dup.invoice_no = b.number 
+                 AND ph_dup.action = 'sale'
+             )
            ORDER BY ABS(TIMESTAMPDIFF(SECOND, b.created_at, ?)) ASC
            LIMIT 1`,
           batch
