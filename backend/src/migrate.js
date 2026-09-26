@@ -51,6 +51,49 @@ async function runMigration() {
       // Ignore if REGEXP_SUBSTR is not supported or no rows
     }
 
+    try {
+      const [rows] = await connection.query(`
+        SELECT h.id as history_id, h.user_id, h.product_id, h.notes, h.created_at as h_created_at
+        FROM product_history h
+        WHERE (h.invoice_no IS NULL OR h.invoice_no = '')
+          AND (h.action = 'stock_out' OR h.action = 'sale' OR h.notes LIKE '%during sale%')
+      `);
+
+      for (const r of rows) {
+        const batchMatch = r.notes ? r.notes.match(/batch\s+([^\s]+)\s+during/i) : null;
+        const batch = batchMatch ? batchMatch[1] : null;
+
+        const [matching] = await connection.query(
+          `SELECT b.id, b.number, b.cashier, b.created_by_name, u.name as user_name
+           FROM bill_items bi
+           JOIN bills b ON b.id = bi.bill_id
+           JOIN users u ON u.id = b.user_id
+           WHERE bi.user_id = ? AND b.number LIKE 'INV-%'
+             AND (bi.product_id = ? OR bi.product_id IN (SELECT id FROM product_batches WHERE product_id = ?) ${batch ? 'OR LOWER(TRIM(bi.batch)) = LOWER(TRIM(?))' : ''})
+             AND ABS(TIMESTAMPDIFF(SECOND, b.created_at, ?)) <= 60
+           ORDER BY ABS(TIMESTAMPDIFF(SECOND, b.created_at, ?)) ASC
+           LIMIT 1`,
+          batch
+            ? [r.user_id, r.product_id, r.product_id, batch, r.h_created_at, r.h_created_at]
+            : [r.user_id, r.product_id, r.product_id, r.h_created_at, r.h_created_at]
+        );
+
+        if (matching.length > 0) {
+          const m = matching[0];
+          const actor = m.created_by_name || m.cashier || m.user_name || "Admin";
+          const newNotes = `Sale via ${m.number} by ${actor}`;
+          await connection.query(
+            `UPDATE product_history 
+             SET action = 'sale', invoice_no = ?, notes = ? 
+             WHERE id = ?`,
+            [m.number, newNotes, r.history_id]
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Automated history backfill skipped:", e.message);
+    }
+
     console.log("MySQL migration completed successfully.");
   } finally {
     await connection.end();
