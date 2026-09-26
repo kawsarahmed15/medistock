@@ -38,7 +38,7 @@ import { toast } from "sonner";
 
 const employeeNav = [
   { to: "/inventory", label: "Inventory (Stock)", icon: Package },
-  { to: "/sell", label: "New Sale", icon: ShoppingCart },
+  { to: "/new-sale", label: "New Sale", icon: ShoppingCart },
   { to: "/cart", label: "Cart", icon: ShoppingBag },
   { to: "/bills", label: "My Bills", icon: ReceiptText },
 ] as const;
@@ -373,7 +373,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const sellButton = (
     <Link
-      to="/sell"
+      to="/new-sale"
       preload="intent"
       title="New sale (F2)"
       className="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg bg-gradient-primary text-primary-foreground text-sm font-medium shadow-soft hover:shadow-glow hover:scale-[1.03] transition-smooth shrink-0"

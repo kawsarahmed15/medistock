@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 export function CartFab() {
   const { count, total } = useCart();
   const location = useLocation();
-  const showOn = ["/sell", "/inventory"].some((p) => location.pathname.startsWith(p));
+  const showOn = ["/new-sale", "/inventory"].some((p) => location.pathname.startsWith(p));
   if (!showOn || count === 0) return null;
 
   return (

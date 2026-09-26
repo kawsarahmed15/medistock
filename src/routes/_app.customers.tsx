@@ -176,7 +176,7 @@ function CustomersPage() {
     });
     cart.setCustomerSubmitted(true);
     toast.success(`Selected ${c.name || c.phone} for next sale`);
-    navigate({ to: "/sell" });
+    navigate({ to: "/cart" });
   };
 
   const handleEditSave = async (e: React.FormEvent) => {

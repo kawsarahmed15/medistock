@@ -36,7 +36,7 @@ function LoginPage() {
   useEffect(() => {
     if (ready && session) {
       if (session.isEmployee) {
-        navigate({ to: "/sell" });
+        navigate({ to: "/new-sale" });
       } else {
         navigate({ to: "/dashboard" });
       }
@@ -50,7 +50,7 @@ function LoginPage() {
       const s = await login(email, password);
       if (s?.isEmployee) {
         toast.success("Signed in to Employee Panel");
-        navigate({ to: "/sell" });
+        navigate({ to: "/new-sale" });
       } else {
         navigate({ to: "/dashboard" });
       }

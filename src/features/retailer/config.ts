@@ -44,7 +44,7 @@ export const retailerConfig: BusinessModuleConfig = {
   navigation: [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/inventory", label: "Inventory", icon: Package },
-    { to: "/sell", label: "Sell", icon: ShoppingCart },
+    { to: "/new-sale", label: "New Sale", icon: ShoppingCart },
     { to: "/cart", label: "Cart", icon: ShoppingBag },
     { to: "/bills", label: "Bills", icon: ReceiptText },
     { to: "/customers", label: "Customers", icon: Users },

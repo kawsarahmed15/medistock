@@ -127,7 +127,7 @@ export function KeyboardShortcuts() {
         case "F2":
           return go("/inventory");
         case "F3":
-          return go("/sell");
+          return go("/new-sale");
         case "F4":
           return go("/bills");
         case "F5":

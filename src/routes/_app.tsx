@@ -25,6 +25,7 @@ function AppLayout() {
     if (ready && session?.isEmployee) {
       const p = location.pathname;
       const isAllowed =
+        p.startsWith("/new-sale") ||
         p.startsWith("/sell") ||
         p.startsWith("/cart") ||
         p.startsWith("/inventory") ||
@@ -32,7 +33,7 @@ function AppLayout() {
 
       if (!isAllowed) {
         toast.error("Employee mode: Restricted to Inventory, Sales, and Bills.");
-        navigate({ to: "/sell" });
+        navigate({ to: "/new-sale" });
       }
     }
   }, [ready, session, location.pathname, navigate]);

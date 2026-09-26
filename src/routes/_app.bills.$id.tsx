@@ -89,7 +89,7 @@ function BillDetailPage() {
       if (isTyping) return;
       e.preventDefault();
       if (isEmployee) {
-        void navigate({ to: "/sell" });
+        void navigate({ to: "/new-sale" });
       } else {
         void navigate({ to: "/bills" });
       }
@@ -152,7 +152,7 @@ function BillDetailPage() {
       <div className="text-center py-20">
         <p className="text-sm text-muted-foreground">Bill not found.</p>
         <Button asChild variant="outline" className="mt-4">
-          <Link to={isEmployee ? "/sell" : "/bills"}>
+          <Link to={isEmployee ? "/new-sale" : "/bills"}>
             {isEmployee ? "Back to New Sale" : "Back to bills"}
           </Link>
         </Button>

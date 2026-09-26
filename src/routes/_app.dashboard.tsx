@@ -217,7 +217,7 @@ function DashboardPage() {
             </Link>
           </Button>
           <Button asChild className="shadow-soft">
-            <Link to="/sell">
+            <Link to="/new-sale">
               <ShoppingCart className="h-4 w-4" /> New sale
             </Link>
           </Button>
@@ -332,7 +332,7 @@ function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {bills.length === 0 ? (
-              <EmptyHint label="No bills yet. Make your first sale." to="/sell" cta="Open sell" />
+              <EmptyHint label="No bills yet. Make your first sale." to="/new-sale" cta="New sale" />
             ) : (
               bills.slice(0, 5).map((b) => (
                 <div

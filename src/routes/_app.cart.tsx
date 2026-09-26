@@ -480,9 +480,6 @@ function CartPage() {
               Alt+B
             </kbd>
           </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/sell">Sell page</Link>
-          </Button>
         </div>
       </div>
 

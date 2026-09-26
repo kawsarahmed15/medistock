@@ -26,6 +26,7 @@ import { Route as AppSellRouteImport } from './routes/_app.sell'
 import { Route as AppRevenueRouteImport } from './routes/_app.revenue'
 import { Route as AppPurchasesRouteImport } from './routes/_app.purchases'
 import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppNewSaleRouteImport } from './routes/_app.new-sale'
 import { Route as AppLedgerRouteImport } from './routes/_app.ledger'
 import { Route as AppInventoryRouteImport } from './routes/_app.inventory'
 import { Route as AppEmployeesRouteImport } from './routes/_app.employees'
@@ -125,6 +126,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNewSaleRoute = AppNewSaleRouteImport.update({
+  id: '/new-sale',
+  path: '/new-sale',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLedgerRoute = AppLedgerRouteImport.update({
   id: '/ledger',
   path: '/ledger',
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/employees': typeof AppEmployeesRoute
   '/inventory': typeof AppInventoryRoute
   '/ledger': typeof AppLedgerRoute
+  '/new-sale': typeof AppNewSaleRoute
   '/notifications': typeof AppNotificationsRoute
   '/purchases': typeof AppPurchasesRouteWithChildren
   '/revenue': typeof AppRevenueRoute
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/employees': typeof AppEmployeesRoute
   '/inventory': typeof AppInventoryRoute
   '/ledger': typeof AppLedgerRoute
+  '/new-sale': typeof AppNewSaleRoute
   '/notifications': typeof AppNotificationsRoute
   '/revenue': typeof AppRevenueRoute
   '/sell': typeof AppSellRoute
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/_app/employees': typeof AppEmployeesRoute
   '/_app/inventory': typeof AppInventoryRoute
   '/_app/ledger': typeof AppLedgerRoute
+  '/_app/new-sale': typeof AppNewSaleRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/purchases': typeof AppPurchasesRouteWithChildren
   '/_app/revenue': typeof AppRevenueRoute
@@ -311,6 +320,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/inventory'
     | '/ledger'
+    | '/new-sale'
     | '/notifications'
     | '/purchases'
     | '/revenue'
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/inventory'
     | '/ledger'
+    | '/new-sale'
     | '/notifications'
     | '/revenue'
     | '/sell'
@@ -374,6 +385,7 @@ export interface FileRouteTypes {
     | '/_app/employees'
     | '/_app/inventory'
     | '/_app/ledger'
+    | '/_app/new-sale'
     | '/_app/notifications'
     | '/_app/purchases'
     | '/_app/revenue'
@@ -523,6 +535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/new-sale': {
+      id: '/_app/new-sale'
+      path: '/new-sale'
+      fullPath: '/new-sale'
+      preLoaderRoute: typeof AppNewSaleRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/ledger': {
       id: '/_app/ledger'
       path: '/ledger'
@@ -663,6 +682,7 @@ interface AppRouteChildren {
   AppEmployeesRoute: typeof AppEmployeesRoute
   AppInventoryRoute: typeof AppInventoryRoute
   AppLedgerRoute: typeof AppLedgerRoute
+  AppNewSaleRoute: typeof AppNewSaleRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppPurchasesRoute: typeof AppPurchasesRouteWithChildren
   AppRevenueRoute: typeof AppRevenueRoute
@@ -681,6 +701,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEmployeesRoute: AppEmployeesRoute,
   AppInventoryRoute: AppInventoryRoute,
   AppLedgerRoute: AppLedgerRoute,
+  AppNewSaleRoute: AppNewSaleRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppPurchasesRoute: AppPurchasesRouteWithChildren,
   AppRevenueRoute: AppRevenueRoute,
