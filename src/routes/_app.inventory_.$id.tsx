@@ -113,10 +113,16 @@ function ProductDetails() {
       const pRes = await apiRequest(`/products/${id}`, { auth: true });
       setProduct(pRes);
 
-      const hRes = await apiRequest(`/products/${id}/history`, { auth: true });
-      setHistory(hRes);
-    } catch (err) {
-      toast.error("Failed to load product details");
+      try {
+        const hRes = await apiRequest(`/products/${id}/history`, { auth: true });
+        setHistory(Array.isArray(hRes) ? hRes : []);
+      } catch (hErr) {
+        console.warn("Could not load product history:", hErr);
+        setHistory([]);
+      }
+    } catch (err: any) {
+      console.error("Failed to load product details:", err);
+      toast.error(err?.message || "Failed to load product details");
     } finally {
       setLoading(false);
     }

@@ -193,13 +193,38 @@ router.get("/", async (req, res, next) => {
 // GET single product details with batches nested
 router.get("/:id", async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
+    let targetProductId = req.params.id;
+    let [rows] = await pool.query(
       `SELECT id, name, category, manufacturer, sku, prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price, pack
        FROM products
        WHERE id = ? AND user_id = ?
        LIMIT 1`,
-      [req.params.id, req.auth.userId],
+      [targetProductId, req.auth.userId],
     );
+
+    // Fallback: Check if targetProductId is a batch ID in product_batches
+    if (rows.length === 0) {
+      const [batchRows] = await pool.query(
+        `SELECT b.product_id 
+         FROM product_batches b 
+         JOIN products p ON b.product_id = p.id 
+         WHERE b.id = ? AND p.user_id = ? 
+         LIMIT 1`,
+        [targetProductId, req.auth.userId],
+      );
+      if (batchRows.length > 0) {
+        targetProductId = batchRows[0].product_id;
+        const [resolved] = await pool.query(
+          `SELECT id, name, category, manufacturer, sku, prescription, tax_percent, created_at, base_unit, pack_unit, conversion_factor, pack_price, pack_cost_price, pack
+           FROM products
+           WHERE id = ? AND user_id = ?
+           LIMIT 1`,
+          [targetProductId, req.auth.userId],
+        );
+        rows = resolved;
+      }
+    }
+
     const product = rows[0];
     if (!product) throw buildApiError(404, "Product not found");
 
@@ -382,12 +407,31 @@ router.post("/", requireAdminOnly, async (req, res, next) => {
 // GET product history
 router.get("/:id/history", async (req, res, next) => {
   try {
+    let targetProductId = req.params.id;
+    const [pCheck] = await pool.query(
+      `SELECT id FROM products WHERE id = ? AND user_id = ? LIMIT 1`,
+      [targetProductId, req.auth.userId],
+    );
+    if (pCheck.length === 0) {
+      const [batchRows] = await pool.query(
+        `SELECT b.product_id 
+         FROM product_batches b 
+         JOIN products p ON b.product_id = p.id 
+         WHERE b.id = ? AND p.user_id = ? 
+         LIMIT 1`,
+        [targetProductId, req.auth.userId],
+      );
+      if (batchRows.length > 0) {
+        targetProductId = batchRows[0].product_id;
+      }
+    }
+
     const [rows] = await pool.query(
       `SELECT id, action, quantity, balance, notes, invoice_no, created_at
        FROM product_history
        WHERE product_id = ? AND user_id = ?
        ORDER BY created_at DESC`,
-      [req.params.id, req.auth.userId],
+      [targetProductId, req.auth.userId],
     );
     res.json(rows);
   } catch (error) {

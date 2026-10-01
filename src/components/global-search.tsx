@@ -87,7 +87,8 @@ export function GlobalSearch() {
     setOpen(false);
     setQuery("");
     inputRef.current?.blur();
-    navigate({ to: "/inventory/$id", params: { id: p.id } as any });
+    const targetId = (p as any).productId || p.id;
+    navigate({ to: "/inventory/$id", params: { id: targetId } as any });
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

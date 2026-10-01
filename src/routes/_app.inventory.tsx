@@ -212,6 +212,8 @@ function InventoryPage() {
 
         list.push({
           ...latestBatch,
+          id: p.id,
+          batchId: latestBatch.id,
           productId: p.id,
           stock: totalStock,
           totalProductStock: totalStock,
@@ -331,7 +333,7 @@ function InventoryPage() {
         if (selectedIdx >= 0 && selectedIdx < sorted.length) {
           e.preventDefault();
           const targetProduct = sorted[selectedIdx];
-          navigate({ to: "/inventory/$id", params: { id: targetProduct.id } });
+          navigate({ to: "/inventory/$id", params: { id: targetProduct.productId || targetProduct.id } });
         }
       }
     };
