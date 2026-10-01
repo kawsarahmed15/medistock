@@ -14,6 +14,7 @@ import {
   Plus,
   Edit,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -567,28 +568,70 @@ function ProductDetails() {
                       const qtyVal = Math.abs(Number(record.quantity || 0));
                       const displayQtyStr = isDeduction ? `-${qtyVal}` : `+${qtyVal}`;
 
+                      const isRestored =
+                        (record.action === "stock_in" || record.action === "adjustment") &&
+                        (record.notes?.toLowerCase().includes("restored") ||
+                          record.notes?.toLowerCase().includes("deleted") ||
+                          record.notes?.toLowerCase().includes("cancel"));
+
+                      const actionLabel = isRestored
+                        ? "Stock Restored"
+                        : record.action === "sale"
+                        ? "Sale"
+                        : record.action === "return"
+                        ? "Sale Return"
+                        : record.action === "purchase"
+                        ? "Purchase"
+                        : record.action === "stock_out"
+                        ? "Stock Out"
+                        : record.action === "stock_in"
+                        ? "Stock In"
+                        : record.action.replace("_", " ");
+
                       // Extract invoice / PO / reference / bill number
-                      const invNo = record.invoice_no || record.invoiceNo || record.notes?.match(/(?:INV|SR|PO|PR|INIT|ADJ|BATCH|REF|IN|OUT)-[A-Za-z0-9-]+/i)?.[0] || null;
+                      const invNo =
+                        record.invoice_no ||
+                        record.invoiceNo ||
+                        record.notes?.match(/(?:INV|SR|PO|PR|INIT|ADJ|BATCH|REF|IN|OUT)-[A-Za-z0-9-]+/i)?.[0] ||
+                        null;
 
                       return (
                         <div key={record.id} className="relative pl-6">
                           <div
                             className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-background ${
-                              isDeduction ? "bg-rose-500" : "bg-emerald-500"
+                              isDeduction
+                                ? "bg-rose-500"
+                                : isRestored
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
                             }`}
                           />
                           <div className="flex justify-between items-start mb-1 text-xs">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold capitalize">
-                                {record.action.replace("_", " ")}
+                                {actionLabel}
                               </span>
                               <span
-                                className={`font-bold ${isDeduction ? "text-rose-500" : "text-emerald-500"}`}
+                                className={`font-bold ${
+                                  isDeduction
+                                    ? "text-rose-500"
+                                    : isRestored
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-emerald-500"
+                                }`}
                               >
                                 {displayQtyStr}
                               </span>
                               {invNo ? (
-                                invNo.startsWith("INV-") ? (
+                                isRestored ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/30 font-bold transition-colors shadow-xs"
+                                    title={`Stock restored back to inventory from deleted invoice ${invNo}`}
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                    Restored from {invNo} (Deleted Bill)
+                                  </span>
+                                ) : invNo.startsWith("INV-") ? (
                                   <Link
                                     to="/bills"
                                     search={{ status: "completed" }}
