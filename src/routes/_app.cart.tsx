@@ -20,12 +20,20 @@ import {
   Bookmark,
   Save,
   X,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Check,
+  Receipt,
+  Coins,
+  Clock,
+  Pill,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
-import { billsStore, productsStore, type Product } from "@/lib/storage";
+import { billsStore, productsStore, customersStore, type Product, type Customer as SavedCustomer } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -192,33 +200,49 @@ function CartPage() {
     }
   }, [selectedIdx]);
 
+  // ── Checkout Modal State (Payment & Invoice Preview Flow) ───────────────────
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<"payment" | "preview">("payment");
+
   // ── Refs to keep stable handler closure with always-fresh values ────────────
   const selectedIdxRef = useRef(selectedIdx);
   const addOpenRef = useRef(addOpen);
   const customerOpenRef = useRef(customerOpen);
+  const checkoutOpenRef = useRef(checkoutOpen);
   const deleteTargetRef = useRef(deleteTarget);
   const cartRef = useRef(cart);
-  const checkoutRef = useRef<() => Promise<void>>();
+  const checkoutRef = useRef<() => void>();
 
   // Keep refs in sync every render (no re-subscription needed)
   useEffect(() => { selectedIdxRef.current = selectedIdx; });
   useEffect(() => { addOpenRef.current = addOpen; });
   useEffect(() => { customerOpenRef.current = customerOpen; });
+  useEffect(() => { checkoutOpenRef.current = checkoutOpen; });
   useEffect(() => { deleteTargetRef.current = deleteTarget; });
   useEffect(() => { cartRef.current = cart; });
 
-  const checkout = async () => {
+  const handleOpenCheckout = () => {
     if (cart.items.length === 0 || submitting) return;
 
-    // Flush any pending price-input changes: blur the active element so its
-    // onBlur fires and calls setCustomPrice, then wrap in flushSync so React
-    // commits that state update synchronously before we read cart.items below.
+    // Flush any pending price-input changes
     const active = document.activeElement as HTMLElement | null;
     if (active && active.tagName === "INPUT" && (active as HTMLInputElement).type === "number") {
       flushSync(() => {
         active.blur();
       });
     }
+
+    if (rxBlocked) {
+      toast.error("Prescription reference is required for Rx items. Add it below.");
+      return;
+    }
+
+    setCheckoutStep("payment");
+    setCheckoutOpen(true);
+  };
+
+  const executeSaveBill = async () => {
+    if (cart.items.length === 0 || submitting) return;
 
     if (rxBlocked) {
       toast.error("Prescription reference is required for Rx items. Add it below.");
@@ -240,7 +264,7 @@ function CartPage() {
       toast.error("Credit sales cannot be generated for Walk-in Customers.", {
         description: "Customer name and phone number are required for credit. Walk-in customers can only pay with Cash or Online.",
       });
-      setCustomerOpen(true);
+      setCheckoutStep("payment");
       return;
     }
 
@@ -289,6 +313,7 @@ function CartPage() {
         toast.success(`Bill ${bill.number} submitted for Admin confirmation (Pending)`);
       }
 
+      setCheckoutOpen(false);
       cart.clear({ removeDraft: true });
       navigate({ to: "/bills/$id", params: { id: bill.id } });
     } catch (e) {
@@ -299,7 +324,7 @@ function CartPage() {
   };
 
   // Keep checkoutRef in sync so the stable keyboard handler can call it
-  checkoutRef.current = checkout;
+  checkoutRef.current = handleOpenCheckout;
 
   // ── Cart keyboard handler — registered once, reads live values via refs ──────
   useEffect(() => {
@@ -317,10 +342,10 @@ function CartPage() {
         return;
       }
 
-      // F9 → Generate bill
+      // F9 → Open Checkout Payment Modal
       if (e.key === "F9" && !isTyping) {
         e.preventDefault();
-        void checkoutRef.current?.();
+        checkoutRef.current?.();
         return;
       }
 
@@ -1175,7 +1200,7 @@ function CartPage() {
               <Button
                 className="w-full shadow-soft mt-3"
                 size="lg"
-                onClick={() => void checkout()}
+                onClick={handleOpenCheckout}
                 disabled={cart.items.length === 0 || submitting || rxBlocked}
                 id="cart-checkout-btn"
                 title="Generate Bill (F9)"
@@ -1211,6 +1236,16 @@ function CartPage() {
       <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
       <CartAddDialog open={addOpen} onOpenChange={setAddOpen} />
       <DraftBillsDialog open={draftsOpen} onOpenChange={setDraftsOpen} />
+      <CheckoutFlowDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        step={checkoutStep}
+        setStep={setCheckoutStep}
+        onConfirmBill={executeSaveBill}
+        submitting={submitting}
+        isRetailer={isRetailer}
+        session={session}
+      />
 
       {/* Delete confirmation dialog */}
       <CartDeleteConfirm
@@ -2367,5 +2402,828 @@ function RxInput({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Checkout Flow Dialog (Payment Selection & Invoice Preview) ────────────────
+
+function CheckoutFlowDialog({
+  open,
+  onOpenChange,
+  step,
+  setStep,
+  onConfirmBill,
+  submitting,
+  isRetailer,
+  session,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  step: "payment" | "preview";
+  setStep: (s: "payment" | "preview") => void;
+  onConfirmBill: () => Promise<void>;
+  submitting: boolean;
+  isRetailer: boolean;
+  session: any;
+}) {
+  const cart = useCart();
+  const [cashReceived, setCashReceived] = useState<string>("");
+  const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
+  const [custSearch, setCustSearch] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [newCustForm, setNewCustForm] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    drugLicNo: "",
+    gstin: "",
+    notes: "",
+  });
+
+  const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
+  const pharmacyAddress = session?.pharmacyAddress || "";
+  const pharmacyPhone = session?.pharmacyPhone || "";
+  const gstNumber = session?.gstNumber || "";
+  const drugLicNo = session?.drugLicNo || "";
+
+  useEffect(() => {
+    if (open) {
+      setCashReceived(String(cart.total));
+      setShowPicker(false);
+      setShowAddCustomer(false);
+      setCustSearch("");
+      customersStore.list().then(setSavedCustomers).catch(() => setSavedCustomers([]));
+    }
+  }, [open, cart.total]);
+
+  const cashNum = parseFloat(cashReceived) || 0;
+  const changeToReturn = cashNum - cart.total;
+
+  const advanceNum = cart.advanceAmount || 0;
+  const creditBalanceDue = Math.max(0, cart.total - advanceNum);
+
+  const isWalkIn =
+    !cart.customer.name?.trim() ||
+    cart.customer.name.trim().toLowerCase() === "walk-in customer" ||
+    cart.customer.name.trim().toLowerCase() === "walk-in" ||
+    cart.customer.name.trim().toLowerCase() === "walkin";
+
+  const hasRegisteredCustomer = !isWalkIn && Boolean(cart.customer.name?.trim());
+
+  const matchedCustomers = useMemo(() => {
+    const q = custSearch.trim().toLowerCase();
+    if (!q) return savedCustomers.slice(0, 6);
+    return savedCustomers
+      .filter((c) => c.name.toLowerCase().includes(q) || (c.phone && c.phone.toLowerCase().includes(q)))
+      .slice(0, 6);
+  }, [savedCustomers, custSearch]);
+
+  const selectCustomer = (c: SavedCustomer) => {
+    cart.setCustomer({
+      name: c.name,
+      phone: c.phone || "",
+      address: c.address || "",
+      drugLicNo: c.drugLicNo || "",
+      gstin: c.gstin || "",
+      notes: c.notes || "",
+    });
+    setShowPicker(false);
+    setCustSearch("");
+  };
+
+  const handleSetWalkIn = () => {
+    cart.setCustomer({
+      name: "Walk-in Customer",
+      phone: "",
+      address: "",
+      drugLicNo: "",
+      gstin: "",
+      notes: "",
+    });
+    setShowPicker(false);
+  };
+
+  const handleSaveNewCustomer = (e: FormEvent) => {
+    e.preventDefault();
+    if (!newCustForm.name.trim()) {
+      toast.error("Customer name is required.");
+      return;
+    }
+    if (!newCustForm.phone.trim()) {
+      toast.error("Customer phone number is required.");
+      return;
+    }
+    cart.setCustomer({
+      name: newCustForm.name.trim(),
+      phone: newCustForm.phone.trim(),
+      address: newCustForm.address.trim(),
+      drugLicNo: newCustForm.drugLicNo.trim(),
+      gstin: newCustForm.gstin.trim(),
+      notes: newCustForm.notes.trim(),
+    });
+    setShowAddCustomer(false);
+    toast.success("Customer details updated");
+  };
+
+  const handleProceedToPreview = () => {
+    if (cart.paymentMethod === "credit" && (!hasRegisteredCustomer || !cart.customer.phone?.trim())) {
+      toast.error("Credit sales require registered customer details.", {
+        description: "Please select or add customer name & phone number for credit.",
+      });
+      setShowPicker(true);
+      return;
+    }
+
+    setStep("preview");
+  };
+
+  // Quick cash amounts
+  const roundNext100 = Math.ceil(cart.total / 100) * 100;
+  const roundNext500 = Math.ceil(cart.total / 500) * 500;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={cn(
+        "max-h-[92vh] overflow-y-auto transition-all",
+        step === "preview" ? "sm:max-w-4xl" : "sm:max-w-2xl"
+      )}>
+        {step === "payment" ? (
+          <div className="space-y-5">
+            <DialogHeader>
+              <div className="flex items-center justify-between gap-2 border-b pb-3">
+                <div>
+                  <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                    <Coins className="h-5 w-5 text-primary" />
+                    Select Payment Method &amp; Customer
+                  </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Choose payment mode, handle cash tender or credit terms before previewing the invoice.
+                  </DialogDescription>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-muted-foreground block">Total Amount</span>
+                  <span className="text-xl font-extrabold text-primary font-mono tabular-nums">
+                    {formatMoney(cart.total)}
+                  </span>
+                </div>
+              </div>
+            </DialogHeader>
+
+            {/* Customer Details Card */}
+            <div className="rounded-lg border p-3.5 bg-muted/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserRound className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Customer / Party
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs px-2.5"
+                    onClick={() => setShowPicker(!showPicker)}
+                  >
+                    <Search className="h-3 w-3 mr-1" />
+                    {showPicker ? "Close Picker" : "Select / Search Party"}
+                  </Button>
+                  {hasRegisteredCustomer && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs px-2 text-muted-foreground"
+                      onClick={handleSetWalkIn}
+                      title="Switch to Walk-in Customer"
+                    >
+                      Set Walk-in
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {!showPicker && !showAddCustomer && (
+                <div className="flex items-center justify-between text-xs bg-background p-2.5 rounded-md border">
+                  <div>
+                    <span className="font-semibold text-foreground text-sm block">
+                      {cart.customer.name || "Walk-in Customer"}
+                    </span>
+                    {cart.customer.phone && (
+                      <span className="text-muted-foreground block font-mono">
+                        Phone: {cart.customer.phone}
+                      </span>
+                    )}
+                    {cart.customer.address && (
+                      <span className="text-muted-foreground block truncate max-w-md">
+                        {cart.customer.address}
+                      </span>
+                    )}
+                  </div>
+                  <Badge variant={hasRegisteredCustomer ? "default" : "secondary"}>
+                    {hasRegisteredCustomer ? "Registered Party" : "Walk-in"}
+                  </Badge>
+                </div>
+              )}
+
+              {/* Customer Picker Dropdown / Search */}
+              {showPicker && !showAddCustomer && (
+                <div className="space-y-2 bg-background p-3 rounded-md border animate-in fade-in-50">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        value={custSearch}
+                        onChange={(e) => setCustSearch(e.target.value)}
+                        placeholder="Search by party name or phone number..."
+                        className="h-8 text-xs pl-8"
+                        autoFocus
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 text-xs shrink-0"
+                      onClick={() => {
+                        setNewCustForm({
+                          name: custSearch || "",
+                          phone: "",
+                          address: "",
+                          drugLicNo: "",
+                          gstin: "",
+                          notes: "",
+                        });
+                        setShowAddCustomer(true);
+                      }}
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Add New Party
+                    </Button>
+                  </div>
+
+                  <div className="max-h-40 overflow-y-auto divide-y rounded border text-xs">
+                    <div
+                      className="p-2 hover:bg-muted cursor-pointer flex items-center justify-between"
+                      onClick={handleSetWalkIn}
+                    >
+                      <span className="font-medium text-foreground">Walk-in Customer</span>
+                      <span className="text-[10px] text-muted-foreground">Default</span>
+                    </div>
+                    {matchedCustomers.map((c) => (
+                      <div
+                        key={c.id}
+                        className="p-2 hover:bg-muted cursor-pointer flex items-center justify-between"
+                        onClick={() => selectCustomer(c)}
+                      >
+                        <div>
+                          <span className="font-medium text-foreground block">{c.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{c.phone || "No phone"}</span>
+                        </div>
+                        {c.gstin && (
+                          <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                            {c.gstin}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {matchedCustomers.length === 0 && custSearch && (
+                      <div className="p-3 text-center text-muted-foreground text-xs">
+                        No customer found matching "{custSearch}".
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Customer Form */}
+              {showAddCustomer && (
+                <form onSubmit={handleSaveNewCustomer} className="space-y-3 bg-background p-3 rounded-md border animate-in fade-in-50 text-xs">
+                  <div className="font-semibold text-foreground flex items-center justify-between">
+                    <span>New Customer Details</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs px-2"
+                      onClick={() => setShowAddCustomer(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[11px]">Party Name *</Label>
+                      <Input
+                        value={newCustForm.name}
+                        onChange={(e) => setNewCustForm({ ...newCustForm, name: e.target.value })}
+                        required
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Phone Number *</Label>
+                      <Input
+                        value={newCustForm.phone}
+                        onChange={(e) => setNewCustForm({ ...newCustForm, phone: e.target.value })}
+                        required
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[11px]">GSTIN</Label>
+                      <Input
+                        value={newCustForm.gstin}
+                        onChange={(e) => setNewCustForm({ ...newCustForm, gstin: e.target.value.toUpperCase() })}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Drug Lic No.</Label>
+                      <Input
+                        value={newCustForm.drugLicNo}
+                        onChange={(e) => setNewCustForm({ ...newCustForm, drugLicNo: e.target.value.toUpperCase() })}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-[11px]">Address</Label>
+                    <Input
+                      value={newCustForm.address}
+                      onChange={(e) => setNewCustForm({ ...newCustForm, address: e.target.value })}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <Button type="submit" size="sm" className="w-full h-8 text-xs">
+                    <Check className="h-3.5 w-3.5 mr-1" /> Use this Customer
+                  </Button>
+                </form>
+              )}
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                Choose Payment Mode
+              </Label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    cart.setPaymentMethod("cash");
+                    cart.setAdvanceAmount(0);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 p-3.5 rounded-lg border-2 text-sm font-semibold transition-all",
+                    cart.paymentMethod === "cash"
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border hover:bg-muted/50 text-foreground"
+                  )}
+                >
+                  <Banknote className="h-6 w-6" />
+                  <span>Cash</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    cart.setPaymentMethod("online");
+                    cart.setAdvanceAmount(0);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 p-3.5 rounded-lg border-2 text-sm font-semibold transition-all",
+                    cart.paymentMethod === "online"
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border hover:bg-muted/50 text-foreground"
+                  )}
+                >
+                  <Smartphone className="h-6 w-6" />
+                  <span>Online / UPI</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!hasRegisteredCustomer || !cart.customer.phone?.trim()) {
+                      toast.info("Credit bills require registered party details.", {
+                        description: "Please enter customer name and phone.",
+                      });
+                      setShowPicker(true);
+                    }
+                    cart.setPaymentMethod("credit");
+                  }}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1.5 p-3.5 rounded-lg border-2 text-sm font-semibold transition-all",
+                    cart.paymentMethod === "credit"
+                      ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      : "border-border hover:bg-muted/50 text-foreground"
+                  )}
+                >
+                  <CreditCard className="h-6 w-6" />
+                  <span>Credit (Udhar)</span>
+                </button>
+              </div>
+
+              {/* Cash Tender & Change Handling */}
+              {cart.paymentMethod === "cash" && (
+                <div className="rounded-lg border p-4 bg-muted/10 space-y-3 animate-in fade-in-50">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <Label className="text-xs font-semibold">Cash Tendered / Received</Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">
+                          ₹
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={cashReceived}
+                          onChange={(e) => setCashReceived(e.target.value)}
+                          className="pl-8 text-base font-bold font-mono h-10"
+                          placeholder="0.00"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex-1 text-right">
+                      <span className="text-xs text-muted-foreground block">
+                        {changeToReturn >= 0 ? "Change to Return" : "Short Amount"}
+                      </span>
+                      <span className={cn(
+                        "text-xl font-extrabold font-mono tabular-nums block mt-1",
+                        changeToReturn >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                      )}>
+                        {changeToReturn >= 0 ? `₹${changeToReturn.toFixed(2)}` : `-₹${Math.abs(changeToReturn).toFixed(2)}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick Cash Buttons */}
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] text-muted-foreground font-medium">Quick Tender:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs px-2"
+                        onClick={() => setCashReceived(String(cart.total))}
+                      >
+                        Exact (₹{cart.total.toFixed(0)})
+                      </Button>
+                      {roundNext100 > cart.total && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2 font-mono"
+                          onClick={() => setCashReceived(String(roundNext100))}
+                        >
+                          ₹{roundNext100}
+                        </Button>
+                      )}
+                      {roundNext500 > cart.total && roundNext500 !== roundNext100 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2 font-mono"
+                          onClick={() => setCashReceived(String(roundNext500))}
+                        >
+                          ₹{roundNext500}
+                        </Button>
+                      )}
+                      {[100, 200, 500, 2000].filter(n => n >= cart.total).slice(0, 3).map((amt) => (
+                        <Button
+                          key={amt}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2 font-mono"
+                          onClick={() => setCashReceived(String(amt))}
+                        >
+                          ₹{amt}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Online Mode Info */}
+              {cart.paymentMethod === "online" && (
+                <div className="rounded-lg border p-4 bg-emerald-500/5 border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-200 space-y-1 animate-in fade-in-50">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    Online / UPI Payment Mode
+                  </div>
+                  <p className="text-muted-foreground">
+                    Collect ₹{cart.total.toFixed(2)} via UPI QR scanner, Card POS machine, or Netbanking.
+                  </p>
+                </div>
+              )}
+
+              {/* Credit Mode Options */}
+              {cart.paymentMethod === "credit" && (
+                <div className="rounded-lg border p-4 bg-muted/10 space-y-3.5 animate-in fade-in-50">
+                  {(!hasRegisteredCustomer || !cart.customer.phone?.trim()) ? (
+                    <div className="text-xs bg-amber-500/15 border border-amber-500/30 p-2.5 rounded text-amber-900 dark:text-amber-200 flex items-center justify-between gap-2">
+                      <span>⚠️ Party name &amp; phone number are mandatory for credit sales.</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-xs px-2 border-amber-500/40"
+                        onClick={() => setShowPicker(true)}
+                      >
+                        Pick Customer
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Advance Payment (Optional)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={cart.total}
+                          value={cart.advanceAmount || ""}
+                          onChange={(e) => cart.setAdvanceAmount(Number(e.target.value))}
+                          className="pl-7 h-9 text-xs font-mono"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-right">
+                      <Label className="text-xs font-semibold block text-muted-foreground">Remaining Balance Due</Label>
+                      <span className="text-lg font-bold font-mono text-primary block mt-1">
+                        ₹{creditBalanceDue.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {cart.advanceAmount > 0 && (
+                    <div className="space-y-1">
+                      <Label className="text-[11px] text-muted-foreground">Advance Received Via</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={cart.advancePaymentMethod === "cash" ? "default" : "outline"}
+                          size="sm"
+                          className="flex-1 h-7 text-xs"
+                          onClick={() => cart.setAdvancePaymentMethod("cash")}
+                        >
+                          Cash
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={cart.advancePaymentMethod === "online" ? "default" : "outline"}
+                          size="sm"
+                          className="flex-1 h-7 text-xs"
+                          onClick={() => cart.setAdvancePaymentMethod("online")}
+                        >
+                          Online
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <DialogFooter className="border-t pt-3 flex items-center justify-between sm:justify-between w-full">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleProceedToPreview}
+                className="shadow-soft"
+              >
+                Proceed to Preview <ArrowRight className="h-4 w-4 ml-1.5" />
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          /* Step 2: Invoice Preview Screen */
+          <div className="space-y-4">
+            <DialogHeader>
+              <div className="flex items-center justify-between border-b pb-2">
+                <div>
+                  <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                    <Receipt className="h-5 w-5 text-primary" />
+                    Tax Invoice Preview
+                  </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Please review invoice line items, party information, and payment details before confirmation.
+                  </DialogDescription>
+                </div>
+                <Badge variant="outline" className="font-mono text-xs uppercase px-2.5 py-1">
+                  Preview Mode
+                </Badge>
+              </div>
+            </DialogHeader>
+
+            {/* Invoice Sheet Preview */}
+            <div className="rounded-lg border bg-card p-4 sm:p-6 text-card-foreground shadow-inner space-y-4 text-xs font-sans">
+              {/* Store & Invoice Meta Header */}
+              <div className="flex justify-between items-start border-b pb-3">
+                <div className="space-y-1">
+                  <h2 className="text-base font-bold text-primary uppercase tracking-wide">
+                    {pharmacyName}
+                  </h2>
+                  {pharmacyAddress && (
+                    <p className="text-muted-foreground whitespace-pre-wrap max-w-sm leading-tight text-[11px]">
+                      {pharmacyAddress}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 text-[11px] font-mono text-muted-foreground pt-0.5">
+                    {pharmacyPhone && <span>Phone: {pharmacyPhone}</span>}
+                    {gstNumber && <span>GSTIN: {gstNumber.toUpperCase()}</span>}
+                    {drugLicNo && <span>D.L.No.: {drugLicNo.toUpperCase()}</span>}
+                  </div>
+                </div>
+
+                <div className="text-right space-y-0.5 font-mono">
+                  <span className="text-xs font-bold uppercase text-primary tracking-wider block">TAX INVOICE</span>
+                  <span className="text-muted-foreground text-[11px] block">
+                    Date: {new Date().toLocaleDateString("en-IN")}
+                  </span>
+                  <span className="text-muted-foreground text-[11px] block">
+                    Cashier: {session?.name || "Staff"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Customer & Dispatch Box */}
+              <div className="grid grid-cols-2 gap-3 p-2.5 rounded bg-muted/30 border text-[11px]">
+                <div>
+                  <span className="font-bold text-primary uppercase block mb-0.5 text-[10px]">BILLED TO:</span>
+                  <span className="font-semibold text-foreground block text-xs">
+                    {cart.customer.name || "Walk-in Customer"}
+                  </span>
+                  {cart.customer.phone && <span className="text-muted-foreground block">Phone: {cart.customer.phone}</span>}
+                  {cart.customer.address && <span className="text-muted-foreground block truncate">{cart.customer.address}</span>}
+                  {cart.customer.gstin && <span className="text-muted-foreground block">GSTIN: {cart.customer.gstin}</span>}
+                </div>
+                <div className="text-right">
+                  <span className="font-bold text-primary uppercase block mb-0.5 text-[10px]">PAYMENT TERMS:</span>
+                  <span className="font-semibold text-foreground uppercase block text-xs">
+                    {cart.paymentMethod}
+                  </span>
+                  {cart.paymentMethod === "cash" && cashNum > 0 && (
+                    <span className="text-muted-foreground block">
+                      Tendered: ₹{cashNum.toFixed(2)} (Change: ₹{Math.max(0, changeToReturn).toFixed(2)})
+                    </span>
+                  )}
+                  {cart.paymentMethod === "credit" && (
+                    <span className="text-muted-foreground block">
+                      Advance: ₹{advanceNum.toFixed(2)} | Balance Due: ₹{creditBalanceDue.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="border rounded-md overflow-x-auto">
+                <table className="w-full text-left text-[11px] border-collapse">
+                  <thead className="bg-muted/70 text-muted-foreground uppercase text-[10px]">
+                    <tr>
+                      <th className="py-2 px-2 text-center w-8">#</th>
+                      <th className="py-2 px-2">Medicine Name</th>
+                      <th className="py-2 px-2 text-center">Pack</th>
+                      <th className="py-2 px-2 text-left">Batch</th>
+                      <th className="py-2 px-2 text-center">Exp</th>
+                      <th className="py-2 px-2 text-right">Qty</th>
+                      <th className="py-2 px-2 text-right">MRP</th>
+                      <th className="py-2 px-2 text-center">GST%</th>
+                      <th className="py-2 px-2 text-right">Rate</th>
+                      <th className="py-2 px-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {cart.items.map((it, idx) => {
+                      const pps = getPiecesPerStrip(it.product.pack, it.product.stockType);
+                      const isTabCap = isRetailer && isTabOrCap(it.product.stockType || it.product.pack);
+                      const unitRate = it.customPrice ?? it.product.price;
+                      const lineQty = it.qty - (it.freeQty || 0);
+                      const lineAmt = unitRate * lineQty;
+
+                      const expFormatted = it.product.expiry
+                        ? (() => {
+                            const d = new Date(it.product.expiry);
+                            const m = String(d.getMonth() + 1).padStart(2, "0");
+                            const y = String(d.getFullYear()).slice(-2);
+                            return `${m}/${y}`;
+                          })()
+                        : "-";
+
+                      return (
+                        <tr key={idx} className="hover:bg-muted/20">
+                          <td className="py-2 px-2 text-center text-muted-foreground">{idx + 1}</td>
+                          <td className="py-2 px-2 font-medium">{it.product.name}</td>
+                          <td className="py-2 px-2 text-center font-mono text-muted-foreground">
+                            {it.product.pack || "-"}
+                          </td>
+                          <td className="py-2 px-2 font-mono uppercase text-muted-foreground">
+                            {it.product.batch || "-"}
+                          </td>
+                          <td className="py-2 px-2 text-center font-mono text-muted-foreground">{expFormatted}</td>
+                          <td className="py-2 px-2 text-right font-medium">
+                            {isTabCap ? (
+                              <>
+                                {formatStripPcDisplay(it.qty, pps)}
+                                {it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps)}` : ""}
+                              </>
+                            ) : (
+                              <>
+                                {it.qty}
+                                {it.freeQty ? `+${it.freeQty}` : ""}
+                              </>
+                            )}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono text-muted-foreground">
+                            {it.product.mrp ? `₹${it.product.mrp.toFixed(2)}` : "-"}
+                          </td>
+                          <td className="py-2 px-2 text-center text-muted-foreground">
+                            {it.product.taxPercent || 0}%
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono">₹{unitRate.toFixed(2)}</td>
+                          <td className="py-2 px-2 text-right font-mono font-semibold">₹{lineAmt.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Financial Totals */}
+              <div className="flex justify-end pt-1">
+                <div className="w-64 space-y-1.5 text-xs font-mono">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Subtotal:</span>
+                    <span>{formatMoney(cart.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>GST / Tax:</span>
+                    <span>{formatMoney(cart.tax)}</span>
+                  </div>
+                  {cart.discount > 0 && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Discount:</span>
+                      <span>-{formatMoney(cart.discount)}</span>
+                    </div>
+                  )}
+                  {(() => {
+                    const roundOff = cart.total - (cart.subtotal + cart.tax - cart.discount);
+                    return Math.abs(roundOff) >= 0.01 ? (
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Round Off:</span>
+                        <span>{roundOff > 0 ? "+" : ""}{formatMoney(roundOff)}</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className="flex justify-between text-sm font-bold text-primary border-t pt-1.5">
+                    <span>Grand Total:</span>
+                    <span>{formatMoney(cart.total)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview Dialog Actions */}
+            <DialogFooter className="border-t pt-3 flex items-center justify-between sm:justify-between w-full">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep("payment")}
+                disabled={submitting}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to Payment
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void onConfirmBill()}
+                disabled={submitting}
+                className="shadow-soft bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+              >
+                {submitting ? "Generating Bill…" : "✓ Confirm & Generate Bill"}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
