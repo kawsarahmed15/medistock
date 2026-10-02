@@ -969,7 +969,7 @@ function CartPage() {
             </CardContent>
           </Card>
 
-          {/* Payment method */}
+          {/* Payment method (Commented out: now selected via checkout dialog modal)
           <Card className="shadow-soft">
             <CardHeader>
               <CardTitle className="text-base">Payment</CardTitle>
@@ -1089,6 +1089,7 @@ function CartPage() {
               )}
             </CardContent>
           </Card>
+          */}
 
           <Card className="shadow-soft">
             <CardHeader>

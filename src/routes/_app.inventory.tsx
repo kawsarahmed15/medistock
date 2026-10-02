@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -198,39 +199,50 @@ function InventoryPage() {
 
   const flatItems = useMemo(() => {
     const list: Product[] = [];
-    items.forEach((p) => {
-      const totalStock = p.batches && p.batches.length > 0
-        ? p.batches.reduce((sum, b) => sum + (Number(b.stock) || 0), 0)
+    (items || []).forEach((p) => {
+      if (!p) return;
+      const batches = Array.isArray(p.batches) ? p.batches : [];
+      const totalStock = batches.length > 0
+        ? batches.reduce((sum, b) => sum + (Number(b?.stock ?? b?.available_qty) || 0), 0)
         : (Number(p.stock) || 0);
 
-      if (!p.batches || p.batches.length === 0) {
+      if (batches.length === 0) {
         list.push({
           ...p,
           id: p.id,
           productId: p.id,
-          batch: "—",
-          expiry: "—",
+          batch: p.batch || "—",
+          expiry: p.expiry || "—",
           stock: totalStock,
           totalProductStock: totalStock,
         } as any);
       } else {
         // Sort batches to pick the LATEST batch (by createdAt descending or expiry date descending)
-        const sortedBatches = [...p.batches].sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          if (timeA !== timeB) return timeB - timeA;
-          return new Date(b.expiry || 0).getTime() - new Date(a.expiry || 0).getTime();
+        const sortedBatches = [...batches].sort((a, b) => {
+          const timeA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (timeA !== timeB && !isNaN(timeA) && !isNaN(timeB)) return timeB - timeA;
+          const expA = a?.expiry ? new Date(a.expiry).getTime() : 0;
+          const expB = b?.expiry ? new Date(b.expiry).getTime() : 0;
+          return (isNaN(expB) ? 0 : expB) - (isNaN(expA) ? 0 : expA);
         });
-        const latestBatch = sortedBatches[0];
+        const latestBatch = sortedBatches[0] || {};
 
         list.push({
+          ...p,
           ...latestBatch,
           id: p.id,
-          batchId: latestBatch.id,
+          batchId: latestBatch.id || p.id,
           productId: p.id,
+          name: p.name || latestBatch.name || "",
+          category: p.category || latestBatch.category || "GENERAL",
+          manufacturer: p.manufacturer || latestBatch.manufacturer || undefined,
+          pack: p.pack || latestBatch.pack || undefined,
+          taxPercent: p.taxPercent ?? latestBatch.taxPercent ?? 0,
+          prescription: p.prescription ?? latestBatch.prescription ?? false,
           stock: totalStock,
           totalProductStock: totalStock,
-          batches: p.batches,
+          batches: batches,
         } as any);
       }
     });
@@ -239,15 +251,16 @@ function InventoryPage() {
 
   const filtered = useMemo(() => {
     return flatItems.filter((p) => {
-      const q = query.toLowerCase().trim();
+      if (!p) return false;
+      const q = (query || "").toLowerCase().trim();
       if (q) {
-        const nameMatch = p.name.toLowerCase().includes(q);
-        const catMatch = p.category.toLowerCase().includes(q);
+        const nameMatch = (p.name || "").toLowerCase().includes(q);
+        const catMatch = (p.category || "").toLowerCase().includes(q);
         const skuMatch = (p.sku ?? "").toLowerCase().includes(q);
         const batchMatch = (p.batch ?? "").toLowerCase().includes(q);
         const mfrMatch = (p.manufacturer ?? "").toLowerCase().includes(q);
         const anyBatchMatch = ((p as any).batches || []).some(
-          (b: any) => (b.batch ?? "").toLowerCase().includes(q) || (b.sku ?? "").toLowerCase().includes(q)
+          (b: any) => (b?.batch || b?.batch_no || "").toLowerCase().includes(q) || (b?.sku || "").toLowerCase().includes(q)
         );
 
         if (!nameMatch && !catMatch && !skuMatch && !batchMatch && !mfrMatch && !anyBatchMatch) {
@@ -255,18 +268,21 @@ function InventoryPage() {
         }
       }
 
-      const totalStock = (p as any).totalProductStock !== undefined ? (p as any).totalProductStock : p.stock;
+      const totalStock = (p as any).totalProductStock !== undefined ? Number((p as any).totalProductStock) : Number(p.stock || 0);
 
       if (search.filter === "low") return totalStock <= lowStockQty;
       if (search.filter === "expiring") {
-        if (p.expiry === "—") return false;
+        if (!p.expiry || p.expiry === "—") return false;
         const d = new Date(p.expiry).getTime();
+        if (isNaN(d)) return false;
         const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
         return days <= expiryDays && days >= 0;
       }
       if (search.filter === "expired") {
-        if (p.expiry === "—") return false;
-        return new Date(p.expiry).getTime() < Date.now();
+        if (!p.expiry || p.expiry === "—") return false;
+        const d = new Date(p.expiry).getTime();
+        if (isNaN(d)) return false;
+        return d < Date.now();
       }
       return true;
     });
@@ -274,11 +290,15 @@ function InventoryPage() {
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      if (sortBy === "name_asc") return a.name.localeCompare(b.name);
-      if (sortBy === "name_desc") return b.name.localeCompare(a.name);
+      const nameA = a?.name || "";
+      const nameB = b?.name || "";
+      if (sortBy === "name_asc") return nameA.localeCompare(nameB);
+      if (sortBy === "name_desc") return nameB.localeCompare(nameA);
+      const timeA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
       if (sortBy === "date_asc")
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+      return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
     });
   }, [filtered, sortBy]);
 
@@ -1009,14 +1029,15 @@ function InventoryPage() {
             ) : (
               sorted.map((p, idx) => {
                 const now = Date.now();
-                const hasExpiry = p.expiry !== "—";
+                const hasExpiry = Boolean(p.expiry && p.expiry !== "—");
                 const expTime = hasExpiry ? new Date(p.expiry).getTime() : 0;
-                const daysToExpiry = hasExpiry ? Math.ceil((expTime - now) / (1000 * 60 * 60 * 24)) : 999;
-                const isExpired = hasExpiry && daysToExpiry < 0;
-                const isNearExpiryRed = hasExpiry && daysToExpiry >= 0 && daysToExpiry <= 30;
-                const isNearExpiryOrange = hasExpiry && daysToExpiry > 30 && daysToExpiry <= 90;
+                const isValidExp = hasExpiry && !isNaN(expTime);
+                const daysToExpiry = isValidExp ? Math.ceil((expTime - now) / (1000 * 60 * 60 * 24)) : 999;
+                const isExpired = isValidExp && daysToExpiry < 0;
+                const isNearExpiryRed = isValidExp && daysToExpiry >= 0 && daysToExpiry <= 30;
+                const isNearExpiryOrange = isValidExp && daysToExpiry > 30 && daysToExpiry <= 90;
 
-                const totalQty = (p as any).totalProductStock !== undefined ? (p as any).totalProductStock : p.stock;
+                const totalQty = (p as any).totalProductStock !== undefined ? Number((p as any).totalProductStock) : Number(p.stock || 0);
                 const isOutOfStock = totalQty <= 0;
                 const isLowStock = totalQty > 0 && totalQty <= lowStockQty;
 
@@ -1034,7 +1055,7 @@ function InventoryPage() {
 
                 return (
                   <TableRow
-                    key={p.id}
+                    key={p.id || idx}
                     className={cn(
                       "animate-fade-in cursor-pointer transition-colors border-l-2",
                       rowBg,
@@ -1046,14 +1067,14 @@ function InventoryPage() {
                             ? "border-l-amber-500"
                             : "border-l-transparent"
                     )}
-                    onClick={() => navigate({ to: "/inventory/$id", params: { id: p.productId || p.id } })}
+                    onClick={() => navigate({ to: "/inventory/$id", params: { id: (p as any).productId || p.id } })}
                   >
                     <TableCell className="text-center font-medium text-muted-foreground">
                       {idx + 1}
                     </TableCell>
                     <TableCell>
                       <div className="font-medium flex items-center gap-1.5">
-                        {p.name}
+                        {p.name || "—"}
                         {p.pack && (
                           <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
                             {p.pack}
@@ -1064,7 +1085,7 @@ function InventoryPage() {
                         {p.manufacturer ?? "—"} {p.prescription ? " · Rx" : ""}
                       </div>
                     </TableCell>
-                    <TableCell>{p.category}</TableCell>
+                    <TableCell>{p.category || "—"}</TableCell>
                     <TableCell className="font-semibold text-xs uppercase">
                       {isOutOfStock || !p.batch || p.batch === "DEFAULT" ? "—" : String(p.batch).toUpperCase()}
                     </TableCell>
@@ -1075,7 +1096,7 @@ function InventoryPage() {
                       <span
                         className={cn(
                           "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold",
-                          !hasExpiry
+                          !isValidExp
                             ? "text-muted-foreground"
                             : isExpired
                               ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
@@ -1086,33 +1107,37 @@ function InventoryPage() {
                                   : "text-muted-foreground"
                         )}
                       >
-                        {!hasExpiry ? "—" : new Date(p.expiry).toLocaleDateString()}
-                        {hasExpiry && isExpired
+                        {!isValidExp ? "—" : new Date(p.expiry).toLocaleDateString()}
+                        {isValidExp && isExpired
                           ? " (Expired)"
-                          : hasExpiry && isNearExpiryRed
+                          : isValidExp && isNearExpiryRed
                             ? " (<30d)"
-                            : hasExpiry && isNearExpiryOrange
+                            : isValidExp && isNearExpiryOrange
                               ? " (<90d)"
                               : ""}
                       </span>
                     </TableCell>
                     {(() => {
-                      const pps = getPiecesPerStrip(p.pack, p.stockType);
-                      const isMedicineTabCap = isRetailer && isTabOrCap(p.stockType, p.pack, p.name);
+                      const pps = getPiecesPerStrip(p.pack, (p as any).stockType);
+                      const isMedicineTabCap = isRetailer && isTabOrCap((p as any).stockType, p.pack, p.name);
+
+                      const costPriceNum = p.costPrice != null && !isNaN(Number(p.costPrice)) ? Number(p.costPrice) : null;
+                      const mrpNum = p.mrp != null && !isNaN(Number(p.mrp)) ? Number(p.mrp) : null;
+                      const priceNum = Number(p.price) || 0;
 
                       return (
                         <>
                           {!session?.isEmployee && (
                             <TableCell className="text-right tabular-nums">
-                              {p.costPrice ? (
+                              {costPriceNum != null ? (
                                 <div>
                                   <div className="font-medium">
-                                    ₹{(Math.round((p.costPrice / (1 + (p.taxPercent || 0) / 100)) * 100) / 100).toFixed(2)}
+                                    ₹{(Math.round((costPriceNum / (1 + (Number(p.taxPercent) || 0) / 100)) * 100) / 100).toFixed(2)}
                                     {isMedicineTabCap ? <span className="text-[10px] text-muted-foreground">/strip</span> : null}
                                   </div>
                                   {isMedicineTabCap && (
                                     <div className="text-[10px] text-muted-foreground">
-                                      (₹{getPerPcPrice(p.costPrice, pps)}/pc)
+                                      (₹{Number(getPerPcPrice(costPriceNum, pps)).toFixed(2)}/pc)
                                     </div>
                                   )}
                                 </div>
@@ -1120,15 +1145,15 @@ function InventoryPage() {
                             </TableCell>
                           )}
                           <TableCell className="text-right tabular-nums">
-                            {p.mrp ? (
+                            {mrpNum != null ? (
                               <div>
                                 <div className="font-medium">
-                                  ₹{p.mrp.toFixed(2)}
+                                  ₹{mrpNum.toFixed(2)}
                                   {isMedicineTabCap ? <span className="text-[10px] text-muted-foreground">/strip</span> : null}
                                 </div>
                                 {isMedicineTabCap && (
                                   <div className="text-[10px] text-muted-foreground">
-                                    (₹{getPerPcPrice(p.mrp, pps)}/pc)
+                                    (₹{Number(getPerPcPrice(mrpNum, pps)).toFixed(2)}/pc)
                                   </div>
                                 )}
                               </div>
@@ -1137,12 +1162,12 @@ function InventoryPage() {
                           <TableCell className="text-right tabular-nums">
                             <div>
                               <div className="font-medium">
-                                ₹{p.price.toFixed(2)}
+                                ₹{priceNum.toFixed(2)}
                                 {isMedicineTabCap ? <span className="text-[10px] text-muted-foreground">/strip</span> : null}
                               </div>
                               {isMedicineTabCap && (
                                 <div className="text-[10px] text-muted-foreground">
-                                  (₹{getPerPcPrice(p.price, pps)}/pc)
+                                  (₹{Number(getPerPcPrice(priceNum, pps)).toFixed(2)}/pc)
                                 </div>
                               )}
                             </div>
@@ -1159,7 +1184,7 @@ function InventoryPage() {
                               )}
                             >
                               {isMedicineTabCap
-                                ? formatStripPcDisplay(totalQty, pps, p.stockType, p.pack, p.name)
+                                ? formatStripPcDisplay(totalQty, pps, (p as any).stockType, p.pack, p.name)
                                 : `${totalQty} Pcs`}
                               {isOutOfStock ? " (Out)" : isLowStock ? " (Low)" : ""}
                             </span>
