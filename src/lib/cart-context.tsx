@@ -372,7 +372,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) =>
       prev.map((i) => {
         if (i.product.id !== id) return i;
-        const newQty = Math.max(1, Math.min(i.product.stock, qty));
+        const newQty = Math.max(0.0001, Math.min(i.product.stock, Number(Number(qty).toFixed(4))));
         return { ...i, qty: newQty, freeQty: Math.min(i.freeQty || 0, newQty) };
       }),
     );

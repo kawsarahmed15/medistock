@@ -26,9 +26,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { SkuScanner } from "@/components/sku-scanner";
 import { toast } from "sonner";
+import { resolveBusinessCategory } from "@/features";
+import {
+  isTabOrCap,
+  getPiecesPerStrip,
+  splitQtyToStripAndPc,
+  combineStripAndPcToQty,
+  formatStripPcDisplay,
+  getPerPcPrice,
+} from "@/lib/pack-utils";
 
 import { TableSkeleton } from "@/components/loading-skeleton";
 
@@ -58,6 +66,8 @@ type FormState = {
   price: string;
   mrp: string;
   stock: string;
+  stripStock: string;
+  pcStock: string;
   stockType: string;
   stockPacks: string;
   stockUnits: string;
@@ -81,6 +91,8 @@ const empty: FormState = {
   price: "",
   mrp: "",
   stock: "",
+  stripStock: "",
+  pcStock: "",
   stockType: "other",
   stockPacks: "",
   stockUnits: "",
@@ -139,6 +151,7 @@ function parsePack(packStr?: string) {
 
 function InventoryPage() {
   const { session } = useAuth();
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const expiryDays = session?.expiryDays ?? 60;
   const defaultTax = session?.defaultTax ?? 12;
   const lowStockQty = session?.lowStockQty ?? 10;
@@ -433,6 +446,9 @@ function InventoryPage() {
 
   const startEdit = (p: Product) => {
     setEditing(p);
+    const parsed = parsePack(p.pack);
+    const pps = getPiecesPerStrip(p.pack, parsed.stockType);
+    const { strips, pcs } = splitQtyToStripAndPc(p.stock, pps);
     setForm({
       name: p.name,
       category: p.category,
@@ -440,7 +456,9 @@ function InventoryPage() {
       price: String(p.price),
       mrp: p.mrp != null ? String(p.mrp) : "",
       stock: String(p.stock),
-      ...parsePack(p.pack),
+      stripStock: String(strips),
+      pcStock: String(pcs),
+      ...parsed,
       expiry: (() => {
         if (!p.expiry) return "";
         const parts = p.expiry.split("-");
@@ -487,13 +505,22 @@ function InventoryPage() {
         packValue = `${form.stockPacks} ML Drop`;
       }
     }
+
+    const pps = getPiecesPerStrip(packValue, form.stockType);
+    let calculatedStock = Number(form.stock) || 0;
+    if (isRetailer && (form.stockType === "tab" || form.stockType === "cap")) {
+      if (form.stripStock !== "" || form.pcStock !== "") {
+        calculatedStock = combineStripAndPcToQty(Number(form.stripStock || 0), Number(form.pcStock || 0), pps);
+      }
+    }
+
     const payload = {
       name: form.name.trim().toUpperCase(),
       category: form.category.trim().toUpperCase() || "GENERAL",
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
       price: Number(form.price) || 0,
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
-      stock: Number(form.stock) || 0,
+      stock: calculatedStock,
       pack: packValue,
       expiry: (() => {
         if (!form.expiry) return "";
@@ -669,34 +696,68 @@ function InventoryPage() {
                 </Field>
                 {!editing && (
                   <>
-                    <Field label="Initial Stock Qty">
-                      <Input
-                        type="number"
-                        value={form.stock}
-                        onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                        placeholder="e.g. 100"
-                      />
-                    </Field>
-                    <Field label="Buying price">
+                    {isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? (
+                      <div className="col-span-full grid grid-cols-2 gap-3 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                        <Field label="Initial Stock (Strips)">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={form.stripStock}
+                            onChange={(e) => setForm({ ...form, stripStock: e.target.value })}
+                            placeholder="Strips"
+                          />
+                        </Field>
+                        <Field label="Loose Stock (Pcs / Tabs)">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={form.pcStock}
+                            onChange={(e) => setForm({ ...form, pcStock: e.target.value })}
+                            placeholder="Pcs"
+                          />
+                        </Field>
+                      </div>
+                    ) : (
+                      <Field label={isRetailer ? "Initial Stock (Pcs)" : "Initial Stock Qty"}>
+                        <Input
+                          type="number"
+                          value={form.stock}
+                          onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                          placeholder="e.g. 100"
+                        />
+                      </Field>
+                    )}
+                    <Field label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "Buying price (per Strip)" : "Buying price"}>
                       <Input
                         type="number"
                         step="0.01"
                         value={form.costPrice}
                         onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
-                        placeholder="Cost per unit"
+                        placeholder="Cost price"
                         required
                       />
+                      {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && Number(form.costPrice) > 0 && (
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          ≈ ₹{getPerPcPrice(Number(form.costPrice), getPiecesPerStrip(form.stockPacks, form.stockType))} / pc
+                        </div>
+                      )}
                     </Field>
-                    <Field label="Selling price">
+                    <Field label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "Selling price (per Strip)" : "Selling price"}>
                       <Input
                         type="number"
                         step="0.01"
                         value={form.price}
                         onChange={(e) => setForm({ ...form, price: e.target.value })}
+                        placeholder="Selling price"
                         required
                       />
+                      {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && Number(form.price) > 0 && (
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          ≈ ₹{getPerPcPrice(Number(form.price), getPiecesPerStrip(form.stockPacks, form.stockType))} / pc
+                        </div>
+                      )}
                     </Field>
-                    <Field label="MRP">
+                    <Field label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "MRP (per Strip)" : "MRP"}>
                       <Input
                         type="number"
                         step="0.01"
@@ -704,6 +765,11 @@ function InventoryPage() {
                         onChange={(e) => setForm({ ...form, mrp: e.target.value })}
                         placeholder="Printed price"
                       />
+                      {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && Number(form.mrp) > 0 && (
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          ≈ ₹{getPerPcPrice(Number(form.mrp), getPiecesPerStrip(form.stockPacks, form.stockType))} / pc
+                        </div>
+                      )}
                     </Field>
                   </>
                 )}
@@ -1030,41 +1096,77 @@ function InventoryPage() {
                               : ""}
                       </span>
                     </TableCell>
-                    {!session?.isEmployee && (
-                      <TableCell className="text-right tabular-nums">
-                        {p.costPrice ? (
-                          <>
-                            ₹{(Math.round((p.costPrice / (1 + p.taxPercent / 100)) * 100) / 100).toFixed(2)}
-                            {p.taxPercent && p.taxPercent > 0 ? (
-                              <span className="text-[10px] text-muted-foreground"> +{p.taxPercent}% GST</span>
-                            ) : null}
-                          </>
-                        ) : "—"}
-                      </TableCell>
-                    )}
-                    <TableCell className="text-right tabular-nums">
-                      {p.mrp ? `₹${p.mrp.toFixed(2)}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      ₹{p.price.toFixed(2)}
-                      {p.taxPercent ? (
-                        <span className="text-[10px] text-muted-foreground"> +{p.taxPercent}% GST</span>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span
-                        className={cn(
-                          "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums",
-                          isOutOfStock
-                            ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                            : isLowStock
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                              : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                        )}
-                      >
-                        {totalQty} {isOutOfStock ? "Out" : isLowStock ? "Low" : ""}
-                      </span>
-                    </TableCell>
+                    {(() => {
+                      const pps = getPiecesPerStrip(p.pack, p.stockType);
+                      const isMedicineTabCap = isRetailer && isTabOrCap(p.stockType, p.pack, p.name);
+
+                      return (
+                        <>
+                          {!session?.isEmployee && (
+                            <TableCell className="text-right tabular-nums">
+                              {p.costPrice ? (
+                                <div>
+                                  <div className="font-medium">
+                                    ₹{(Math.round((p.costPrice / (1 + (p.taxPercent || 0) / 100)) * 100) / 100).toFixed(2)}
+                                    {isMedicineTabCap ? <span className="text-[10px] text-muted-foreground">/strip</span> : null}
+                                  </div>
+                                  {isMedicineTabCap && (
+                                    <div className="text-[10px] text-muted-foreground">
+                                      (₹{getPerPcPrice(p.costPrice, pps)}/pc)
+                                    </div>
+                                  )}
+                                </div>
+                              ) : "—"}
+                            </TableCell>
+                          )}
+                          <TableCell className="text-right tabular-nums">
+                            {p.mrp ? (
+                              <div>
+                                <div className="font-medium">
+                                  ₹{p.mrp.toFixed(2)}
+                                  {isMedicineTabCap ? <span className="text-[10px] text-muted-foreground">/strip</span> : null}
+                                </div>
+                                {isMedicineTabCap && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    (₹{getPerPcPrice(p.mrp, pps)}/pc)
+                                  </div>
+                                )}
+                              </div>
+                            ) : "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            <div>
+                              <div className="font-medium">
+                                ₹{p.price.toFixed(2)}
+                                {isMedicineTabCap ? <span className="text-[10px] text-muted-foreground">/strip</span> : null}
+                              </div>
+                              {isMedicineTabCap && (
+                                <div className="text-[10px] text-muted-foreground">
+                                  (₹{getPerPcPrice(p.price, pps)}/pc)
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span
+                              className={cn(
+                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums",
+                                isOutOfStock
+                                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                  : isLowStock
+                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                    : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              )}
+                            >
+                              {isMedicineTabCap
+                                ? formatStripPcDisplay(totalQty, pps, p.stockType, p.pack, p.name)
+                                : `${totalQty} Pcs`}
+                              {isOutOfStock ? " (Out)" : isLowStock ? " (Low)" : ""}
+                            </span>
+                          </TableCell>
+                        </>
+                      );
+                    })()}
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"

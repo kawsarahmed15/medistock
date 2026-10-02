@@ -22,6 +22,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { resolveBusinessCategory } from "@/features";
+import {
+  isTabOrCap,
+  getPiecesPerStrip,
+  formatStripPcDisplay,
+  getPerPcPrice,
+} from "@/lib/pack-utils";
 
 function parsePack(packStr?: string) {
   if (!packStr) return { stockType: "other", stockPacks: "" };
@@ -367,6 +374,10 @@ function ProductDetails() {
     );
   }
 
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
+  const pps = getPiecesPerStrip(product.pack);
+  const isProductTabOrCap = isTabOrCap(product.pack);
+
   const totalStock = product.batches
     ? product.batches.reduce((sum: number, b: any) => sum + (Number(b.available_qty) || 0), 0)
     : 0;
@@ -411,12 +422,18 @@ function ProductDetails() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-3xl font-bold">
-                {totalStock}{" "}
-                <span className="text-xs font-normal text-muted-foreground">
-                  {product.base_unit || "Unit"}s total
-                </span>
+                {isRetailer && isProductTabOrCap ? (
+                  formatStripPcDisplay(totalStock, pps)
+                ) : (
+                  <>
+                    {totalStock}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {product.base_unit || "Unit"}s total
+                    </span>
+                  </>
+                )}
               </div>
-              {product.conversion_factor > 1 && (
+              {product.conversion_factor > 1 && !isRetailer && (
                 <div className="text-xs text-muted-foreground border-t pt-2">
                   Packs Equivalent: <span className="font-semibold text-foreground">{Math.floor(totalStock / product.conversion_factor)} {product.pack_unit || "Pack"}s</span>, and {totalStock % product.conversion_factor} {product.base_unit || "Unit"}s
                 </div>
@@ -493,7 +510,11 @@ function ProductDetails() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-xs font-medium">
-                            {b.available_qty}
+                            {isRetailer && isProductTabOrCap ? (
+                              formatStripPcDisplay(b.available_qty, pps)
+                            ) : (
+                              b.available_qty
+                            )}
                           </TableCell>
                           {!isEmployee && (
                             <TableCell className="text-right tabular-nums text-xs">
@@ -503,6 +524,11 @@ function ProductDetails() {
                                   {Number(product.tax_percent) > 0 ? (
                                     <span className="text-[10px] text-muted-foreground"> +{Number(product.tax_percent)}% GST</span>
                                   ) : null}
+                                  {isRetailer && isProductTabOrCap && (
+                                    <span className="text-[10px] text-muted-foreground block">
+                                      ≈ ₹{getPerPcPrice(Number(b.purchase_price), pps).toFixed(2)}/pc
+                                    </span>
+                                  )}
                                 </>
                               ) : "—"}
                             </TableCell>
@@ -512,9 +538,19 @@ function ProductDetails() {
                             {Number(product.tax_percent) > 0 ? (
                               <span className="text-[10px] text-muted-foreground"> +{Number(product.tax_percent)}% GST</span>
                             ) : null}
+                            {isRetailer && isProductTabOrCap && (
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-medium">
+                                ≈ ₹{getPerPcPrice(Number(b.selling_price), pps).toFixed(2)}/pc
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-xs">
                             ₹{Number(b.mrp).toFixed(2)}
+                            {isRetailer && isProductTabOrCap && (
+                              <span className="text-[10px] text-muted-foreground block">
+                                ≈ ₹{getPerPcPrice(Number(b.mrp), pps).toFixed(2)}/pc
+                              </span>
+                            )}
                           </TableCell>
                           {!isEmployee && (
                             <TableCell className="text-right flex items-center justify-end gap-1.5 py-2">

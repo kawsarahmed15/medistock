@@ -41,6 +41,19 @@ async function runMigration() {
     await safeAddColumn("product_history", "invoice_no", "VARCHAR(100) NULL AFTER notes");
 
     try {
+      await connection.query("ALTER TABLE product_batches MODIFY COLUMN available_qty DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
+      await connection.query("ALTER TABLE product_batches MODIFY COLUMN strip_qty DECIMAL(12,2) NULL;");
+      await connection.query("ALTER TABLE bill_items MODIFY COLUMN qty DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
+      await connection.query("ALTER TABLE bill_items MODIFY COLUMN free_qty DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
+      await connection.query("ALTER TABLE purchase_items MODIFY COLUMN qty DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
+      await connection.query("ALTER TABLE purchase_items MODIFY COLUMN free_qty DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
+      await connection.query("ALTER TABLE product_history MODIFY COLUMN quantity DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
+      await connection.query("ALTER TABLE product_history MODIFY COLUMN balance DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
+    } catch (e) {
+      // ignore
+    }
+
+    try {
       await connection.query(`
         UPDATE product_history 
         SET invoice_no = REGEXP_SUBSTR(notes, '(INV|SR|PO|INIT)-[A-Za-z0-9]+') 

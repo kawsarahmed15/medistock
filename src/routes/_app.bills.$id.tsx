@@ -8,6 +8,8 @@ import { downloadBillPdf } from "@/lib/bill-pdf";
 import { useAuth } from "@/lib/auth-context";
 import { BillDetailSkeleton } from "@/components/loading-skeleton";
 import { toast } from "sonner";
+import { resolveBusinessCategory } from "@/features";
+import { isTabOrCap, getPiecesPerStrip, formatStripPcDisplay } from "@/lib/pack-utils";
 
 export const Route = createFileRoute("/_app/bills/$id")({
   component: BillDetailPage,
@@ -74,6 +76,7 @@ function BillDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const { session } = useAuth();
   const isEmployee = Boolean(session?.isEmployee);
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
 
   const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
   const pharmacyAddress = session?.pharmacyAddress || "";
@@ -505,8 +508,17 @@ function BillDetailPage() {
                       {it.sku || "-"}
                     </td>
                     <td className="py-3 px-2 text-right align-top font-medium whitespace-nowrap">
-                      {it.qty}
-                      {it.freeQty ? `+${it.freeQty}` : ""}
+                      {isRetailer && isTabOrCap(it.pack) ? (
+                        <>
+                          {formatStripPcDisplay(it.qty, getPiecesPerStrip(it.pack))}
+                          {it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, getPiecesPerStrip(it.pack))}` : ""}
+                        </>
+                      ) : (
+                        <>
+                          {it.qty}
+                          {it.freeQty ? `+${it.freeQty}` : ""}
+                        </>
+                      )}
                     </td>
                     <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">
                       {it.mrp != null ? it.mrp.toFixed(2) : "-"}

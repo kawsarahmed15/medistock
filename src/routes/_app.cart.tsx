@@ -43,6 +43,15 @@ import { Switch } from "@/components/ui/switch";
 import { SkuScanner } from "@/components/sku-scanner";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { resolveBusinessCategory } from "@/features";
+import {
+  isTabOrCap,
+  getPiecesPerStrip,
+  splitQtyToStripAndPc,
+  combineStripAndPcToQty,
+  formatStripPcDisplay,
+  getPerPcPrice,
+} from "@/lib/pack-utils";
 
 type CartSearch = { newSale?: number };
 
@@ -66,6 +75,8 @@ type FormState = {
   price: string;
   mrp: string;
   stock: string;
+  stripStock: string;
+  pcStock: string;
   stockType: string;
   stockPacks: string;
   stockUnits: string;
@@ -89,6 +100,8 @@ const emptyForm: FormState = {
   price: "",
   mrp: "",
   stock: "",
+  stripStock: "",
+  pcStock: "",
   stockType: "other",
   stockPacks: "",
   stockUnits: "",
@@ -110,6 +123,7 @@ const emptyForm: FormState = {
 function CartPage() {
   const cart = useCart();
   const { session } = useAuth();
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const navigate = useNavigate();
   const search = Route.useSearch();
   const routeNavigate = Route.useNavigate();
@@ -660,6 +674,11 @@ function CartPage() {
                                   />
                                 </span>
                                 <span>· {i.product.taxPercent ?? 0}% tax</span>
+                                {isRetailer && isTabOrCap(i.product.stockType, i.product.pack, i.product.name) ? (
+                                  <span className="text-[11px] text-muted-foreground font-medium">
+                                    (₹{getPerPcPrice(i.customPrice ?? i.product.price, getPiecesPerStrip(i.product.pack, i.product.stockType))}/pc)
+                                  </span>
+                                ) : null}
                                 {i.product.costPrice ? (
                                   <span className="text-[10px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
                                     Buying: {formatMoney(i.product.costPrice)}
@@ -668,50 +687,169 @@ function CartPage() {
                               </>
                             )}
                           </div>
+                          {isRetailer && isTabOrCap(i.product.stockType, i.product.pack, i.product.name) && (
+                            <div className="text-[11px] font-semibold text-primary mt-0.5">
+                              {formatStripPcDisplay(i.qty, getPiecesPerStrip(i.product.pack, i.product.stockType), i.product.stockType, i.product.pack, i.product.name)}
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
-                            <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">
-                              Free
-                            </span>
-                            <select
-                              className="text-xs bg-transparent outline-none cursor-pointer"
-                              value={i.freeQty || 0}
-                              onChange={(e) => cart.setFreeQty(i.product.id, Number(e.target.value))}
-                              onClick={(e) => e.stopPropagation()}
+                        {/* Quantity Controls: Strip & Pc for Retailer Tab/Cap, Single Qty otherwise */}
+                        {isRetailer && isTabOrCap(i.product.stockType, i.product.pack, i.product.name) ? (() => {
+                          const pps = getPiecesPerStrip(i.product.pack, i.product.stockType);
+                          const { strips, pcs } = splitQtyToStripAndPc(i.qty, pps);
+
+                          return (
+                            <div className="flex items-center gap-2">
+                              {/* Strip +/- */}
+                              <div className="flex items-center border border-border/80 rounded-md bg-background h-8 px-1">
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
+                                  Strip
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (strips > 0 || pcs > 0) {
+                                      const newStrips = Math.max(0, strips - 1);
+                                      const newQty = combineStripAndPcToQty(newStrips, (newStrips === 0 && pcs === 0) ? 1 : pcs, pps);
+                                      cart.setQty(i.product.id, Math.max(1 / pps, newQty));
+                                    }
+                                  }}
+                                  disabled={i.qty <= (1 / pps)}
+                                  title="Decrease strip"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className={cn(
+                                  "w-6 text-center text-xs tabular-nums font-semibold transition-colors",
+                                  isSelected ? "text-primary" : "",
+                                )}>
+                                  {strips}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newQty = combineStripAndPcToQty(strips + 1, pcs, pps);
+                                    if (newQty <= i.product.stock) {
+                                      cart.setQty(i.product.id, newQty);
+                                    } else {
+                                      toast.warning(`Only ${i.product.stock} in stock`);
+                                    }
+                                  }}
+                                  disabled={i.qty + 1 > i.product.stock}
+                                  title="Increase strip"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+
+                              {/* Pc +/- */}
+                              <div className="flex items-center border border-border/80 rounded-md bg-background h-8 px-1">
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
+                                  Pc
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (pcs > 0) {
+                                      const newQty = combineStripAndPcToQty(strips, pcs - 1, pps);
+                                      cart.setQty(i.product.id, Math.max(1 / pps, newQty));
+                                    } else if (strips > 0) {
+                                      const newQty = combineStripAndPcToQty(strips - 1, pps - 1, pps);
+                                      cart.setQty(i.product.id, Math.max(1 / pps, newQty));
+                                    }
+                                  }}
+                                  disabled={i.qty <= (1 / pps)}
+                                  title="Decrease piece"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                <span className={cn(
+                                  "w-6 text-center text-xs tabular-nums font-semibold transition-colors",
+                                  isSelected ? "text-primary" : "",
+                                )}>
+                                  {pcs}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    let newStrips = strips;
+                                    let newPcs = pcs + 1;
+                                    if (newPcs >= pps) {
+                                      newStrips += Math.floor(newPcs / pps);
+                                      newPcs = newPcs % pps;
+                                    }
+                                    const newQty = combineStripAndPcToQty(newStrips, newPcs, pps);
+                                    if (newQty <= i.product.stock) {
+                                      cart.setQty(i.product.id, newQty);
+                                    } else {
+                                      toast.warning(`Only ${i.product.stock} in stock`);
+                                    }
+                                  }}
+                                  disabled={i.qty + (1 / pps) > i.product.stock}
+                                  title="Increase piece"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })() : (
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
+                              <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">
+                                Free
+                              </span>
+                              <select
+                                className="text-xs bg-transparent outline-none cursor-pointer"
+                                value={i.freeQty || 0}
+                                onChange={(e) => cart.setFreeQty(i.product.id, Number(e.target.value))}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {Array.from({ length: Math.floor(i.qty) + 1 }, (_, k) => (
+                                  <option key={k} value={k}>{k}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty - 1); }}
+                              title="Decrease qty (← when row selected)"
                             >
-                              {Array.from({ length: i.qty + 1 }, (_, k) => (
-                                <option key={k} value={k}>{k}</option>
-                              ))}
-                            </select>
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className={cn(
+                              "w-8 text-center text-sm tabular-nums font-semibold transition-colors",
+                              isSelected ? "text-primary" : "",
+                            )}>
+                              {i.qty}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty + 1); }}
+                              disabled={i.qty >= i.product.stock}
+                              title="Increase qty (→ when row selected)"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty - 1); }}
-                            title="Decrease qty (← when row selected)"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className={cn(
-                            "w-8 text-center text-sm tabular-nums font-semibold transition-colors",
-                            isSelected ? "text-primary" : "",
-                          )}>
-                            {i.qty}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty + 1); }}
-                            disabled={i.qty >= i.product.stock}
-                            title="Increase qty (→ when row selected)"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        )}
 
                         <div className="w-24 text-right tabular-nums font-medium">
                           {i.freeQty === i.qty
@@ -733,6 +871,7 @@ function CartPage() {
                         </Button>
                       </div>
                     );
+
                   })}
                 </div>
 
@@ -1569,6 +1708,7 @@ function AddProductDialog({
   defaultName?: string;
 }) {
   const { session } = useAuth();
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const defaultTax = session?.defaultTax ?? 12;
   const [form, setForm] = useState<FormState>({ ...emptyForm, taxPercent: String(defaultTax) });
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -1621,13 +1761,21 @@ function AddProductDialog({
       if (form.stockPacks) packValue = `${form.stockPacks} ML Drop`;
     }
 
+    const pps = getPiecesPerStrip(packValue, form.stockType);
+    let calculatedStock = Number(form.stock) || 0;
+    if (isRetailer && (form.stockType === "tab" || form.stockType === "cap")) {
+      if (form.stripStock !== "" || form.pcStock !== "") {
+        calculatedStock = combineStripAndPcToQty(Number(form.stripStock || 0), Number(form.pcStock || 0), pps);
+      }
+    }
+
     const payload = {
       name: form.name.trim(),
       category: form.category.trim() || "General",
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
       price: Number(form.price),
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
-      stock: Number(form.stock) || 0,
+      stock: calculatedStock,
       pack: packValue,
       expiry: (() => {
         if (!form.expiry) return "";
@@ -1736,35 +1884,56 @@ function AddProductDialog({
               </datalist>
             </FieldInline>
 
-            <FieldInline label="Buying price">
-              <Input
-                type="number"
-                step="0.01"
-                value={form.costPrice}
-                onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
-                placeholder="Cost per unit"
-                required
-              />
+            <FieldInline label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "Buying price (per Strip)" : "Buying price"}>
+              <div className="space-y-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.costPrice}
+                  onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                  placeholder="Cost per unit"
+                  required
+                />
+                {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && form.costPrice ? (
+                  <span className="text-[10px] text-muted-foreground font-mono block">
+                    ≈ ₹{getPerPcPrice(Number(form.costPrice), getPiecesPerStrip(form.stockPacks, form.stockType)).toFixed(2)}/pc
+                  </span>
+                ) : null}
+              </div>
             </FieldInline>
 
-            <FieldInline label="Selling price">
-              <Input
-                type="number"
-                step="0.01"
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                required
-              />
+            <FieldInline label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "Selling price (per Strip)" : "Selling price"}>
+              <div className="space-y-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  required
+                />
+                {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && form.price ? (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium block">
+                    ≈ ₹{getPerPcPrice(Number(form.price), getPiecesPerStrip(form.stockPacks, form.stockType)).toFixed(2)}/pc
+                  </span>
+                ) : null}
+              </div>
             </FieldInline>
 
-            <FieldInline label="MRP">
-              <Input
-                type="number"
-                step="0.01"
-                value={form.mrp}
-                onChange={(e) => setForm({ ...form, mrp: e.target.value })}
-                placeholder="Printed price"
-              />
+            <FieldInline label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "MRP (per Strip)" : "MRP"}>
+              <div className="space-y-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.mrp}
+                  onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                  placeholder="Printed price"
+                />
+                {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && form.mrp ? (
+                  <span className="text-[10px] text-muted-foreground font-mono block">
+                    ≈ ₹{getPerPcPrice(Number(form.mrp), getPiecesPerStrip(form.stockPacks, form.stockType)).toFixed(2)}/pc
+                  </span>
+                ) : null}
+              </div>
             </FieldInline>
 
             <FieldInline label="Stock Type">
@@ -1892,15 +2061,42 @@ function AddProductDialog({
               </FieldInline>
             )}
 
-            <FieldInline label="Stock Quantity">
-              <Input
-                type="number"
-                placeholder="Total qty"
-                value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                required
-              />
-            </FieldInline>
+            {isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? (
+              <FieldInline label={`Initial Stock (${form.stockType === "tab" ? "Tablets" : "Capsules"})`}>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.stripStock}
+                      onChange={(e) => setForm({ ...form, stripStock: e.target.value })}
+                      placeholder="Strips"
+                    />
+                    <span className="text-[10px] text-muted-foreground">Strips</span>
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={form.pcStock}
+                      onChange={(e) => setForm({ ...form, pcStock: e.target.value })}
+                      placeholder="Loose Pcs"
+                    />
+                    <span className="text-[10px] text-muted-foreground">Loose Pcs</span>
+                  </div>
+                </div>
+              </FieldInline>
+            ) : (
+              <FieldInline label="Stock Quantity">
+                <Input
+                  type="number"
+                  placeholder="Total qty"
+                  value={form.stock}
+                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  required
+                />
+              </FieldInline>
+            )}
 
             <FieldInline label="Expiry">
               <Input

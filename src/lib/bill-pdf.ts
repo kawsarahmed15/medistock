@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Bill } from "@/lib/storage";
 import QRCode from "qrcode";
+import { isTabOrCap, getPiecesPerStrip, formatStripPcDisplay } from "@/lib/pack-utils";
 
 function numberToWords(num: number): string {
   const a = [
@@ -375,6 +376,11 @@ export async function downloadBillPdf(
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const nameStr = clean(it.name);
+      const isTabCap = isTabOrCap(it.pack);
+      const pps = getPiecesPerStrip(it.pack);
+      const qtyStr = isTabCap
+        ? formatStripPcDisplay(it.qty, pps) + (it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps)}` : "")
+        : String(it.qty) + (it.freeQty ? `+${it.freeQty}` : "");
 
       return [
         String(idx + 1),
@@ -390,7 +396,7 @@ export async function downloadBillPdf(
             })()
           : "-",
         clean(it.sku || "-"),
-        String(it.qty) + (it.freeQty ? `+${it.freeQty}` : ""),
+        qtyStr,
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         `${it.taxPercent}%`,
         it.price.toFixed(2),

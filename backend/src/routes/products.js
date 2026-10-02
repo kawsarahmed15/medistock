@@ -104,7 +104,7 @@ function validateProductBody(body, isCreate = false) {
     { key: "price", label: "Selling price", min: 0 },
     { key: "costPrice", label: "Buying price", min: 0 },
     { key: "mrp", label: "MRP", min: 0 },
-    { key: "stock", label: "Stock quantity", min: 0, max: 2147483647, decimals: 0 },
+    { key: "stock", label: "Stock quantity", min: 0, max: 2147483647, decimals: 2 },
     { key: "taxPercent", label: "Tax %", min: 0, max: 999.99 },
     { key: "packPrice", label: "Pack selling price", min: 0 },
     { key: "packCostPrice", label: "Pack buying price", min: 0 },

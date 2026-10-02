@@ -10,6 +10,16 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/lib/auth-context";
+import { resolveBusinessCategory } from "@/features";
+import {
+  isTabOrCap,
+  getPiecesPerStrip,
+  splitQtyToStripAndPc,
+  combineStripAndPcToQty,
+  formatStripPcDisplay,
+  getPerPcPrice,
+} from "@/lib/pack-utils";
 
 
 export const Route = createFileRoute("/_app/purchases/new")({
@@ -127,6 +137,8 @@ function RecentOptions({ id, options }: { id?: string; options: string[] }) {
 }
 
 function AddPurchasePage() {
+  const { session } = useAuth();
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const navigate = useNavigate();
   const searchParams = useSearch({ from: "/_app/purchases/new" }) as any;
   const duplicateFrom = searchParams.duplicateFrom;
@@ -196,6 +208,8 @@ function AddPurchasePage() {
     category: "",
     manufacturer: "",
     stock: "",
+    stripStock: "",
+    pcStock: "",
     costPrice: "",
     price: "",
     mrp: "",
@@ -368,6 +382,8 @@ function AddPurchasePage() {
       category: "",
       manufacturer: "",
       stock: "",
+      stripStock: "",
+      pcStock: "",
       costPrice: "",
       price: "",
       mrp: "",
@@ -483,10 +499,14 @@ function AddPurchasePage() {
       sku: quickProductForm.sku.trim() || undefined,
       taxPercent: Number(quickProductForm.taxPercent) || 0,
       prescription: quickProductForm.prescription,
-      baseUnit: "Unit",
-      packUnit: "Pack",
-      conversionFactor: 1,
     };
+    const pps = getPiecesPerStrip(payload.pack, quickProductForm.stockType);
+    let calculatedStock = Number(quickProductForm.stock) || 0;
+    if (isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap")) {
+      if (quickProductForm.stripStock !== "" || quickProductForm.pcStock !== "") {
+        calculatedStock = combineStripAndPcToQty(Number(quickProductForm.stripStock || 0), Number(quickProductForm.pcStock || 0), pps);
+      }
+    }
 
     try {
       const tempProduct: Product & { isDraftProduct: boolean; draftProductDetails: any } = {
@@ -495,7 +515,7 @@ function AddPurchasePage() {
         category: payload.category,
         price: payload.price,
         costPrice: payload.costPrice,
-        stock: Number(quickProductForm.stock) || 0, // Store the initial stock qty to populate the purchase line qty
+        stock: calculatedStock, // Store the initial stock qty to populate the purchase line qty
         expiry: payload.expiry || "",
         batch: payload.batch ? payload.batch.toUpperCase() : "",
         mrp: payload.mrp,
@@ -1246,6 +1266,9 @@ function AddPurchasePage() {
               <tbody className="divide-y divide-border">
                 {lines.map((line, idx) => {
                   const lineCalc = calculations.lines[idx];
+                  const productForLine = products.find((p) => p.id === line.productId);
+                  const isItemTabOrCap = isTabOrCap(productForLine?.stockType || line.draftProductDetails?.stockType || line.pack);
+                  const pps = getPiecesPerStrip(line.pack, productForLine?.stockType || line.draftProductDetails?.stockType);
 
                   // Expand matrix refs
                   if (!gridRefs.current[idx]) gridRefs.current[idx] = [];
@@ -1394,67 +1417,182 @@ function AddPurchasePage() {
 
                       {/* Purchase Qty */}
                       <td className="p-2">
-                        <Input
-                          ref={(el) => (gridRefs.current[idx][5] = el)}
-                          type="number"
-                          min="1"
-                          value={line.qty || ""}
-                          onChange={(e) => updateLine(idx, "qty", parseInt(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 5)}
-                          className="h-9 text-sm text-right px-3"
-                        />
+                        {isRetailer && isItemTabOrCap ? (
+                          (() => {
+                            const { strips, pcs } = splitQtyToStripAndPc(line.qty || 0, pps);
+                            return (
+                              <div className="space-y-1 min-w-[130px]">
+                                <div className="flex items-center gap-1">
+                                  <div className="flex-1">
+                                    <Input
+                                      ref={(el) => (gridRefs.current[idx][5] = el)}
+                                      type="number"
+                                      min="0"
+                                      placeholder="Strips"
+                                      value={strips || ""}
+                                      onChange={(e) => {
+                                        const newStrips = parseInt(e.target.value) || 0;
+                                        updateLine(idx, "qty", combineStripAndPcToQty(newStrips, pcs, pps));
+                                      }}
+                                      onKeyDown={(e) => handleKeyDown(e, idx, 5)}
+                                      className="h-8 text-xs text-right px-1.5"
+                                    />
+                                    <span className="text-[9px] text-muted-foreground block text-right font-medium">Strips</span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max={pps > 1 ? pps - 1 : undefined}
+                                      placeholder="Pcs"
+                                      value={pcs || ""}
+                                      onChange={(e) => {
+                                        const newPcs = parseInt(e.target.value) || 0;
+                                        updateLine(idx, "qty", combineStripAndPcToQty(strips, newPcs, pps));
+                                      }}
+                                      className="h-8 text-xs text-right px-1.5"
+                                    />
+                                    <span className="text-[9px] text-muted-foreground block text-right font-medium">Pcs</span>
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-center text-primary font-medium">
+                                  {formatStripPcDisplay(line.qty || 0, pps)}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <Input
+                            ref={(el) => (gridRefs.current[idx][5] = el)}
+                            type="number"
+                            min="1"
+                            value={line.qty || ""}
+                            onChange={(e) => updateLine(idx, "qty", parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => handleKeyDown(e, idx, 5)}
+                            className="h-9 text-sm text-right px-3"
+                          />
+                        )}
                       </td>
 
                       {/* Free Qty */}
                       <td className="p-2">
-                        <Input
-                          ref={(el) => (gridRefs.current[idx][6] = el)}
-                          type="number"
-                          min="0"
-                          value={line.freeQty || ""}
-                          onChange={(e) => updateLine(idx, "freeQty", parseInt(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 6)}
-                          className="h-9 text-sm text-right px-3"
-                        />
+                        {isRetailer && isItemTabOrCap ? (
+                          (() => {
+                            const { strips, pcs } = splitQtyToStripAndPc(line.freeQty || 0, pps);
+                            return (
+                              <div className="space-y-1 min-w-[130px]">
+                                <div className="flex items-center gap-1">
+                                  <div className="flex-1">
+                                    <Input
+                                      ref={(el) => (gridRefs.current[idx][6] = el)}
+                                      type="number"
+                                      min="0"
+                                      placeholder="Strips"
+                                      value={strips || ""}
+                                      onChange={(e) => {
+                                        const newStrips = parseInt(e.target.value) || 0;
+                                        updateLine(idx, "freeQty", combineStripAndPcToQty(newStrips, pcs, pps));
+                                      }}
+                                      onKeyDown={(e) => handleKeyDown(e, idx, 6)}
+                                      className="h-8 text-xs text-right px-1.5"
+                                    />
+                                    <span className="text-[9px] text-muted-foreground block text-right font-medium">Strips</span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max={pps > 1 ? pps - 1 : undefined}
+                                      placeholder="Pcs"
+                                      value={pcs || ""}
+                                      onChange={(e) => {
+                                        const newPcs = parseInt(e.target.value) || 0;
+                                        updateLine(idx, "freeQty", combineStripAndPcToQty(strips, newPcs, pps));
+                                      }}
+                                      className="h-8 text-xs text-right px-1.5"
+                                    />
+                                    <span className="text-[9px] text-muted-foreground block text-right font-medium">Pcs</span>
+                                  </div>
+                                </div>
+                                {line.freeQty > 0 && (
+                                  <div className="text-[10px] text-center text-muted-foreground">
+                                    {formatStripPcDisplay(line.freeQty, pps)}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <Input
+                            ref={(el) => (gridRefs.current[idx][6] = el)}
+                            type="number"
+                            min="0"
+                            value={line.freeQty || ""}
+                            onChange={(e) => updateLine(idx, "freeQty", parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => handleKeyDown(e, idx, 6)}
+                            className="h-9 text-sm text-right px-3"
+                          />
+                        )}
                       </td>
 
                       {/* Buy Rate */}
                       <td className="p-2">
-                        <Input
-                          ref={(el) => (gridRefs.current[idx][7] = el)}
-                          type="number"
-                          step="0.01"
-                          value={line.costPrice || ""}
-                          onChange={(e) => updateLine(idx, "costPrice", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 7)}
-                          className="h-9 text-sm text-right font-mono px-3"
-                        />
+                        <div className="space-y-0.5">
+                          <Input
+                            ref={(el) => (gridRefs.current[idx][7] = el)}
+                            type="number"
+                            step="0.01"
+                            value={line.costPrice || ""}
+                            onChange={(e) => updateLine(idx, "costPrice", parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => handleKeyDown(e, idx, 7)}
+                            className="h-9 text-sm text-right font-mono px-3"
+                          />
+                          {isRetailer && isItemTabOrCap && line.costPrice > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-mono block text-right">
+                              ≈ ₹{getPerPcPrice(line.costPrice, pps).toFixed(2)}/pc
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* MRP */}
                       <td className="p-2">
-                        <Input
-                          ref={(el) => (gridRefs.current[idx][8] = el)}
-                          type="number"
-                          step="0.01"
-                          value={line.mrp || ""}
-                          onChange={(e) => updateLine(idx, "mrp", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 8)}
-                          className="h-9 text-sm text-right font-mono px-3"
-                        />
+                        <div className="space-y-0.5">
+                          <Input
+                            ref={(el) => (gridRefs.current[idx][8] = el)}
+                            type="number"
+                            step="0.01"
+                            value={line.mrp || ""}
+                            onChange={(e) => updateLine(idx, "mrp", parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => handleKeyDown(e, idx, 8)}
+                            className="h-9 text-sm text-right font-mono px-3"
+                          />
+                          {isRetailer && isItemTabOrCap && line.mrp > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-mono block text-right">
+                              ≈ ₹{getPerPcPrice(line.mrp, pps).toFixed(2)}/pc
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Sale Price */}
                       <td className="p-2">
-                        <Input
-                          ref={(el) => (gridRefs.current[idx][9] = el)}
-                          type="number"
-                          step="0.01"
-                          value={line.saleRate || ""}
-                          onChange={(e) => updateLine(idx, "saleRate", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 9)}
-                          className="h-9 text-sm text-right font-mono px-3"
-                        />
+                        <div className="space-y-0.5">
+                          <Input
+                            ref={(el) => (gridRefs.current[idx][9] = el)}
+                            type="number"
+                            step="0.01"
+                            value={line.saleRate || ""}
+                            onChange={(e) => updateLine(idx, "saleRate", parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => handleKeyDown(e, idx, 9)}
+                            className="h-9 text-sm text-right font-mono px-3"
+                          />
+                          {isRetailer && isItemTabOrCap && (line.saleRate || 0) > 0 && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono block text-right">
+                              ≈ ₹{getPerPcPrice(line.saleRate || 0, pps).toFixed(2)}/pc
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* GST */}
@@ -1668,44 +1806,97 @@ function AddPurchasePage() {
               <RecentOptions id="manufacturer-recent-quick" options={recentManufacturers} />
             </Field>
             
-            <Field label="Initial Stock Qty">
-              <Input
-                type="number"
-                value={quickProductForm.stock}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, stock: e.target.value })}
-                placeholder="e.g. 100"
-                className="h-8 text-xs"
-              />
+            {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? (
+              <Field label={`Initial Stock (${quickProductForm.stockType === "tab" ? "Tablets" : "Capsules"})`}>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={quickProductForm.stripStock}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, stripStock: e.target.value })}
+                      placeholder="Strips"
+                      className="h-8 text-xs"
+                    />
+                    <span className="text-[10px] text-muted-foreground">Strips</span>
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={quickProductForm.pcStock}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, pcStock: e.target.value })}
+                      placeholder="Loose Pcs"
+                      className="h-8 text-xs"
+                    />
+                    <span className="text-[10px] text-muted-foreground">Loose Pcs</span>
+                  </div>
+                </div>
+              </Field>
+            ) : (
+              <Field label="Initial Stock Qty">
+                <Input
+                  type="number"
+                  value={quickProductForm.stock}
+                  onChange={(e) => setQuickProductForm({ ...quickProductForm, stock: e.target.value })}
+                  placeholder="e.g. 100"
+                  className="h-8 text-xs"
+                />
+              </Field>
+            )}
+
+            <Field label={isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? "Buying price (per Strip)" : "Buying price"}>
+              <div className="space-y-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={quickProductForm.costPrice}
+                  onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
+                  placeholder="Cost per unit"
+                  className="h-8 text-xs"
+                />
+                {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") && quickProductForm.costPrice ? (
+                  <span className="text-[10px] text-muted-foreground font-mono block">
+                    ≈ ₹{getPerPcPrice(Number(quickProductForm.costPrice), getPiecesPerStrip(quickProductForm.stockPacks, quickProductForm.stockType)).toFixed(2)}/pc
+                  </span>
+                ) : null}
+              </div>
             </Field>
-            <Field label="Buying price">
-              <Input
-                type="number"
-                step="0.01"
-                value={quickProductForm.costPrice}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
-                placeholder="Cost per unit"
-                className="h-8 text-xs"
-              />
+
+            <Field label={isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? "Selling price (per Strip)" : "Selling price"}>
+              <div className="space-y-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={quickProductForm.price}
+                  onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                  placeholder="Rate per unit"
+                  className="h-8 text-xs"
+                />
+                {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") && quickProductForm.price ? (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium block">
+                    ≈ ₹{getPerPcPrice(Number(quickProductForm.price), getPiecesPerStrip(quickProductForm.stockPacks, quickProductForm.stockType)).toFixed(2)}/pc
+                  </span>
+                ) : null}
+              </div>
             </Field>
-            <Field label="Selling price">
-              <Input
-                type="number"
-                step="0.01"
-                value={quickProductForm.price}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
-                placeholder="Rate per unit"
-                className="h-8 text-xs"
-              />
-            </Field>
-            <Field label="MRP">
-              <Input
-                type="number"
-                step="0.01"
-                value={quickProductForm.mrp}
-                onChange={(e) => setQuickProductForm({ ...quickProductForm, mrp: e.target.value })}
-                placeholder="Printed price"
-                className="h-8 text-xs"
-              />
+
+            <Field label={isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? "MRP (per Strip)" : "MRP"}>
+              <div className="space-y-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={quickProductForm.mrp}
+                  onChange={(e) => setQuickProductForm({ ...quickProductForm, mrp: e.target.value })}
+                  placeholder="Printed price"
+                  className="h-8 text-xs"
+                />
+                {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") && quickProductForm.mrp ? (
+                  <span className="text-[10px] text-muted-foreground font-mono block">
+                    ≈ ₹{getPerPcPrice(Number(quickProductForm.mrp), getPiecesPerStrip(quickProductForm.stockPacks, quickProductForm.stockType)).toFixed(2)}/pc
+                  </span>
+                ) : null}
+              </div>
             </Field>
 
             <Field label="Stock Type">
