@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import type { PaymentMethod, Product } from "./storage";
+import { useAuth } from "./auth-context";
+import { resolveBusinessCategory } from "@/features";
 
 export type CartItem = { product: Product; qty: number; freeQty?: number; customPrice?: number };
 
@@ -124,6 +126,9 @@ function saveDraftsToStorage(drafts: DraftBill[]) {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth();
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
+
   // Try restoring initial active cart state from localStorage
   const initialDataRef = useRef<{
     items: CartItem[];
@@ -444,20 +449,42 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const rawSubtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
-  const subtotal = Number(rawSubtotal.toFixed(2));
-  const rawTax = items.reduce(
-    (s, i) =>
-      s + ((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price) * (i.product.taxPercent ?? 0)) / 100,
-    0,
-  );
-  const tax = Number(rawTax.toFixed(2));
+  let subtotal = 0;
+  let tax = 0;
+  let grossSum = 0;
+  let discount = 0;
+  let total = 0;
 
-  const rawDiscount =
-    discountType === "percentage" ? ((subtotal + tax) * discountValue) / 100 : discountValue;
-  const discount = Number(rawDiscount.toFixed(2));
+  if (isRetailer) {
+    items.forEach((i) => {
+      const lineGross = (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price);
+      const taxRate = i.product.taxPercent != null ? i.product.taxPercent : 5;
+      const taxable = taxRate > 0 ? lineGross / (1 + taxRate / 100) : lineGross;
+      const taxAmount = lineGross - taxable;
 
-  const total = Math.round(Math.max(0, subtotal + tax - discount));
+      grossSum += lineGross;
+      subtotal += taxable;
+      tax += taxAmount;
+    });
+    subtotal = Number(subtotal.toFixed(2));
+    tax = Number(tax.toFixed(2));
+    const rawDiscount = discountType === "percentage" ? (grossSum * discountValue) / 100 : discountValue;
+    discount = Number(rawDiscount.toFixed(2));
+    total = Math.round(Math.max(0, grossSum - discount));
+  } else {
+    const rawSubtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
+    subtotal = Number(rawSubtotal.toFixed(2));
+    const rawTax = items.reduce(
+      (s, i) =>
+        s + ((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price) * (i.product.taxPercent ?? 0)) / 100,
+      0,
+    );
+    tax = Number(rawTax.toFixed(2));
+    const rawDiscount = discountType === "percentage" ? ((subtotal + tax) * discountValue) / 100 : discountValue;
+    discount = Number(rawDiscount.toFixed(2));
+    total = Math.round(Math.max(0, subtotal + tax - discount));
+  }
+
   const count = items.reduce((s, i) => s + i.qty, 0);
 
   // ── Draft Methods ──────────────────────────────────────────────────────────

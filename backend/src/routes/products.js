@@ -133,7 +133,7 @@ function validateProductBody(body, isCreate = false) {
 router.get("/batches", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      `SELECT b.id, b.product_id, b.batch_no, b.expiry_date, b.purchase_price, b.mrp, b.selling_price, b.available_qty,
+      `SELECT b.id, b.product_id, b.batch_no, b.expiry_date, b.purchase_price, b.mrp, b.selling_price, b.available_qty, b.conversion_factor,
               p.name AS name, p.category, p.manufacturer, p.sku, p.tax_percent
        FROM product_batches b
        JOIN products p ON b.product_id = p.id
@@ -166,7 +166,7 @@ router.get("/", async (req, res, next) => {
     const ids = products.map((p) => p.id);
     const placeholders = ids.map(() => "?").join(",");
     const [batches] = await pool.query(
-      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at, sku
+      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, conversion_factor, supplier_id, invoice_id, created_at, sku
        FROM product_batches
        WHERE product_id IN (${placeholders})`,
       ids,
@@ -229,7 +229,7 @@ router.get("/:id", async (req, res, next) => {
     if (!product) throw buildApiError(404, "Product not found");
 
     const [batches] = await pool.query(
-      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, supplier_id, invoice_id, created_at, sku
+      `SELECT id, product_id, batch_no, expiry_date, manufacture_date, purchase_price, mrp, selling_price, available_qty, strip_qty, conversion_factor, supplier_id, invoice_id, created_at, sku
        FROM product_batches
        WHERE product_id = ?`,
       [product.id],
@@ -296,10 +296,11 @@ router.post("/", requireAdminOnly, async (req, res, next) => {
       const sellingPriceVal = body.price == null ? 0 : Number(body.price);
 
       // Always create a default batch record if stock is entered or if we explicitly have a batch/expiry
+      const convFactorVal = Number(body.conversionFactor || 1) || 1;
       if (stockToImport > 0 || body.batch || body.expiry) {
         await conn.query(
-          `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, conversion_factor, sku)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             generateId(),
             id,
@@ -309,6 +310,7 @@ router.post("/", requireAdminOnly, async (req, res, next) => {
             mrpVal,
             sellingPriceVal,
             stockToImport,
+            convFactorVal,
             body.sku ? String(body.sku).trim() : null
           ]
         );
@@ -349,8 +351,8 @@ router.post("/", requireAdminOnly, async (req, res, next) => {
           );
 
           await conn.query(
-            `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+            `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate, conversion_factor)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
             [
               generateId(),
               purchaseId,
@@ -366,6 +368,7 @@ router.post("/", requireAdminOnly, async (req, res, next) => {
               body.pack ? String(body.pack).trim() : null,
               expiryDate,
               sellingPriceVal,
+              convFactorVal,
             ],
           );
 

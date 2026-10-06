@@ -376,10 +376,10 @@ export async function downloadBillPdf(
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
       const nameStr = clean(it.name);
-      const isTabCap = isTabOrCap(it.pack);
-      const pps = getPiecesPerStrip(it.pack);
+      const pps = getPiecesPerStrip(it.pack, undefined, it.conversionFactor);
+      const isTabCap = pps > 1 || isTabOrCap(it.pack, undefined, it.name);
       const qtyStr = isTabCap
-        ? formatStripPcDisplay(it.qty, pps) + (it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps)}` : "")
+        ? formatStripPcDisplay(it.qty, pps, undefined, it.pack, it.name) + (it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps, undefined, it.pack, it.name)}` : "")
         : String(it.qty) + (it.freeQty ? `+${it.freeQty}` : "");
 
       return [

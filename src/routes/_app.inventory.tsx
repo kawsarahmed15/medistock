@@ -625,11 +625,11 @@ function InventoryPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Inventory</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Inventory</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             Manage your products, stock and expiry.
           </p>
           {search.filter && (
@@ -1118,8 +1118,8 @@ function InventoryPage() {
                       </span>
                     </TableCell>
                     {(() => {
-                      const pps = getPiecesPerStrip(p.pack, (p as any).stockType);
-                      const isMedicineTabCap = isRetailer && isTabOrCap((p as any).stockType, p.pack, p.name);
+                      const pps = getPiecesPerStrip(p.pack, (p as any).stockType, p.conversionFactor);
+                      const isMedicineTabCap = isRetailer && (pps > 1 || isTabOrCap((p as any).stockType, p.pack, p.name));
 
                       const costPriceNum = p.costPrice != null && !isNaN(Number(p.costPrice)) ? Number(p.costPrice) : null;
                       const mrpNum = p.mrp != null && !isNaN(Number(p.mrp)) ? Number(p.mrp) : null;

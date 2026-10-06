@@ -31,6 +31,15 @@ import {
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { downloadPurchasePdf } from "@/lib/purchase-pdf";
 import { useAuth } from "@/lib/auth-context";
+import { resolveBusinessCategory } from "@/features";
+import {
+  isTabOrCap,
+  getPiecesPerStrip,
+  splitQtyToStripAndPc,
+  combineStripAndPcToQty,
+  formatStripPcDisplay,
+  getPerPcPrice,
+} from "@/lib/pack-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -87,6 +96,7 @@ function numberToWords(num: number): string {
 
 function PurchasesPage() {
   const { session } = useAuth();
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -1259,6 +1269,10 @@ function PurchasesPage() {
                       const maxReturnable = Math.max(0, it.qty - alreadyReturned);
                       const isFullyReturned = maxReturnable === 0;
 
+                      const pps = getPiecesPerStrip(it.pack, (it as any).stockType, it.conversionFactor);
+                      const isItemTabCap = isRetailer && (pps > 1 || isTabOrCap((it as any).stockType, it.pack, it.name));
+                      const { strips: retStrips, pcs: retPcs } = splitQtyToStripAndPc(returnQuantities[itemKey] || 0, pps);
+
                       return (
                         <div key={itemKey} className="flex justify-between items-center gap-4 p-2.5 border rounded-md text-sm bg-slate-50/50">
                           <div className="flex-1">
@@ -1274,39 +1288,82 @@ function PurchasesPage() {
                               Batch: <span className="uppercase">{String(it.batch || "—").toUpperCase()}</span> | Exp: {it.expiry || "—"}
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
-                              Cost: {formatMoney(it.costPrice)} | Purchased: <span className="font-medium text-foreground">{it.qty}</span>
+                              Cost: {formatMoney(it.costPrice)} | Purchased: <span className="font-medium text-foreground">{isItemTabCap ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name) : `${it.qty} Pcs`}</span>
                               {alreadyReturned > 0 && (
-                                <span className="text-amber-700 font-medium"> | Returned: {alreadyReturned}</span>
+                                <span className="text-amber-700 font-medium"> | Returned: {isItemTabCap ? formatStripPcDisplay(alreadyReturned, pps, (it as any).stockType, it.pack, it.name) : `${alreadyReturned} Pcs`}</span>
                               )}
-                              <span className="font-bold text-foreground"> | Available to Return: {maxReturnable}</span>
+                              <span className="font-bold text-foreground"> | Available to Return: {isItemTabCap ? formatStripPcDisplay(maxReturnable, pps, (it as any).stockType, it.pack, it.name) : `${maxReturnable} Pcs`}</span>
                             </div>
                           </div>
-                          <div className="w-28">
-                            <Label className="text-xs text-muted-foreground">Return Qty</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={maxReturnable}
-                              disabled={isFullyReturned}
-                              placeholder={isFullyReturned ? "0" : ""}
-                              value={returnQuantities[itemKey] || ""}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  void handleConfirmReturn();
-                                }
-                              }}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                if (raw === "") {
-                                  setReturnQuantities((prev) => ({ ...prev, [itemKey]: 0 }));
-                                } else {
-                                  const val = Math.min(maxReturnable, Math.max(0, parseInt(raw) || 0));
-                                  setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
-                                }
-                              }}
-                            />
-                          </div>
+                          {isItemTabCap ? (
+                            <div className="w-36 space-y-1">
+                              <Label className="text-xs text-muted-foreground">Return Qty</Label>
+                              <div className="flex items-center gap-1">
+                                <div className="flex-1">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    disabled={isFullyReturned}
+                                    placeholder="Strips"
+                                    value={retStrips || ""}
+                                    className="h-8 text-xs text-right px-1.5"
+                                    onChange={(e) => {
+                                      const newStrips = parseInt(e.target.value) || 0;
+                                      const combined = combineStripAndPcToQty(newStrips, retPcs, pps);
+                                      const finalVal = Math.min(maxReturnable, Math.max(0, combined));
+                                      setReturnQuantities((prev) => ({ ...prev, [itemKey]: finalVal }));
+                                    }}
+                                  />
+                                  <span className="text-[9px] text-muted-foreground block text-right">Strips</span>
+                                </div>
+                                <div className="flex-1">
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    max={pps > 1 ? pps - 1 : undefined}
+                                    disabled={isFullyReturned}
+                                    placeholder="Pcs"
+                                    value={retPcs || ""}
+                                    className="h-8 text-xs text-right px-1.5"
+                                    onChange={(e) => {
+                                      const newPcs = parseInt(e.target.value) || 0;
+                                      const combined = combineStripAndPcToQty(retStrips, newPcs, pps);
+                                      const finalVal = Math.min(maxReturnable, Math.max(0, combined));
+                                      setReturnQuantities((prev) => ({ ...prev, [itemKey]: finalVal }));
+                                    }}
+                                  />
+                                  <span className="text-[9px] text-muted-foreground block text-right">Pcs</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-28">
+                              <Label className="text-xs text-muted-foreground">Return Qty</Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={maxReturnable}
+                                disabled={isFullyReturned}
+                                placeholder={isFullyReturned ? "0" : ""}
+                                value={returnQuantities[itemKey] || ""}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    void handleConfirmReturn();
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  if (raw === "") {
+                                    setReturnQuantities((prev) => ({ ...prev, [itemKey]: 0 }));
+                                  } else {
+                                    const val = Math.min(maxReturnable, Math.max(0, parseFloat(raw) || 0));
+                                    setReturnQuantities((prev) => ({ ...prev, [itemKey]: val }));
+                                  }
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1624,19 +1681,56 @@ function PurchasesPage() {
                         {p.items.map((it, idx) => {
                           const lineAmount = it.costPrice * it.qty;
                           const taxAmount = (lineAmount * it.taxPercent) / 100;
+                          const pps = getPiecesPerStrip(it.pack, (it as any).stockType, it.conversionFactor);
+                          const isItemTabCap = isRetailer && (pps > 1 || isTabOrCap((it as any).stockType, it.pack, it.name));
 
                           return (
                             <TableRow key={idx} className="hover:bg-muted/10">
                               <TableCell className="text-center">{idx + 1}</TableCell>
-                              <TableCell className="font-semibold">{it.name}</TableCell>
+                              <TableCell>
+                                <div className="font-semibold">{it.name}</div>
+                                {it.pack && (
+                                  <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                                    {it.pack}
+                                  </span>
+                                )}
+                              </TableCell>
                               <TableCell className="font-mono uppercase text-muted-foreground">{String(it.batch || "—").toUpperCase()}</TableCell>
                               <TableCell className="font-mono text-muted-foreground">{it.hsn || "—"}</TableCell>
                               <TableCell className="font-mono text-muted-foreground">{it.expiry ? it.expiry.substring(0, 7) : "—"}</TableCell>
-                              <TableCell className="text-right font-medium">{it.qty}</TableCell>
-                              <TableCell className="text-right text-muted-foreground">{it.freeQty || 0}</TableCell>
-                              <TableCell className="text-right font-mono text-muted-foreground">₹{(it.mrp || 0).toFixed(2)}</TableCell>
+                              <TableCell className="text-right font-medium">
+                                {isItemTabCap ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name) : `${it.qty} Pcs`}
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground">
+                                {it.freeQty
+                                  ? isItemTabCap
+                                    ? formatStripPcDisplay(it.freeQty, pps, (it as any).stockType, it.pack, it.name)
+                                    : `${it.freeQty} Pcs`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-muted-foreground">
+                                {it.mrp != null ? (
+                                  <div>
+                                    <span>₹{(it.mrp || 0).toFixed(2)}</span>
+                                    {isItemTabCap && (
+                                      <span className="text-[10px] text-muted-foreground block">
+                                        (₹{getPerPcPrice(it.mrp, pps).toFixed(2)}/pc)
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : "—"}
+                              </TableCell>
                               <TableCell className="text-center">{it.taxPercent}%</TableCell>
-                              <TableCell className="text-right font-mono">₹{it.costPrice.toFixed(2)}</TableCell>
+                              <TableCell className="text-right font-mono">
+                                <div>
+                                  <span>₹{it.costPrice.toFixed(2)}</span>
+                                  {isItemTabCap && (
+                                    <span className="text-[10px] text-muted-foreground block">
+                                      (₹{getPerPcPrice(it.costPrice, pps).toFixed(2)}/pc)
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
                               <TableCell className="text-right font-mono font-bold text-primary">₹{(lineAmount + taxAmount).toFixed(2)}</TableCell>
                             </TableRow>
                           );

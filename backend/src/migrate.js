@@ -40,6 +40,11 @@ async function runMigration() {
     await safeAddColumn("employees", "username", "VARCHAR(100) NULL UNIQUE AFTER name");
     await safeAddColumn("product_history", "invoice_no", "VARCHAR(100) NULL AFTER notes");
 
+    await safeAddColumn("purchase_items", "conversion_factor", "DECIMAL(12,2) NOT NULL DEFAULT 1.00 AFTER pack");
+    await safeAddColumn("bill_items", "conversion_factor", "DECIMAL(12,2) NOT NULL DEFAULT 1.00 AFTER pack");
+    await safeAddColumn("product_batches", "conversion_factor", "DECIMAL(12,2) NOT NULL DEFAULT 1.00 AFTER strip_qty");
+    await safeAddColumn("products", "conversion_factor", "DECIMAL(12,2) NOT NULL DEFAULT 1.00 AFTER pack_unit");
+
     try {
       await connection.query("ALTER TABLE product_batches MODIFY COLUMN available_qty DECIMAL(12,2) NOT NULL DEFAULT 0.00;");
       await connection.query("ALTER TABLE product_batches MODIFY COLUMN strip_qty DECIMAL(12,2) NULL;");

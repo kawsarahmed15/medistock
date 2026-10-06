@@ -39,6 +39,7 @@ export type BillItem = {
   pack?: string;
   expiry?: string;
   freeQty?: number;
+  conversionFactor?: number;
 };
 
 export type Bill = {
@@ -83,6 +84,7 @@ type ProductRow = {
   sku: string | null;
   prescription: boolean | number;
   tax_percent: number | string;
+  conversion_factor?: number | string;
   created_at: string;
   batches?: any[];
 };
@@ -103,6 +105,9 @@ function rowToProduct(r: ProductRow): Product {
 
   const totalStock = batchesList.reduce((sum, b) => sum + (Number(b.available_qty) || 0), 0);
 
+  const baseConv = Number(r.conversion_factor) || 1;
+  const activeConv = activeBatch ? (Number((activeBatch as any).conversion_factor || (activeBatch as any).conversionFactor) || baseConv) : baseConv;
+
   return {
     id: r.id,
     name: r.name,
@@ -118,6 +123,7 @@ function rowToProduct(r: ProductRow): Product {
     sku: r.sku ?? undefined,
     prescription: Boolean(r.prescription),
     taxPercent: Number(r.tax_percent) || 0,
+    conversionFactor: activeConv,
     createdAt: r.created_at,
     batches: batchesList.map((b) => ({
       id: b.id,
@@ -134,6 +140,7 @@ function rowToProduct(r: ProductRow): Product {
       sku: (b.sku && b.sku !== "null" ? b.sku : r.sku) ?? undefined,
       prescription: Boolean(r.prescription),
       taxPercent: Number(r.tax_percent) || 0,
+      conversionFactor: Number((b as any).conversion_factor || (b as any).conversionFactor) || baseConv,
       createdAt: b.created_at,
     })),
   };
@@ -268,6 +275,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       pack: it.pack ?? undefined,
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
       freeQty: Number(it.free_qty) || 0,
+      conversionFactor: it.conversion_factor != null ? Number(it.conversion_factor) : undefined,
     })),
   };
 }
@@ -399,6 +407,7 @@ export type PurchaseItem = {
   expiry?: string;
   pack?: string;
   saleRate?: number;
+  conversionFactor?: number;
 };
 
 export type Purchase = {
@@ -453,6 +462,7 @@ function rowToPurchase(p: any, items: any[]): Purchase {
       pack: it.pack ?? undefined,
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
       saleRate: it.sale_rate ? Number(it.sale_rate) : undefined,
+      conversionFactor: it.conversion_factor != null ? Number(it.conversion_factor) : (it.conversionFactor ? Number(it.conversionFactor) : undefined),
     }))
   };
 }

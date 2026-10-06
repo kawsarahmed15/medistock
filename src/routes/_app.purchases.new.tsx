@@ -37,6 +37,7 @@ type PurchaseLine = {
   expiry: string;
   mrp: number;
   pack?: string;
+  conversionFactor?: number;
   genericName?: string;
   manufacturer?: string;
   barcode?: string;
@@ -145,7 +146,7 @@ function AddPurchasePage() {
   const editFrom = searchParams.editFrom;
 
   const [lines, setLines] = useState<PurchaseLine[]>([
-    { productId: "", name: "", qty: 1, freeQty: 0, costPrice: 0, taxPercent: 0, batch: "", expiry: "", mrp: 0, pack: "", genericName: "", barcode: "", hsn: "", saleRate: 0, ptr: 0 }
+    { productId: "", name: "", qty: 1, freeQty: 0, costPrice: 0, taxPercent: isRetailer ? 5 : 0, batch: "", expiry: "", mrp: 0, pack: "", conversionFactor: 10, genericName: "", barcode: "", hsn: "", saleRate: 0, ptr: 0 }
   ]);
 
   // Supplier Details
@@ -794,8 +795,25 @@ function AddPurchasePage() {
   }, [lines]);
 
   const addLine = useCallback(() => {
-    setLines(prev => [...prev, { productId: "", name: "", qty: 1, freeQty: 0, costPrice: 0, taxPercent: 0, batch: "", expiry: "", mrp: 0, pack: "", genericName: "", barcode: "", hsn: "", saleRate: 0, ptr: 0 }]);
-  }, []);
+    setLines(prev => [...prev, {
+      productId: "",
+      name: "",
+      qty: 1,
+      freeQty: 0,
+      costPrice: 0,
+      taxPercent: isRetailer ? 5 : 0,
+      batch: "",
+      expiry: "",
+      mrp: 0,
+      pack: "",
+      conversionFactor: 10,
+      genericName: "",
+      barcode: "",
+      hsn: "",
+      saleRate: 0,
+      ptr: 0
+    }]);
+  }, [isRetailer]);
 
   useEffect(() => {
     const handleAddPurchaseRow = () => {
@@ -824,15 +842,39 @@ function AddPurchasePage() {
     if (field === "name" && typeof value === "string") {
       val = value.toUpperCase();
     }
-    newLines[index] = { ...newLines[index], [field]: val };
+    const updatedLine = { ...newLines[index], [field]: val };
+
+    // If MRP changed and isRetailer, automatically keep saleRate equal to MRP
+    if (field === "mrp" && isRetailer) {
+      const numMrp = parseFloat(val) || 0;
+      updatedLine.saleRate = numMrp;
+    }
+
+    // If pack changed and conversionFactor wasn't manually customized, auto-detect
+    if (field === "pack" && typeof value === "string") {
+      const detected = getPiecesPerStrip(value);
+      if (detected > 1) {
+        updatedLine.conversionFactor = detected;
+      }
+    }
+
+    newLines[index] = updatedLine;
     setLines(newLines);
   };
 
   const selectProduct = (index: number, p: Product & { isDraftProduct?: boolean; draftProductDetails?: any }) => {
-    const tax = p.taxPercent || 0;
+    const defaultTaxVal = isRetailer ? 5 : 0;
+    const tax = p.taxPercent != null && p.taxPercent > 0 ? p.taxPercent : defaultTaxVal;
     const baseCostPrice = tax > 0 && p.costPrice
       ? Math.round((p.costPrice / (1 + tax / 100)) * 100) / 100
       : (p.costPrice || 0);
+
+    const conv = p.conversionFactor && p.conversionFactor > 0
+      ? p.conversionFactor
+      : getPiecesPerStrip(p.pack, p.category);
+
+    const mrpVal = p.mrp || 0;
+    const saleRateVal = isRetailer ? (mrpVal || p.price || 0) : (p.price || mrpVal || 0);
 
     const newLines = [...lines];
     newLines[index] = {
@@ -844,11 +886,12 @@ function AddPurchasePage() {
       expiry: p.isDraftProduct ? (p.expiry || newLines[index].expiry || "") : newLines[index].expiry || "",
       costPrice: baseCostPrice,
       taxPercent: tax,
-      mrp: p.mrp || 0,
+      mrp: mrpVal,
       pack: p.pack || "",
+      conversionFactor: conv,
       genericName: p.category || "",
       hsn: p.sku || (index > 0 ? newLines[index - 1]?.hsn : "") || "",
-      saleRate: p.price || p.mrp || 0,
+      saleRate: saleRateVal,
       ptr: baseCostPrice,
       isDraftProduct: p.isDraftProduct,
       draftProductDetails: p.draftProductDetails,
@@ -1075,37 +1118,37 @@ function AddPurchasePage() {
     : [];
 
   return (
-    <div className="space-y-6 max-w-[98%] 2xl:max-w-[1650px] mx-auto pb-20 px-2 md:px-4">
+    <div className="space-y-4 w-full pb-14">
       {/* Navigation Header */}
-      <div className="flex items-center gap-4 border-b pb-4">
-        <Button variant="ghost" size="icon" asChild className="shrink-0 text-muted-foreground hover:text-foreground">
+      <div className="flex items-center gap-3 border-b pb-3">
+        <Button variant="ghost" size="icon" asChild className="shrink-0 text-muted-foreground hover:text-foreground h-8 w-8">
           <Link to="/purchases">
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
             {editFrom ? "Edit Purchase Invoice" : "Purchase Invoice Intake (ERP Grid)"}
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             Marg-compatible spreadsheet entries. F2: Product Finder | F4: Select Supplier | F6: Add Supplier.
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Supplier & Invoice metadata */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="md:col-span-2 shadow-soft border-border/50">
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm font-semibold flex items-center justify-between">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-xs font-semibold flex items-center justify-between">
                 <span>Supplier Details</span>
                 <Button type="button" variant="ghost" className="h-6 text-[10px] text-primary" onClick={() => setShowSupplierModal(true)}>
                   + Add Supplier (F6)
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+            <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs px-4 pb-3">
               <div className="space-y-1 relative">
                 <Label className="text-[11px]">Supplier Name</Label>
                 <Input
@@ -1229,7 +1272,7 @@ function AddPurchasePage() {
         </div>
 
         {/* Medicine Entry Grid Spreadsheet */}
-        <Card className="p-5 border-border/60 shadow-md overflow-visible bg-card">
+        <Card className="p-3 sm:p-4 border-border/60 shadow-md overflow-visible bg-card">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
             <div>
               <h3 className="font-bold text-base flex items-center gap-2">
@@ -1246,36 +1289,39 @@ function AddPurchasePage() {
           <div className="overflow-x-auto w-full border border-border rounded-lg shadow-sm min-h-[500px] max-h-[700px] no-scrollbar">
             <table className="w-full text-sm text-left border-collapse min-w-[1530px]">
               <thead className="bg-muted/70 sticky top-0 z-10">
-                <tr className="border-b text-muted-foreground font-semibold text-[13px]">
-                  <th className="py-3 px-3 w-[320px]">Medicine Name</th>
-                  <th className="py-3 px-3 w-[120px]">Batch No.</th>
-                  <th className="py-3 px-3 w-[110px]">HSN Code</th>
-                  <th className="py-3 px-3 w-[145px]">Expiry Date</th>
-                  <th className="py-3 px-3 w-[90px]">Pack Size</th>
-                  <th className="py-3 px-3 w-[95px] text-right">Purchase Qty</th>
-                  <th className="py-3 px-3 w-[95px] text-right">Free Qty</th>
-                  <th className="py-3 px-3 w-[110px] text-right">Buy Rate (Cost)</th>
-                  <th className="py-3 px-3 w-[110px] text-right">MRP</th>
-                  <th className="py-3 px-3 w-[110px] text-right">Sale Price</th>
-                  <th className="py-3 px-3 w-[90px] text-right">GST %</th>
-                  <th className="py-3 px-3 w-[120px] text-right">Landing Cost</th>
-                  <th className="py-3 px-3 w-[120px] text-right">Line Total</th>
-                  <th className="py-3 px-3 w-[50px]"></th>
+                <tr className="border-b text-muted-foreground font-semibold text-[12px] uppercase tracking-wider">
+                  <th className="py-2.5 px-3 w-[260px]">Medicine</th>
+                  <th className="py-2.5 px-3 w-[110px]">Batch</th>
+                  <th className="py-2.5 px-3 w-[95px]">HSN</th>
+                  <th className="py-2.5 px-3 w-[85px] text-center">Exp</th>
+                  <th className="py-2.5 px-3 w-[80px] text-center">Pack</th>
+                  <th className="py-2.5 px-3 w-[70px] text-center">Conv.</th>
+                  <th className="py-2.5 px-3 w-[130px] text-right">Pur. Qty</th>
+                  <th className="py-2.5 px-3 w-[130px] text-right">Free</th>
+                  <th className="py-2.5 px-3 w-[105px] text-right">MRP</th>
+                  <th className="py-2.5 px-3 w-[105px] text-right">Pur. Rate</th>
+                  <th className="py-2.5 px-3 w-[105px] text-right">Sale Rate</th>
+                  <th className="py-2.5 px-3 w-[75px] text-right">GST %</th>
+                  <th className="py-2.5 px-3 w-[100px] text-right">Landing</th>
+                  <th className="py-2.5 px-3 w-[110px] text-right">Total</th>
+                  <th className="py-2.5 px-2 w-[45px]"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {lines.map((line, idx) => {
                   const lineCalc = calculations.lines[idx];
                   const productForLine = products.find((p) => p.id === line.productId);
-                  const isItemTabOrCap = isTabOrCap(productForLine?.stockType || line.draftProductDetails?.stockType || line.pack);
-                  const pps = getPiecesPerStrip(line.pack, productForLine?.stockType || line.draftProductDetails?.stockType);
+                  const pps = line.conversionFactor && line.conversionFactor > 0
+                    ? line.conversionFactor
+                    : getPiecesPerStrip(line.pack, productForLine?.stockType || line.draftProductDetails?.stockType);
+                  const isItemTabOrCap = isRetailer && (pps > 1 || isTabOrCap(productForLine?.stockType || line.draftProductDetails?.stockType, line.pack, line.name));
 
                   // Expand matrix refs
                   if (!gridRefs.current[idx]) gridRefs.current[idx] = [];
 
                   return (
                     <tr key={idx} className="hover:bg-muted/10 transition-colors">
-                      {/* Name Search Box */}
+                      {/* 0. Medicine Name */}
                       <td className="p-2 relative">
                         <div className="flex items-center gap-1.5 w-full">
                           <div className="relative flex-1">
@@ -1345,7 +1391,7 @@ function AddPurchasePage() {
                         </div>
                       </td>
 
-                      {/* Batch */}
+                      {/* 1. Batch */}
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][1] = el)}
@@ -1357,7 +1403,7 @@ function AddPurchasePage() {
                         />
                       </td>
 
-                      {/* HSN Code */}
+                      {/* 2. HSN Code */}
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][2] = el)}
@@ -1369,7 +1415,7 @@ function AddPurchasePage() {
                         />
                       </td>
 
-                      {/* Expiry */}
+                      {/* 3. Expiry */}
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][3] = el)}
@@ -1403,29 +1449,47 @@ function AddPurchasePage() {
                         />
                       </td>
 
-                      {/* Pack */}
+                      {/* 4. Pack */}
                       <td className="p-2">
                         <Input
                           ref={(el) => (gridRefs.current[idx][4] = el)}
-                          placeholder="10x15"
-                          value={line.pack}
+                          placeholder="10x10"
+                          value={line.pack || ""}
                           onChange={(e) => updateLine(idx, "pack", e.target.value)}
                           onKeyDown={(e) => handleKeyDown(e, idx, 4)}
                           className="h-9 text-sm text-center px-2 font-medium text-primary bg-primary/5"
                         />
                       </td>
 
-                      {/* Purchase Qty */}
+                      {/* 5. Conversion */}
+                      <td className="p-2">
+                        <Input
+                          ref={(el) => (gridRefs.current[idx][5] = el)}
+                          type="number"
+                          min="1"
+                          placeholder="10"
+                          value={line.conversionFactor || pps || 10}
+                          onChange={(e) => {
+                            const convVal = parseInt(e.target.value, 10) || 1;
+                            updateLine(idx, "conversionFactor", Math.max(1, convVal));
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 5)}
+                          className="h-9 text-sm text-center px-1 font-semibold text-foreground bg-accent/20"
+                          title="Units / Pieces per strip"
+                        />
+                      </td>
+
+                      {/* 6. Purchase Qty */}
                       <td className="p-2">
                         {isRetailer && isItemTabOrCap ? (
                           (() => {
                             const { strips, pcs } = splitQtyToStripAndPc(line.qty || 0, pps);
                             return (
-                              <div className="space-y-1 min-w-[130px]">
+                              <div className="space-y-1 min-w-[125px]">
                                 <div className="flex items-center gap-1">
                                   <div className="flex-1">
                                     <Input
-                                      ref={(el) => (gridRefs.current[idx][5] = el)}
+                                      ref={(el) => (gridRefs.current[idx][6] = el)}
                                       type="number"
                                       min="0"
                                       placeholder="Strips"
@@ -1434,8 +1498,8 @@ function AddPurchasePage() {
                                         const newStrips = parseInt(e.target.value) || 0;
                                         updateLine(idx, "qty", combineStripAndPcToQty(newStrips, pcs, pps));
                                       }}
-                                      onKeyDown={(e) => handleKeyDown(e, idx, 5)}
-                                      className="h-8 text-xs text-right px-1.5"
+                                      onKeyDown={(e) => handleKeyDown(e, idx, 6)}
+                                      className="h-8 text-xs text-right px-1.5 font-medium"
                                     />
                                     <span className="text-[9px] text-muted-foreground block text-right font-medium">Strips</span>
                                   </div>
@@ -1463,28 +1527,28 @@ function AddPurchasePage() {
                           })()
                         ) : (
                           <Input
-                            ref={(el) => (gridRefs.current[idx][5] = el)}
+                            ref={(el) => (gridRefs.current[idx][6] = el)}
                             type="number"
                             min="1"
                             value={line.qty || ""}
                             onChange={(e) => updateLine(idx, "qty", parseFloat(e.target.value) || 0)}
-                            onKeyDown={(e) => handleKeyDown(e, idx, 5)}
-                            className="h-9 text-sm text-right px-3"
+                            onKeyDown={(e) => handleKeyDown(e, idx, 6)}
+                            className="h-9 text-sm text-right px-3 font-medium"
                           />
                         )}
                       </td>
 
-                      {/* Free Qty */}
+                      {/* 7. Free Qty */}
                       <td className="p-2">
                         {isRetailer && isItemTabOrCap ? (
                           (() => {
                             const { strips, pcs } = splitQtyToStripAndPc(line.freeQty || 0, pps);
                             return (
-                              <div className="space-y-1 min-w-[130px]">
+                              <div className="space-y-1 min-w-[125px]">
                                 <div className="flex items-center gap-1">
                                   <div className="flex-1">
                                     <Input
-                                      ref={(el) => (gridRefs.current[idx][6] = el)}
+                                      ref={(el) => (gridRefs.current[idx][7] = el)}
                                       type="number"
                                       min="0"
                                       placeholder="Strips"
@@ -1493,8 +1557,8 @@ function AddPurchasePage() {
                                         const newStrips = parseInt(e.target.value) || 0;
                                         updateLine(idx, "freeQty", combineStripAndPcToQty(newStrips, pcs, pps));
                                       }}
-                                      onKeyDown={(e) => handleKeyDown(e, idx, 6)}
-                                      className="h-8 text-xs text-right px-1.5"
+                                      onKeyDown={(e) => handleKeyDown(e, idx, 7)}
+                                      className="h-8 text-xs text-right px-1.5 font-medium"
                                     />
                                     <span className="text-[9px] text-muted-foreground block text-right font-medium">Strips</span>
                                   </div>
@@ -1524,38 +1588,18 @@ function AddPurchasePage() {
                           })()
                         ) : (
                           <Input
-                            ref={(el) => (gridRefs.current[idx][6] = el)}
+                            ref={(el) => (gridRefs.current[idx][7] = el)}
                             type="number"
                             min="0"
                             value={line.freeQty || ""}
                             onChange={(e) => updateLine(idx, "freeQty", parseFloat(e.target.value) || 0)}
-                            onKeyDown={(e) => handleKeyDown(e, idx, 6)}
-                            className="h-9 text-sm text-right px-3"
+                            onKeyDown={(e) => handleKeyDown(e, idx, 7)}
+                            className="h-9 text-sm text-right px-3 font-medium"
                           />
                         )}
                       </td>
 
-                      {/* Buy Rate */}
-                      <td className="p-2">
-                        <div className="space-y-0.5">
-                          <Input
-                            ref={(el) => (gridRefs.current[idx][7] = el)}
-                            type="number"
-                            step="0.01"
-                            value={line.costPrice || ""}
-                            onChange={(e) => updateLine(idx, "costPrice", parseFloat(e.target.value) || 0)}
-                            onKeyDown={(e) => handleKeyDown(e, idx, 7)}
-                            className="h-9 text-sm text-right font-mono px-3"
-                          />
-                          {isRetailer && isItemTabOrCap && line.costPrice > 0 && (
-                            <span className="text-[10px] text-muted-foreground font-mono block text-right">
-                              ≈ ₹{getPerPcPrice(line.costPrice, pps).toFixed(2)}/pc
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* MRP */}
+                      {/* 8. MRP (Placed BEFORE Purchase Rate) */}
                       <td className="p-2">
                         <div className="space-y-0.5">
                           <Input
@@ -1565,9 +1609,9 @@ function AddPurchasePage() {
                             value={line.mrp || ""}
                             onChange={(e) => updateLine(idx, "mrp", parseFloat(e.target.value) || 0)}
                             onKeyDown={(e) => handleKeyDown(e, idx, 8)}
-                            className="h-9 text-sm text-right font-mono px-3"
+                            className="h-9 text-sm text-right font-mono px-3 font-semibold text-foreground bg-primary/5"
                           />
-                          {isRetailer && isItemTabOrCap && line.mrp > 0 && (
+                          {isRetailer && pps > 1 && line.mrp > 0 && (
                             <span className="text-[10px] text-muted-foreground font-mono block text-right">
                               ≈ ₹{getPerPcPrice(line.mrp, pps).toFixed(2)}/pc
                             </span>
@@ -1575,50 +1619,70 @@ function AddPurchasePage() {
                         </div>
                       </td>
 
-                      {/* Sale Price */}
+                      {/* 9. Purchase Rate (Formerly Buy Rate / Cost) */}
                       <td className="p-2">
                         <div className="space-y-0.5">
                           <Input
                             ref={(el) => (gridRefs.current[idx][9] = el)}
                             type="number"
                             step="0.01"
-                            value={line.saleRate || ""}
-                            onChange={(e) => updateLine(idx, "saleRate", parseFloat(e.target.value) || 0)}
+                            value={line.costPrice || ""}
+                            onChange={(e) => updateLine(idx, "costPrice", parseFloat(e.target.value) || 0)}
                             onKeyDown={(e) => handleKeyDown(e, idx, 9)}
                             className="h-9 text-sm text-right font-mono px-3"
                           />
-                          {isRetailer && isItemTabOrCap && (line.saleRate || 0) > 0 && (
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono block text-right">
-                              ≈ ₹{getPerPcPrice(line.saleRate || 0, pps).toFixed(2)}/pc
+                          {isRetailer && pps > 1 && line.costPrice > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-mono block text-right">
+                              ≈ ₹{getPerPcPrice(line.costPrice, pps).toFixed(2)}/pc
                             </span>
                           )}
                         </div>
                       </td>
 
-                      {/* GST */}
+                      {/* 10. Sale Rate (MRP for Retailer) */}
+                      <td className="p-2">
+                        <div className="space-y-0.5">
+                          <Input
+                            ref={(el) => (gridRefs.current[idx][10] = el)}
+                            type="number"
+                            step="0.01"
+                            value={isRetailer ? (line.mrp || line.saleRate || "") : (line.saleRate || "")}
+                            onChange={(e) => updateLine(idx, "saleRate", parseFloat(e.target.value) || 0)}
+                            onKeyDown={(e) => handleKeyDown(e, idx, 10)}
+                            className="h-9 text-sm text-right font-mono px-3 font-semibold text-emerald-600 dark:text-emerald-400"
+                          />
+                          {isRetailer && pps > 1 && (line.saleRate || line.mrp || 0) > 0 && (
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono block text-right">
+                              ≈ ₹{getPerPcPrice(line.saleRate || line.mrp || 0, pps).toFixed(2)}/pc
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 11. GST % (Default 5%) */}
                       <td className="p-2">
                         <Input
-                          ref={(el) => (gridRefs.current[idx][10] = el)}
+                          ref={(el) => (gridRefs.current[idx][11] = el)}
                           type="number"
                           step="0.1"
-                          value={line.taxPercent || ""}
+                          value={line.taxPercent ?? (isRetailer ? 5 : 0)}
                           onChange={(e) => updateLine(idx, "taxPercent", parseFloat(e.target.value) || 0)}
-                          onKeyDown={(e) => handleKeyDown(e, idx, 10)}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 11)}
                           className="h-9 text-sm text-right px-3"
                         />
                       </td>
 
-                      {/* Landing cost info display */}
+                      {/* 12. Landing Cost */}
                       <td className="p-2 text-right font-mono text-muted-foreground select-none align-middle text-[13px]">
                         ₹{lineCalc?.landingCost.toFixed(2) || "0.00"}
                       </td>
 
-                      {/* Line total info display */}
-                      <td className="p-2 text-right font-mono font-semibold text-primary select-none align-middle text-[13px]">
+                      {/* 13. Line Total */}
+                      <td className="p-2 text-right font-mono font-bold text-primary select-none align-middle text-[13px]">
                         ₹{lineCalc?.lineTotal.toFixed(2) || "0.00"}
                       </td>
 
-                      {/* Remove line */}
+                      {/* 14. Action */}
                       <td className="p-2 text-center align-middle">
                         <Button
                           type="button"
@@ -1645,7 +1709,7 @@ function AddPurchasePage() {
         </Card>
 
         {/* GST Summary & Live Summary Box */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Left panel: GST summary */}
           <Card className="md:col-span-2 shadow-soft border-border/50">
             <CardHeader className="py-3">

@@ -4,6 +4,13 @@ import { ArrowLeft, Truck, Printer, Download, Pill, FileText, CheckCircle } from
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { downloadPurchasePdf } from "@/lib/purchase-pdf";
 import { useAuth } from "@/lib/auth-context";
+import { resolveBusinessCategory } from "@/features";
+import {
+  isTabOrCap,
+  getPiecesPerStrip,
+  formatStripPcDisplay,
+  getPerPcPrice,
+} from "@/lib/pack-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -49,6 +56,7 @@ function numberToWords(num: number): string {
 
 function PurchaseDetailsPage() {
   const { session } = useAuth();
+  const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const { id } = Route.useParams();
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [loading, setLoading] = useState(true);
@@ -220,20 +228,56 @@ function PurchaseDetailsPage() {
             <TableBody>
               {purchase.items.map((it, idx) => {
                 const lineAmount = it.costPrice * it.qty;
-                const taxAmount = (lineAmount * it.taxPercent) / 100;
+                const pps = getPiecesPerStrip(it.pack, (it as any).stockType, it.conversionFactor);
+                const isItemTabCap = isRetailer && (pps > 1 || isTabOrCap((it as any).stockType, it.pack, it.name));
 
                 return (
                   <TableRow key={idx} className="hover:bg-muted/10">
                     <TableCell className="text-center">{idx + 1}</TableCell>
-                    <TableCell className="font-semibold">{it.name}</TableCell>
+                    <TableCell>
+                      <div className="font-semibold">{it.name}</div>
+                      {it.pack && (
+                        <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                          {it.pack}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono uppercase text-muted-foreground">{String(it.batch || "—").toUpperCase()}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{it.hsn || "—"}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{it.expiry ? it.expiry.substring(0, 7) : "—"}</TableCell>
-                    <TableCell className="text-right font-medium">{it.qty}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{it.freeQty || 0}</TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground">₹{(it.mrp || 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      {isItemTabCap ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name) : `${it.qty} Pcs`}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {it.freeQty
+                        ? isItemTabCap
+                          ? formatStripPcDisplay(it.freeQty, pps, (it as any).stockType, it.pack, it.name)
+                          : `${it.freeQty} Pcs`
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-muted-foreground">
+                      {it.mrp != null ? (
+                        <div>
+                          <span>₹{(it.mrp || 0).toFixed(2)}</span>
+                          {isItemTabCap && (
+                            <span className="text-[10px] text-muted-foreground block">
+                              (₹{getPerPcPrice(it.mrp, pps).toFixed(2)}/pc)
+                            </span>
+                          )}
+                        </div>
+                      ) : "—"}
+                    </TableCell>
                     <TableCell className="text-center">{it.taxPercent}%</TableCell>
-                    <TableCell className="text-right font-mono">₹{it.costPrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      <div>
+                        <span>₹{it.costPrice.toFixed(2)}</span>
+                        {isItemTabCap && (
+                          <span className="text-[10px] text-muted-foreground block">
+                            (₹{getPerPcPrice(it.costPrice, pps).toFixed(2)}/pc)
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-mono font-bold text-primary">₹{lineAmount.toFixed(2)}</TableCell>
                   </TableRow>
                 );

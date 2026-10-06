@@ -74,7 +74,7 @@ router.get("/", async (req, res, next) => {
     const ids = bills.map((bill) => bill.id);
     const placeholders = ids.map(() => "?").join(",");
     const [items] = await pool.query(
-      `SELECT bill_id, product_id, name, sku, price, cost_price, qty, tax_percent, mrp, batch, pack, expiry, free_qty
+      `SELECT bill_id, product_id, name, sku, price, cost_price, qty, tax_percent, mrp, batch, pack, expiry, free_qty, conversion_factor
        FROM bill_items
        WHERE user_id = ? AND bill_id IN (${placeholders})`,
       [req.auth.userId, ...ids],
@@ -126,7 +126,7 @@ router.get("/:id", async (req, res, next) => {
     }
 
     const [items] = await pool.query(
-      `SELECT bill_id, product_id, name, sku, price, cost_price, qty, tax_percent, mrp, batch, pack, expiry, free_qty
+      `SELECT bill_id, product_id, name, sku, price, cost_price, qty, tax_percent, mrp, batch, pack, expiry, free_qty, conversion_factor
        FROM bill_items
        WHERE user_id = ? AND bill_id = ?`,
       [req.auth.userId, req.params.id],
@@ -436,24 +436,42 @@ router.post("/", async (req, res, next) => {
       const nextNo = Number(maxRows[0]?.maxNo || 0) + 1;
       const invoiceNo = `${prefix}-${String(nextNo).padStart(4, "0")}`;
 
+      const [userRows] = await conn.query("SELECT role FROM users WHERE id = ? LIMIT 1", [req.auth.userId]);
+      const userRole = userRows[0]?.role || "retailer";
+      const isRetailRole = userRole === "retailer";
+
       let calcSubtotal = 0;
       let calcTax = 0;
+      let grossTotal = 0;
+
       for (const item of items) {
         const itemQty = Number(item.qty || 0);
         const itemPrice = Number(item.price || 0);
         const itemTaxPercent = Number(item.taxPercent || item.tax_percent || 0);
-        const line = itemQty * itemPrice;
-        calcSubtotal += line;
-        calcTax += (line * itemTaxPercent) / 100;
+        const lineGross = Number((itemQty * itemPrice).toFixed(2));
+        grossTotal += lineGross;
+
+        if (isRetailRole) {
+          const taxable = itemTaxPercent > 0 ? Number((lineGross / (1 + itemTaxPercent / 100)).toFixed(2)) : lineGross;
+          const lineTax = Number((lineGross - taxable).toFixed(2));
+          calcSubtotal += taxable;
+          calcTax += lineTax;
+        } else {
+          calcSubtotal += lineGross;
+          calcTax += (lineGross * itemTaxPercent) / 100;
+        }
       }
+
       calcSubtotal = Number(calcSubtotal.toFixed(2));
       calcTax = Number(calcTax.toFixed(2));
       const discountVal = Number(body.discount || 0);
-      const calcTotal = Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
+      const calcTotal = isRetailRole
+        ? Math.round(Math.max(0, grossTotal - discountVal))
+        : Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
 
-      const billSubtotal = items.length > 0 ? calcSubtotal : Number(body.subtotal || 0);
-      const billTax = items.length > 0 ? calcTax : Number(body.tax || 0);
-      const billTotal = items.length > 0 ? calcTotal : Number(body.total || 0);
+      const billSubtotal = body.subtotal != null ? Number(body.subtotal) : calcSubtotal;
+      const billTax = body.tax != null ? Number(body.tax) : calcTax;
+      const billTotal = body.total != null ? Number(body.total) : calcTotal;
 
       const id = generateId();
       await conn.query(
@@ -486,9 +504,10 @@ router.post("/", async (req, res, next) => {
       );
 
       for (const item of items) {
+        const itemConv = Number(item.conversionFactor || item.conversion_factor || 1) || 1;
         await conn.query(
-          `INSERT INTO bill_items (id, bill_id, user_id, product_id, name, sku, price, cost_price, qty, tax_percent, mrp, batch, pack, expiry, free_qty)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO bill_items (id, bill_id, user_id, product_id, name, sku, price, cost_price, qty, tax_percent, mrp, batch, pack, expiry, free_qty, conversion_factor)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             generateId(),
             id,
@@ -505,6 +524,7 @@ router.post("/", async (req, res, next) => {
             item.pack ? String(item.pack).trim() : null,
             item.expiry ? String(item.expiry).slice(0, 10) : null,
             Number(item.freeQty || 0),
+            itemConv,
           ],
         );
       }

@@ -508,17 +508,24 @@ function BillDetailPage() {
                       {it.sku || "-"}
                     </td>
                     <td className="py-3 px-2 text-right align-top font-medium whitespace-nowrap">
-                      {isRetailer && isTabOrCap(it.pack) ? (
-                        <>
-                          {formatStripPcDisplay(it.qty, getPiecesPerStrip(it.pack))}
-                          {it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, getPiecesPerStrip(it.pack))}` : ""}
-                        </>
-                      ) : (
-                        <>
-                          {it.qty}
-                          {it.freeQty ? `+${it.freeQty}` : ""}
-                        </>
-                      )}
+                      {(() => {
+                        const pps = getPiecesPerStrip(it.pack, undefined, it.conversionFactor);
+                        const isDual = isRetailer && (pps > 1 || isTabOrCap(it.pack, undefined, it.name));
+                        if (isDual) {
+                          return (
+                            <>
+                              {formatStripPcDisplay(it.qty, pps, undefined, it.pack, it.name)}
+                              {it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps, undefined, it.pack, it.name)}` : ""}
+                            </>
+                          );
+                        }
+                        return (
+                          <>
+                            {it.qty}
+                            {it.freeQty ? `+${it.freeQty}` : ""}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 px-2 text-right align-top font-mono text-muted-foreground">
                       {it.mrp != null ? it.mrp.toFixed(2) : "-"}

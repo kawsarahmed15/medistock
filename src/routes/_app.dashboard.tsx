@@ -202,44 +202,44 @@ function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             Overview of your pharmacy operations, inventory, and revenue.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
             <Link to="/inventory" search={{ add: 1 }}>
               Add product
             </Link>
           </Button>
-          <Button asChild className="shadow-soft">
+          <Button asChild size="sm" className="shadow-soft h-8 text-xs">
             <Link to="/new-sale">
-              <ShoppingCart className="h-4 w-4" /> New sale
+              <ShoppingCart className="h-3.5 w-3.5" /> New sale
             </Link>
           </Button>
         </div>
       </div>
 
       {pendingBills.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-soft">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-soft">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
-              <Clock className="h-5 w-5 animate-pulse" />
+              <Clock className="h-4 w-4 animate-pulse" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold">
+              <h4 className="text-xs font-semibold">
                 {pendingBills.length} Employee Bill{pendingBills.length === 1 ? "" : "s"} Awaiting Approval
               </h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-muted-foreground mt-0.5">
                 Staff submitted sales invoices that require your review and confirmation before stock is deducted.
               </p>
             </div>
           </div>
-          <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs">
+          <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs h-7 text-xs">
             <Link to="/bills" search={{ status: "pending" }}>
               Review & Approve Bills →
             </Link>
@@ -247,16 +247,16 @@ function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
         {stats.map((s, i) => (
           <Link key={s.label} to={s.to} search={s.search ?? {}} className="block group">
             <Card
               className="shadow-soft border-border/60 animate-fade-in transition-smooth hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer h-full"
               style={{ animationDelay: `${i * 60}ms` }}
             >
-              <CardContent className="p-5">
+              <CardContent className="p-3.5">
                 <div
-                  className={`inline-flex h-10 w-10 rounded-xl items-center justify-center ${s.tint}`}
+                  className={`inline-flex h-9 w-9 rounded-lg items-center justify-center ${s.tint}`}
                 >
                   <s.icon className="h-5 w-5" />
                 </div>

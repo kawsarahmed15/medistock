@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Purchase } from "@/lib/storage";
+import { isTabOrCap, getPiecesPerStrip, formatStripPcDisplay } from "@/lib/pack-utils";
 
 function numberToWords(num: number): string {
   const a = [
@@ -282,8 +283,15 @@ export async function downloadPurchasePdf(
     ],
     body: purchase.items.map((it, idx) => {
       const line = it.costPrice * it.qty;
-      const tax = (line * it.taxPercent) / 100;
       let nameStr = clean(it.name);
+      const pps = getPiecesPerStrip(it.pack, (it as any).stockType, it.conversionFactor);
+      const isItemTabCap = pps > 1 || isTabOrCap((it as any).stockType, it.pack, it.name);
+      const qtyFormatted = isItemTabCap
+        ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name)
+        : String(it.qty);
+      const freeFormatted = it.freeQty
+        ? ` (+${isItemTabCap ? formatStripPcDisplay(it.freeQty, pps, (it as any).stockType, it.pack, it.name) : it.freeQty})`
+        : "";
 
       return [
         String(idx + 1),
@@ -302,7 +310,7 @@ export async function downloadPurchasePdf(
             })()
           : "-",
         clean(it.hsn || "-"),
-        String(it.qty) + (it.freeQty ? `+${it.freeQty}` : ""),
+        qtyFormatted + freeFormatted,
         it.mrp != null ? it.mrp.toFixed(2) : "-",
         `${it.taxPercent}%`,
         it.costPrice.toFixed(2),

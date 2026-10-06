@@ -375,8 +375,8 @@ function ProductDetails() {
   }
 
   const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
-  const pps = getPiecesPerStrip(product.pack);
-  const isProductTabOrCap = isTabOrCap(product.pack);
+  const pps = getPiecesPerStrip(product.pack, undefined, product.conversionFactor);
+  const isProductTabOrCap = isRetailer && (pps > 1 || isTabOrCap(product.pack, undefined, product.name));
 
   const totalStock = product.batches
     ? product.batches.reduce((sum: number, b: any) => sum + (Number(b.available_qty) || 0), 0)

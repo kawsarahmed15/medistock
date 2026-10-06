@@ -438,9 +438,9 @@ function CartPage() {
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       {cart.activeDraftRestored && (
-        <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs animate-fade-in shadow-xs">
+        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs animate-fade-in shadow-xs">
           <div className="flex items-center gap-2.5">
             <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
@@ -471,24 +471,25 @@ function CartPage() {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight flex items-center gap-2">
-            <ShoppingCart className="h-6 w-6 text-primary" /> Cart
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5 text-primary" /> Cart
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Review items, choose payment, and finalize the sale.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => setDraftsOpen(true)}
-            className="relative gap-1.5"
+            className="relative gap-1.5 h-8 text-xs"
             title="Saved Draft Bills"
           >
-            <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <FileText className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
             <span>Drafts</span>
             {cart.drafts.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px] font-bold">
                 {cart.drafts.length}
               </Badge>
             )}
@@ -497,11 +498,12 @@ function CartPage() {
           {cart.items.length > 0 && (
             <Button
               variant="outline"
+              size="sm"
               onClick={handleSaveDraft}
-              className="gap-1.5 border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+              className="gap-1.5 h-8 text-xs border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
               title="Save current bill as draft without decreasing stock"
             >
-              <Save className="h-4 w-4" />
+              <Save className="h-3.5 w-3.5" />
               <span>Save as Draft</span>
             </Button>
           )}
@@ -509,20 +511,22 @@ function CartPage() {
           <Button
             ref={browseButtonRef}
             variant="outline"
+            size="sm"
             onClick={() => setAddOpen(true)}
             title="Browse & Add Item (Alt+B)"
             id="cart-browse-btn"
+            className="h-8 text-xs"
           >
-            <Plus className="h-4 w-4 mr-1.5" />
+            <Plus className="h-3.5 w-3.5 mr-1" />
             Browse &amp; Add Item
-            <kbd className="ml-2 hidden sm:inline-flex items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+            <kbd className="ml-2 hidden sm:inline-flex items-center gap-0.5 rounded border bg-muted px-1 py-0.2 text-[9px] font-semibold text-muted-foreground">
               Alt+B
             </kbd>
           </Button>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-6">
+      <div className="grid lg:grid-cols-[1fr_360px] gap-4">
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle className="text-base">
@@ -698,12 +702,16 @@ function CartPage() {
                                     onClick={(e) => e.stopPropagation()}
                                   />
                                 </span>
-                                <span>· {i.product.taxPercent ?? 0}% tax</span>
-                                {isRetailer && isTabOrCap(i.product.stockType, i.product.pack, i.product.name) ? (
-                                  <span className="text-[11px] text-muted-foreground font-medium">
-                                    (₹{getPerPcPrice(i.customPrice ?? i.product.price, getPiecesPerStrip(i.product.pack, i.product.stockType))}/pc)
-                                  </span>
-                                ) : null}
+                                <span>· {i.product.taxPercent ?? (isRetailer ? 5 : 0)}% tax</span>
+                                {(() => {
+                                  const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
+                                  const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
+                                  return isDual ? (
+                                    <span className="text-[11px] text-muted-foreground font-medium">
+                                      (₹{getPerPcPrice(i.customPrice ?? i.product.price, pps)}/pc)
+                                    </span>
+                                  ) : null;
+                                })()}
                                 {i.product.costPrice ? (
                                   <span className="text-[10px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
                                     Buying: {formatMoney(i.product.costPrice)}
@@ -712,16 +720,22 @@ function CartPage() {
                               </>
                             )}
                           </div>
-                          {isRetailer && isTabOrCap(i.product.stockType, i.product.pack, i.product.name) && (
-                            <div className="text-[11px] font-semibold text-primary mt-0.5">
-                              {formatStripPcDisplay(i.qty, getPiecesPerStrip(i.product.pack, i.product.stockType), i.product.stockType, i.product.pack, i.product.name)}
-                            </div>
-                          )}
+                          {(() => {
+                            const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
+                            const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
+                            return isDual ? (
+                              <div className="text-[11px] font-semibold text-primary mt-0.5">
+                                {formatStripPcDisplay(i.qty, pps, i.product.stockType, i.product.pack, i.product.name)}
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
 
                         {/* Quantity Controls: Strip & Pc for Retailer Tab/Cap, Single Qty otherwise */}
-                        {isRetailer && isTabOrCap(i.product.stockType, i.product.pack, i.product.name) ? (() => {
-                          const pps = getPiecesPerStrip(i.product.pack, i.product.stockType);
+                        {(() => {
+                          const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
+                          const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
+                          if (!isDual) return null;
                           const { strips, pcs } = splitQtyToStripAndPc(i.qty, pps);
 
                           return (
@@ -831,7 +845,7 @@ function CartPage() {
                               </div>
                             </div>
                           );
-                        })() : (
+                        })() || (
                           <div className="flex items-center gap-2">
                             <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
                               <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">
@@ -3115,8 +3129,8 @@ function CheckoutFlowDialog({
                   </thead>
                   <tbody className="divide-y">
                     {cart.items.map((it, idx) => {
-                      const pps = getPiecesPerStrip(it.product.pack, it.product.stockType);
-                      const isTabCap = isRetailer && isTabOrCap(it.product.stockType || it.product.pack);
+                      const pps = getPiecesPerStrip(it.product.pack, it.product.stockType, it.product.conversionFactor);
+                      const isTabCap = isRetailer && (pps > 1 || isTabOrCap(it.product.stockType || it.product.pack, it.product.pack, it.product.name));
                       const unitRate = it.customPrice ?? it.product.price;
                       const lineQty = it.qty - (it.freeQty || 0);
                       const lineAmt = unitRate * lineQty;

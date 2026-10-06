@@ -26,7 +26,7 @@ router.get("/", async (req, res, next) => {
     const ids = purchases.map((p) => p.id);
     const placeholders = ids.map(() => "?").join(",");
     const [items] = await pool.query(
-      `SELECT id, purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
+      `SELECT id, purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate, conversion_factor
        FROM purchase_items
        WHERE user_id = ? AND purchase_id IN (${placeholders})`,
       [req.auth.userId, ...ids],
@@ -65,7 +65,7 @@ router.get("/:id", async (req, res, next) => {
     }
 
     const [items] = await pool.query(
-      `SELECT id, purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate
+      `SELECT id, purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate, conversion_factor
        FROM purchase_items
        WHERE user_id = ? AND purchase_id = ?`,
       [req.auth.userId, req.params.id],
@@ -136,9 +136,11 @@ router.post("/", async (req, res, next) => {
       );
 
       for (const item of items) {
+        const itemConvVal = Number(item.conversionFactor || item.conversion_factor || 1) || 1;
+
         await conn.query(
-          `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO purchase_items (id, purchase_id, user_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate, conversion_factor)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             generateId(),
             id,
@@ -155,6 +157,7 @@ router.post("/", async (req, res, next) => {
             item.expiry ? String(item.expiry).slice(0, 10) : null,
             Number(item.freeQty || 0),
             item.saleRate == null || item.saleRate === "" ? null : Number(item.saleRate),
+            itemConvVal,
           ],
         );
 
@@ -217,6 +220,7 @@ router.post("/", async (req, res, next) => {
           const rawSellingPrice = item.saleRate != null ? Number(item.saleRate) : mrpVal;
 
           const itemSku = (item.sku || item.hsn || "").trim() || null;
+          const itemPackStr = item.pack ? String(item.pack).trim() : null;
 
           if (existingBatch.length > 0) {
             // Batch exists: Increase quantity, update purchase_price to landed cost & selling_price to base sale rate if > 0, update sku if null/empty
@@ -225,17 +229,19 @@ router.post("/", async (req, res, next) => {
                SET available_qty = available_qty + ?, 
                    purchase_price = CASE WHEN ? > 0 THEN ? ELSE purchase_price END, 
                    selling_price = CASE WHEN ? > 0 THEN ? ELSE selling_price END,
+                   mrp = CASE WHEN ? > 0 THEN ? ELSE mrp END,
+                   conversion_factor = CASE WHEN ? > 0 THEN ? ELSE conversion_factor END,
                    sku = COALESCE(NULLIF(?, ''), NULLIF(sku, ''), (SELECT sku FROM products WHERE id = ?)) 
                WHERE id = ?`,
-              [addedStock, landedPurchasePrice, landedPurchasePrice, rawSellingPrice, rawSellingPrice, itemSku, targetProductId, existingBatch[0].id]
+              [addedStock, landedPurchasePrice, landedPurchasePrice, rawSellingPrice, rawSellingPrice, mrpVal, mrpVal, itemConvVal, itemConvVal, itemSku, targetProductId, existingBatch[0].id]
             );
           } else {
             // Batch does not exist: Create a new batch
             const newBatchId = generateId();
 
             await conn.query(
-              `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, sku)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(NULLIF(?, ''), (SELECT sku FROM products WHERE id = ?)))`,
+              `INSERT INTO product_batches (id, product_id, batch_no, expiry_date, purchase_price, mrp, selling_price, available_qty, conversion_factor, sku)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(NULLIF(?, ''), (SELECT sku FROM products WHERE id = ?)))`,
               [
                 newBatchId,
                 targetProductId,
@@ -245,11 +251,21 @@ router.post("/", async (req, res, next) => {
                 mrpVal,
                 rawSellingPrice,
                 addedStock,
+                itemConvVal,
                 itemSku,
                 targetProductId
               ]
             );
           }
+
+          // Update parent product conversion factor and pack
+          await conn.query(
+            `UPDATE products 
+             SET conversion_factor = CASE WHEN ? > 0 THEN ? ELSE conversion_factor END,
+                 pack = COALESCE(NULLIF(?, ''), pack)
+             WHERE id = ?`,
+            [itemConvVal, itemConvVal, itemPackStr, targetProductId]
+          );
           
           const historyAction = isReturn ? 'return' : 'purchase';
           const historyNotes = isReturn ? `Returned via ${poNo}` : `Added from PO ${poNo}`;

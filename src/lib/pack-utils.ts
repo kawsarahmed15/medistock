@@ -33,10 +33,14 @@ export function isTabOrCap(stockType?: string, pack?: string, name?: string): bo
 }
 
 /**
- * Parses pieces (tablets/capsules) per strip from a pack string or default.
- * E.g., "10X15" -> 15, "10X10" -> 10, "10'S" -> 10, "15" -> 15.
+ * Parses pieces (tablets/capsules) per strip from explicit conversion factor, pack string, or default.
+ * E.g., 10, "10X15" -> 15, "10X10" -> 10, "10'S" -> 10, "15" -> 15.
  */
-export function getPiecesPerStrip(pack?: string, stockType?: string): number {
+export function getPiecesPerStrip(pack?: string, stockType?: string, conversionFactor?: number): number {
+  if (conversionFactor && Number(conversionFactor) > 0) {
+    return Number(conversionFactor);
+  }
+
   const packStr = String(pack || "").toUpperCase().trim();
   if (!packStr) {
     return (stockType === "tab" || stockType === "cap") ? 10 : 1;
@@ -108,13 +112,13 @@ export function formatStripPcDisplay(
   pack?: string,
   name?: string
 ): string {
-  const isTabletOrCapsule = isTabOrCap(stockType, pack, name);
-  if (!isTabletOrCapsule || piecesPerStrip <= 1) {
+  const pps = Math.max(1, piecesPerStrip || 1);
+  if (pps <= 1 && !isTabOrCap(stockType, pack, name)) {
     const qtyNum = Number(totalStripsQty || 0);
     return `${qtyNum} ${qtyNum === 1 ? "Pc" : "Pcs"}`;
   }
 
-  const { strips, pcs } = splitQtyToStripAndPc(totalStripsQty, piecesPerStrip);
+  const { strips, pcs } = splitQtyToStripAndPc(totalStripsQty, pps);
   if (strips > 0 && pcs > 0) {
     return `${strips} ${strips === 1 ? "Strip" : "Strips"}, ${pcs} ${pcs === 1 ? "Pc" : "Pcs"}`;
   }
