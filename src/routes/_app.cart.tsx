@@ -1770,7 +1770,12 @@ function AddProductDialog({
 
   useEffect(() => {
     if (open) {
-      setForm({ ...emptyForm, taxPercent: String(defaultTax), name: defaultName });
+      setForm({
+        ...emptyForm,
+        taxPercent: isRetailer ? "5" : String(defaultTax),
+        conversionFactor: isRetailer ? "10" : "1",
+        name: defaultName,
+      });
       productsStore.list().then(setItems);
       try {
         setRecentCategories(JSON.parse(localStorage.getItem("recentCategories") || "[]"));
@@ -1778,7 +1783,7 @@ function AddProductDialog({
         setRecentHsns(JSON.parse(localStorage.getItem("recentHsns") || "[]"));
       } catch {}
     }
-  }, [open, defaultTax, defaultName]);
+  }, [open, defaultTax, defaultName, isRetailer]);
 
   const saveRecent = (
     key: string,
@@ -1811,19 +1816,24 @@ function AddProductDialog({
       if (form.stockPacks) packValue = `${form.stockPacks} ML Drop`;
     }
 
-    const pps = getPiecesPerStrip(packValue, form.stockType);
+    const convFactor = isRetailer ? Math.max(1, Number(form.conversionFactor) || 1) : 1;
+    const pps = getPiecesPerStrip(packValue, form.stockType, convFactor);
     let calculatedStock = Number(form.stock) || 0;
-    if (isRetailer && (form.stockType === "tab" || form.stockType === "cap")) {
+    if (isRetailer) {
       if (form.stripStock !== "" || form.pcStock !== "") {
         calculatedStock = combineStripAndPcToQty(Number(form.stripStock || 0), Number(form.pcStock || 0), pps);
       }
     }
 
+    const sellingPrice = isRetailer
+      ? (form.mrp !== "" ? Number(form.mrp) : Number(form.price))
+      : Number(form.price);
+
     const payload = {
       name: form.name.trim(),
       category: form.category.trim() || "General",
       costPrice: form.costPrice === "" ? undefined : Number(form.costPrice),
-      price: Number(form.price),
+      price: sellingPrice,
       mrp: form.mrp === "" ? undefined : Number(form.mrp),
       stock: calculatedStock,
       pack: packValue,
@@ -1845,7 +1855,7 @@ function AddProductDialog({
       prescription: form.prescription,
       baseUnit: form.baseUnit.trim() || "Unit",
       packUnit: form.packUnit.trim() || "Pack",
-      conversionFactor: Number(form.conversionFactor) || 1,
+      conversionFactor: convFactor,
       packPrice: form.packPrice === "" ? undefined : Number(form.packPrice),
       packCostPrice: form.packCostPrice === "" ? undefined : Number(form.packCostPrice),
     };
@@ -1882,6 +1892,8 @@ function AddProductDialog({
     setScannerOpen(false);
     setForm((f) => ({ ...f, sku: code.trim() }));
   };
+
+  const currentConv = isRetailer ? Math.max(1, Number(form.conversionFactor) || 1) : 1;
 
   return (
     <>
@@ -1934,57 +1946,116 @@ function AddProductDialog({
               </datalist>
             </FieldInline>
 
-            <FieldInline label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "Buying price (per Strip)" : "Buying price"}>
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.costPrice}
-                  onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
-                  placeholder="Cost per unit"
-                  required
-                />
-                {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && form.costPrice ? (
-                  <span className="text-[10px] text-muted-foreground font-mono block">
-                    ≈ ₹{getPerPcPrice(Number(form.costPrice), getPiecesPerStrip(form.stockPacks, form.stockType)).toFixed(2)}/pc
-                  </span>
-                ) : null}
-              </div>
-            </FieldInline>
+            {isRetailer ? (
+              <>
+                <FieldInline label="MRP (per Strip)">
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.mrp}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setForm({ ...form, mrp: val, price: val });
+                      }}
+                      placeholder="Printed MRP"
+                      required
+                    />
+                    {form.mrp ? (
+                      <span className="text-[10px] text-muted-foreground font-mono block">
+                        ≈ ₹{getPerPcPrice(Number(form.mrp), currentConv).toFixed(2)}/pc
+                      </span>
+                    ) : null}
+                  </div>
+                </FieldInline>
 
-            <FieldInline label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "Selling price (per Strip)" : "Selling price"}>
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  required
-                />
-                {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && form.price ? (
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium block">
-                    ≈ ₹{getPerPcPrice(Number(form.price), getPiecesPerStrip(form.stockPacks, form.stockType)).toFixed(2)}/pc
-                  </span>
-                ) : null}
-              </div>
-            </FieldInline>
+                <FieldInline label="Buying price (per Strip)">
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.costPrice}
+                      onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                      placeholder="Purchase cost"
+                      required
+                    />
+                    {form.costPrice ? (
+                      <span className="text-[10px] text-muted-foreground font-mono block">
+                        ≈ ₹{getPerPcPrice(Number(form.costPrice), currentConv).toFixed(2)}/pc
+                      </span>
+                    ) : null}
+                  </div>
+                </FieldInline>
 
-            <FieldInline label={isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? "MRP (per Strip)" : "MRP"}>
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.mrp}
-                  onChange={(e) => setForm({ ...form, mrp: e.target.value })}
-                  placeholder="Printed price"
-                />
-                {isRetailer && (form.stockType === "tab" || form.stockType === "cap") && form.mrp ? (
-                  <span className="text-[10px] text-muted-foreground font-mono block">
-                    ≈ ₹{getPerPcPrice(Number(form.mrp), getPiecesPerStrip(form.stockPacks, form.stockType)).toFixed(2)}/pc
-                  </span>
-                ) : null}
-              </div>
-            </FieldInline>
+                <FieldInline label="Sale Rate (MRP)">
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={form.price || form.mrp}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                      placeholder="Sale rate (MRP)"
+                      required
+                    />
+                    {form.price || form.mrp ? (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium block">
+                        ≈ ₹{getPerPcPrice(Number(form.price || form.mrp), currentConv).toFixed(2)}/pc
+                      </span>
+                    ) : null}
+                  </div>
+                </FieldInline>
+
+                <FieldInline label="Conversion (Pcs / Strip)">
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.conversionFactor}
+                      onChange={(e) => setForm({ ...form, conversionFactor: e.target.value })}
+                      placeholder="e.g. 10 (units per strip)"
+                      required
+                    />
+                    <span className="text-[10px] text-muted-foreground block">
+                      Loose pcs per strip (used for loose pc sales)
+                    </span>
+                  </div>
+                </FieldInline>
+              </>
+            ) : (
+              <>
+                <FieldInline label="Buying price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.costPrice}
+                    onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
+                    placeholder="Cost per unit"
+                    required
+                  />
+                </FieldInline>
+
+                <FieldInline label="Selling price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    required
+                  />
+                </FieldInline>
+
+                <FieldInline label="MRP">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.mrp}
+                    onChange={(e) => setForm({ ...form, mrp: e.target.value })}
+                    placeholder="Printed price"
+                  />
+                </FieldInline>
+              </>
+            )}
 
             <FieldInline label="Stock Type">
               <select
@@ -2111,8 +2182,8 @@ function AddProductDialog({
               </FieldInline>
             )}
 
-            {isRetailer && (form.stockType === "tab" || form.stockType === "cap") ? (
-              <FieldInline label={`Initial Stock (${form.stockType === "tab" ? "Tablets" : "Capsules"})`}>
+            {isRetailer ? (
+              <FieldInline label="Initial Stock">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Input
@@ -2122,7 +2193,7 @@ function AddProductDialog({
                       onChange={(e) => setForm({ ...form, stripStock: e.target.value })}
                       placeholder="Strips"
                     />
-                    <span className="text-[10px] text-muted-foreground">Strips</span>
+                    <span className="text-[10px] text-muted-foreground">Strips / Packs</span>
                   </div>
                   <div>
                     <Input

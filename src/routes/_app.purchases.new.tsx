@@ -222,6 +222,7 @@ function AddPurchasePage() {
     batch: "",
     sku: "",
     prescription: false,
+    conversionFactor: "10",
   });
 
   const [recentCategories, setRecentCategories] = useState<string[]>([]);
@@ -396,6 +397,7 @@ function AddPurchasePage() {
       batch: "",
       sku: "",
       prescription: false,
+      conversionFactor: isRetailer ? "10" : "1",
     });
     setShowQuickProductModal(true);
   };
@@ -500,10 +502,12 @@ function AddPurchasePage() {
       sku: quickProductForm.sku.trim() || undefined,
       taxPercent: Number(quickProductForm.taxPercent) || 0,
       prescription: quickProductForm.prescription,
+      conversionFactor: isRetailer ? Math.max(1, Number(quickProductForm.conversionFactor) || 1) : 1,
     };
-    const pps = getPiecesPerStrip(payload.pack, quickProductForm.stockType);
+    const convFactor = isRetailer ? Math.max(1, Number(quickProductForm.conversionFactor) || 1) : 1;
+    const pps = getPiecesPerStrip(payload.pack, quickProductForm.stockType, convFactor);
     let calculatedStock = Number(quickProductForm.stock) || 0;
-    if (isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap")) {
+    if (isRetailer) {
       if (quickProductForm.stripStock !== "" || quickProductForm.pcStock !== "") {
         calculatedStock = combineStripAndPcToQty(Number(quickProductForm.stripStock || 0), Number(quickProductForm.pcStock || 0), pps);
       }
@@ -525,6 +529,7 @@ function AddPurchasePage() {
         sku: payload.sku,
         taxPercent: payload.taxPercent,
         prescription: payload.prescription,
+        conversionFactor: convFactor,
         createdAt: new Date().toISOString(),
         isDraftProduct: true,
         draftProductDetails: payload,
@@ -1870,98 +1875,159 @@ function AddPurchasePage() {
               <RecentOptions id="manufacturer-recent-quick" options={recentManufacturers} />
             </Field>
             
-            {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? (
-              <Field label={`Initial Stock (${quickProductForm.stockType === "tab" ? "Tablets" : "Capsules"})`}>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
+            {isRetailer ? (
+              <>
+                <Field label="MRP (per Strip)">
+                  <div className="space-y-1">
                     <Input
                       type="number"
-                      min="0"
-                      value={quickProductForm.stripStock}
-                      onChange={(e) => setQuickProductForm({ ...quickProductForm, stripStock: e.target.value })}
-                      placeholder="Strips"
+                      step="0.01"
+                      value={quickProductForm.mrp}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setQuickProductForm({ ...quickProductForm, mrp: val, price: val });
+                      }}
+                      placeholder="Printed MRP"
                       className="h-8 text-xs"
+                      required
                     />
-                    <span className="text-[10px] text-muted-foreground">Strips</span>
+                    {quickProductForm.mrp ? (
+                      <span className="text-[10px] text-muted-foreground font-mono block">
+                        ≈ ₹{getPerPcPrice(Number(quickProductForm.mrp), Number(quickProductForm.conversionFactor) || 1).toFixed(2)}/pc
+                      </span>
+                    ) : null}
                   </div>
-                  <div>
+                </Field>
+
+                <Field label="Buying price (per Strip)">
+                  <div className="space-y-1">
                     <Input
                       type="number"
-                      min="0"
-                      value={quickProductForm.pcStock}
-                      onChange={(e) => setQuickProductForm({ ...quickProductForm, pcStock: e.target.value })}
-                      placeholder="Loose Pcs"
+                      step="0.01"
+                      value={quickProductForm.costPrice}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
+                      placeholder="Cost per unit"
                       className="h-8 text-xs"
+                      required
                     />
-                    <span className="text-[10px] text-muted-foreground">Loose Pcs</span>
+                    {quickProductForm.costPrice ? (
+                      <span className="text-[10px] text-muted-foreground font-mono block">
+                        ≈ ₹{getPerPcPrice(Number(quickProductForm.costPrice), Number(quickProductForm.conversionFactor) || 1).toFixed(2)}/pc
+                      </span>
+                    ) : null}
                   </div>
-                </div>
-              </Field>
+                </Field>
+
+                <Field label="Sale Rate (MRP)">
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={quickProductForm.price || quickProductForm.mrp}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                      placeholder="Sale rate (MRP)"
+                      className="h-8 text-xs"
+                      required
+                    />
+                    {quickProductForm.price || quickProductForm.mrp ? (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium block">
+                        ≈ ₹{getPerPcPrice(Number(quickProductForm.price || quickProductForm.mrp), Number(quickProductForm.conversionFactor) || 1).toFixed(2)}/pc
+                      </span>
+                    ) : null}
+                  </div>
+                </Field>
+
+                <Field label="Conversion (Pcs / Strip)">
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={quickProductForm.conversionFactor}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, conversionFactor: e.target.value })}
+                      placeholder="e.g. 10 (units per strip)"
+                      className="h-8 text-xs"
+                      required
+                    />
+                    <span className="text-[10px] text-muted-foreground block">
+                      Loose pcs per strip (for retail calculation)
+                    </span>
+                  </div>
+                </Field>
+
+                <Field label="Initial Stock">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={quickProductForm.stripStock}
+                        onChange={(e) => setQuickProductForm({ ...quickProductForm, stripStock: e.target.value })}
+                        placeholder="Strips"
+                        className="h-8 text-xs"
+                      />
+                      <span className="text-[10px] text-muted-foreground">Strips / Packs</span>
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={quickProductForm.pcStock}
+                        onChange={(e) => setQuickProductForm({ ...quickProductForm, pcStock: e.target.value })}
+                        placeholder="Loose Pcs"
+                        className="h-8 text-xs"
+                      />
+                      <span className="text-[10px] text-muted-foreground">Loose Pcs</span>
+                    </div>
+                  </div>
+                </Field>
+              </>
             ) : (
-              <Field label="Initial Stock Qty">
-                <Input
-                  type="number"
-                  value={quickProductForm.stock}
-                  onChange={(e) => setQuickProductForm({ ...quickProductForm, stock: e.target.value })}
-                  placeholder="e.g. 100"
-                  className="h-8 text-xs"
-                />
-              </Field>
+              <>
+                <Field label="Initial Stock Qty">
+                  <Input
+                    type="number"
+                    value={quickProductForm.stock}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, stock: e.target.value })}
+                    placeholder="e.g. 100"
+                    className="h-8 text-xs"
+                  />
+                </Field>
+
+                <Field label="Buying price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={quickProductForm.costPrice}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
+                    placeholder="Cost per unit"
+                    className="h-8 text-xs"
+                  />
+                </Field>
+
+                <Field label="Selling price">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={quickProductForm.price}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
+                    placeholder="Rate per unit"
+                    className="h-8 text-xs"
+                  />
+                </Field>
+
+                <Field label="MRP">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={quickProductForm.mrp}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, mrp: e.target.value })}
+                    placeholder="Printed price"
+                    className="h-8 text-xs"
+                  />
+                </Field>
+              </>
             )}
-
-            <Field label={isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? "Buying price (per Strip)" : "Buying price"}>
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={quickProductForm.costPrice}
-                  onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
-                  placeholder="Cost per unit"
-                  className="h-8 text-xs"
-                />
-                {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") && quickProductForm.costPrice ? (
-                  <span className="text-[10px] text-muted-foreground font-mono block">
-                    ≈ ₹{getPerPcPrice(Number(quickProductForm.costPrice), getPiecesPerStrip(quickProductForm.stockPacks, quickProductForm.stockType)).toFixed(2)}/pc
-                  </span>
-                ) : null}
-              </div>
-            </Field>
-
-            <Field label={isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? "Selling price (per Strip)" : "Selling price"}>
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={quickProductForm.price}
-                  onChange={(e) => setQuickProductForm({ ...quickProductForm, price: e.target.value })}
-                  placeholder="Rate per unit"
-                  className="h-8 text-xs"
-                />
-                {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") && quickProductForm.price ? (
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-medium block">
-                    ≈ ₹{getPerPcPrice(Number(quickProductForm.price), getPiecesPerStrip(quickProductForm.stockPacks, quickProductForm.stockType)).toFixed(2)}/pc
-                  </span>
-                ) : null}
-              </div>
-            </Field>
-
-            <Field label={isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") ? "MRP (per Strip)" : "MRP"}>
-              <div className="space-y-1">
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={quickProductForm.mrp}
-                  onChange={(e) => setQuickProductForm({ ...quickProductForm, mrp: e.target.value })}
-                  placeholder="Printed price"
-                  className="h-8 text-xs"
-                />
-                {isRetailer && (quickProductForm.stockType === "tab" || quickProductForm.stockType === "cap") && quickProductForm.mrp ? (
-                  <span className="text-[10px] text-muted-foreground font-mono block">
-                    ≈ ₹{getPerPcPrice(Number(quickProductForm.mrp), getPiecesPerStrip(quickProductForm.stockPacks, quickProductForm.stockType)).toFixed(2)}/pc
-                  </span>
-                ) : null}
-              </div>
-            </Field>
 
             <Field label="Stock Type">
               <select
