@@ -88,6 +88,7 @@ export async function downloadBillPdf(
   const pageHeight = doc.internal.pageSize.getHeight();
   const left = 20;
   const right = pageWidth - 20;
+  const isReturn = bill.number.startsWith("SR-");
 
   const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
   const pharmacyPhone = settings?.pharmacyPhone || "";
@@ -162,7 +163,7 @@ export async function downloadBillPdf(
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("TAX INVOICE", right, rightY + 12, { align: "right" });
+  doc.text(isReturn ? "SALE RETURN" : "TAX INVOICE", right, rightY + 12, { align: "right" });
 
   rightY += 30;
   doc.setFontSize(9);
@@ -214,7 +215,7 @@ export async function downloadBillPdf(
   doc.setFontSize(8.5);
   doc.text("CUSTOMER DETAILS", left + 12, y + 14);
   const rightColX = pageWidth / 2 + 12;
-  doc.text("DISPATCH & PAYMENT", rightColX, y + 14);
+  doc.text(isReturn ? "DISPATCH" : "DISPATCH & PAYMENT", rightColX, y + 14);
 
   let cy = y + 28;
   doc.setTextColor(35, 35, 35);
@@ -268,13 +269,15 @@ export async function downloadBillPdf(
   doc.setFontSize(9);
 
   rightY = cy + 12;
-  doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, rightColX, rightY);
-  doc.setTextColor(...primaryRgb);
-  doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 75, rightY);
-  doc.setFont("helvetica", "normal");
-  rightY += 12;
+  if (!isReturn) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Payment Mode: `, rightColX, rightY);
+    doc.setTextColor(...primaryRgb);
+    doc.setFont("helvetica", "bold");
+    doc.text(bill.paymentMethod.toUpperCase(), rightColX + 75, rightY);
+    doc.setFont("helvetica", "normal");
+    rightY += 12;
+  }
 
   if (bill.customerNotes) {
     doc.setFont("helvetica", "italic");
@@ -297,7 +300,7 @@ export async function downloadBillPdf(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.text("CUSTOMER DETAILS", left + 12, custBoxTop + 14);
-  doc.text("DISPATCH & PAYMENT", rightColX, custBoxTop + 14);
+  doc.text(isReturn ? "DISPATCH" : "DISPATCH & PAYMENT", rightColX, custBoxTop + 14);
 
   cy = custBoxTop + 28;
   doc.setTextColor(35, 35, 35);
@@ -351,13 +354,15 @@ export async function downloadBillPdf(
   doc.setFontSize(9);
 
   rightY = cy + 12;
-  doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, rightColX, rightY);
-  doc.setTextColor(...primaryRgb);
-  doc.setFont("helvetica", "bold");
-  doc.text(bill.paymentMethod.toUpperCase(), rightColX + 65, rightY);
-  doc.setFont("helvetica", "normal");
-  rightY += 14;
+  if (!isReturn) {
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Payment Mode: `, rightColX, rightY);
+    doc.setTextColor(...primaryRgb);
+    doc.setFont("helvetica", "bold");
+    doc.text(bill.paymentMethod.toUpperCase(), rightColX + 65, rightY);
+    doc.setFont("helvetica", "normal");
+    rightY += 14;
+  }
 
   if (bill.customerNotes) {
     doc.setFont("helvetica", "italic");
@@ -439,7 +444,6 @@ export async function downloadBillPdf(
   y = tableEndY + 20;
 
   // 4. Totals & Footer Info Area
-  const isReturn = bill.number.startsWith("SR-");
   const netPayable = bill.total;
   const roundOff = isReturn ? 0 : bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
   const cgst = bill.tax / 2;
@@ -517,7 +521,7 @@ export async function downloadBillPdf(
 
   let rightSideY = y;
 
-  let boxHeight = 138;
+  let boxHeight = isReturn ? 104 : 138;
   if ((bill.discount || 0) > 0) boxHeight += 16;
   if (!isReturn && Math.abs(roundOff) >= 0.005) boxHeight += 12;
 
@@ -589,43 +593,45 @@ export async function downloadBillPdf(
   doc.text("NET PAYABLE", rightBoxLeft + 12, ty);
   doc.text(`Rs. ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
 
-  ty += 8;
-  doc.setDrawColor(220, 220, 220);
-  doc.line(rightBoxLeft + 12, ty, totalsValueX, ty);
-
-  ty += 14;
-  if (bill.paymentMethod === "credit") {
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(110, 110, 110);
-    doc.text("Advance Paid", rightBoxLeft + 12, ty);
-    doc.setTextColor(35, 35, 35);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Rs. ${bill.advanceAmount.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+  if (!isReturn) {
+    ty += 8;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(rightBoxLeft + 12, ty, totalsValueX, ty);
 
     ty += 14;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(220, 38, 38);
-    doc.text("Balance Due", rightBoxLeft + 12, ty);
-    doc.text(`Rs. ${(netPayable - bill.advanceAmount).toFixed(2)}`, totalsValueX, ty, {
-      align: "right",
-    });
-  } else {
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(110, 110, 110);
-    doc.text("Amount Paid", rightBoxLeft + 12, ty);
-    doc.setTextColor(35, 35, 35);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Rs. ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+    if (bill.paymentMethod === "credit") {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(110, 110, 110);
+      doc.text("Advance Paid", rightBoxLeft + 12, ty);
+      doc.setTextColor(35, 35, 35);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rs. ${bill.advanceAmount.toFixed(2)}`, totalsValueX, ty, { align: "right" });
 
-    ty += 14;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(22, 163, 74);
-    doc.text("Balance", rightBoxLeft + 12, ty);
-    doc.text(`Rs. 0.00`, totalsValueX, ty, { align: "right" });
+      ty += 14;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(220, 38, 38);
+      doc.text("Balance Due", rightBoxLeft + 12, ty);
+      doc.text(`Rs. ${(netPayable - bill.advanceAmount).toFixed(2)}`, totalsValueX, ty, {
+        align: "right",
+      });
+    } else {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(110, 110, 110);
+      doc.text("Amount Paid", rightBoxLeft + 12, ty);
+      doc.setTextColor(35, 35, 35);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Rs. ${netPayable.toFixed(2)}`, totalsValueX, ty, { align: "right" });
+
+      ty += 14;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(22, 163, 74);
+      doc.text("Balance", rightBoxLeft + 12, ty);
+      doc.text(`Rs. 0.00`, totalsValueX, ty, { align: "right" });
+    }
   }
 
   // 5. Signatures (Placed at bottom of last page)

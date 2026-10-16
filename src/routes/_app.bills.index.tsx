@@ -798,21 +798,25 @@ function BillsPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <span
-                    className={
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize " +
-                        (b.paymentMethod === "cash"
-                        ? "bg-success/15 text-success"
-                        : "bg-primary/10 text-primary")
-                    }
-                  >
-                    {b.paymentMethod === "cash" ? (
-                      <Banknote className="h-3 w-3" />
-                    ) : (
-                      <Smartphone className="h-3 w-3" />
-                    )}
-                    {b.paymentMethod}
-                  </span>
+                  {!isReturnBill ? (
+                    <span
+                      className={
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize " +
+                          (b.paymentMethod === "cash"
+                          ? "bg-success/15 text-success"
+                          : "bg-primary/10 text-primary")
+                      }
+                    >
+                      {b.paymentMethod === "cash" ? (
+                        <Banknote className="h-3 w-3" />
+                      ) : (
+                        <Smartphone className="h-3 w-3" />
+                      )}
+                      {b.paymentMethod}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     {isPending && (
                       !session?.isEmployee ? (
@@ -1031,21 +1035,25 @@ function BillsPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span
-                        className={
-                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize " +
-                          (b.paymentMethod === "cash"
-                            ? "bg-success/15 text-success"
-                            : "bg-primary/10 text-primary")
-                        }
-                      >
-                        {b.paymentMethod === "cash" ? (
-                          <Banknote className="h-3 w-3" />
-                        ) : (
-                          <Smartphone className="h-3 w-3" />
-                        )}
-                        {b.paymentMethod}
-                      </span>
+                      {isReturnBill ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <span
+                          className={
+                            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium capitalize " +
+                            (b.paymentMethod === "cash"
+                              ? "bg-success/15 text-success"
+                              : "bg-primary/10 text-primary")
+                          }
+                        >
+                          {b.paymentMethod === "cash" ? (
+                            <Banknote className="h-3 w-3" />
+                          ) : (
+                            <Smartphone className="h-3 w-3" />
+                          )}
+                          {b.paymentMethod}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">{b.items.length}</TableCell>
                     <TableCell className={`text-right tabular-nums font-medium ${isReturnBill ? "text-amber-700" : ""}`}>

@@ -362,7 +362,7 @@ function BillDetailPage() {
           </div>
           <div className="text-right text-sm flex flex-col gap-1">
             <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">
-              Tax Invoice
+              {isReturn ? "Sale Return" : "Tax Invoice"}
             </h2>
             {bill.status === "pending" && (
               <div className="flex justify-end mb-1">
@@ -439,14 +439,16 @@ function BillDetailPage() {
             )}
           </div>
           <div className="sm:w-1/2 sm:border-l border-border sm:pl-4">
-            <p className="font-semibold mb-1 uppercase text-xs text-primary">DISPATCH & PAYMENT</p>
+            <p className="font-semibold mb-1 uppercase text-xs text-primary">{isReturn ? "DISPATCH" : "DISPATCH & PAYMENT"}</p>
             <p className="text-muted-foreground">
               Transport: <span className="text-foreground">Direct / By Hand</span>
             </p>
-            <p className="text-muted-foreground">
-              Payment Mode:{" "}
-              <span className="uppercase font-semibold text-primary">{bill.paymentMethod}</span>
-            </p>
+            {!isReturn && (
+              <p className="text-muted-foreground">
+                Payment Mode:{" "}
+                <span className="uppercase font-semibold text-primary">{bill.paymentMethod}</span>
+              </p>
+            )}
             {bill.customerNotes && (
               <p className="mt-1 text-xs text-muted-foreground italic">{bill.customerNotes}</p>
             )}
@@ -630,32 +632,34 @@ function BillDetailPage() {
                 <span className="font-mono">₹{netPayable.toFixed(2)}</span>
               </div>
 
-              {bill.paymentMethod === "credit" ? (
-                <div className="text-xs pt-2 space-y-1.5 border-t border-border">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Advance Paid</span>
-                    <span className="font-mono text-foreground">
-                      ₹{bill.advanceAmount.toFixed(2)}
-                    </span>
+              {!isReturn && (
+                bill.paymentMethod === "credit" ? (
+                  <div className="text-xs pt-2 space-y-1.5 border-t border-border">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Advance Paid</span>
+                      <span className="font-mono text-foreground">
+                        ₹{bill.advanceAmount.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-bold text-destructive">
+                      <span>Balance Due</span>
+                      <span className="font-mono">
+                        ₹{(netPayable - bill.advanceAmount).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between font-bold text-destructive">
-                    <span>Balance Due</span>
-                    <span className="font-mono">
-                      ₹{(netPayable - bill.advanceAmount).toFixed(2)}
-                    </span>
+                ) : (
+                  <div className="text-xs pt-2 space-y-1.5 border-t border-border">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Amount Paid</span>
+                      <span className="font-mono text-foreground">₹{netPayable.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-success">
+                      <span>Balance</span>
+                      <span className="font-mono">₹0.00</span>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-xs pt-2 space-y-1.5 border-t border-border">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Amount Paid</span>
-                    <span className="font-mono text-foreground">₹{netPayable.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-success">
-                    <span>Balance</span>
-                    <span className="font-mono">₹0.00</span>
-                  </div>
-                </div>
+                )
               )}
             </div>
           </div>

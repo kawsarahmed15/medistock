@@ -500,7 +500,7 @@ function CustomersPage() {
                         <TableRow key={b.id}>
                           <TableCell className="font-mono text-xs">{b.number}</TableCell>
                           <TableCell>{new Date(b.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell className="capitalize text-xs">{b.paymentMethod}</TableCell>
+                          <TableCell className="capitalize text-xs">{b.number.startsWith("SR-") ? "—" : b.paymentMethod}</TableCell>
                           <TableCell className="text-right font-medium tabular-nums">{formatMoney(b.total)}</TableCell>
                         </TableRow>
                       ))}

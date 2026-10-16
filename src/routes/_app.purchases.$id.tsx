@@ -134,19 +134,19 @@ function PurchaseDetailsPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold uppercase tracking-wide m-0 leading-tight text-primary">
-                PURCHASE INWARD RECORD
+                {isReturn ? "PURCHASE RETURN RECORD" : "PURCHASE INWARD RECORD"}
               </h1>
               <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                Intake voucher generated dynamically upon supplier invoice clearance.
+                {isReturn ? "Outward debit voucher generated for returned purchase items." : "Intake voucher generated dynamically upon supplier invoice clearance."}
               </p>
             </div>
           </div>
           <div className="text-right text-sm flex flex-col gap-1">
             <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">
-              PO Voucher
+              {isReturn ? "PR Voucher" : "PO Voucher"}
             </h2>
             <div className="flex justify-end gap-2 text-xs">
-              <span className="text-muted-foreground font-medium">PO Ref No:</span>
+              <span className="text-muted-foreground font-medium">{isReturn ? "PR Ref No:" : "PO Ref No:"}</span>
               <span className="font-extrabold font-mono text-sm text-primary tracking-wide">{purchase.number}</span>
             </div>
             <div className="flex justify-end gap-2 text-xs">
@@ -187,10 +187,12 @@ function PurchaseDetailsPage() {
             )}
           </div>
           <div className="sm:w-1/2 sm:border-l border-border sm:pl-4 space-y-1">
-            <p className="font-semibold mb-1 uppercase text-xs text-primary">INWARD LOGISTICS</p>
-            <p className="text-muted-foreground">
-              Payment Method: <span className="uppercase font-semibold text-primary">{purchase.paymentMethod}</span>
-            </p>
+            <p className="font-semibold mb-1 uppercase text-xs text-primary">{isReturn ? "OUTWARD LOGISTICS" : "INWARD LOGISTICS"}</p>
+            {!isReturn && (
+              <p className="text-muted-foreground">
+                Payment Method: <span className="uppercase font-semibold text-primary">{purchase.paymentMethod}</span>
+              </p>
+            )}
             {meta?.transportName && (
               <p className="text-muted-foreground">
                 Transport: <span className="text-foreground">{meta.transportName}</span>
@@ -201,7 +203,7 @@ function PurchaseDetailsPage() {
                 LR Number: <span className="text-foreground font-mono">{meta.lrNumber}</span>
               </p>
             )}
-            {purchase.paymentMethod === "credit" && meta?.dueDate && (
+            {!isReturn && purchase.paymentMethod === "credit" && meta?.dueDate && (
               <p className="text-muted-foreground font-semibold text-rose-600">
                 Payment Due Date: <span>{meta.dueDate}</span>
               </p>

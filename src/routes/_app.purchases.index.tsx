@@ -1023,7 +1023,7 @@ function PurchasesPage() {
                             })}
                           </TableCell>
                           <TableCell className="text-xs capitalize font-medium">
-                            {p.paymentMethod.replace("_", " ")}
+                            {isReturnBill ? "—" : p.paymentMethod.replace("_", " ")}
                           </TableCell>
                           <TableCell className="text-xs text-right font-medium">
                             {p.items.length} <span className="text-[10px] text-muted-foreground">({totalQty} qty)</span>
@@ -1032,18 +1032,22 @@ function PurchasesPage() {
                             {formatMoney(p.total)}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Badge
-                              variant="outline"
-                              className={
-                                p.paymentStatus === "paid"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : p.paymentStatus === "partial"
-                                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                                    : "bg-rose-50 text-rose-700 border-rose-200"
-                              }
-                            >
-                              {p.paymentStatus.toUpperCase()}
-                            </Badge>
+                            {isReturnBill ? (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className={
+                                  p.paymentStatus === "paid"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : p.paymentStatus === "partial"
+                                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                                      : "bg-rose-50 text-rose-700 border-rose-200"
+                                }
+                              >
+                                {p.paymentStatus.toUpperCase()}
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-center py-2 print:hidden" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1.5">
@@ -1543,10 +1547,11 @@ function PurchasesPage() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 bg-background print:fixed print:inset-0 print:max-w-none print:max-h-none print:w-full print:h-full print:bg-white print:overflow-visible print:border-none print:p-0 print:shadow-none">
           {selectedPurchaseForDetails && (() => {
             const p = selectedPurchaseForDetails;
+            const isReturn = p.number.startsWith("PR-");
             const meta = selectedPurchaseMeta;
             const cgst = p.tax / 2;
             const sgst = p.tax / 2;
-            const roundOff = p.total - (p.subtotal + p.tax - p.discount);
+            const roundOff = isReturn ? 0 : p.total - (p.subtotal + p.tax - p.discount);
 
             return (
               <div className="flex flex-col h-full">
@@ -1555,7 +1560,7 @@ function PurchasesPage() {
                   <div className="flex justify-between items-center pr-6">
                     <div>
                       <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-primary" /> Purchase Inward Details
+                        <FileText className="h-5 w-5 text-primary" /> {isReturn ? "Purchase Return Details" : "Purchase Inward Details"}
                       </DialogTitle>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1570,7 +1575,7 @@ function PurchasesPage() {
                         <Download className="h-4 w-4 mr-2" /> Download PDF
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => window.print()}>
-                        <Printer className="h-4 w-4 mr-2" /> Print PO
+                        <Printer className="h-4 w-4 mr-2" /> {isReturn ? "Print PR" : "Print PO"}
                       </Button>
                     </div>
                   </div>
@@ -1586,19 +1591,19 @@ function PurchasesPage() {
                       </div>
                       <div>
                         <h1 className="text-2xl font-bold uppercase tracking-wide m-0 leading-tight text-primary">
-                          PURCHASE INWARD RECORD
+                          {isReturn ? "PURCHASE RETURN RECORD" : "PURCHASE INWARD RECORD"}
                         </h1>
                         <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                          Intake voucher generated dynamically upon supplier invoice clearance.
+                          {isReturn ? "Outward debit voucher generated for returned purchase items." : "Intake voucher generated dynamically upon supplier invoice clearance."}
                         </p>
                       </div>
                     </div>
                     <div className="text-right text-sm flex flex-col gap-1 shrink-0">
                       <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">
-                        PO Voucher
+                        {isReturn ? "PR Voucher" : "PO Voucher"}
                       </h2>
                       <div className="flex justify-end gap-2 text-xs">
-                        <span className="text-muted-foreground">PO Ref No:</span>
+                        <span className="text-muted-foreground">{isReturn ? "PR Ref No:" : "PO Ref No:"}</span>
                         <span className="font-bold font-mono text-primary">{p.number}</span>
                       </div>
                       <div className="flex justify-end gap-2 text-xs">
@@ -1639,10 +1644,12 @@ function PurchasesPage() {
                       )}
                     </div>
                     <div className="sm:w-1/2 sm:border-l border-border sm:pl-4 space-y-1">
-                      <p className="font-semibold mb-1 uppercase text-xs text-primary">INWARD LOGISTICS</p>
-                      <p className="text-muted-foreground">
-                        Payment Method: <span className="uppercase font-semibold text-primary">{p.paymentMethod}</span>
-                      </p>
+                      <p className="font-semibold mb-1 uppercase text-xs text-primary">{isReturn ? "OUTWARD LOGISTICS" : "INWARD LOGISTICS"}</p>
+                      {!isReturn && (
+                        <p className="text-muted-foreground">
+                          Payment Method: <span className="uppercase font-semibold text-primary">{p.paymentMethod}</span>
+                        </p>
+                      )}
                       {meta?.transportName && (
                         <p className="text-muted-foreground">
                           Transport: <span className="text-foreground">{meta.transportName}</span>
@@ -1653,7 +1660,7 @@ function PurchasesPage() {
                           LR Number: <span className="text-foreground font-mono">{meta.lrNumber}</span>
                         </p>
                       )}
-                      {p.paymentMethod === "credit" && meta?.dueDate && (
+                      {!isReturn && p.paymentMethod === "credit" && meta?.dueDate && (
                         <p className="text-muted-foreground font-semibold text-rose-600">
                           Payment Due Date: <span>{meta.dueDate}</span>
                         </p>
@@ -1786,7 +1793,7 @@ function PurchasesPage() {
                           </div>
                         )}
                         <div className="flex justify-between py-2 text-xl font-bold uppercase tracking-wide text-primary">
-                          <span>Net Inward</span>
+                          <span>{isReturn ? "Net Outward" : "Net Inward"}</span>
                           <span className="font-mono">{formatMoney(p.total)}</span>
                         </div>
                       </div>

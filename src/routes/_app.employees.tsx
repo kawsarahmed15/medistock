@@ -1001,9 +1001,11 @@ function EmployeesPage() {
                               <div className="text-base font-bold text-foreground font-mono">
                                 ₹{bill.total.toFixed(2)}
                               </div>
-                              <div className="text-[11px] text-muted-foreground uppercase font-medium">
-                                Payment: {bill.paymentMethod}
-                              </div>
+                              {!bill.number.startsWith("SR-") && (
+                                <div className="text-[11px] text-muted-foreground uppercase font-medium">
+                                  Payment: {bill.paymentMethod}
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -1125,7 +1127,7 @@ function EmployeesPage() {
                               </span>
                             </TableCell>
                             <TableCell className="text-xs font-medium uppercase">
-                              {b.paymentMethod}
+                              {b.number.startsWith("SR-") ? "—" : b.paymentMethod}
                             </TableCell>
                             <TableCell className="text-right font-mono font-bold text-xs">
                               ₹{b.total.toFixed(2)}
@@ -1191,10 +1193,12 @@ function EmployeesPage() {
                     {inspectingBill.customerPhone || "N/A"}
                   </strong>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Payment Mode: </span>
-                  <strong className="uppercase text-foreground">{inspectingBill.paymentMethod}</strong>
-                </div>
+                {!inspectingBill.number.startsWith("SR-") && (
+                  <div>
+                    <span className="text-muted-foreground">Payment Mode: </span>
+                    <strong className="uppercase text-foreground">{inspectingBill.paymentMethod}</strong>
+                  </div>
+                )}
                 <div>
                   <span className="text-muted-foreground">Address: </span>
                   <span className="text-foreground">{inspectingBill.customerAddress || "N/A"}</span>

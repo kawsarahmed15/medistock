@@ -55,6 +55,7 @@ export async function downloadPurchasePdf(
   const pageHeight = doc.internal.pageSize.getHeight();
   const left = 20;
   const right = pageWidth - 20;
+  const isReturn = purchase.number.startsWith("PR-");
 
   const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
   const pharmacyPhone = settings?.pharmacyPhone || "";
@@ -132,13 +133,13 @@ export async function downloadPurchasePdf(
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("PURCHASE VOUCHER", right, rightY + 12, { align: "right" });
+  doc.text(isReturn ? "PURCHASE RETURN" : "PURCHASE VOUCHER", right, rightY + 12, { align: "right" });
 
   rightY += 30;
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
   doc.setFont("helvetica", "normal");
-  doc.text("Voucher No:", right - 100, rightY);
+  doc.text(isReturn ? "PR Ref No:" : "Voucher No:", right - 100, rightY);
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.text(clean(purchase.number), right - 20, rightY, { align: "right" });
@@ -183,7 +184,7 @@ export async function downloadPurchasePdf(
   let suppAddrLines = supplierAddress ? doc.splitTextToSize(clean(supplierAddress), pageWidth / 2 - 75) : [];
   
   const leftColHeight = 65 + suppAddrLines.length * 12;
-  const logisticsHeight = 90; 
+  const logisticsHeight = isReturn ? 60 : 90; 
   
   const boxHeight = Math.max(leftColHeight, logisticsHeight);
   const custBoxBottom = custBoxTop + boxHeight + 10;
@@ -201,7 +202,7 @@ export async function downloadPurchasePdf(
   doc.text("SUPPLIER DETAILS", left + 12, custBoxTop + 14);
 
   const rightColX = pageWidth / 2 + 12;
-  doc.text("INWARD LOGISTICS", rightColX, custBoxTop + 14);
+  doc.text(isReturn ? "OUTWARD LOGISTICS" : "INWARD LOGISTICS", rightColX, custBoxTop + 14);
 
   let cy = custBoxTop + 28;
   doc.setTextColor(35, 35, 35);
@@ -241,14 +242,16 @@ export async function downloadPurchasePdf(
 
   // Right column logistics text
   let rightSideYVal = cy;
-  doc.setFontSize(9);
-  doc.setTextColor(110, 110, 110);
-  doc.text(`Payment Mode: `, rightColX, rightSideYVal);
-  doc.setTextColor(...primaryRgb);
-  doc.setFont("helvetica", "bold");
-  doc.text(purchase.paymentMethod.toUpperCase(), rightColX + 75, rightSideYVal);
-  doc.setFont("helvetica", "normal");
-  rightSideYVal += 14;
+  if (!isReturn) {
+    doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text(`Payment Mode: `, rightColX, rightSideYVal);
+    doc.setTextColor(...primaryRgb);
+    doc.setFont("helvetica", "bold");
+    doc.text(purchase.paymentMethod.toUpperCase(), rightColX + 75, rightSideYVal);
+    doc.setFont("helvetica", "normal");
+    rightSideYVal += 14;
+  }
 
   if (meta?.transportName) {
     doc.setTextColor(110, 110, 110);
@@ -264,7 +267,7 @@ export async function downloadPurchasePdf(
     doc.text(clean(meta.lrNumber.toUpperCase()), rightColX + 75, rightSideYVal);
     rightSideYVal += 12;
   }
-  if (purchase.paymentMethod === "credit" && meta?.dueDate) {
+  if (!isReturn && purchase.paymentMethod === "credit" && meta?.dueDate) {
     doc.setTextColor(110, 110, 110);
     doc.text(`Due Date: `, rightColX, rightSideYVal);
     doc.setTextColor(220, 38, 38); // Red
@@ -353,7 +356,6 @@ export async function downloadPurchasePdf(
   y = tableEndY + 20;
 
   // 4. Totals & Footer Info Area
-  const isReturn = purchase.number.startsWith("PR-");
   const netPayable = purchase.total;
   const roundOff = isReturn ? 0 : purchase.total - (purchase.subtotal + purchase.tax - (purchase.discount || 0));
   const cgst = purchase.tax / 2;
