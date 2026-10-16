@@ -92,6 +92,8 @@ router.get("/", async (req, res, next) => {
       items: map.get(bill.id) || [],
     }));
 
+    await attachReturnsToBills(pool, req.auth.userId, data);
+
     res.json(data);
   } catch (error) {
     next(error);
@@ -132,11 +134,116 @@ router.get("/:id", async (req, res, next) => {
       [req.auth.userId, req.params.id],
     );
 
-    res.json({ ...bill, items });
+    const billData = { ...bill, items };
+    await attachReturnsToBills(pool, req.auth.userId, [billData]);
+
+    res.json(billData);
   } catch (error) {
     next(error);
   }
 });
+
+async function attachReturnsToBills(connOrPool, userId, bills) {
+  if (!bills || bills.length === 0) return;
+
+  const regularBills = bills.filter((b) => b.number && !String(b.number).startsWith("SR-"));
+  if (regularBills.length === 0) return;
+
+  const [returnBills] = await connOrPool.query(
+    `SELECT id, number, customer_notes, subtotal, tax, discount, total, created_at
+     FROM bills
+     WHERE user_id = ? AND number LIKE 'SR-%' AND (status IS NULL OR status != 'rejected')`,
+    [userId]
+  );
+
+  if (returnBills.length === 0) return;
+
+  const returnBillIds = returnBills.map((rb) => rb.id);
+  const placeholders = returnBillIds.map(() => "?").join(",");
+  const [returnItems] = await connOrPool.query(
+    `SELECT bill_id, product_id, name, sku, price, cost_price, qty, tax_percent, mrp, batch, pack, expiry, free_qty, conversion_factor
+     FROM bill_items
+     WHERE user_id = ? AND bill_id IN (${placeholders})`,
+    [userId, ...returnBillIds]
+  );
+
+  const returnItemsMap = new Map();
+  for (const item of returnItems) {
+    const arr = returnItemsMap.get(item.bill_id) || [];
+    arr.push(item);
+    returnItemsMap.set(item.bill_id, arr);
+  }
+
+  for (const rb of returnBills) {
+    rb.items = returnItemsMap.get(rb.id) || [];
+  }
+
+  for (const bill of regularBills) {
+    const billNum = String(bill.number).trim();
+    const billId = String(bill.id).trim();
+
+    const matchingReturns = returnBills.filter((rb) => {
+      const notes = String(rb.customer_notes || "").trim();
+      return notes.includes(billNum) || (billId && notes.includes(billId));
+    });
+
+    if (matchingReturns.length > 0) {
+      let returnedSubtotal = 0;
+      let returnedTax = 0;
+      let returnedTotal = 0;
+      const attachedReturnItems = [];
+
+      for (const rb of matchingReturns) {
+        returnedSubtotal += Number(rb.subtotal || 0);
+        returnedTax += Number(rb.tax || 0);
+        returnedTotal += Number(rb.total || 0);
+
+        for (const it of rb.items) {
+          attachedReturnItems.push({
+            bill_id: bill.id,
+            product_id: it.product_id,
+            name: it.name,
+            sku: it.sku,
+            price: Number(it.price || 0),
+            cost_price: it.cost_price != null ? Number(it.cost_price) : null,
+            qty: Number(it.qty || 0),
+            tax_percent: Number(it.tax_percent || 0),
+            mrp: it.mrp != null ? Number(it.mrp) : null,
+            batch: it.batch,
+            pack: it.pack,
+            expiry: it.expiry,
+            free_qty: Number(it.free_qty || 0),
+            conversion_factor: it.conversion_factor,
+            is_return_item: true,
+            return_bill_number: rb.number,
+            return_bill_id: rb.id,
+            return_date: rb.created_at,
+          });
+        }
+      }
+
+      bill.original_subtotal = Number(bill.subtotal || 0);
+      bill.original_tax = Number(bill.tax || 0);
+      bill.original_total = Number(bill.total || 0);
+      bill.returned_subtotal = Number(returnedSubtotal.toFixed(2));
+      bill.returned_tax = Number(returnedTax.toFixed(2));
+      bill.returned_total = Number(returnedTotal.toFixed(2));
+
+      bill.subtotal = Number((Number(bill.subtotal || 0) + returnedSubtotal).toFixed(2));
+      bill.tax = Number((Number(bill.tax || 0) + returnedTax).toFixed(2));
+      bill.total = Number((Number(bill.total || 0) + returnedTotal).toFixed(2));
+
+      bill.items = [...(bill.items || []), ...attachedReturnItems];
+      bill.has_returns = true;
+      bill.returns = matchingReturns.map((rb) => ({
+        id: rb.id,
+        number: rb.number,
+        total: Number(rb.total || 0),
+        created_at: rb.created_at,
+      }));
+    }
+  }
+}
 
 async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
   if (!items || items.length === 0) return;

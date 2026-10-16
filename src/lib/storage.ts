@@ -40,6 +40,10 @@ export type BillItem = {
   expiry?: string;
   freeQty?: number;
   conversionFactor?: number;
+  isReturnItem?: boolean;
+  returnBillNumber?: string;
+  returnBillId?: string;
+  returnDate?: string;
 };
 
 export type Bill = {
@@ -67,6 +71,14 @@ export type Bill = {
   approvedBy?: string;
   createdAt: string;
   cashier?: string;
+  originalSubtotal?: number;
+  originalTax?: number;
+  originalTotal?: number;
+  returnedSubtotal?: number;
+  returnedTax?: number;
+  returnedTotal?: number;
+  hasReturns?: boolean;
+  returns?: Array<{ id: string; number: string; total: number; date?: string; created_at?: string }>;
 };
 
 type ProductRow = {
@@ -220,6 +232,14 @@ type BillRow = {
   approved_at?: string | null;
   approved_by?: string | null;
   created_at: string;
+  original_subtotal?: number | string | null;
+  original_tax?: number | string | null;
+  original_total?: number | string | null;
+  returned_subtotal?: number | string | null;
+  returned_tax?: number | string | null;
+  returned_total?: number | string | null;
+  has_returns?: boolean;
+  returns?: any[];
 };
 type BillItemRow = {
   bill_id: string;
@@ -235,6 +255,11 @@ type BillItemRow = {
   pack: string | null;
   expiry: string | null;
   free_qty: number;
+  conversion_factor?: number | string | null;
+  is_return_item?: boolean;
+  return_bill_number?: string | null;
+  return_bill_id?: string | null;
+  return_date?: string | null;
 };
 
 function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
@@ -262,6 +287,14 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     approvedAt: b.approved_at ?? undefined,
     approvedBy: b.approved_by ?? undefined,
     createdAt: b.created_at,
+    originalSubtotal: num(b.original_subtotal),
+    originalTax: num(b.original_tax),
+    originalTotal: num(b.original_total),
+    returnedSubtotal: num(b.returned_subtotal),
+    returnedTax: num(b.returned_tax),
+    returnedTotal: num(b.returned_total),
+    hasReturns: Boolean(b.has_returns),
+    returns: b.returns || [],
     items: items.map((it) => ({
       productId: it.product_id ?? "",
       name: it.name,
@@ -276,6 +309,10 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
       freeQty: Number(it.free_qty) || 0,
       conversionFactor: it.conversion_factor != null ? Number(it.conversion_factor) : undefined,
+      isReturnItem: Boolean(it.is_return_item),
+      returnBillNumber: it.return_bill_number ?? undefined,
+      returnBillId: it.return_bill_id ?? undefined,
+      returnDate: it.return_date ?? undefined,
     })),
   };
 }
@@ -408,6 +445,11 @@ export type PurchaseItem = {
   pack?: string;
   saleRate?: number;
   conversionFactor?: number;
+  isReturnItem?: boolean;
+  returnPurchaseNumber?: string;
+  returnBillNumber?: string;
+  returnPurchaseId?: string;
+  returnDate?: string;
 };
 
 export type Purchase = {
@@ -426,6 +468,14 @@ export type Purchase = {
   total: number;
   createdAt: string;
   createdBy?: string;
+  originalSubtotal?: number;
+  originalTax?: number;
+  originalTotal?: number;
+  returnedSubtotal?: number;
+  returnedTax?: number;
+  returnedTotal?: number;
+  hasReturns?: boolean;
+  returns?: Array<{ id: string; number: string; total: number; date?: string; created_at?: string }>;
   items: PurchaseItem[];
 };
 
@@ -446,6 +496,14 @@ function rowToPurchase(p: any, items: any[]): Purchase {
     total: Number(p.total) || 0,
     createdAt: p.created_at,
     createdBy: p.created_by ?? undefined,
+    originalSubtotal: num(p.original_subtotal),
+    originalTax: num(p.original_tax),
+    originalTotal: num(p.original_total),
+    returnedSubtotal: num(p.returned_subtotal),
+    returnedTax: num(p.returned_tax),
+    returnedTotal: num(p.returned_total),
+    hasReturns: Boolean(p.has_returns),
+    returns: p.returns || [],
     items: items.map((it: any) => ({
       id: it.id,
       purchaseId: it.purchase_id,
@@ -463,6 +521,11 @@ function rowToPurchase(p: any, items: any[]): Purchase {
       expiry: it.expiry ? it.expiry.substring(0, 10) : undefined,
       saleRate: it.sale_rate ? Number(it.sale_rate) : undefined,
       conversionFactor: it.conversion_factor != null ? Number(it.conversion_factor) : (it.conversionFactor ? Number(it.conversionFactor) : undefined),
+      isReturnItem: Boolean(it.is_return_item),
+      returnPurchaseNumber: it.return_purchase_number ?? undefined,
+      returnBillNumber: it.return_purchase_number ?? it.return_bill_number ?? undefined,
+      returnPurchaseId: it.return_purchase_id ?? undefined,
+      returnDate: it.return_date ?? undefined,
     }))
   };
 }

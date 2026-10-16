@@ -112,21 +112,25 @@ export function formatStripPcDisplay(
   pack?: string,
   name?: string
 ): string {
+  const isNegative = Number(totalStripsQty || 0) < 0;
+  const absQty = Math.abs(Number(totalStripsQty || 0));
+  const sign = isNegative ? "-" : "";
+
   const pps = Math.max(1, piecesPerStrip || 1);
   if (pps <= 1 && !isTabOrCap(stockType, pack, name)) {
-    const qtyNum = Number(totalStripsQty || 0);
-    return `${qtyNum} ${qtyNum === 1 ? "Pc" : "Pcs"}`;
+    const qtyNum = absQty;
+    return `${sign}${qtyNum} ${qtyNum === 1 ? "Pc" : "Pcs"}`;
   }
 
-  const { strips, pcs } = splitQtyToStripAndPc(totalStripsQty, pps);
+  const { strips, pcs } = splitQtyToStripAndPc(absQty, pps);
   if (strips > 0 && pcs > 0) {
-    return `${strips} ${strips === 1 ? "Strip" : "Strips"}, ${pcs} ${pcs === 1 ? "Pc" : "Pcs"}`;
+    return `${sign}${strips} ${strips === 1 ? "Strip" : "Strips"}, ${pcs} ${pcs === 1 ? "Pc" : "Pcs"}`;
   }
   if (strips > 0) {
-    return `${strips} ${strips === 1 ? "Strip" : "Strips"}`;
+    return `${sign}${strips} ${strips === 1 ? "Strip" : "Strips"}`;
   }
   if (pcs > 0) {
-    return `${pcs} ${pcs === 1 ? "Pc" : "Pcs"}`;
+    return `${sign}${pcs} ${pcs === 1 ? "Pc" : "Pcs"}`;
   }
   return "0 Strips";
 }

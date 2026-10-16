@@ -175,6 +175,7 @@ function PurchasesPage() {
       setSelectedPurchaseForReturn(purchaseToReturn);
       const qtys: Record<string, number> = {};
       purchaseToReturn.items.forEach((it, idx) => {
+        if (it.qty <= 0 || it.isReturnItem) return;
         const itemKey = it.id || `${it.productId || it.name}_${idx}`;
         qtys[itemKey] = 0;
       });
@@ -199,24 +200,20 @@ function PurchasesPage() {
   const handleConfirmReturn = async () => {
     if (!selectedPurchaseForReturn) return;
     
-    const returnedItems = selectedPurchaseForReturn.items
-      .filter((it, idx) => {
-        const itemKey = it.id || `${it.productId || it.name}_${idx}`;
-        const qty = returnQuantities[itemKey] || 0;
-        const alreadyReturned = getAlreadyReturnedQtyForPurchaseItem(selectedPurchaseForReturn, it);
-        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
-        return qty > 0 && qty <= maxReturnable;
-      })
-      .map((it, idx) => {
-        const itemKey = it.id || `${it.productId || it.name}_${idx}`;
-        const alreadyReturned = getAlreadyReturnedQtyForPurchaseItem(selectedPurchaseForReturn, it);
-        const maxReturnable = Math.max(0, it.qty - alreadyReturned);
-        const qty = Math.min(maxReturnable, returnQuantities[itemKey] || 0);
-        return {
+    const returnedItems: Array<any> = [];
+    selectedPurchaseForReturn.items.forEach((it, idx) => {
+      if (it.qty <= 0 || it.isReturnItem) return;
+      const itemKey = it.id || `${it.productId || it.name}_${idx}`;
+      const qty = returnQuantities[itemKey] || 0;
+      const alreadyReturned = getAlreadyReturnedQtyForPurchaseItem(selectedPurchaseForReturn, it);
+      const maxReturnable = Math.max(0, it.qty - alreadyReturned);
+      const qtyToReturn = Math.min(maxReturnable, Math.max(0, qty));
+      if (qtyToReturn > 0) {
+        returnedItems.push({
           productId: it.productId,
           name: it.name,
           sku: it.sku,
-          qty: -qty, // Negative quantity
+          qty: -qtyToReturn, // Negative quantity
           freeQty: 0,
           costPrice: it.costPrice,
           taxPercent: it.taxPercent,
@@ -224,8 +221,9 @@ function PurchasesPage() {
           batch: it.batch,
           pack: it.pack,
           expiry: it.expiry,
-        };
-      });
+        });
+      }
+    });
 
     if (returnedItems.length === 0) {
       toast.error("Please select at least one item to return with quantity greater than 0");
@@ -1007,6 +1005,11 @@ function PurchasesPage() {
                                   Purchase Return
                                 </Badge>
                               )}
+                              {p.hasReturns && (
+                                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-[10px]">
+                                  Return Applied
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="font-mono text-sm text-foreground font-extrabold tracking-wide">
@@ -1026,10 +1029,25 @@ function PurchasesPage() {
                             {isReturnBill ? "—" : p.paymentMethod.replace("_", " ")}
                           </TableCell>
                           <TableCell className="text-xs text-right font-medium">
-                            {p.items.length} <span className="text-[10px] text-muted-foreground">({totalQty} qty)</span>
+                            {p.items.filter((it) => it.qty > 0).length} <span className="text-[10px] text-muted-foreground">({totalQty} qty)</span>
+                            {p.hasReturns && (
+                              <div className="text-[9px] text-amber-600 dark:text-amber-400">
+                                (+{p.items.filter((it) => it.qty < 0).length} returned)
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs text-right font-bold text-primary font-mono">
-                            {formatMoney(p.total)}
+                            <div>{formatMoney(p.total)}</div>
+                            {p.hasReturns && p.originalTotal != null && (
+                              <div className="text-[10px] text-muted-foreground font-normal line-through">
+                                {formatMoney(p.originalTotal)}
+                              </div>
+                            )}
+                            {p.hasReturns && p.returns && p.returns.length > 0 && (
+                              <div className="text-[9px] text-amber-600 dark:text-amber-400 font-normal">
+                                {p.returns.map((r: any) => `${r.number} (-₹${Math.abs(r.total || 0).toFixed(0)})`).join(", ")}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-center">
                             {isReturnBill ? (
@@ -1250,6 +1268,7 @@ function PurchasesPage() {
                     setSelectedPurchaseForReturn(p);
                     const qtys: Record<string, number> = {};
                     p?.items.forEach((it, idx) => {
+                      if (it.qty <= 0 || it.isReturnItem) return;
                       const itemKey = it.id || `${it.productId || it.name}_${idx}`;
                       qtys[itemKey] = 0;
                     });
@@ -1270,6 +1289,7 @@ function PurchasesPage() {
                   <h4 className="text-sm font-semibold text-muted-foreground">Select Items and Quantities to Return</h4>
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                     {selectedPurchaseForReturn.items.map((it, idx) => {
+                      if (it.qty <= 0 || it.isReturnItem) return null;
                       const itemKey = it.id || `${it.productId || it.name}_${idx}`;
                       const alreadyReturned = getAlreadyReturnedQtyForPurchaseItem(selectedPurchaseForReturn, it);
                       const maxReturnable = Math.max(0, it.qty - alreadyReturned);
@@ -1690,14 +1710,22 @@ function PurchasesPage() {
                         {p.items.map((it, idx) => {
                           const lineAmount = it.costPrice * it.qty;
                           const taxAmount = (lineAmount * it.taxPercent) / 100;
+                          const isReturned = it.qty < 0 || it.isReturnItem;
                           const pps = getPiecesPerStrip(it.pack, (it as any).stockType, it.conversionFactor);
                           const isItemTabCap = isRetailer && (pps > 1 || isTabOrCap((it as any).stockType, it.pack, it.name));
 
                           return (
-                            <TableRow key={idx} className="hover:bg-muted/10">
+                            <TableRow key={idx} className={`hover:bg-muted/10 ${isReturned ? "bg-amber-500/5 dark:bg-amber-500/10" : ""}`}>
                               <TableCell className="text-center">{idx + 1}</TableCell>
                               <TableCell>
-                                <div className="font-semibold">{it.name}</div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold">{it.name}</span>
+                                  {isReturned && (
+                                    <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
+                                      {it.returnBillNumber ? `Return: ${it.returnBillNumber}` : "Purchase Return"}
+                                    </span>
+                                  )}
+                                </div>
                                 {it.pack && (
                                   <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
                                     {it.pack}
@@ -1707,8 +1735,12 @@ function PurchasesPage() {
                               <TableCell className="font-mono uppercase text-muted-foreground">{String(it.batch || "—").toUpperCase()}</TableCell>
                               <TableCell className="font-mono text-muted-foreground">{it.hsn || "—"}</TableCell>
                               <TableCell className="font-mono text-muted-foreground">{it.expiry ? it.expiry.substring(0, 7) : "—"}</TableCell>
-                              <TableCell className="text-right font-medium">
-                                {isItemTabCap ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name) : `${it.qty} Pcs`}
+                              <TableCell className={`text-right font-medium ${isReturned ? "text-destructive font-bold" : ""}`}>
+                                {isReturned
+                                  ? Number(it.qty).toFixed(2)
+                                  : isItemTabCap
+                                    ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name)
+                                    : `${it.qty} Pcs`}
                               </TableCell>
                               <TableCell className="text-right text-muted-foreground">
                                 {it.freeQty
@@ -1740,7 +1772,9 @@ function PurchasesPage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-right font-mono font-bold text-primary">₹{(lineAmount + taxAmount).toFixed(2)}</TableCell>
+                              <TableCell className={`text-right font-mono font-bold ${isReturned ? "text-destructive" : "text-primary"}`}>
+                                ₹{(lineAmount + taxAmount).toFixed(2)}
+                              </TableCell>
                             </TableRow>
                           );
                         })}
@@ -1765,6 +1799,18 @@ function PurchasesPage() {
 
                     <div className="w-full sm:w-[40%] text-sm">
                       <div className="space-y-2 w-full p-4 border border-border rounded-lg bg-muted/10">
+                        {p.hasReturns && p.returnedSubtotal ? (
+                          <>
+                            <div className="flex justify-between text-muted-foreground text-xs">
+                              <span>Original Gross</span>
+                              <span className="font-mono text-foreground">{formatMoney((p.originalSubtotal ?? p.subtotal) + (p.discount || 0))}</span>
+                            </div>
+                            <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium text-xs">
+                              <span>Purchase Return {p.returns?.length ? `(${p.returns.map((r: any) => r.number).join(", ")})` : ""}</span>
+                              <span className="font-mono">{formatMoney(p.returnedSubtotal)}</span>
+                            </div>
+                          </>
+                        ) : null}
                         <div className="flex justify-between text-muted-foreground text-xs">
                           <span>Taxable Amount</span>
                           <span className="font-mono text-foreground">{formatMoney(p.subtotal)}</span>

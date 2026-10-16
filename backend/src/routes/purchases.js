@@ -44,6 +44,8 @@ router.get("/", async (req, res, next) => {
       items: map.get(purchase.id) || [],
     }));
 
+    await attachReturnsToPurchases(pool, req.auth.userId, data);
+
     res.json(data);
   } catch (error) {
     next(error);
@@ -71,11 +73,118 @@ router.get("/:id", async (req, res, next) => {
       [req.auth.userId, req.params.id],
     );
 
-    res.json({ ...purchase, items });
+    const purchaseData = { ...purchase, items };
+    await attachReturnsToPurchases(pool, req.auth.userId, [purchaseData]);
+
+    res.json(purchaseData);
   } catch (error) {
     next(error);
   }
 });
+
+async function attachReturnsToPurchases(connOrPool, userId, purchases) {
+  if (!purchases || purchases.length === 0) return;
+
+  const regularPurchases = purchases.filter((p) => p.number && !String(p.number).startsWith("PR-"));
+  if (regularPurchases.length === 0) return;
+
+  const [returnPurchases] = await connOrPool.query(
+    `SELECT id, number, notes, supplier_invoice, subtotal, tax, discount, total, created_at
+     FROM purchases
+     WHERE user_id = ? AND number LIKE 'PR-%'`,
+    [userId]
+  );
+
+  if (returnPurchases.length === 0) return;
+
+  const returnIds = returnPurchases.map((rp) => rp.id);
+  const placeholders = returnIds.map(() => "?").join(",");
+  const [returnItems] = await connOrPool.query(
+    `SELECT id, purchase_id, product_id, name, sku, qty, cost_price, tax_percent, mrp, batch, pack, expiry, free_qty, sale_rate, conversion_factor
+     FROM purchase_items
+     WHERE user_id = ? AND purchase_id IN (${placeholders})`,
+    [userId, ...returnIds]
+  );
+
+  const returnItemsMap = new Map();
+  for (const item of returnItems) {
+    const arr = returnItemsMap.get(item.purchase_id) || [];
+    arr.push(item);
+    returnItemsMap.set(item.purchase_id, arr);
+  }
+
+  for (const rp of returnPurchases) {
+    rp.items = returnItemsMap.get(rp.id) || [];
+  }
+
+  for (const purchase of regularPurchases) {
+    const poNum = String(purchase.number).trim();
+    const poId = String(purchase.id).trim();
+
+    const matchingReturns = returnPurchases.filter((rp) => {
+      const notes = String(rp.notes || "").trim();
+      const supInv = String(rp.supplier_invoice || "").trim();
+      return notes.includes(poNum) || supInv.includes(poNum) || (poId && notes.includes(poId));
+    });
+
+    if (matchingReturns.length > 0) {
+      let returnedSubtotal = 0;
+      let returnedTax = 0;
+      let returnedTotal = 0;
+      const attachedReturnItems = [];
+
+      for (const rp of matchingReturns) {
+        returnedSubtotal += Number(rp.subtotal || 0);
+        returnedTax += Number(rp.tax || 0);
+        returnedTotal += Number(rp.total || 0);
+
+        for (const it of rp.items) {
+          attachedReturnItems.push({
+            id: it.id,
+            purchase_id: purchase.id,
+            product_id: it.product_id,
+            name: it.name,
+            sku: it.sku,
+            qty: Number(it.qty || 0),
+            free_qty: Number(it.free_qty || 0),
+            cost_price: Number(it.cost_price || 0),
+            mrp: it.mrp != null ? Number(it.mrp) : null,
+            tax_percent: Number(it.tax_percent || 0),
+            batch: it.batch,
+            expiry: it.expiry,
+            pack: it.pack,
+            conversion_factor: it.conversion_factor,
+            sale_rate: it.sale_rate,
+            is_return_item: true,
+            return_purchase_number: rp.number,
+            return_purchase_id: rp.id,
+            return_date: rp.created_at,
+          });
+        }
+      }
+
+      purchase.original_subtotal = Number(purchase.subtotal || 0);
+      purchase.original_tax = Number(purchase.tax || 0);
+      purchase.original_total = Number(purchase.total || 0);
+      purchase.returned_subtotal = Number(returnedSubtotal.toFixed(2));
+      purchase.returned_tax = Number(returnedTax.toFixed(2));
+      purchase.returned_total = Number(returnedTotal.toFixed(2));
+
+      purchase.subtotal = Number((Number(purchase.subtotal || 0) + returnedSubtotal).toFixed(2));
+      purchase.tax = Number((Number(purchase.tax || 0) + returnedTax).toFixed(2));
+      purchase.total = Number((Number(purchase.total || 0) + returnedTotal).toFixed(2));
+
+      purchase.items = [...(purchase.items || []), ...attachedReturnItems];
+      purchase.has_returns = true;
+      purchase.returns = matchingReturns.map((rp) => ({
+        id: rp.id,
+        number: rp.number,
+        total: Number(rp.total || 0),
+        created_at: rp.created_at,
+      }));
+    }
+  }
+}
 
 router.post("/", async (req, res, next) => {
   try {

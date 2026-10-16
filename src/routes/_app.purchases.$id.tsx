@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
-import { ArrowLeft, Truck, Printer, Download, Pill, FileText, CheckCircle } from "lucide-react";
+import { ArrowLeft, Truck, Printer, Download, Pill, FileText, CheckCircle, AlertTriangle } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { downloadPurchasePdf } from "@/lib/purchase-pdf";
 import { useAuth } from "@/lib/auth-context";
@@ -124,6 +124,32 @@ function PurchaseDetailsPage() {
         </div>
       </div>
 
+      {/* Return Applied Alert Banner */}
+      {purchase.hasReturns && (
+        <div className="print:hidden rounded-lg bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-900 dark:text-amber-200 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 text-sm">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <span className="font-semibold text-amber-800 dark:text-amber-300">
+                Purchase Return Applied {purchase.returns?.length ? `(${purchase.returns.map((r: any) => r.number).join(", ")})` : ""}
+              </span>
+              <span className="text-xs text-muted-foreground ml-2">
+                Purchase total adjusted from ₹{purchase.originalTotal != null ? purchase.originalTotal.toFixed(2) : purchase.total.toFixed(2)} to ₹{purchase.total.toFixed(2)} (Returned: -₹{Math.abs(purchase.returnedTotal || 0).toFixed(2)})
+              </span>
+            </div>
+          </div>
+          {purchase.returns && purchase.returns.length > 0 && (
+            <div className="flex gap-1.5">
+              {purchase.returns.map((r: any) => (
+                <Button key={r.id || r.number} asChild size="sm" variant="outline" className="text-xs h-7 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20">
+                  <Link to={`/purchases/${r.id}`}>View {r.number}</Link>
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Invoice Document Layout */}
       <div className="bg-card text-card-foreground p-8 sm:p-10 shadow-lg print:shadow-none print:p-0 print:m-0 w-full min-h-[297mm] mx-auto border print:border-none relative rounded-xl">
         {/* Header */}
@@ -145,6 +171,13 @@ function PurchaseDetailsPage() {
             <h2 className="text-xl font-bold uppercase tracking-widest text-primary mb-1">
               {isReturn ? "PR Voucher" : "PO Voucher"}
             </h2>
+            {purchase.hasReturns && (
+              <div className="flex justify-end mb-1">
+                <span className="text-xs bg-amber-600 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase">
+                  Return Modified
+                </span>
+              </div>
+            )}
             <div className="flex justify-end gap-2 text-xs">
               <span className="text-muted-foreground font-medium">{isReturn ? "PR Ref No:" : "PO Ref No:"}</span>
               <span className="font-extrabold font-mono text-sm text-primary tracking-wide">{purchase.number}</span>
@@ -232,14 +265,22 @@ function PurchaseDetailsPage() {
             <TableBody>
               {purchase.items.map((it, idx) => {
                 const lineAmount = it.costPrice * it.qty;
+                const isReturned = it.qty < 0 || it.isReturnItem;
                 const pps = getPiecesPerStrip(it.pack, (it as any).stockType, it.conversionFactor);
                 const isItemTabCap = isRetailer && (pps > 1 || isTabOrCap((it as any).stockType, it.pack, it.name));
 
                 return (
-                  <TableRow key={idx} className="hover:bg-muted/10">
+                  <TableRow key={idx} className={`hover:bg-muted/10 ${isReturned ? "bg-amber-500/5 dark:bg-amber-500/10" : ""}`}>
                     <TableCell className="text-center">{idx + 1}</TableCell>
                     <TableCell>
-                      <div className="font-semibold">{it.name}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold">{it.name}</span>
+                        {isReturned && (
+                          <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
+                            {it.returnBillNumber ? `Return: ${it.returnBillNumber}` : "Purchase Return"}
+                          </span>
+                        )}
+                      </div>
                       {it.pack && (
                         <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
                           {it.pack}
@@ -249,8 +290,12 @@ function PurchaseDetailsPage() {
                     <TableCell className="font-mono uppercase text-muted-foreground">{String(it.batch || "—").toUpperCase()}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{it.hsn || "—"}</TableCell>
                     <TableCell className="font-mono text-muted-foreground">{it.expiry ? it.expiry.substring(0, 7) : "—"}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      {isItemTabCap ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name) : `${it.qty} Pcs`}
+                    <TableCell className={`text-right font-medium ${isReturned ? "text-destructive font-bold" : ""}`}>
+                      {isReturned
+                        ? Number(it.qty).toFixed(2)
+                        : isItemTabCap
+                          ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name)
+                          : `${it.qty} Pcs`}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {it.freeQty
@@ -282,7 +327,9 @@ function PurchaseDetailsPage() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-mono font-bold text-primary">₹{lineAmount.toFixed(2)}</TableCell>
+                    <TableCell className={`text-right font-mono font-bold ${isReturned ? "text-destructive" : "text-primary"}`}>
+                      ₹{lineAmount.toFixed(2)}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -293,6 +340,17 @@ function PurchaseDetailsPage() {
         {/* Live summary breakdown */}
         <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4">
           <div className="w-full sm:w-[55%] flex flex-col gap-4">
+            <div className="p-3 border border-border rounded-lg bg-muted/10 text-xs space-y-1">
+              <p>
+                <strong className="text-muted-foreground font-medium">Total Items:</strong>{" "}
+                {purchase.items.filter((it) => it.qty > 0).length}
+                {purchase.hasReturns && (
+                  <span className="text-amber-600 dark:text-amber-400 font-medium ml-1">
+                    (+{purchase.items.filter((it) => it.qty < 0).length} returned)
+                  </span>
+                )}
+              </p>
+            </div>
             <div className="text-xs p-3 bg-primary/5 border border-primary/10 rounded-lg">
               <p className="font-semibold text-primary uppercase mb-1">Amount in Words:</p>
               <p className="font-bold capitalize">{numberToWords(purchase.total)}</p>
@@ -307,6 +365,20 @@ function PurchaseDetailsPage() {
 
           <div className="w-full sm:w-[40%] text-sm">
             <div className="space-y-2 w-full p-4 border border-border rounded-lg bg-muted/10">
+              {purchase.hasReturns && purchase.returnedSubtotal ? (
+                <>
+                  <div className="flex justify-between text-muted-foreground text-xs">
+                    <span>Original Gross</span>
+                    <span className="font-mono text-foreground">
+                      {formatMoney((purchase.originalSubtotal ?? purchase.subtotal) + (purchase.discount || 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium text-xs">
+                    <span>Purchase Return {purchase.returns?.length ? `(${purchase.returns.map((r: any) => r.number).join(", ")})` : ""}</span>
+                    <span className="font-mono">{formatMoney(purchase.returnedSubtotal)}</span>
+                  </div>
+                </>
+              ) : null}
               <div className="flex justify-between text-muted-foreground text-xs">
                 <span>Taxable Amount</span>
                 <span className="font-mono text-foreground">{formatMoney(purchase.subtotal)}</span>
@@ -335,7 +407,7 @@ function PurchaseDetailsPage() {
                 </div>
               )}
               <div className="flex justify-between py-2 text-xl font-bold uppercase tracking-wide text-primary">
-                <span>Net Inward</span>
+                <span>{isReturn ? "Net Return" : "Net Inward"}</span>
                 <span className="font-mono">{formatMoney(purchase.total)}</span>
               </div>
             </div>

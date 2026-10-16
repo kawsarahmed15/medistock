@@ -163,7 +163,12 @@ export async function downloadBillPdf(
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text(isReturn ? "SALE RETURN" : "TAX INVOICE", right, rightY + 12, { align: "right" });
+  doc.text(
+    isReturn ? "SALE RETURN" : (bill.hasReturns ? "TAX INVOICE (RETURN MODIFIED)" : "TAX INVOICE"),
+    right,
+    rightY + 12,
+    { align: "right" }
+  );
 
   rightY += 30;
   doc.setFontSize(9);
@@ -381,12 +386,18 @@ export async function downloadBillPdf(
     ],
     body: bill.items.map((it, idx) => {
       const line = it.price * it.qty;
-      const nameStr = clean(it.name);
+      const isItemReturn = it.qty < 0 || (it as any).isReturnItem;
+      const returnBadge = isItemReturn && (it as any).returnBillNumber
+        ? ` (Return: ${(it as any).returnBillNumber})`
+        : (isItemReturn && !isReturn ? " (Sale Return)" : "");
+      const nameStr = clean(it.name) + returnBadge;
       const pps = getPiecesPerStrip(it.pack, undefined, it.conversionFactor);
       const isTabCap = pps > 1 || isTabOrCap(it.pack, undefined, it.name);
-      const qtyStr = isTabCap
-        ? formatStripPcDisplay(it.qty, pps, undefined, it.pack, it.name) + (it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps, undefined, it.pack, it.name)}` : "")
-        : String(it.qty) + (it.freeQty ? `+${it.freeQty}` : "");
+      const qtyStr = isItemReturn
+        ? Number(it.qty).toFixed(2)
+        : (isTabCap
+            ? formatStripPcDisplay(it.qty, pps, undefined, it.pack, it.name) + (it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps, undefined, it.pack, it.name)}` : "")
+            : String(it.qty) + (it.freeQty ? `+${it.freeQty}` : ""));
 
       return [
         String(idx + 1),
@@ -524,6 +535,7 @@ export async function downloadBillPdf(
   let boxHeight = isReturn ? 104 : 138;
   if ((bill.discount || 0) > 0) boxHeight += 16;
   if (!isReturn && Math.abs(roundOff) >= 0.005) boxHeight += 12;
+  if ((bill as any).hasReturns && (bill as any).returnedSubtotal) boxHeight += 16;
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(220, 220, 220);
@@ -532,10 +544,26 @@ export async function downloadBillPdf(
   let ty = rightSideY + 16;
   doc.setFontSize(9);
   doc.setTextColor(110, 110, 110);
-  doc.text("Gross Amount", rightBoxLeft + 12, ty);
-  doc.setTextColor(35, 35, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text((bill.subtotal + (bill.discount || 0)).toFixed(2), totalsValueX, ty, { align: "right" });
+  if ((bill as any).hasReturns && (bill as any).returnedSubtotal) {
+    doc.text("Original Gross", rightBoxLeft + 12, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.setFont("helvetica", "bold");
+    const origGross = ((bill as any).originalSubtotal ?? bill.subtotal) + (bill.discount || 0);
+    doc.text(origGross.toFixed(2), totalsValueX, ty, { align: "right" });
+
+    ty += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(217, 119, 6); // amber
+    const retLabel = `Sale Return ${(bill as any).returns?.length ? `(${((bill as any).returns as any[]).map((r) => r.number).join(", ")})` : ""}`;
+    doc.text(retLabel, rightBoxLeft + 12, ty);
+    doc.setFont("helvetica", "bold");
+    doc.text(Number((bill as any).returnedSubtotal).toFixed(2), totalsValueX, ty, { align: "right" });
+  } else {
+    doc.text("Gross Amount", rightBoxLeft + 12, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.setFont("helvetica", "bold");
+    doc.text((bill.subtotal + (bill.discount || 0)).toFixed(2), totalsValueX, ty, { align: "right" });
+  }
 
   if ((bill.discount || 0) > 0) {
     ty += 16;

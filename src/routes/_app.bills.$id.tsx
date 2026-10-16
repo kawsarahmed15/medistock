@@ -324,6 +324,32 @@ function BillDetailPage() {
         </div>
       )}
 
+      {/* Return Applied Alert Banner */}
+      {bill.hasReturns && (
+        <div className="print:hidden rounded-lg bg-amber-500/10 border border-amber-500/30 p-3.5 text-amber-900 dark:text-amber-200 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5 text-sm">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <span className="font-semibold text-amber-800 dark:text-amber-300">
+                Sale Return Applied {bill.returns?.length ? `(${bill.returns.map((r: any) => r.number).join(", ")})` : ""}
+              </span>
+              <span className="text-xs text-muted-foreground ml-2">
+                Invoice total adjusted from ₹{bill.originalTotal != null ? bill.originalTotal.toFixed(2) : bill.total.toFixed(2)} to ₹{bill.total.toFixed(2)} (Returned: -₹{Math.abs(bill.returnedTotal || 0).toFixed(2)})
+              </span>
+            </div>
+          </div>
+          {bill.returns && bill.returns.length > 0 && (
+            <div className="flex gap-1.5">
+              {bill.returns.map((r: any) => (
+                <Button key={r.id || r.number} asChild size="sm" variant="outline" className="text-xs h-7 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20">
+                  <Link to={`/bills/${r.id}`}>View {r.number}</Link>
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Invoice Document */}
       <div className="bg-card text-card-foreground p-8 sm:p-10 shadow-lg print:shadow-none print:p-0 print:m-0 w-full min-h-[297mm] mx-auto border print:border-none relative rounded-xl">
         {/* Header */}
@@ -375,6 +401,13 @@ function BillDetailPage() {
               <div className="flex justify-end mb-1">
                 <span className="text-xs bg-rose-500 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase">
                   Rejected
+                </span>
+              </div>
+            )}
+            {bill.hasReturns && (
+              <div className="flex justify-end mb-1">
+                <span className="text-xs bg-amber-600 text-white font-bold px-2 py-0.5 rounded tracking-wide uppercase">
+                  Return Modified
                 </span>
               </div>
             )}
@@ -481,6 +514,7 @@ function BillDetailPage() {
                 // The summary section separately shows GST, so Amount here is pre-tax
                 // to ensure: SUM(Amount) = Taxable Amount in summary
                 const lineAmount = it.price * it.qty;
+                const isReturned = it.qty < 0 || it.isReturnItem;
 
                 const expFormatted = it.expiry
                   ? (() => {
@@ -492,12 +526,19 @@ function BillDetailPage() {
                   : "-";
 
                 return (
-                  <tr key={idx} className="break-inside-avoid hover:bg-muted/30 transition-colors">
+                  <tr key={idx} className={`break-inside-avoid hover:bg-muted/30 transition-colors ${isReturned ? "bg-amber-500/5 dark:bg-amber-500/10" : ""}`}>
                     <td className="py-3 px-2 text-center align-top text-muted-foreground">
                       {idx + 1}
                     </td>
                     <td className="py-3 px-2 text-left align-top font-semibold truncate break-words whitespace-normal">
-                      {it.name}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span>{it.name}</span>
+                        {isReturned && (
+                          <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">
+                            {it.returnBillNumber ? `Return: ${it.returnBillNumber}` : "Sale Return"}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-2 text-center align-top text-[10px] font-mono text-muted-foreground whitespace-nowrap">
                       {it.pack ? it.pack.replace(/[*x]/gi, "X") : "-"}
@@ -511,8 +552,11 @@ function BillDetailPage() {
                     <td className="py-3 px-2 text-left align-top font-mono text-[10px] text-muted-foreground whitespace-nowrap">
                       {it.sku || "-"}
                     </td>
-                    <td className="py-3 px-2 text-right align-top font-medium whitespace-nowrap">
+                    <td className={`py-3 px-2 text-right align-top font-medium whitespace-nowrap ${isReturned ? "text-destructive font-bold" : ""}`}>
                       {(() => {
+                        if (isReturned) {
+                          return Number(it.qty).toFixed(2);
+                        }
                         const pps = getPiecesPerStrip(it.pack, undefined, it.conversionFactor);
                         const isDual = isRetailer && (pps > 1 || isTabOrCap(it.pack, undefined, it.name));
                         if (isDual) {
@@ -540,7 +584,7 @@ function BillDetailPage() {
                     <td className="py-3 px-2 text-right align-top font-mono">
                       {it.price.toFixed(2)}
                     </td>
-                    <td className="py-3 px-2 text-right align-top font-mono font-bold text-primary">
+                    <td className={`py-3 px-2 text-right align-top font-mono font-bold ${isReturned ? "text-destructive" : "text-primary"}`}>
                       {lineAmount.toFixed(2)}
                     </td>
                   </tr>
@@ -561,10 +605,15 @@ function BillDetailPage() {
               <div className="text-sm space-y-1">
                 <p>
                   <strong className="text-muted-foreground font-medium">Total Items:</strong>{" "}
-                  {bill.items.length}
+                  {bill.items.filter((it) => it.qty > 0).length}
+                  {bill.hasReturns && (
+                    <span className="text-amber-600 dark:text-amber-400 text-xs ml-1">
+                      (+{bill.items.filter((it) => it.qty < 0).length} returned)
+                    </span>
+                  )}
                 </p>
                 <p>
-                  <strong className="text-muted-foreground font-medium">Total Qty:</strong>{" "}
+                  <strong className="text-muted-foreground font-medium">Net Qty:</strong>{" "}
                   {totalQty}{" "}
                   {totalFree > 0 ? (
                     <span className="text-primary font-medium">(+{totalFree} Free)</span>
@@ -593,12 +642,27 @@ function BillDetailPage() {
           {/* Right Summary Area */}
           <div className="w-full sm:w-[40%] text-sm">
             <div className="space-y-2 w-full p-4 border border-border rounded-lg bg-muted/10">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Gross Amount</span>
-                <span className="font-mono text-foreground">
-                  {(bill.subtotal + (bill.discount || 0)).toFixed(2)}
-                </span>
-              </div>
+              {bill.hasReturns && bill.returnedSubtotal ? (
+                <>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Original Gross</span>
+                    <span className="font-mono text-foreground">
+                      {((bill.originalSubtotal ?? bill.subtotal) + (bill.discount || 0)).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium">
+                    <span>Sale Return {bill.returns?.length ? `(${bill.returns.map((r: any) => r.number).join(", ")})` : ""}</span>
+                    <span className="font-mono">{bill.returnedSubtotal.toFixed(2)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Gross Amount</span>
+                  <span className="font-mono text-foreground">
+                    {(bill.subtotal + (bill.discount || 0)).toFixed(2)}
+                  </span>
+                </div>
+              )}
               {(bill.discount || 0) > 0 && (
                 <div className="flex justify-between text-success">
                   <span>Discount</span>

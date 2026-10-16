@@ -132,8 +132,13 @@ export async function downloadPurchasePdf(
   let rightY = currentY;
   doc.setTextColor(...primaryRgb);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(isReturn ? "PURCHASE RETURN" : "PURCHASE VOUCHER", right, rightY + 12, { align: "right" });
+  doc.setFontSize(14);
+  const voucherTitle = isReturn
+    ? "PURCHASE RETURN"
+    : purchase.hasReturns
+    ? "PURCHASE VOUCHER (RETURN MODIFIED)"
+    : "PURCHASE VOUCHER";
+  doc.text(voucherTitle, right, rightY + 12, { align: "right" });
 
   rightY += 30;
   doc.setFontSize(9);
@@ -287,13 +292,19 @@ export async function downloadPurchasePdf(
     ],
     body: purchase.items.map((it, idx) => {
       const line = it.costPrice * it.qty;
+      const isReturned = it.qty < 0 || it.isReturnItem;
       let nameStr = clean(it.name);
+      if (isReturned) {
+        nameStr += it.returnBillNumber ? ` (Return: ${it.returnBillNumber})` : " (Return)";
+      }
       const pps = getPiecesPerStrip(it.pack, (it as any).stockType, it.conversionFactor);
       const isItemTabCap = pps > 1 || isTabOrCap((it as any).stockType, it.pack, it.name);
-      const qtyFormatted = isItemTabCap
+      const qtyFormatted = isReturned
+        ? Number(it.qty).toFixed(2)
+        : isItemTabCap
         ? formatStripPcDisplay(it.qty, pps, (it as any).stockType, it.pack, it.name)
         : String(it.qty);
-      const freeFormatted = it.freeQty
+      const freeFormatted = (!isReturned && it.freeQty)
         ? ` (+${isItemTabCap ? formatStripPcDisplay(it.freeQty, pps, (it as any).stockType, it.pack, it.name) : it.freeQty})`
         : "";
 
@@ -374,7 +385,11 @@ export async function downloadPurchasePdf(
   doc.setTextColor(110, 110, 110);
   doc.text("Total Items:", left + 12, leftSideY + 20);
   doc.setTextColor(35, 35, 35);
-  doc.text(String(purchase.items.length), left + 75, leftSideY + 20);
+  let itemsCountStr = String(purchase.items.filter((it) => it.qty > 0).length);
+  if (purchase.hasReturns) {
+    itemsCountStr += ` (+${purchase.items.filter((it) => it.qty < 0).length} returned)`;
+  }
+  doc.text(itemsCountStr, left + 75, leftSideY + 20);
 
   doc.setTextColor(110, 110, 110);
   doc.text("Total Qty:", left + 12, leftSideY + 36);
@@ -423,18 +438,41 @@ export async function downloadPurchasePdf(
   const totalsValueX = right - 12;
 
   let rightSideY = y;
+  const totalsBoxHeight = purchase.hasReturns && purchase.returnedSubtotal ? 170 : 150;
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(220, 220, 220);
-  doc.roundedRect(rightBoxLeft, rightSideY, rightWidth, 150, 6, 6, "FD");
+  doc.roundedRect(rightBoxLeft, rightSideY, rightWidth, totalsBoxHeight, 6, 6, "FD");
 
   let ty = rightSideY + 16;
-  doc.setFontSize(9);
-  doc.setTextColor(110, 110, 110);
-  doc.text("Gross Amount", rightBoxLeft + 12, ty);
-  doc.setTextColor(35, 35, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text((purchase.subtotal + (purchase.discount || 0)).toFixed(2), totalsValueX, ty, { align: "right" });
+  if (purchase.hasReturns && purchase.returnedSubtotal) {
+    doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text("Original Gross", rightBoxLeft + 12, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      ((purchase.originalSubtotal ?? purchase.subtotal) + (purchase.discount || 0)).toFixed(2),
+      totalsValueX,
+      ty,
+      { align: "right" }
+    );
+
+    ty += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(217, 119, 6); // amber
+    const returnLabel = `Purchase Return ${purchase.returns?.length ? `(${purchase.returns.map((r: any) => r.number).join(", ")})` : ""}`;
+    doc.text(doc.splitTextToSize(returnLabel, rightWidth - 70)[0], rightBoxLeft + 12, ty);
+    doc.setFont("helvetica", "bold");
+    doc.text(purchase.returnedSubtotal.toFixed(2), totalsValueX, ty, { align: "right" });
+  } else {
+    doc.setFontSize(9);
+    doc.setTextColor(110, 110, 110);
+    doc.text("Gross Amount", rightBoxLeft + 12, ty);
+    doc.setTextColor(35, 35, 35);
+    doc.setFont("helvetica", "bold");
+    doc.text((purchase.subtotal + (purchase.discount || 0)).toFixed(2), totalsValueX, ty, { align: "right" });
+  }
 
   if ((purchase.discount || 0) > 0) {
     ty += 16;

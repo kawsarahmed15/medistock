@@ -219,6 +219,7 @@ function BillsPage() {
       setSelectedBillForReturn(billToReturn);
       const qtys: Record<string, number> = {};
       billToReturn.items.forEach((it, idx) => {
+        if (it.qty <= 0) return;
         const itemKey = getItemKey(it, idx);
         qtys[itemKey] = 0;
       });
@@ -236,6 +237,7 @@ function BillsPage() {
 
     const returnedItems: Array<any> = [];
     selectedBillForReturn.items.forEach((it, idx) => {
+      if (it.qty <= 0) return;
       const itemKey = getItemKey(it, idx);
       const userQty = returnQuantities[itemKey] || 0;
       const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
@@ -315,6 +317,7 @@ function BillsPage() {
     let totalQty = 0;
 
     selectedBillForReturn.items.forEach((it, idx) => {
+      if (it.qty <= 0 || it.isReturnItem) return;
       const itemKey = getItemKey(it, idx);
       const qty = returnQuantities[itemKey] || 0;
       if (qty > 0) {
@@ -792,8 +795,13 @@ function BillsPage() {
                     <div className={`font-semibold tabular-nums ${isReturnBill ? "text-amber-700" : ""}`}>
                       {formatMoney(b.total)}
                     </div>
+                    {b.hasReturns && b.returnedTotal && (
+                      <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                        Return: {b.returns?.map((r) => r.number).join(", ")} ({formatMoney(b.returnedTotal)})
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {b.items.length} item{b.items.length === 1 ? "" : "s"}
+                      {b.items.filter((it) => it.qty > 0).length} item{b.items.filter((it) => it.qty > 0).length === 1 ? "" : "s"}
                     </div>
                   </div>
                 </div>
@@ -1008,6 +1016,11 @@ function BillsPage() {
                             Sale Return
                           </Badge>
                         )}
+                        {b.hasReturns && (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
+                            Return Applied
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1055,9 +1068,21 @@ function BillsPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">{b.items.length}</TableCell>
+                    <TableCell className="text-right">
+                      {b.items.filter((it) => it.qty > 0).length}
+                      {b.hasReturns && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-normal">
+                          (+{b.items.filter((it) => it.qty < 0).length} ret)
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className={`text-right tabular-nums font-medium ${isReturnBill ? "text-amber-700" : ""}`}>
-                      {formatMoney(b.total)}
+                      <div>{formatMoney(b.total)}</div>
+                      {b.hasReturns && b.returnedTotal && (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-normal">
+                          Return: {b.returns?.map((r) => r.number).join(", ")} ({formatMoney(b.returnedTotal)})
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
@@ -1153,6 +1178,7 @@ function BillsPage() {
                     setSelectedBillForReturn(b);
                     const qtys: Record<string, number> = {};
                     b?.items.forEach((it, idx) => {
+                      if (it.qty <= 0 || it.isReturnItem) return;
                       const itemKey = getItemKey(it, idx);
                       qtys[itemKey] = 0;
                     });
@@ -1173,6 +1199,7 @@ function BillsPage() {
                   <h4 className="text-sm font-semibold text-muted-foreground">Select Items and Quantities to Return</h4>
                   <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                     {selectedBillForReturn.items.map((it, idx) => {
+                      if (it.qty <= 0 || it.isReturnItem) return null;
                       const itemKey = getItemKey(it, idx);
                       const alreadyReturned = getAlreadyReturnedQtyForBillItem(selectedBillForReturn, it);
                       const maxReturnable = Math.max(0, it.qty - alreadyReturned);
