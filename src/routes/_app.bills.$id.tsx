@@ -40,9 +40,10 @@ function numberToWords(num: number): string {
   ];
   const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
-  const val = Math.floor(num);
+  const val = Math.floor(Math.abs(num));
   if (val === 0) return "Zero Rupees Only";
 
+  const isNegative = num < 0;
   const n = ("000000000" + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
   if (!n) return "";
 
@@ -65,7 +66,7 @@ function numberToWords(num: number): string {
         (a[Number(n[5])] || b[n[5][0] as any] + " " + a[n[5][1] as any]) +
         "Rupees "
       : "Rupees ";
-  return str.trim() + " Only";
+  return (isNegative ? "Minus " : "") + str.trim() + " Only";
 }
 
 function BillDetailPage() {
@@ -168,8 +169,9 @@ function BillDetailPage() {
   const cgst = bill.tax / 2;
   const sgst = bill.tax / 2;
 
+  const isReturn = bill.number.startsWith("SR-");
   const netPayable = bill.total;
-  const roundOff = bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
+  const roundOff = isReturn ? 0 : bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
 
   const handlePrint = () => {
     downloadBillPdf(bill, {
@@ -613,7 +615,7 @@ function BillDetailPage() {
                 <span>SGST</span>
                 <span className="font-mono text-foreground">{sgst.toFixed(2)}</span>
               </div>
-              {Math.abs(roundOff) >= 0.005 && (
+              {!isReturn && Math.abs(roundOff) >= 0.005 && (
                 <div className="flex justify-between text-xs text-muted-foreground pt-1">
                   <span>Round Off</span>
                   <span className="font-mono">

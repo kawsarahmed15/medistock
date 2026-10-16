@@ -10,9 +10,10 @@ function numberToWords(num: number): string {
   ];
   const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
-  const val = Math.floor(num);
+  const val = Math.floor(Math.abs(num));
   if (val === 0) return "Zero Rupees Only";
 
+  const isNegative = num < 0;
   const n = ("000000000" + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
   if (!n) return "";
 
@@ -22,7 +23,7 @@ function numberToWords(num: number): string {
   str += n[3] != "00" ? (a[Number(n[3])] || b[n[3][0] as any] + " " + a[n[3][1] as any]) + "Thousand " : "";
   str += n[4] != "0" ? (a[Number(n[4])] || b[n[4][0] as any] + " " + a[n[4][1] as any]) + "Hundred " : "";
   str += n[5] != "00" ? (str != "" ? "and " : "") + (a[Number(n[5])] || b[n[5][0] as any] + " " + a[n[5][1] as any]) + "Rupees " : "Rupees ";
-  return str.trim() + " Only";
+  return (isNegative ? "Minus " : "") + str.trim() + " Only";
 }
 
 const RUPEE = "Rs.";
@@ -352,8 +353,9 @@ export async function downloadPurchasePdf(
   y = tableEndY + 20;
 
   // 4. Totals & Footer Info Area
+  const isReturn = purchase.number.startsWith("PR-");
   const netPayable = purchase.total;
-  const roundOff = purchase.total - (purchase.subtotal + purchase.tax - (purchase.discount || 0));
+  const roundOff = isReturn ? 0 : purchase.total - (purchase.subtotal + purchase.tax - (purchase.discount || 0));
   const cgst = purchase.tax / 2;
   const sgst = purchase.tax / 2;
   const totalQty = purchase.items.reduce((acc, item) => acc + item.qty, 0);
@@ -469,7 +471,7 @@ export async function downloadPurchasePdf(
   doc.setDrawColor(220, 220, 220);
   doc.line(rightBoxLeft + 12, ty, totalsValueX, ty);
 
-  if (Math.abs(roundOff) >= 0.005) {
+  if (!isReturn && Math.abs(roundOff) >= 0.005) {
     ty += 12;
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");

@@ -270,12 +270,14 @@ function BillsPage() {
       let subtotal = 0;
       let tax = 0;
       returnedItems.forEach((it) => {
-        const lineCost = it.price * it.qty; // negative
-        const lineTax = lineCost * (it.taxPercent / 100);
+        const lineCost = Number((it.price * it.qty).toFixed(2)); // negative
+        const lineTax = Number((lineCost * (it.taxPercent / 100)).toFixed(2));
         subtotal += lineCost;
         tax += lineTax;
       });
-      const total = subtotal + tax;
+      subtotal = Number(subtotal.toFixed(2));
+      tax = Number(tax.toFixed(2));
+      const total = Number((subtotal + tax).toFixed(2));
 
       const returnBill = await billsStore.add({
         customerName: selectedBillForReturn.customerName,
@@ -317,8 +319,8 @@ function BillsPage() {
       const qty = returnQuantities[itemKey] || 0;
       if (qty > 0) {
         totalQty += qty;
-        const lineCost = it.price * qty;
-        const lineTax = lineCost * ((it.taxPercent || 0) / 100);
+        const lineCost = Number((it.price * qty).toFixed(2));
+        const lineTax = Number((lineCost * ((it.taxPercent || 0) / 100)).toFixed(2));
         subtotal += lineCost;
         tax += lineTax;
       }
@@ -326,9 +328,9 @@ function BillsPage() {
 
     return {
       totalQty,
-      subtotal,
-      tax,
-      total: subtotal + tax,
+      subtotal: Number(subtotal.toFixed(2)),
+      tax: Number(tax.toFixed(2)),
+      total: Number((subtotal + tax).toFixed(2)),
     };
   }, [selectedBillForReturn, returnQuantities]);
 

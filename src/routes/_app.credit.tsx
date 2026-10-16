@@ -66,7 +66,13 @@ function CreditPage() {
     setLoadingBills(true);
     try {
       const allBills = await billsStore.list();
-      const filtered = allBills.filter(b => b.customerPhone === c.phone || (b.customerName && b.customerName.toLowerCase() === c.name.toLowerCase()));
+      const cClean = c.phone ? c.phone.replace(/\D/g, "").slice(-10) : "";
+      const filtered = allBills.filter(
+        (b) =>
+          b.customerPhone === c.phone ||
+          (b.customerName && b.customerName.toLowerCase() === c.name.toLowerCase()) ||
+          (cClean && b.customerPhone && b.customerPhone.replace(/\D/g, "").slice(-10) === cClean)
+      );
       setCustomerBills(filtered);
     } catch (err) {
       toast.error("Failed to load customer bills");
@@ -397,9 +403,13 @@ function CreditPage() {
                           <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
-                              className="text-destructive border-destructive/20 bg-destructive/10"
+                              className={
+                                h.number?.startsWith("SR-") || h.amount < 0
+                                  ? "text-amber-600 border-amber-600/20 bg-amber-600/10"
+                                  : "text-destructive border-destructive/20 bg-destructive/10"
+                              }
                             >
-                              Credit Bill
+                              {h.number?.startsWith("SR-") ? "Sale Return" : "Credit Bill"}
                             </Badge>
                             <span className="text-xs text-muted-foreground">{h.number}</span>
                           </div>

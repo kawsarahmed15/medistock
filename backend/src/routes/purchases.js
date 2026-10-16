@@ -81,7 +81,7 @@ router.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];
-    const isReturn = !!body.isReturn;
+    const isReturn = !!body.isReturn || (body.number && String(body.number).startsWith("PR-"));
     const created = await withTransaction(async (conn) => {
       const prefix = isReturn ? "PR" : "PO";
       const [maxRows] = await conn.query(
@@ -99,18 +99,22 @@ router.post("/", async (req, res, next) => {
         const itemQty = Number(item.qty || 0);
         const itemCost = Number(item.costPrice || 0);
         const itemTaxPercent = Number(item.taxPercent || 0);
-        const line = itemQty * itemCost;
+        const line = Number((itemQty * itemCost).toFixed(2));
         calcSubtotal += line;
         calcTax += (line * itemTaxPercent) / 100;
       }
       calcSubtotal = Number(calcSubtotal.toFixed(2));
       calcTax = Number(calcTax.toFixed(2));
       const discountVal = Number(body.discount || 0);
-      const calcTotal = Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
+      const calcTotal = isReturn
+        ? Number((calcSubtotal + calcTax - discountVal).toFixed(2))
+        : Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
 
-      const purchaseSubtotal = items.length > 0 ? calcSubtotal : Number(body.subtotal || 0);
-      const purchaseTax = items.length > 0 ? calcTax : Number(body.tax || 0);
-      const purchaseTotal = items.length > 0 ? calcTotal : Number(body.total || 0);
+      const purchaseSubtotal = body.subtotal != null ? Number(body.subtotal) : calcSubtotal;
+      const purchaseTax = body.tax != null ? Number(body.tax) : calcTax;
+      const purchaseTotal = isReturn
+        ? Number((purchaseSubtotal + purchaseTax - discountVal).toFixed(2))
+        : (body.total != null ? Number(body.total) : calcTotal);
 
       const id = generateId();
       await conn.query(

@@ -408,7 +408,7 @@ router.post("/", async (req, res, next) => {
   try {
     const body = req.body || {};
     const items = Array.isArray(body.items) ? body.items : [];
-    const isReturn = !!body.isReturn;
+    const isReturn = !!body.isReturn || (body.number && String(body.number).startsWith("SR-"));
     const isEmployee = Boolean(req.auth.isEmployee);
     const billStatus = isEmployee ? "pending" : "completed";
     const createdByRole = isEmployee ? "employee" : "admin";
@@ -451,7 +451,7 @@ router.post("/", async (req, res, next) => {
         const lineGross = Number((itemQty * itemPrice).toFixed(2));
         grossTotal += lineGross;
 
-        if (isRetailRole) {
+        if (isRetailRole && !isReturn) {
           const taxable = itemTaxPercent > 0 ? Number((lineGross / (1 + itemTaxPercent / 100)).toFixed(2)) : lineGross;
           const lineTax = Number((lineGross - taxable).toFixed(2));
           calcSubtotal += taxable;
@@ -465,13 +465,17 @@ router.post("/", async (req, res, next) => {
       calcSubtotal = Number(calcSubtotal.toFixed(2));
       calcTax = Number(calcTax.toFixed(2));
       const discountVal = Number(body.discount || 0);
-      const calcTotal = isRetailRole
-        ? Math.round(Math.max(0, grossTotal - discountVal))
-        : Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
+      const calcTotal = isReturn
+        ? Number((calcSubtotal + calcTax - discountVal).toFixed(2))
+        : isRetailRole
+          ? Math.round(Math.max(0, grossTotal - discountVal))
+          : Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
 
       const billSubtotal = body.subtotal != null ? Number(body.subtotal) : calcSubtotal;
       const billTax = body.tax != null ? Number(body.tax) : calcTax;
-      const billTotal = body.total != null ? Number(body.total) : calcTotal;
+      const billTotal = isReturn
+        ? Number((billSubtotal + billTax - discountVal).toFixed(2))
+        : (body.total != null ? Number(body.total) : calcTotal);
 
       const id = generateId();
       await conn.query(

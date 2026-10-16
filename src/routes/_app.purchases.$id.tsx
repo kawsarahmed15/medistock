@@ -39,9 +39,10 @@ function numberToWords(num: number): string {
   ];
   const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
-  const val = Math.floor(num);
+  const val = Math.floor(Math.abs(num));
   if (val === 0) return "Zero Rupees Only";
 
+  const isNegative = num < 0;
   const n = ("000000000" + val).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
   if (!n) return "";
 
@@ -51,7 +52,7 @@ function numberToWords(num: number): string {
   str += n[3] != "00" ? (a[Number(n[3])] || b[n[3][0] as any] + " " + a[n[3][1] as any]) + "Thousand " : "";
   str += n[4] != "0" ? (a[Number(n[4])] || b[n[4][0] as any] + " " + a[n[4][1] as any]) + "Hundred " : "";
   str += n[5] != "00" ? (str != "" ? "and " : "") + (a[Number(n[5])] || b[n[5][0] as any] + " " + a[n[5][1] as any]) + "Rupees " : "Rupees ";
-  return str.trim() + " Only";
+  return (isNegative ? "Minus " : "") + str.trim() + " Only";
 }
 
 function PurchaseDetailsPage() {
@@ -93,8 +94,9 @@ function PurchaseDetailsPage() {
 
   const cgst = purchase.tax / 2;
   const sgst = purchase.tax / 2;
+  const isReturn = purchase.number.startsWith("PR-");
   const netPayable = purchase.total;
-  const roundOff = netPayable - (purchase.subtotal + purchase.tax - purchase.discount);
+  const roundOff = isReturn ? 0 : netPayable - (purchase.subtotal + purchase.tax - purchase.discount);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-20">
@@ -321,7 +323,7 @@ function PurchaseDetailsPage() {
                   <span className="font-mono">-{formatMoney(purchase.discount)}</span>
                 </div>
               )}
-              {Math.abs(roundOff) >= 0.005 && (
+              {!isReturn && Math.abs(roundOff) >= 0.005 && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Round Off</span>
                   <span className="font-mono">

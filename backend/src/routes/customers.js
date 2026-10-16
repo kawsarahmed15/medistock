@@ -38,7 +38,12 @@ router.get("/", async (req, res, next) => {
       const phone = String(row.customer_phone || "").trim();
       const name = String(row.customer_name || "").trim();
       if (!phone && !name) continue;
-      const key = phone || `name:${name.toLowerCase()}`;
+      const cleanDigits = phone.replace(/\D/g, "").slice(-10);
+      const key = cleanDigits.length === 10 ? `digits:${cleanDigits}` : (phone || `name:${name.toLowerCase()}`);
+      const rowTotal = Number(row.total || 0);
+      const isCredit = row.payment_method === "credit";
+      const advance = isCredit ? Number(row.advance_amount || 0) : 0;
+
       if (!map.has(key)) {
         map.set(key, {
           phone,
@@ -48,26 +53,23 @@ router.get("/", async (req, res, next) => {
           gstin: row.customer_gstin || undefined,
           notes: row.customer_notes || undefined,
           visits: 1,
-          totalSpent: Number(row.total || 0),
-          totalCredit:
-            row.payment_method === "credit"
-              ? Number(row.total || 0)
-              : 0,
-          totalPaid:
-            row.payment_method === "credit"
-              ? Number(row.advance_amount || 0)
-              : 0,
+          totalSpent: rowTotal,
+          totalCredit: isCredit ? rowTotal : 0,
+          totalPaid: advance,
           balance: 0,
           lastVisit: row.created_at,
         });
       } else {
         const current = map.get(key);
         current.visits += 1;
-        current.totalSpent += Number(row.total || 0);
-        if (row.payment_method === "credit") {
-          current.totalCredit += Number(row.total || 0);
-          current.totalPaid += Number(row.advance_amount || 0);
+        current.totalSpent = Number((current.totalSpent + rowTotal).toFixed(2));
+        if (isCredit) {
+          current.totalCredit = Number((current.totalCredit + rowTotal).toFixed(2));
+          current.totalPaid = Number((current.totalPaid + advance).toFixed(2));
         }
+        if (!current.address && row.customer_address) current.address = row.customer_address;
+        if (!current.drugLicNo && row.customer_drug_lic_no) current.drugLicNo = row.customer_drug_lic_no;
+        if (!current.gstin && row.customer_gstin) current.gstin = row.customer_gstin;
       }
     }
 
@@ -77,14 +79,18 @@ router.get("/", async (req, res, next) => {
       const phone = String(p.customer_phone || "").trim();
       const name = String(p.customer_name || "").trim();
       if (!phone && !name) continue;
-      const key = phone || `name:${name.toLowerCase()}`;
+      const cleanDigits = phone.replace(/\D/g, "").slice(-10);
+      const key = cleanDigits.length === 10 ? `digits:${cleanDigits}` : (phone || `name:${name.toLowerCase()}`);
       if (map.has(key)) {
-        map.get(key).totalPaid += Number(p.amount || 0);
+        map.get(key).totalPaid = Number((map.get(key).totalPaid + Number(p.amount || 0)).toFixed(2));
       }
     }
 
     for (const c of map.values()) {
-      c.balance = c.totalCredit - c.totalPaid;
+      c.totalSpent = Number(c.totalSpent.toFixed(2));
+      c.totalCredit = Number(c.totalCredit.toFixed(2));
+      c.totalPaid = Number(c.totalPaid.toFixed(2));
+      c.balance = Number((c.totalCredit - c.totalPaid).toFixed(2));
     }
 
     res.json(Array.from(map.values()));
@@ -143,28 +149,40 @@ router.post("/pay", async (req, res, next) => {
 
 router.get("/:phone/credit-history", async (req, res, next) => {
   try {
-    const phone = req.params.phone;
+    const rawPhone = (req.params.phone || "").trim();
+    const phoneDigits = rawPhone.replace(/\D/g, "").slice(-10);
 
     // Get credit bills (show full total)
     const [bills] = await pool.query(
       `SELECT id, number, total as amount, created_at, 'bill' as type 
        FROM bills 
-       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit' AND (status IS NULL OR status != 'rejected')
+       WHERE user_id = ? 
+         AND (customer_phone = ? 
+              OR (? != '' AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?))
+         AND payment_method = 'credit' 
+         AND (status IS NULL OR status != 'rejected')
        ORDER BY created_at DESC`,
-      [req.auth.userId, phone],
+      [req.auth.userId, rawPhone, phoneDigits, phoneDigits],
     );
 
     // Get payments (including advance payments)
     const [payments] = await pool.query(
       `SELECT id, amount, payment_method as method, created_at, 'payment' as type, 0 as is_advance
        FROM customer_payments 
-       WHERE user_id = ? AND customer_phone = ?
+       WHERE user_id = ? 
+         AND (customer_phone = ? 
+              OR (? != '' AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?))
        UNION ALL
        SELECT id, advance_amount as amount, advance_payment_method as method, created_at, 'payment' as type, 1 as is_advance
        FROM bills
-       WHERE user_id = ? AND customer_phone = ? AND payment_method = 'credit' AND advance_amount > 0 AND (status IS NULL OR status != 'rejected')
+       WHERE user_id = ? 
+         AND (customer_phone = ? 
+              OR (? != '' AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?))
+         AND payment_method = 'credit' 
+         AND advance_amount > 0 
+         AND (status IS NULL OR status != 'rejected')
        ORDER BY created_at DESC`,
-      [req.auth.userId, phone, req.auth.userId, phone],
+      [req.auth.userId, rawPhone, phoneDigits, phoneDigits, req.auth.userId, rawPhone, phoneDigits, phoneDigits],
     );
 
     const history = [...bills, ...payments].sort(

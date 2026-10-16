@@ -237,12 +237,14 @@ function PurchasesPage() {
       let subtotal = 0;
       let tax = 0;
       returnedItems.forEach((it) => {
-        const lineCost = it.costPrice * it.qty; // negative
-        const lineTax = lineCost * (it.taxPercent / 100);
+        const lineCost = Number((it.costPrice * it.qty).toFixed(2)); // negative
+        const lineTax = Number((lineCost * (it.taxPercent / 100)).toFixed(2));
         subtotal += lineCost;
         tax += lineTax;
       });
-      const total = subtotal + tax;
+      subtotal = Number(subtotal.toFixed(2));
+      tax = Number(tax.toFixed(2));
+      const total = Number((subtotal + tax).toFixed(2));
 
       await purchasesStore.add({
         supplierName: selectedPurchaseForReturn.supplierName,

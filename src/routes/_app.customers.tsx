@@ -62,7 +62,13 @@ function CustomersPage() {
     setLoadingBills(true);
     try {
       const allBills = await billsStore.list();
-      const filtered = allBills.filter(b => b.customerPhone === c.phone || (b.customerName && b.customerName.toLowerCase() === c.name.toLowerCase()));
+      const cClean = c.phone ? c.phone.replace(/\D/g, "").slice(-10) : "";
+      const filtered = allBills.filter(
+        (b) =>
+          b.customerPhone === c.phone ||
+          (b.customerName && b.customerName.toLowerCase() === c.name.toLowerCase()) ||
+          (cClean && b.customerPhone && b.customerPhone.replace(/\D/g, "").slice(-10) === cClean)
+      );
       setCustomerBills(filtered);
     } catch (err) {
       toast.error("Failed to load customer bills");
