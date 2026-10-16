@@ -371,8 +371,8 @@ export async function downloadPurchasePdf(
   const roundOff = isReturn ? 0 : purchase.total - (purchase.subtotal + purchase.tax - (purchase.discount || 0));
   const cgst = purchase.tax / 2;
   const sgst = purchase.tax / 2;
-  const totalQty = purchase.items.reduce((acc, item) => acc + item.qty, 0);
-  const totalFree = purchase.items.reduce((acc, item) => acc + (item.freeQty || 0), 0);
+  const totalQty = purchase.items.reduce((acc, item) => acc + Number(item.qty || 0), 0);
+  const totalFree = purchase.items.reduce((acc, item) => acc + (Number(item.freeQty) || 0), 0);
 
   const leftWidth = (pageWidth - 80) * 0.55;
   let leftSideY = y;
@@ -385,16 +385,24 @@ export async function downloadPurchasePdf(
   doc.setTextColor(110, 110, 110);
   doc.text("Total Items:", left + 12, leftSideY + 20);
   doc.setTextColor(35, 35, 35);
-  let itemsCountStr = String(purchase.items.filter((it) => it.qty > 0).length);
-  if (purchase.hasReturns) {
-    itemsCountStr += ` (+${purchase.items.filter((it) => it.qty < 0).length} returned)`;
+  let itemsCountStr = isReturn
+    ? String(purchase.items.length)
+    : String(purchase.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length);
+  if (!isReturn && purchase.hasReturns) {
+    itemsCountStr += ` (+${purchase.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).length} ret)`;
   }
   doc.text(itemsCountStr, left + 75, leftSideY + 20);
 
   doc.setTextColor(110, 110, 110);
-  doc.text("Total Qty:", left + 12, leftSideY + 36);
+  doc.text(isReturn ? "Return Qty:" : "Net Qty:", left + 12, leftSideY + 36);
   doc.setTextColor(35, 35, 35);
-  let qtyText = String(totalQty);
+  let qtyVal = isReturn ? Math.abs(totalQty) : totalQty;
+  let qtyText = String(qtyVal);
+  if (!isReturn && purchase.hasReturns) {
+    const origQ = purchase.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).reduce((s, it) => s + Number(it.qty || 0), 0);
+    const retQ = Math.abs(purchase.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).reduce((s, it) => s + Number(it.qty || 0), 0));
+    qtyText += ` (${origQ} inward - ${retQ} ret)`;
+  }
   doc.text(qtyText, left + 70, leftSideY + 36);
   if (totalFree > 0) {
     doc.setTextColor(...primaryRgb);

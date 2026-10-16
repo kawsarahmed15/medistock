@@ -164,12 +164,12 @@ function BillDetailPage() {
     );
   }
 
-  const totalQty = bill.items.reduce((acc, item) => acc + item.qty, 0);
-  const totalFree = bill.items.reduce((acc, item) => acc + (item.freeQty || 0), 0);
+  const isReturn = bill.number.startsWith("SR-");
+  const totalQty = bill.items.reduce((acc, item) => acc + Number(item.qty || 0), 0);
+  const totalFree = bill.items.reduce((acc, item) => acc + (Number(item.freeQty) || 0), 0);
   const cgst = bill.tax / 2;
   const sgst = bill.tax / 2;
 
-  const isReturn = bill.number.startsWith("SR-");
   const netPayable = bill.total;
   const roundOff = isReturn ? 0 : bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
 
@@ -605,18 +605,25 @@ function BillDetailPage() {
               <div className="text-sm space-y-1">
                 <p>
                   <strong className="text-muted-foreground font-medium">Total Items:</strong>{" "}
-                  {bill.items.filter((it) => it.qty > 0).length}
-                  {bill.hasReturns && (
+                  {isReturn
+                    ? bill.items.length
+                    : bill.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length}
+                  {!isReturn && bill.hasReturns && (
                     <span className="text-amber-600 dark:text-amber-400 text-xs ml-1">
-                      (+{bill.items.filter((it) => it.qty < 0).length} returned)
+                      (+{bill.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).length} returned)
                     </span>
                   )}
                 </p>
                 <p>
-                  <strong className="text-muted-foreground font-medium">Net Qty:</strong>{" "}
-                  {totalQty}{" "}
+                  <strong className="text-muted-foreground font-medium">{isReturn ? "Return Qty:" : "Net Qty:"}</strong>{" "}
+                  {isReturn ? Math.abs(totalQty) : totalQty}{" "}
+                  {!isReturn && bill.hasReturns && (
+                    <span className="text-amber-600 dark:text-amber-400 text-xs ml-1">
+                      ({bill.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).reduce((s, it) => s + Number(it.qty || 0), 0)} sold - {Math.abs(bill.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).reduce((s, it) => s + Number(it.qty || 0), 0))} returned)
+                    </span>
+                  )}
                   {totalFree > 0 ? (
-                    <span className="text-primary font-medium">(+{totalFree} Free)</span>
+                    <span className="text-primary font-medium ml-1">(+{totalFree} Free)</span>
                   ) : (
                     ""
                   )}

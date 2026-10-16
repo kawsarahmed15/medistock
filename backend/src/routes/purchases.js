@@ -34,6 +34,10 @@ router.get("/", async (req, res, next) => {
 
     const map = new Map();
     for (const item of items) {
+      item.qty = Number(item.qty || 0);
+      item.cost_price = Number(item.cost_price || 0);
+      item.free_qty = Number(item.free_qty || 0);
+      item.tax_percent = Number(item.tax_percent || 0);
       const arr = map.get(item.purchase_id) || [];
       arr.push(item);
       map.set(item.purchase_id, arr);
@@ -72,6 +76,13 @@ router.get("/:id", async (req, res, next) => {
        WHERE user_id = ? AND purchase_id = ?`,
       [req.auth.userId, req.params.id],
     );
+
+    for (const item of items) {
+      item.qty = Number(item.qty || 0);
+      item.cost_price = Number(item.cost_price || 0);
+      item.free_qty = Number(item.free_qty || 0);
+      item.tax_percent = Number(item.tax_percent || 0);
+    }
 
     const purchaseData = { ...purchase, items };
     await attachReturnsToPurchases(pool, req.auth.userId, [purchaseData]);

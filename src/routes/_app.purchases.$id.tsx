@@ -95,6 +95,8 @@ function PurchaseDetailsPage() {
   const cgst = purchase.tax / 2;
   const sgst = purchase.tax / 2;
   const isReturn = purchase.number.startsWith("PR-");
+  const totalQty = purchase.items.reduce((acc, item) => acc + Number(item.qty || 0), 0);
+  const totalFree = purchase.items.reduce((acc, item) => acc + (Number(item.freeQty) || 0), 0);
   const netPayable = purchase.total;
   const roundOff = isReturn ? 0 : netPayable - (purchase.subtotal + purchase.tax - purchase.discount);
 
@@ -343,11 +345,27 @@ function PurchaseDetailsPage() {
             <div className="p-3 border border-border rounded-lg bg-muted/10 text-xs space-y-1">
               <p>
                 <strong className="text-muted-foreground font-medium">Total Items:</strong>{" "}
-                {purchase.items.filter((it) => it.qty > 0).length}
-                {purchase.hasReturns && (
+                {isReturn
+                  ? purchase.items.length
+                  : purchase.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length}
+                {!isReturn && purchase.hasReturns && (
                   <span className="text-amber-600 dark:text-amber-400 font-medium ml-1">
-                    (+{purchase.items.filter((it) => it.qty < 0).length} returned)
+                    (+{purchase.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).length} returned)
                   </span>
+                )}
+              </p>
+              <p>
+                <strong className="text-muted-foreground font-medium">{isReturn ? "Return Qty:" : "Net Qty:"}</strong>{" "}
+                {isReturn ? Math.abs(totalQty) : totalQty}{" "}
+                {!isReturn && purchase.hasReturns && (
+                  <span className="text-amber-600 dark:text-amber-400 text-xs ml-1">
+                    ({purchase.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).reduce((s, it) => s + Number(it.qty || 0), 0)} inward - {Math.abs(purchase.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).reduce((s, it) => s + Number(it.qty || 0), 0))} returned)
+                  </span>
+                )}
+                {totalFree > 0 ? (
+                  <span className="text-primary font-medium ml-1">(+{totalFree} Free)</span>
+                ) : (
+                  ""
                 )}
               </p>
             </div>

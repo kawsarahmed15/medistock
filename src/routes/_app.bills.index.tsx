@@ -801,7 +801,9 @@ function BillsPage() {
                       </div>
                     )}
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {b.items.filter((it) => it.qty > 0).length} item{b.items.filter((it) => it.qty > 0).length === 1 ? "" : "s"}
+                      {isReturnBill
+                        ? `${b.items.length} item${b.items.length === 1 ? "" : "s"}`
+                        : `${b.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length} item${b.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length === 1 ? "" : "s"}`}
                     </div>
                   </div>
                 </div>
@@ -1069,10 +1071,12 @@ function BillsPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {b.items.filter((it) => it.qty > 0).length}
-                      {b.hasReturns && (
+                      {isReturnBill
+                        ? b.items.length
+                        : b.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length}
+                      {!isReturnBill && b.hasReturns && (
                         <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-normal">
-                          (+{b.items.filter((it) => it.qty < 0).length} ret)
+                          (+{b.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).length} ret)
                         </span>
                       )}
                     </TableCell>

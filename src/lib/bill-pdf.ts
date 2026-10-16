@@ -459,8 +459,8 @@ export async function downloadBillPdf(
   const roundOff = isReturn ? 0 : bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
   const cgst = bill.tax / 2;
   const sgst = bill.tax / 2;
-  const totalQty = bill.items.reduce((acc, item) => acc + item.qty, 0);
-  const totalFree = bill.items.reduce((acc, item) => acc + (item.freeQty || 0), 0);
+  const totalQty = bill.items.reduce((acc, item) => acc + Number(item.qty || 0), 0);
+  const totalFree = bill.items.reduce((acc, item) => acc + (Number(item.freeQty) || 0), 0);
 
   const leftWidth = (pageWidth - 80) * 0.55;
   let leftSideY = y;
@@ -481,12 +481,24 @@ export async function downloadBillPdf(
   doc.setTextColor(110, 110, 110);
   doc.text("Total Items:", left + 56, leftSideY + 20);
   doc.setTextColor(35, 35, 35);
-  doc.text(String(bill.items.length), left + 110, leftSideY + 20);
+  let itemsCountStr = isReturn
+    ? String(bill.items.length)
+    : String(bill.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length);
+  if (!isReturn && bill.hasReturns) {
+    itemsCountStr += ` (+${bill.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).length} ret)`;
+  }
+  doc.text(itemsCountStr, left + 110, leftSideY + 20);
 
   doc.setTextColor(110, 110, 110);
-  doc.text("Total Qty:", left + 56, leftSideY + 36);
+  doc.text(isReturn ? "Return Qty:" : "Net Qty:", left + 56, leftSideY + 36);
   doc.setTextColor(35, 35, 35);
-  let qtyText = String(totalQty);
+  let qtyVal = isReturn ? Math.abs(totalQty) : totalQty;
+  let qtyText = String(qtyVal);
+  if (!isReturn && bill.hasReturns) {
+    const origQ = bill.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).reduce((s, it) => s + Number(it.qty || 0), 0);
+    const retQ = Math.abs(bill.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).reduce((s, it) => s + Number(it.qty || 0), 0));
+    qtyText += ` (${origQ} sold - ${retQ} ret)`;
+  }
   doc.text(qtyText, left + 105, leftSideY + 36);
   if (totalFree > 0) {
     doc.setTextColor(...primaryRgb);

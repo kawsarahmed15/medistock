@@ -1029,10 +1029,15 @@ function PurchasesPage() {
                             {isReturnBill ? "—" : p.paymentMethod.replace("_", " ")}
                           </TableCell>
                           <TableCell className="text-xs text-right font-medium">
-                            {p.items.filter((it) => it.qty > 0).length} <span className="text-[10px] text-muted-foreground">({totalQty} qty)</span>
-                            {p.hasReturns && (
+                            {isReturnBill
+                              ? p.items.length
+                              : p.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length}{" "}
+                            <span className="text-[10px] text-muted-foreground">
+                              ({isReturnBill ? Math.abs(totalQty) : totalQty} qty)
+                            </span>
+                            {!isReturnBill && p.hasReturns && (
                               <div className="text-[9px] text-amber-600 dark:text-amber-400">
-                                (+{p.items.filter((it) => it.qty < 0).length} returned)
+                                (+{p.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).length} returned)
                               </div>
                             )}
                           </TableCell>
@@ -1572,6 +1577,8 @@ function PurchasesPage() {
             const cgst = p.tax / 2;
             const sgst = p.tax / 2;
             const roundOff = isReturn ? 0 : p.total - (p.subtotal + p.tax - p.discount);
+            const totalQty = p.items.reduce((s, it) => s + Number(it.qty || 0), 0);
+            const totalFree = p.items.reduce((s, it) => s + (Number(it.freeQty) || 0), 0);
 
             return (
               <div className="flex flex-col h-full">
@@ -1785,6 +1792,33 @@ function PurchasesPage() {
                   {/* Live summary breakdown */}
                   <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pt-4">
                     <div className="w-full sm:w-[55%] flex flex-col gap-4">
+                      <div className="p-3 border border-border rounded-lg bg-muted/10 text-xs space-y-1">
+                        <p>
+                          <strong className="text-muted-foreground font-medium">Total Items:</strong>{" "}
+                          {isReturn
+                            ? p.items.length
+                            : p.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).length}
+                          {!isReturn && p.hasReturns && (
+                            <span className="text-amber-600 dark:text-amber-400 font-medium ml-1">
+                              (+{p.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).length} returned)
+                            </span>
+                          )}
+                        </p>
+                        <p>
+                          <strong className="text-muted-foreground font-medium">{isReturn ? "Return Qty:" : "Net Qty:"}</strong>{" "}
+                          {isReturn ? Math.abs(totalQty) : totalQty}{" "}
+                          {!isReturn && p.hasReturns && (
+                            <span className="text-amber-600 dark:text-amber-400 text-xs ml-1">
+                              ({p.items.filter((it) => !it.isReturnItem && Number(it.qty) > 0).reduce((s, it) => s + Number(it.qty || 0), 0)} inward - {Math.abs(p.items.filter((it) => it.isReturnItem || Number(it.qty) < 0).reduce((s, it) => s + Number(it.qty || 0), 0))} returned)
+                            </span>
+                          )}
+                          {totalFree > 0 ? (
+                            <span className="text-primary font-medium ml-1">(+{totalFree} Free)</span>
+                          ) : (
+                            ""
+                          )}
+                        </p>
+                      </div>
                       <div className="text-xs p-3 bg-primary/5 border border-primary/10 rounded-lg">
                         <p className="font-semibold text-primary uppercase mb-1">Amount in Words:</p>
                         <p className="font-bold capitalize">{numberToWords(p.total)}</p>

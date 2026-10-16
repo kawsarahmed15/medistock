@@ -301,7 +301,7 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
       sku: it.sku ?? undefined,
       price: Number(it.price) || 0,
       costPrice: num(it.cost_price),
-      qty: it.qty,
+      qty: Number(it.qty) || 0,
       taxPercent: Number(it.tax_percent) || 0,
       mrp: num(it.mrp),
       batch: it.batch ?? undefined,
