@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar, Pencil, AlertCircle } from "lucide-react";
+import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar, Pencil, AlertCircle, X } from "lucide-react";
 import { customersStore, billsStore, type Customer, type Bill } from "@/lib/storage";
 import { extractPhoneDigits, formatPhoneWithCountryCode } from "@/lib/phone-utils";
+import { usePersistentSearch } from "@/lib/use-persistent-search";
 import { useCart } from "@/lib/cart-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ function formatDate(iso: string) {
 
 function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[] | null>(null);
-  const [q, setQ] = useState("");
+  const [q, setQ, clearQ] = usePersistentSearch("medistock_search_customers", "");
   const [period, setPeriod] = useState("all_time");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -279,8 +280,18 @@ function CustomersPage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search by name or phone"
-                className="pl-8"
+                className="pl-8 pr-8"
               />
+              {q && (
+                <button
+                  type="button"
+                  onClick={clearQ}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
           <div className="space-y-1.5 w-full sm:w-48">

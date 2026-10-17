@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { usePersistentSearch } from "@/lib/use-persistent-search";
 import { employeesStore, billsStore, type Employee, type Bill } from "@/lib/storage";
 import { toast } from "sonner";
 import {
@@ -71,7 +72,7 @@ function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
+  const [query, setQuery, clearQuery] = usePersistentSearch("medistock_search_employees", "");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled" | "pending">("all");
 
   // Selected Employee Profile Sheet/Dialog
@@ -609,8 +610,18 @@ function EmployeesPage() {
               placeholder="Search by name, phone, email..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-9 h-9 text-xs"
+              className="pl-9 pr-8 h-9 text-xs"
             />
+            {query && (
+              <button
+                type="button"
+                onClick={clearQuery}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </CardHeader>
 

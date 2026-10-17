@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Download, Search, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Download, Search, TrendingDown, TrendingUp, Wallet, X } from "lucide-react";
 import { billsStore, purchasesStore, type Bill, type Purchase } from "@/lib/storage";
+import { usePersistentSearch } from "@/lib/use-persistent-search";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,7 +97,7 @@ function LedgerPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [filterType, setFilterType] = useState<"all" | "sale" | "purchase">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery, clearSearchQuery] = usePersistentSearch("medistock_search_ledger", "");
 
   useEffect(() => {
     let cancelled = false;
@@ -582,8 +583,18 @@ function LedgerPage() {
                 placeholder="Search ref #, party or item..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 text-sm"
+                className="pl-9 pr-8 text-sm"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={clearSearchQuery}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted"
+                  title="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           </div>
 

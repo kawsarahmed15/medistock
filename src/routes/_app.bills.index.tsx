@@ -19,10 +19,12 @@ import {
   ArrowRight,
   Package,
   UserRound,
+  X,
 } from "lucide-react";
 import { billsStore, type Bill } from "@/lib/storage";
 import { useAuth } from "@/lib/auth-context";
 import { useCart, type DraftBill } from "@/lib/cart-context";
+import { usePersistentSearch } from "@/lib/use-persistent-search";
 import { DraftBillsDialog } from "@/components/draft-bills-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -53,7 +55,7 @@ import { cn } from "@/lib/utils";
 type FilterRange = "all" | "day" | "month" | "year" | "custom";
 type PayFilter = "all" | "cash" | "online" | "credit";
 type StatusTab = "all" | "pending" | "completed" | "drafts" | "returns";
-type BillsSearch = { range?: FilterRange; from?: string; to?: string; pay?: PayFilter; status?: StatusTab };
+type BillsSearch = { range?: FilterRange; from?: string; to?: string; pay?: PayFilter; status?: StatusTab; q?: string };
 
 export const Route = createFileRoute("/_app/bills/")({
   validateSearch: (search: Record<string, unknown>): BillsSearch => {
@@ -69,6 +71,7 @@ export const Route = createFileRoute("/_app/bills/")({
       to: typeof search.to === "string" ? search.to : undefined,
       pay: validPay.includes(p as PayFilter) ? (p as PayFilter) : undefined,
       status: validStatus.includes(s as StatusTab) ? (s as StatusTab) : undefined,
+      q: typeof search.q === "string" ? search.q : undefined,
     };
   },
   component: BillsPage,
@@ -81,12 +84,12 @@ function formatMoney(n: number) {
 function BillsPage() {
   const { session } = useAuth();
   const cart = useCart();
+  const search = Route.useSearch();
   const [bills, setBills] = useState<Bill[]>([]);
-  const [query, setQuery] = useState("");
+  const [query, setQuery, clearQuery] = usePersistentSearch("medistock_search_bills", search.q || "");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [draftsOpen, setDraftsOpen] = useState(false);
-  const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const routerNavigate = useNavigate();
   const range: FilterRange = search.range ?? "all";
@@ -398,6 +401,7 @@ function BillsPage() {
         q &&
         !b.number.toLowerCase().includes(q) &&
         !(b.customerName ?? "").toLowerCase().includes(q) &&
+        !(b.customerPhone ?? "").toLowerCase().includes(q) &&
         !(b.cashier ?? "").toLowerCase().includes(q)
       )
         return false;
@@ -546,10 +550,20 @@ function BillsPage() {
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by invoice or customer…"
-              className="pl-9"
+              className="pl-9 pr-8"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            {query && (
+              <button
+                type="button"
+                onClick={clearQuery}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>

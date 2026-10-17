@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef, type FormEvent } from "react";
-import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, AlertTriangle } from "lucide-react";
+import { Pencil, Plus, ScanLine, Search, ShoppingCart, Trash2, AlertTriangle, X } from "lucide-react";
 
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
+import { usePersistentSearch } from "@/lib/use-persistent-search";
 import { productsStore, type Product } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -160,7 +161,7 @@ function InventoryPage() {
   const search = Route.useSearch();
   const qParam = search.q;
   const [items, setItems] = useState<Product[]>([]);
-  const [query, setQuery] = useState(qParam ?? "");
+  const [query, setQuery, clearQuery] = usePersistentSearch("medistock_search_inventory", qParam ?? "");
   const [loading, setLoading] = useState(true);
   const [selectedIdx, setSelectedIdx] = useState<number>(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -650,10 +651,20 @@ function InventoryPage() {
             <Input
               ref={searchInputRef}
               placeholder="Search products…"
-              className="pl-9"
+              className="pl-9 pr-8"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            {query && (
+              <button
+                type="button"
+                onClick={clearQuery}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted"
+                title="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <select
             className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

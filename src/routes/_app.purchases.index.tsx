@@ -24,13 +24,14 @@ import {
   Eye,
   Edit,
   ArrowUpDown,
-  Filter,
   Phone,
   Pill,
+  X,
 } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { downloadPurchasePdf } from "@/lib/purchase-pdf";
 import { useAuth } from "@/lib/auth-context";
+import { usePersistentSearch } from "@/lib/use-persistent-search";
 import { resolveBusinessCategory } from "@/features";
 import {
   isTabOrCap,
@@ -99,7 +100,7 @@ function PurchasesPage() {
   const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
+  const [query, setQuery, clearQuery] = usePersistentSearch("medistock_search_purchases", "");
   const [supplierFilter, setSupplierFilter] = useState("all");
   const [paymentModeFilter, setPaymentModeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -808,8 +809,21 @@ function PurchasesPage() {
                     setQuery(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="pl-9 h-9 text-xs"
+                  className="pl-9 pr-8 h-9 text-xs"
                 />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearQuery();
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted"
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
               {/* Supplier Filter */}
