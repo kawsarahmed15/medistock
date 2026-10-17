@@ -28,6 +28,7 @@ import {
   Coins,
   Clock,
   Pill,
+  AlertCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -2590,6 +2591,29 @@ function CheckoutFlowDialog({
     setShowPicker(false);
   };
 
+  const newCustPhoneDigits = useMemo(() => {
+    return newCustForm.phone ? newCustForm.phone.replace(/\D/g, "").slice(-10) : "";
+  }, [newCustForm.phone]);
+
+  const handleNewCustPhoneChange = (val: string) => {
+    const rawDigits = val.replace(/\D/g, "");
+    const clean = rawDigits.length > 10 && rawDigits.startsWith("91") ? rawDigits.slice(-10) : rawDigits.slice(0, 10);
+    const formatted = clean ? `+91 ${clean}` : "";
+    setNewCustForm((prev) => ({ ...prev, phone: formatted }));
+  };
+
+  const newCustPhoneConflict = useMemo(() => {
+    if (newCustPhoneDigits.length !== 10) return null;
+    const currentName = newCustForm.name.trim().toLowerCase();
+    return (
+      savedCustomers.find((c) => {
+        const cDigits = (c.phone || "").replace(/\D/g, "").slice(-10);
+        const cName = (c.name || "").trim().toLowerCase();
+        return cDigits === newCustPhoneDigits && cName && cName !== currentName;
+      }) || null
+    );
+  }, [savedCustomers, newCustPhoneDigits, newCustForm.name]);
+
   const handleSaveNewCustomer = (e: FormEvent) => {
     e.preventDefault();
     if (!newCustForm.name.trim()) {
@@ -2598,6 +2622,10 @@ function CheckoutFlowDialog({
     }
     if (!newCustForm.phone.trim()) {
       toast.error("Customer phone number is required.");
+      return;
+    }
+    if (newCustPhoneConflict) {
+      toast.error(`Phone number already exists for "${newCustPhoneConflict.name}". Please use a unique number.`);
       return;
     }
     cart.setCustomer({
@@ -2809,12 +2837,25 @@ function CheckoutFlowDialog({
                     </div>
                     <div>
                       <Label className="text-[11px]">Phone Number *</Label>
-                      <Input
-                        value={newCustForm.phone}
-                        onChange={(e) => setNewCustForm({ ...newCustForm, phone: e.target.value })}
-                        required
-                        className="h-7 text-xs"
-                      />
+                      <div className="flex rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring bg-background overflow-hidden h-7">
+                        <span className="inline-flex items-center px-2 bg-muted text-[11px] font-bold text-muted-foreground select-none pointer-events-none border-r border-input">
+                          +91
+                        </span>
+                        <Input
+                          value={newCustPhoneDigits}
+                          maxLength={10}
+                          inputMode="numeric"
+                          onChange={(e) => handleNewCustPhoneChange(e.target.value)}
+                          required
+                          placeholder="98765 43210"
+                          className="border-0 focus-visible:ring-0 rounded-l-none h-7 text-xs font-medium"
+                        />
+                      </div>
+                      {newCustPhoneConflict && (
+                        <div className="text-destructive text-[10px] font-medium mt-0.5">
+                          Already registered to "{newCustPhoneConflict.name}"
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -2843,7 +2884,7 @@ function CheckoutFlowDialog({
                       className="h-7 text-xs"
                     />
                   </div>
-                  <Button type="submit" size="sm" className="w-full h-8 text-xs">
+                  <Button type="submit" size="sm" className="w-full h-8 text-xs" disabled={Boolean(newCustPhoneConflict)}>
                     <Check className="h-3.5 w-3.5 mr-1" /> Use this Customer
                   </Button>
                 </form>

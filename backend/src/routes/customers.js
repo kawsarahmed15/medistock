@@ -83,8 +83,15 @@ router.get("/", async (req, res, next) => {
       return null;
     }
 
+    function formatIndianPhone(p) {
+      if (!p) return "";
+      const digits = p.replace(/\D/g, "").slice(-10);
+      return digits.length === 10 ? `+91 ${digits}` : (p.startsWith("+91") ? p : `+91 ${p}`);
+    }
+
     for (const row of rows) {
-      const phone = String(row.customer_phone || "").trim();
+      const rawPhone = String(row.customer_phone || "").trim();
+      const phone = formatIndianPhone(rawPhone);
       const name = String(row.customer_name || "").trim();
       if (!phone && !name) continue;
 
@@ -283,17 +290,47 @@ router.get("/:phone/credit-history", async (req, res, next) => {
 router.put("/:phone", async (req, res, next) => {
   try {
     const oldPhone = (req.params.phone || "").trim();
-    const { name, phone, address, drugLicNo, gstin, notes, oldName } = req.body;
+    let { name, phone, address, drugLicNo, gstin, notes, oldName } = req.body;
+
+    let cleanPhone = (phone || "").trim();
+    const phoneDigits = cleanPhone.replace(/\D/g, "").slice(-10);
+    if (phoneDigits.length === 10) {
+      cleanPhone = `+91 ${phoneDigits}`;
+    }
+
+    const currentName = (name || oldName || "").trim();
+    if (phoneDigits.length === 10 && currentName) {
+      const oldPhoneDigits = oldPhone.replace(/\D/g, "").slice(-10);
+      // Only check conflict if phone changed
+      if (phoneDigits !== oldPhoneDigits) {
+        const [conflictRows] = await pool.query(
+          `SELECT customer_name 
+           FROM bills 
+           WHERE user_id = ? 
+             AND customer_phone IS NOT NULL 
+             AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?
+             AND LOWER(TRIM(customer_name)) != LOWER(TRIM(?))
+             AND customer_name NOT IN ('Walk-in Customer', 'walk-in', 'walkin')
+           LIMIT 1`,
+          [req.auth.userId, phoneDigits, currentName],
+        );
+        if (conflictRows.length > 0) {
+          return res.status(400).json({
+            error: `Phone number (+91 ${phoneDigits}) already exists for customer "${conflictRows[0].customer_name}". Please use a unique phone number.`
+          });
+        }
+      }
+    }
 
     // Update bills
     let billsUpdate = `UPDATE bills SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_drug_lic_no = ?, customer_gstin = ?, customer_notes = ? WHERE user_id = ?`;
-    const billsParams = [name || null, phone || null, address || null, drugLicNo || null, gstin || null, notes || null, req.auth.userId];
+    const billsParams = [name || null, cleanPhone || null, address || null, drugLicNo || null, gstin || null, notes || null, req.auth.userId];
 
     if (oldPhone && oldPhone !== "none") {
-      const phoneDigits = oldPhone.replace(/\D/g, "").slice(-10);
-      if (phoneDigits.length === 10) {
+      const oldDigits = oldPhone.replace(/\D/g, "").slice(-10);
+      if (oldDigits.length === 10) {
         billsUpdate += ` AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)`;
-        billsParams.push(oldPhone, phoneDigits);
+        billsParams.push(oldPhone, oldDigits);
       } else {
         billsUpdate += ` AND customer_phone = ?`;
         billsParams.push(oldPhone);
@@ -307,12 +344,12 @@ router.put("/:phone", async (req, res, next) => {
 
     // Update payments
     let payUpdate = `UPDATE customer_payments SET customer_name = ?, customer_phone = ? WHERE user_id = ?`;
-    const payParams = [name || null, phone || null, req.auth.userId];
+    const payParams = [name || null, cleanPhone || null, req.auth.userId];
     if (oldPhone && oldPhone !== "none") {
-      const phoneDigits = oldPhone.replace(/\D/g, "").slice(-10);
-      if (phoneDigits.length === 10) {
+      const oldDigits = oldPhone.replace(/\D/g, "").slice(-10);
+      if (oldDigits.length === 10) {
         payUpdate += ` AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)`;
-        payParams.push(oldPhone, phoneDigits);
+        payParams.push(oldPhone, oldDigits);
       } else {
         payUpdate += ` AND customer_phone = ?`;
         payParams.push(oldPhone);

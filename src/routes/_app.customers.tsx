@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar, Pencil } from "lucide-react";
+import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar, Pencil, AlertCircle } from "lucide-react";
 import { customersStore, billsStore, type Customer, type Bill } from "@/lib/storage";
 import { useCart } from "@/lib/cart-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -204,17 +204,48 @@ function CustomersPage() {
     navigate({ to: "/cart" });
   };
 
+  const editPhoneDigits = useMemo(() => {
+    return editForm.phone ? editForm.phone.replace(/\D/g, "").slice(-10) : "";
+  }, [editForm.phone]);
+
+  const handleEditPhoneChange = (val: string) => {
+    const rawDigits = val.replace(/\D/g, "");
+    const clean = rawDigits.length > 10 && rawDigits.startsWith("91") ? rawDigits.slice(-10) : rawDigits.slice(0, 10);
+    const formatted = clean ? `+91 ${clean}` : "";
+    setEditForm((prev) => ({ ...prev, phone: formatted }));
+  };
+
+  const editPhoneConflict = useMemo(() => {
+    if (!editingCustomer || editPhoneDigits.length !== 10) return null;
+    const currentName = editForm.name.trim().toLowerCase();
+    const oldDigits = editingCustomer.phone.replace(/\D/g, "").slice(-10);
+    if (editPhoneDigits === oldDigits) return null; // unchanged
+
+    return (
+      customers?.find((c) => {
+        const cDigits = (c.phone || "").replace(/\D/g, "").slice(-10);
+        const cName = (c.name || "").trim().toLowerCase();
+        return cDigits === editPhoneDigits && cName && cName !== currentName;
+      }) || null
+    );
+  }, [customers, editingCustomer, editPhoneDigits, editForm.name]);
+
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCustomer) return;
-    if (!editForm.phone.trim()) {
-      toast.error("Phone number is required");
+    if (!editPhoneDigits || editPhoneDigits.length !== 10) {
+      toast.error("Valid 10-digit phone number is required");
+      return;
+    }
+    if (editPhoneConflict) {
+      toast.error(`Phone number already exists for "${editPhoneConflict.name}". Please use a unique number.`);
       return;
     }
     setIsSaving(true);
     try {
       await customersStore.update(editingCustomer.phone, {
         ...editForm,
+        phone: `+91 ${editPhoneDigits}`,
         oldName: editingCustomer.name,
       });
       toast.success("Customer details updated");
@@ -402,12 +433,26 @@ function CustomersPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Phone (Required)</Label>
-              <Input
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                placeholder="Phone Number"
-                required
-              />
+              <div className="flex rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring bg-background overflow-hidden">
+                <span className="inline-flex items-center px-3 bg-muted text-xs font-bold text-muted-foreground select-none pointer-events-none border-r border-input">
+                  +91
+                </span>
+                <Input
+                  value={editPhoneDigits}
+                  maxLength={10}
+                  inputMode="numeric"
+                  onChange={(e) => handleEditPhoneChange(e.target.value)}
+                  placeholder="98765 43210"
+                  required
+                  className="border-0 focus-visible:ring-0 rounded-l-none font-medium"
+                />
+              </div>
+              {editPhoneConflict && (
+                <div className="text-destructive text-xs flex items-center gap-1 font-medium mt-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>Phone number already exists for "{editPhoneConflict.name}".</span>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Address</Label>
@@ -437,7 +482,7 @@ function CustomersPage() {
               <Button type="button" variant="ghost" onClick={() => setEditingCustomer(null)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving || Boolean(editPhoneConflict)}>
                 {isSaving ? "Saving..." : "Save Changes"}
               </Button>
             </DialogFooter>

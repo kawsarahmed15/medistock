@@ -12,6 +12,7 @@ import {
   Check,
   Building2,
   FileCheck,
+  AlertCircle,
 } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { customersStore, type Customer as SavedCustomer } from "@/lib/storage";
@@ -128,8 +129,36 @@ export function NewSaleCustomerPage() {
     navigate({ to: "/cart" });
   };
 
+  const phoneDigits = useMemo(() => {
+    return form.phone ? form.phone.replace(/\D/g, "").slice(-10) : "";
+  }, [form.phone]);
+
+  const handlePhoneChange = (val: string) => {
+    const rawDigits = val.replace(/\D/g, "");
+    const clean = rawDigits.length > 10 && rawDigits.startsWith("91") ? rawDigits.slice(-10) : rawDigits.slice(0, 10);
+    const formatted = clean ? `+91 ${clean}` : "";
+    setForm((prev) => ({ ...prev, phone: formatted }));
+  };
+
+  const phoneConflict = useMemo(() => {
+    if (phoneDigits.length !== 10) return null;
+    const currentName = form.name.trim().toLowerCase();
+    return (
+      saved.find((c) => {
+        const cDigits = (c.phone || "").replace(/\D/g, "").slice(-10);
+        const cName = (c.name || "").trim().toLowerCase();
+        return cDigits === phoneDigits && cName && cName !== currentName;
+      }) || null
+    );
+  }, [saved, phoneDigits, form.name]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+
+    if (phoneConflict) {
+      toast.error(`Phone number already exists for "${phoneConflict.name}". Please use a unique number.`);
+      return;
+    }
 
     const name = form.name.trim();
     const phone = form.phone.trim();
@@ -302,17 +331,40 @@ export function NewSaleCustomerPage() {
                   <Label htmlFor="cust-phone" className="text-xs font-semibold">
                     Mobile Phone
                   </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <div className="flex rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring bg-background overflow-hidden">
+                    <span className="inline-flex items-center px-3 bg-muted text-xs font-bold text-muted-foreground select-none pointer-events-none border-r border-input">
+                      +91
+                    </span>
                     <Input
                       id="cust-phone"
                       type="tel"
-                      placeholder="e.g. 9876543210"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="pl-9"
+                      inputMode="numeric"
+                      placeholder="98765 43210"
+                      value={phoneDigits}
+                      maxLength={10}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      className="border-0 focus-visible:ring-0 rounded-l-none font-medium text-xs h-9"
                     />
                   </div>
+                  {phoneConflict && (
+                    <div className="text-destructive text-xs flex items-center justify-between gap-1 font-medium mt-1 bg-destructive/10 border border-destructive/20 p-2 rounded animate-fade-in">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+                        <span className="truncate">
+                          Number already registered to <strong>{phoneConflict.name}</strong>
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[11px] px-2 shrink-0 border-destructive/30 hover:bg-destructive/20"
+                        onClick={() => pickCustomer(phoneConflict)}
+                      >
+                        Use This Customer
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -384,7 +436,7 @@ export function NewSaleCustomerPage() {
 
               {/* Submit Buttons */}
               <div className="pt-2 flex flex-col sm:flex-row gap-3">
-                <Button type="submit" size="lg" className="w-full sm:flex-1 shadow-soft gap-2 font-semibold">
+                <Button type="submit" size="lg" className="w-full sm:flex-1 shadow-soft gap-2 font-semibold" disabled={Boolean(phoneConflict)}>
                   <span>Continue to Cart</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>

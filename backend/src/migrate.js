@@ -119,6 +119,38 @@ async function runMigration() {
       console.warn("Automated history backfill skipped:", e.message);
     }
 
+    try {
+      const [billsToUpdate] = await connection.query(
+        "SELECT id, customer_phone FROM bills WHERE customer_phone IS NOT NULL AND customer_phone != ''"
+      );
+      for (const b of billsToUpdate) {
+        const raw = (b.customer_phone || "").trim();
+        const digits = raw.replace(/\D/g, "").slice(-10);
+        if (digits.length === 10) {
+          const formatted = `+91 ${digits}`;
+          if (raw !== formatted) {
+            await connection.query("UPDATE bills SET customer_phone = ? WHERE id = ?", [formatted, b.id]);
+          }
+        }
+      }
+
+      const [paysToUpdate] = await connection.query(
+        "SELECT id, customer_phone FROM customer_payments WHERE customer_phone IS NOT NULL AND customer_phone != ''"
+      );
+      for (const p of paysToUpdate) {
+        const raw = (p.customer_phone || "").trim();
+        const digits = raw.replace(/\D/g, "").slice(-10);
+        if (digits.length === 10) {
+          const formatted = `+91 ${digits}`;
+          if (raw !== formatted) {
+            await connection.query("UPDATE customer_payments SET customer_phone = ? WHERE id = ?", [formatted, p.id]);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Customer phone normalization skipped:", e.message);
+    }
+
     console.log("MySQL migration completed successfully.");
   } finally {
     await connection.end();

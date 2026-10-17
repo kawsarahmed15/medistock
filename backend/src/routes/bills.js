@@ -534,12 +534,39 @@ router.post("/", async (req, res, next) => {
     const employeeId = req.auth.employeeId || null;
     const defaultCashier = createdByName;
 
+    let customerPhone = (body.customerPhone || "").trim();
+    const phoneDigits = customerPhone.replace(/\D/g, "").slice(-10);
+    if (phoneDigits.length === 10) {
+      customerPhone = `+91 ${phoneDigits}`;
+    }
+
+    const cName = (body.customerName || "").trim();
+    const isWalkIn = !cName || ["walk-in customer", "walk-in", "walkin"].includes(cName.toLowerCase());
+
     if (body.paymentMethod === "credit") {
-      const cName = (body.customerName || "").trim().toLowerCase();
-      const cPhone = (body.customerPhone || "").trim();
-      const isWalkIn = !cName || cName === "walk-in customer" || cName === "walk-in" || cName === "walkin";
-      if (isWalkIn || !cPhone) {
+      if (isWalkIn || !customerPhone) {
         throw buildApiError(400, "Credit sales require a registered customer with name and phone number. Walk-in customers can only pay with Cash or Online.");
+      }
+    }
+
+    // Check if phone number already belongs to another customer
+    if (phoneDigits.length === 10 && !isWalkIn) {
+      const [conflictRows] = await pool.query(
+        `SELECT customer_name 
+         FROM bills 
+         WHERE user_id = ? 
+           AND customer_phone IS NOT NULL 
+           AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?
+           AND LOWER(TRIM(customer_name)) != LOWER(TRIM(?))
+           AND customer_name NOT IN ('Walk-in Customer', 'walk-in', 'walkin')
+         LIMIT 1`,
+        [req.auth.userId, phoneDigits, cName],
+      );
+      if (conflictRows.length > 0) {
+        throw buildApiError(
+          400,
+          `Phone number (+91 ${phoneDigits}) already exists for customer "${conflictRows[0].customer_name}". Please use a unique phone number.`
+        );
       }
     }
 
@@ -605,7 +632,7 @@ router.post("/", async (req, res, next) => {
           req.auth.userId,
           invoiceNo,
           body.customerName || null,
-          body.customerPhone || null,
+          customerPhone || null,
           body.customerAddress || null,
           body.customerDrugLicNo || null,
           body.customerGstin || null,
