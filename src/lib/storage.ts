@@ -388,8 +388,11 @@ export const customersStore = {
       auth: true,
     });
   },
-  async getCreditHistory(phone: string): Promise<any[]> {
-    return await apiRequest<any[]>(`/customers/${encodeURIComponent(phone)}/credit-history`, {
+  async getCreditHistory(phone: string, name?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (name) params.append("name", name);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return await apiRequest<any[]>(`/customers/${encodeURIComponent(phone || "none")}/credit-history${qs}`, {
       auth: true,
     });
   },
@@ -405,9 +408,9 @@ export const customersStore = {
   },
   async update(
     phone: string,
-    data: { name?: string; phone?: string; address?: string; drugLicNo?: string; gstin?: string; notes?: string },
+    data: { name?: string; phone?: string; address?: string; drugLicNo?: string; gstin?: string; notes?: string; oldName?: string },
   ): Promise<{ success: boolean }> {
-    return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone)}`, {
+    return await apiRequest<{ success: boolean }>(`/customers/${encodeURIComponent(phone || "none")}`, {
       method: "PUT",
       body: data,
       auth: true,

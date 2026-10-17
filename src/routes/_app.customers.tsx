@@ -63,12 +63,31 @@ function CustomersPage() {
     try {
       const allBills = await billsStore.list();
       const cClean = c.phone ? c.phone.replace(/\D/g, "").slice(-10) : "";
-      const filtered = allBills.filter(
-        (b) =>
-          b.customerPhone === c.phone ||
-          (b.customerName && b.customerName.toLowerCase() === c.name.toLowerCase()) ||
-          (cClean && b.customerPhone && b.customerPhone.replace(/\D/g, "").slice(-10) === cClean)
-      );
+      const cName = (c.name || "").trim().toLowerCase();
+      const filtered = allBills.filter((b) => {
+        const bName = (b.customerName || "").trim().toLowerCase();
+        const bClean = b.customerPhone ? b.customerPhone.replace(/\D/g, "").slice(-10) : "";
+
+        // If both have names and they match
+        if (bName && cName && bName === cName) {
+          if (bClean && cClean && bClean.length === 10 && cClean.length === 10) {
+            return bClean === cClean;
+          }
+          return true;
+        }
+
+        // If bill has no name, but phone matches
+        if (!bName && bClean && cClean && bClean.length === 10 && bClean === cClean) {
+          return true;
+        }
+
+        // If bill has no phone, but name matches
+        if (!bClean && bName && cName && bName === cName) {
+          return true;
+        }
+
+        return false;
+      });
       setCustomerBills(filtered);
     } catch (err) {
       toast.error("Failed to load customer bills");
@@ -194,7 +213,10 @@ function CustomersPage() {
     }
     setIsSaving(true);
     try {
-      await customersStore.update(editingCustomer.phone, editForm);
+      await customersStore.update(editingCustomer.phone, {
+        ...editForm,
+        oldName: editingCustomer.name,
+      });
       toast.success("Customer details updated");
       setEditingCustomer(null);
       loadData();

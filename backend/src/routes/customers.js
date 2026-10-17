@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { generateId } from "../utils.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -33,19 +34,67 @@ router.get("/", async (req, res, next) => {
 
     const [rows] = await pool.query(billsQuery, params);
 
-    const map = new Map();
+    const customers = [];
+
+    function findCustomer(name, phone) {
+      const normName = String(name || "").trim().toLowerCase();
+      const rawPhone = String(phone || "").trim();
+      const cleanDigits = rawPhone.replace(/\D/g, "").slice(-10);
+
+      // Pass 1: exact name AND clean phone digits match
+      for (const c of customers) {
+        const cNormName = c.name.trim().toLowerCase();
+        const cCleanDigits = c.phone.replace(/\D/g, "").slice(-10);
+
+        if (normName && cNormName && normName !== cNormName) continue;
+        if (cleanDigits && cCleanDigits && cleanDigits.length === 10 && cCleanDigits.length === 10 && cleanDigits !== cCleanDigits) continue;
+
+        if (normName && cNormName && normName === cNormName && cleanDigits && cCleanDigits && cleanDigits === cCleanDigits) {
+          return c;
+        }
+      }
+
+      // Pass 2: name matches (and one lacks phone)
+      for (const c of customers) {
+        const cNormName = c.name.trim().toLowerCase();
+        const cCleanDigits = c.phone.replace(/\D/g, "").slice(-10);
+
+        if (normName && cNormName && normName !== cNormName) continue;
+        if (cleanDigits && cCleanDigits && cleanDigits.length === 10 && cCleanDigits.length === 10 && cleanDigits !== cCleanDigits) continue;
+
+        if (normName && cNormName && normName === cNormName && (!cleanDigits || !cCleanDigits)) {
+          return c;
+        }
+      }
+
+      // Pass 3: phone matches (and one lacks name)
+      for (const c of customers) {
+        const cNormName = c.name.trim().toLowerCase();
+        const cCleanDigits = c.phone.replace(/\D/g, "").slice(-10);
+
+        if (normName && cNormName && normName !== cNormName) continue;
+        if (cleanDigits && cCleanDigits && cleanDigits.length === 10 && cCleanDigits.length === 10 && cleanDigits !== cCleanDigits) continue;
+
+        if (cleanDigits && cCleanDigits && cleanDigits.length === 10 && cleanDigits === cCleanDigits && (!normName || !cNormName)) {
+          return c;
+        }
+      }
+
+      return null;
+    }
+
     for (const row of rows) {
       const phone = String(row.customer_phone || "").trim();
       const name = String(row.customer_name || "").trim();
       if (!phone && !name) continue;
-      const cleanDigits = phone.replace(/\D/g, "").slice(-10);
-      const key = cleanDigits.length === 10 ? `digits:${cleanDigits}` : (phone || `name:${name.toLowerCase()}`);
+
       const rowTotal = Number(row.total || 0);
       const isCredit = row.payment_method === "credit";
       const advance = isCredit ? Number(row.advance_amount || 0) : 0;
 
-      if (!map.has(key)) {
-        map.set(key, {
+      let current = findCustomer(name, phone);
+      if (!current) {
+        current = {
           phone,
           name,
           address: row.customer_address || undefined,
@@ -58,9 +107,9 @@ router.get("/", async (req, res, next) => {
           totalPaid: advance,
           balance: 0,
           lastVisit: row.created_at,
-        });
+        };
+        customers.push(current);
       } else {
-        const current = map.get(key);
         current.visits += 1;
         current.totalSpent = Number((current.totalSpent + rowTotal).toFixed(2));
         if (isCredit) {
@@ -70,6 +119,8 @@ router.get("/", async (req, res, next) => {
         if (!current.address && row.customer_address) current.address = row.customer_address;
         if (!current.drugLicNo && row.customer_drug_lic_no) current.drugLicNo = row.customer_drug_lic_no;
         if (!current.gstin && row.customer_gstin) current.gstin = row.customer_gstin;
+        if (!current.phone && phone) current.phone = phone;
+        if (!current.name && name) current.name = name;
       }
     }
 
@@ -79,27 +130,24 @@ router.get("/", async (req, res, next) => {
       const phone = String(p.customer_phone || "").trim();
       const name = String(p.customer_name || "").trim();
       if (!phone && !name) continue;
-      const cleanDigits = phone.replace(/\D/g, "").slice(-10);
-      const key = cleanDigits.length === 10 ? `digits:${cleanDigits}` : (phone || `name:${name.toLowerCase()}`);
-      if (map.has(key)) {
-        map.get(key).totalPaid = Number((map.get(key).totalPaid + Number(p.amount || 0)).toFixed(2));
+      const current = findCustomer(name, phone);
+      if (current) {
+        current.totalPaid = Number((current.totalPaid + Number(p.amount || 0)).toFixed(2));
       }
     }
 
-    for (const c of map.values()) {
+    for (const c of customers) {
       c.totalSpent = Number(c.totalSpent.toFixed(2));
       c.totalCredit = Number(c.totalCredit.toFixed(2));
       c.totalPaid = Number(c.totalPaid.toFixed(2));
       c.balance = Number((c.totalCredit - c.totalPaid).toFixed(2));
     }
 
-    res.json(Array.from(map.values()));
+    res.json(customers);
   } catch (error) {
     next(error);
   }
 });
-
-import { generateId } from "../utils.js";
 
 router.get("/payments/all", async (req, res, next) => {
   try {
@@ -150,39 +198,77 @@ router.post("/pay", async (req, res, next) => {
 router.get("/:phone/credit-history", async (req, res, next) => {
   try {
     const rawPhone = (req.params.phone || "").trim();
+    const customerName = String(req.query.name || "").trim();
     const phoneDigits = rawPhone.replace(/\D/g, "").slice(-10);
 
+    const hasPhone = rawPhone && rawPhone !== "none";
+    const hasName = Boolean(customerName);
+
     // Get credit bills (show full total)
+    let whereBill = "user_id = ? AND payment_method = 'credit' AND (status IS NULL OR status != 'rejected')";
+    let paramsBill = [req.auth.userId];
+
+    if (hasPhone && phoneDigits.length === 10) {
+      whereBill += " AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)";
+      paramsBill.push(rawPhone, phoneDigits);
+    } else if (hasPhone) {
+      whereBill += " AND customer_phone = ?";
+      paramsBill.push(rawPhone);
+    }
+    if (hasName) {
+      whereBill += " AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?))";
+      paramsBill.push(customerName);
+    }
+
     const [bills] = await pool.query(
       `SELECT id, number, total as amount, created_at, 'bill' as type 
        FROM bills 
-       WHERE user_id = ? 
-         AND (customer_phone = ? 
-              OR (? != '' AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?))
-         AND payment_method = 'credit' 
-         AND (status IS NULL OR status != 'rejected')
+       WHERE ${whereBill}
        ORDER BY created_at DESC`,
-      [req.auth.userId, rawPhone, phoneDigits, phoneDigits],
+      paramsBill,
     );
 
     // Get payments (including advance payments)
+    let wherePay = "user_id = ?";
+    let paramsPay = [req.auth.userId];
+
+    if (hasPhone && phoneDigits.length === 10) {
+      wherePay += " AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)";
+      paramsPay.push(rawPhone, phoneDigits);
+    } else if (hasPhone) {
+      wherePay += " AND customer_phone = ?";
+      paramsPay.push(rawPhone);
+    }
+    if (hasName) {
+      wherePay += " AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?))";
+      paramsPay.push(customerName);
+    }
+
+    let whereAdv = "user_id = ? AND payment_method = 'credit' AND advance_amount > 0 AND (status IS NULL OR status != 'rejected')";
+    let paramsAdv = [req.auth.userId];
+
+    if (hasPhone && phoneDigits.length === 10) {
+      whereAdv += " AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)";
+      paramsAdv.push(rawPhone, phoneDigits);
+    } else if (hasPhone) {
+      whereAdv += " AND customer_phone = ?";
+      paramsAdv.push(rawPhone);
+    }
+    if (hasName) {
+      whereAdv += " AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?))";
+      paramsAdv.push(customerName);
+    }
+
     const [payments] = await pool.query(
       `SELECT id, amount, payment_method as method, created_at, 'payment' as type, 0 as is_advance
        FROM customer_payments 
-       WHERE user_id = ? 
-         AND (customer_phone = ? 
-              OR (? != '' AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?))
+       WHERE ${wherePay}
        UNION ALL
        SELECT id, advance_amount as amount, advance_payment_method as method, created_at, 'payment' as type, 1 as is_advance
        FROM bills
-       WHERE user_id = ? 
-         AND (customer_phone = ? 
-              OR (? != '' AND RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?))
-         AND payment_method = 'credit' 
-         AND advance_amount > 0 
-         AND (status IS NULL OR status != 'rejected')
+       WHERE ${whereAdv}
        ORDER BY created_at DESC`,
-      [req.auth.userId, rawPhone, phoneDigits, phoneDigits, req.auth.userId, rawPhone, phoneDigits, phoneDigits],
+      [...paramsPay, ...paramsAdv],
     );
 
     const history = [...bills, ...payments].sort(
@@ -196,20 +282,47 @@ router.get("/:phone/credit-history", async (req, res, next) => {
 
 router.put("/:phone", async (req, res, next) => {
   try {
-    const oldPhone = req.params.phone;
-    const { name, phone, address, drugLicNo, gstin, notes } = req.body;
+    const oldPhone = (req.params.phone || "").trim();
+    const { name, phone, address, drugLicNo, gstin, notes, oldName } = req.body;
 
     // Update bills
-    await pool.query(
-      `UPDATE bills SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_drug_lic_no = ?, customer_gstin = ?, customer_notes = ? WHERE user_id = ? AND customer_phone = ?`,
-      [name || null, phone || null, address || null, drugLicNo || null, gstin || null, notes || null, req.auth.userId, oldPhone],
-    );
+    let billsUpdate = `UPDATE bills SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_drug_lic_no = ?, customer_gstin = ?, customer_notes = ? WHERE user_id = ?`;
+    const billsParams = [name || null, phone || null, address || null, drugLicNo || null, gstin || null, notes || null, req.auth.userId];
+
+    if (oldPhone && oldPhone !== "none") {
+      const phoneDigits = oldPhone.replace(/\D/g, "").slice(-10);
+      if (phoneDigits.length === 10) {
+        billsUpdate += ` AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)`;
+        billsParams.push(oldPhone, phoneDigits);
+      } else {
+        billsUpdate += ` AND customer_phone = ?`;
+        billsParams.push(oldPhone);
+      }
+    }
+    if (oldName) {
+      billsUpdate += ` AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?))`;
+      billsParams.push(oldName);
+    }
+    await pool.query(billsUpdate, billsParams);
 
     // Update payments
-    await pool.query(
-      `UPDATE customer_payments SET customer_name = ?, customer_phone = ? WHERE user_id = ? AND customer_phone = ?`,
-      [name || null, phone || null, req.auth.userId, oldPhone],
-    );
+    let payUpdate = `UPDATE customer_payments SET customer_name = ?, customer_phone = ? WHERE user_id = ?`;
+    const payParams = [name || null, phone || null, req.auth.userId];
+    if (oldPhone && oldPhone !== "none") {
+      const phoneDigits = oldPhone.replace(/\D/g, "").slice(-10);
+      if (phoneDigits.length === 10) {
+        payUpdate += ` AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)`;
+        payParams.push(oldPhone, phoneDigits);
+      } else {
+        payUpdate += ` AND customer_phone = ?`;
+        payParams.push(oldPhone);
+      }
+    }
+    if (oldName) {
+      payUpdate += ` AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?))`;
+      payParams.push(oldName);
+    }
+    await pool.query(payUpdate, payParams);
 
     res.json({ success: true });
   } catch (err) {
