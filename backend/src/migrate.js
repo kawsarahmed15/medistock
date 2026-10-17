@@ -125,12 +125,21 @@ async function runMigration() {
       );
       for (const b of billsToUpdate) {
         const raw = (b.customer_phone || "").trim();
-        const digits = raw.replace(/\D/g, "").slice(-10);
+        let s = raw.replace(/^(\+91|\+ 91)\s*[-\s]?/, "");
+        let digits = s.replace(/\D/g, "");
+        if (digits.length === 12 && digits.startsWith("91")) {
+          digits = digits.slice(2);
+        } else if (digits.length === 11 && digits.startsWith("0")) {
+          digits = digits.slice(1);
+        }
+        digits = digits.slice(0, 10);
         if (digits.length === 10) {
           const formatted = `+91 ${digits}`;
           if (raw !== formatted) {
             await connection.query("UPDATE bills SET customer_phone = ? WHERE id = ?", [formatted, b.id]);
           }
+        } else {
+          await connection.query("UPDATE bills SET customer_phone = NULL WHERE id = ?", [b.id]);
         }
       }
 
@@ -139,12 +148,21 @@ async function runMigration() {
       );
       for (const p of paysToUpdate) {
         const raw = (p.customer_phone || "").trim();
-        const digits = raw.replace(/\D/g, "").slice(-10);
+        let s = raw.replace(/^(\+91|\+ 91)\s*[-\s]?/, "");
+        let digits = s.replace(/\D/g, "");
+        if (digits.length === 12 && digits.startsWith("91")) {
+          digits = digits.slice(2);
+        } else if (digits.length === 11 && digits.startsWith("0")) {
+          digits = digits.slice(1);
+        }
+        digits = digits.slice(0, 10);
         if (digits.length === 10) {
           const formatted = `+91 ${digits}`;
           if (raw !== formatted) {
             await connection.query("UPDATE customer_payments SET customer_phone = ? WHERE id = ?", [formatted, p.id]);
           }
+        } else {
+          await connection.query("UPDATE customer_payments SET customer_phone = NULL WHERE id = ?", [p.id]);
         }
       }
     } catch (e) {

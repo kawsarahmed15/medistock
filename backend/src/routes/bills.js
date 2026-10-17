@@ -535,9 +535,18 @@ router.post("/", async (req, res, next) => {
     const defaultCashier = createdByName;
 
     let customerPhone = (body.customerPhone || "").trim();
-    const phoneDigits = customerPhone.replace(/\D/g, "").slice(-10);
+    let s = customerPhone.replace(/^(\+91|\+ 91)\s*[-\s]?/, "");
+    let phoneDigits = s.replace(/\D/g, "");
+    if (phoneDigits.length === 12 && phoneDigits.startsWith("91")) {
+      phoneDigits = phoneDigits.slice(2);
+    } else if (phoneDigits.length === 11 && phoneDigits.startsWith("0")) {
+      phoneDigits = phoneDigits.slice(1);
+    }
+    phoneDigits = phoneDigits.slice(0, 10);
     if (phoneDigits.length === 10) {
       customerPhone = `+91 ${phoneDigits}`;
+    } else {
+      customerPhone = null;
     }
 
     const cName = (body.customerName || "").trim();

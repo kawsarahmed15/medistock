@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { UserRound, Search, Phone, History, MapPin, Check, AlertCircle } from "lucide-react";
+import { UserRound, Search, Phone, History, MapPin, Check, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/lib/cart-context";
+import { extractPhoneDigits, formatPhoneWithCountryCode } from "@/lib/phone-utils";
 import { customersStore, type Customer as SavedCustomer } from "@/lib/storage";
 import {
   Dialog,
@@ -33,7 +34,10 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
 
   useEffect(() => {
     if (open) {
-      setForm(customer);
+      setForm({
+        ...customer,
+        phone: extractPhoneDigits(customer.phone) ? formatPhoneWithCountryCode(customer.phone) : "",
+      });
       setPickQuery("");
       setShowPicker(false);
       // Load saved customers in the background
@@ -124,14 +128,11 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
   };
 
   const phoneDigits = useMemo(() => {
-    return form.phone ? form.phone.replace(/\D/g, "").slice(-10) : "";
+    return extractPhoneDigits(form.phone);
   }, [form.phone]);
 
   const handlePhoneChange = (val: string) => {
-    const rawDigits = val.replace(/\D/g, "");
-    const clean = rawDigits.length > 10 && rawDigits.startsWith("91") ? rawDigits.slice(-10) : rawDigits.slice(0, 10);
-    const formatted = clean ? `+91 ${clean}` : "";
-    setForm((prev) => ({ ...prev, phone: formatted }));
+    setForm((prev) => ({ ...prev, phone: formatPhoneWithCountryCode(val) }));
   };
 
   const phoneConflict = useMemo(() => {
@@ -139,7 +140,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
     const currentName = form.name.trim().toLowerCase();
     return (
       saved.find((c) => {
-        const cDigits = (c.phone || "").replace(/\D/g, "").slice(-10);
+        const cDigits = extractPhoneDigits(c.phone);
         const cName = (c.name || "").trim().toLowerCase();
         return cDigits === phoneDigits && cName && cName !== currentName;
       }) || null
@@ -352,7 +353,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
             <Label htmlFor="cd-phone" className="text-xs">
               Mobile Phone
             </Label>
-            <div className="flex rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring bg-background overflow-hidden">
+            <div className="flex rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring bg-background overflow-hidden relative">
               <span className="inline-flex items-center px-3 bg-muted text-xs font-bold text-muted-foreground select-none pointer-events-none border-r border-input">
                 +91
               </span>
@@ -365,8 +366,18 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                 autoComplete="off"
                 onChange={(e) => handlePhoneChange(e.target.value)}
                 placeholder="98765 43210"
-                className="border-0 focus-visible:ring-0 rounded-l-none font-medium text-xs h-9"
+                className="border-0 focus-visible:ring-0 rounded-l-none font-medium text-xs h-9 pr-8"
               />
+              {phoneDigits && (
+                <button
+                  type="button"
+                  onClick={() => handlePhoneChange("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  title="Clear phone number"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             {phoneConflict && (
               <div className="text-destructive text-xs flex items-center justify-between gap-1 font-medium mt-1 bg-destructive/10 border border-destructive/20 p-2 rounded animate-fade-in">

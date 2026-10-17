@@ -85,8 +85,14 @@ router.get("/", async (req, res, next) => {
 
     function formatIndianPhone(p) {
       if (!p) return "";
-      const digits = p.replace(/\D/g, "").slice(-10);
-      return digits.length === 10 ? `+91 ${digits}` : (p.startsWith("+91") ? p : `+91 ${p}`);
+      let s = String(p).trim().replace(/^(\+91|\+ 91)\s*[-\s]?/, "");
+      let digits = s.replace(/\D/g, "");
+      if (digits.length === 12 && digits.startsWith("91")) {
+        digits = digits.slice(2);
+      } else if (digits.length === 11 && digits.startsWith("0")) {
+        digits = digits.slice(1);
+      }
+      return digits.length === 10 ? `+91 ${digits.slice(0, 10)}` : "";
     }
 
     for (const row of rows) {
@@ -293,9 +299,18 @@ router.put("/:phone", async (req, res, next) => {
     let { name, phone, address, drugLicNo, gstin, notes, oldName } = req.body;
 
     let cleanPhone = (phone || "").trim();
-    const phoneDigits = cleanPhone.replace(/\D/g, "").slice(-10);
+    let s = cleanPhone.replace(/^(\+91|\+ 91)\s*[-\s]?/, "");
+    let phoneDigits = s.replace(/\D/g, "");
+    if (phoneDigits.length === 12 && phoneDigits.startsWith("91")) {
+      phoneDigits = phoneDigits.slice(2);
+    } else if (phoneDigits.length === 11 && phoneDigits.startsWith("0")) {
+      phoneDigits = phoneDigits.slice(1);
+    }
+    phoneDigits = phoneDigits.slice(0, 10);
     if (phoneDigits.length === 10) {
       cleanPhone = `+91 ${phoneDigits}`;
+    } else {
+      cleanPhone = null;
     }
 
     const currentName = (name || oldName || "").trim();

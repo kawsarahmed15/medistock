@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Users, Search, Phone, ShoppingCart, ReceiptText, Calendar, Pencil, AlertCircle } from "lucide-react";
 import { customersStore, billsStore, type Customer, type Bill } from "@/lib/storage";
+import { extractPhoneDigits, formatPhoneWithCountryCode } from "@/lib/phone-utils";
 import { useCart } from "@/lib/cart-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -205,25 +206,22 @@ function CustomersPage() {
   };
 
   const editPhoneDigits = useMemo(() => {
-    return editForm.phone ? editForm.phone.replace(/\D/g, "").slice(-10) : "";
+    return extractPhoneDigits(editForm.phone);
   }, [editForm.phone]);
 
   const handleEditPhoneChange = (val: string) => {
-    const rawDigits = val.replace(/\D/g, "");
-    const clean = rawDigits.length > 10 && rawDigits.startsWith("91") ? rawDigits.slice(-10) : rawDigits.slice(0, 10);
-    const formatted = clean ? `+91 ${clean}` : "";
-    setEditForm((prev) => ({ ...prev, phone: formatted }));
+    setEditForm((prev) => ({ ...prev, phone: formatPhoneWithCountryCode(val) }));
   };
 
   const editPhoneConflict = useMemo(() => {
     if (!editingCustomer || editPhoneDigits.length !== 10) return null;
     const currentName = editForm.name.trim().toLowerCase();
-    const oldDigits = editingCustomer.phone.replace(/\D/g, "").slice(-10);
+    const oldDigits = extractPhoneDigits(editingCustomer.phone);
     if (editPhoneDigits === oldDigits) return null; // unchanged
 
     return (
       customers?.find((c) => {
-        const cDigits = (c.phone || "").replace(/\D/g, "").slice(-10);
+        const cDigits = extractPhoneDigits(c.phone);
         const cName = (c.name || "").trim().toLowerCase();
         return cDigits === editPhoneDigits && cName && cName !== currentName;
       }) || null
@@ -245,7 +243,7 @@ function CustomersPage() {
     try {
       await customersStore.update(editingCustomer.phone, {
         ...editForm,
-        phone: `+91 ${editPhoneDigits}`,
+        phone: formatPhoneWithCountryCode(editPhoneDigits),
         oldName: editingCustomer.name,
       });
       toast.success("Customer details updated");
@@ -441,6 +439,7 @@ function CustomersPage() {
                   value={editPhoneDigits}
                   maxLength={10}
                   inputMode="numeric"
+                  autoComplete="off"
                   onChange={(e) => handleEditPhoneChange(e.target.value)}
                   placeholder="98765 43210"
                   required

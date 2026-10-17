@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { billsStore, productsStore, customersStore, type Product, type Customer as SavedCustomer } from "@/lib/storage";
+import { extractPhoneDigits, formatPhoneWithCountryCode } from "@/lib/phone-utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -2592,14 +2593,11 @@ function CheckoutFlowDialog({
   };
 
   const newCustPhoneDigits = useMemo(() => {
-    return newCustForm.phone ? newCustForm.phone.replace(/\D/g, "").slice(-10) : "";
+    return extractPhoneDigits(newCustForm.phone);
   }, [newCustForm.phone]);
 
   const handleNewCustPhoneChange = (val: string) => {
-    const rawDigits = val.replace(/\D/g, "");
-    const clean = rawDigits.length > 10 && rawDigits.startsWith("91") ? rawDigits.slice(-10) : rawDigits.slice(0, 10);
-    const formatted = clean ? `+91 ${clean}` : "";
-    setNewCustForm((prev) => ({ ...prev, phone: formatted }));
+    setNewCustForm((prev) => ({ ...prev, phone: formatPhoneWithCountryCode(val) }));
   };
 
   const newCustPhoneConflict = useMemo(() => {
@@ -2607,7 +2605,7 @@ function CheckoutFlowDialog({
     const currentName = newCustForm.name.trim().toLowerCase();
     return (
       savedCustomers.find((c) => {
-        const cDigits = (c.phone || "").replace(/\D/g, "").slice(-10);
+        const cDigits = extractPhoneDigits(c.phone);
         const cName = (c.name || "").trim().toLowerCase();
         return cDigits === newCustPhoneDigits && cName && cName !== currentName;
       }) || null
@@ -2845,6 +2843,7 @@ function CheckoutFlowDialog({
                           value={newCustPhoneDigits}
                           maxLength={10}
                           inputMode="numeric"
+                          autoComplete="off"
                           onChange={(e) => handleNewCustPhoneChange(e.target.value)}
                           required
                           placeholder="98765 43210"
