@@ -310,10 +310,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
           : null;
 
         // Save into drafts list
-        const sub = current.items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
-        const tx = current.items.reduce((s, i) => s + ((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price) * (i.product.taxPercent ?? 0)) / 100, 0);
-        const disc = current.discountType === "percentage" ? ((sub + tx) * current.discountValue) / 100 : current.discountValue;
-        const tot = Math.round(Math.max(0, sub + tx - disc));
+        const sub = Number(current.items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0).toFixed(2));
+        const tx = Number(current.items.reduce((s, i) => s + ((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price) * (i.product.taxPercent ?? 0)) / 100, 0).toFixed(2));
+        const disc = Number((current.discountType === "percentage" ? ((sub + tx) * current.discountValue) / 100 : current.discountValue).toFixed(2));
+        const tot = Number(Math.max(0, sub + tx - disc).toFixed(2));
 
         const now = new Date();
         const formattedDate = now.toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -457,10 +457,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   if (isRetailer) {
     items.forEach((i) => {
-      const lineGross = (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price);
+      const lineGross = Number(((i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price)).toFixed(2));
       const taxRate = i.product.taxPercent != null ? i.product.taxPercent : 5;
-      const taxable = taxRate > 0 ? lineGross / (1 + taxRate / 100) : lineGross;
-      const taxAmount = lineGross - taxable;
+      const taxable = taxRate > 0 ? Number((lineGross / (1 + taxRate / 100)).toFixed(2)) : lineGross;
+      const taxAmount = Number((lineGross - taxable).toFixed(2));
 
       grossSum += lineGross;
       subtotal += taxable;
@@ -470,7 +470,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     tax = Number(tax.toFixed(2));
     const rawDiscount = discountType === "percentage" ? (grossSum * discountValue) / 100 : discountValue;
     discount = Number(rawDiscount.toFixed(2));
-    total = Math.round(Math.max(0, grossSum - discount));
+    total = Number(Math.max(0, grossSum - discount).toFixed(2));
   } else {
     const rawSubtotal = items.reduce((s, i) => s + (i.qty - (i.freeQty || 0)) * (i.customPrice ?? i.product.price), 0);
     subtotal = Number(rawSubtotal.toFixed(2));
@@ -482,7 +482,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     tax = Number(rawTax.toFixed(2));
     const rawDiscount = discountType === "percentage" ? ((subtotal + tax) * discountValue) / 100 : discountValue;
     discount = Number(rawDiscount.toFixed(2));
-    total = Math.round(Math.max(0, subtotal + tax - discount));
+    total = Number(Math.max(0, subtotal + tax - discount).toFixed(2));
   }
 
   const count = items.reduce((s, i) => s + i.qty, 0);

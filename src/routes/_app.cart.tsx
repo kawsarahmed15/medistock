@@ -2998,9 +2998,9 @@ function CheckoutFlowDialog({
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs px-2"
-                        onClick={() => setCashReceived(String(cart.total))}
+                        onClick={() => setCashReceived(cart.total.toFixed(2))}
                       >
-                        Exact (₹{cart.total.toFixed(0)})
+                        Exact (₹{cart.total.toFixed(2)})
                       </Button>
                       {roundNext100 > cart.total && (
                         <Button

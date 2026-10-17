@@ -1064,7 +1064,7 @@ function PurchasesPage() {
                             )}
                             {p.hasReturns && p.returns && p.returns.length > 0 && (
                               <div className="text-[9px] text-amber-600 dark:text-amber-400 font-normal">
-                                {p.returns.map((r: any) => `${r.number} (-₹${Math.abs(r.total || 0).toFixed(0)})`).join(", ")}
+                                {p.returns.map((r: any) => `${r.number} (-₹${Math.abs(r.total || 0).toFixed(2)})`).join(", ")}
                               </div>
                             )}
                           </TableCell>
@@ -1590,7 +1590,7 @@ function PurchasesPage() {
             const meta = selectedPurchaseMeta;
             const cgst = p.tax / 2;
             const sgst = p.tax / 2;
-            const roundOff = isReturn ? 0 : p.total - (p.subtotal + p.tax - p.discount);
+            const roundOff = isReturn ? 0 : Number((p.total - (p.subtotal + p.tax - p.discount)).toFixed(2));
             const totalQty = p.items.reduce((s, it) => s + Number(it.qty || 0), 0);
             const totalFree = p.items.reduce((s, it) => s + (Number(it.freeQty) || 0), 0);
 
@@ -1877,7 +1877,7 @@ function PurchasesPage() {
                             <span className="font-mono">-{formatMoney(p.discount)}</span>
                           </div>
                         )}
-                        {roundOff !== 0 && (
+                        {Math.abs(roundOff) >= 0.005 && (
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>Round Off</span>
                             <span className="font-mono">

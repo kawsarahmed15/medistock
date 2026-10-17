@@ -228,13 +228,13 @@ router.post("/", async (req, res, next) => {
       const discountVal = Number(body.discount || 0);
       const calcTotal = isReturn
         ? Number((calcSubtotal + calcTax - discountVal).toFixed(2))
-        : Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
+        : Number(Math.max(0, calcSubtotal + calcTax - discountVal).toFixed(2));
 
-      const purchaseSubtotal = body.subtotal != null ? Number(body.subtotal) : calcSubtotal;
-      const purchaseTax = body.tax != null ? Number(body.tax) : calcTax;
+      const purchaseSubtotal = body.subtotal != null ? Number(Number(body.subtotal).toFixed(2)) : calcSubtotal;
+      const purchaseTax = body.tax != null ? Number(Number(body.tax).toFixed(2)) : calcTax;
       const purchaseTotal = isReturn
         ? Number((purchaseSubtotal + purchaseTax - discountVal).toFixed(2))
-        : (body.total != null ? Number(body.total) : calcTotal);
+        : (body.total != null ? Number(Number(body.total).toFixed(2)) : calcTotal);
 
       const id = generateId();
       await conn.query(

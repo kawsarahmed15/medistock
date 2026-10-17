@@ -622,14 +622,14 @@ router.post("/", async (req, res, next) => {
       const calcTotal = isReturn
         ? Number((calcSubtotal + calcTax - discountVal).toFixed(2))
         : isRetailRole
-          ? Math.round(Math.max(0, grossTotal - discountVal))
-          : Math.round(Math.max(0, calcSubtotal + calcTax - discountVal));
+          ? Number(Math.max(0, grossTotal - discountVal).toFixed(2))
+          : Number(Math.max(0, calcSubtotal + calcTax - discountVal).toFixed(2));
 
-      const billSubtotal = body.subtotal != null ? Number(body.subtotal) : calcSubtotal;
-      const billTax = body.tax != null ? Number(body.tax) : calcTax;
+      const billSubtotal = body.subtotal != null ? Number(Number(body.subtotal).toFixed(2)) : calcSubtotal;
+      const billTax = body.tax != null ? Number(Number(body.tax).toFixed(2)) : calcTax;
       const billTotal = isReturn
         ? Number((billSubtotal + billTax - discountVal).toFixed(2))
-        : (body.total != null ? Number(body.total) : calcTotal);
+        : (body.total != null ? Number(Number(body.total).toFixed(2)) : calcTotal);
 
       const id = generateId();
       await conn.query(

@@ -756,14 +756,16 @@ function AddPurchasePage() {
       };
     });
 
-    const netAmount = subtotal + totalTax - discount;
-    const grandTotal = Number(netAmount.toFixed(2));
+    const subtotalVal = Number(subtotal.toFixed(2));
+    const taxVal = Number(totalTax.toFixed(2));
+    const netAmount = Number((subtotalVal + taxVal - discount).toFixed(2));
+    const grandTotal = netAmount;
     const roundOff = 0;
 
     return {
       lines: mappedLines,
-      subtotal,
-      tax: totalTax,
+      subtotal: subtotalVal,
+      tax: taxVal,
       netAmount,
       grandTotal,
       roundOff,
@@ -1767,7 +1769,7 @@ function AddPurchasePage() {
                   onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                 />
               </div>
-              {calculations.roundOff !== 0 && (
+              {Math.abs(calculations.roundOff) >= 0.005 && (
                 <div className="flex justify-between text-muted-foreground text-[11px]">
                   <span>Round Off Adjustment</span>
                   <span className="font-mono">
