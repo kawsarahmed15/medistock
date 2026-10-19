@@ -208,3 +208,20 @@ CREATE TABLE IF NOT EXISTS employees (
   CONSTRAINT fk_employees_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS draft_bills (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  customer_name VARCHAR(190) NULL,
+  customer_phone VARCHAR(50) NULL,
+  total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  draft_type VARCHAR(20) NOT NULL DEFAULT 'sale',
+  created_by_name VARCHAR(100) NULL,
+  data LONGTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_draft_bills_user (user_id),
+  INDEX idx_draft_bills_updated (user_id, updated_at),
+  CONSTRAINT fk_draft_bills_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

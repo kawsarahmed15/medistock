@@ -145,6 +145,12 @@ function BillsPage() {
     loadBills();
   }, []);
 
+  useEffect(() => {
+    if (statusTab === "drafts") {
+      cart.refreshDrafts();
+    }
+  }, [statusTab]);
+
   const handleApproveBill = async (b: Bill, e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();

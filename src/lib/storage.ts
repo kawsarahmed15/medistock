@@ -352,6 +352,31 @@ export const billsStore = {
   },
 };
 
+export const draftBillsStore = {
+  async list(): Promise<any[]> {
+    try {
+      const data = await apiRequest<any[]>("/bills/drafts", { auth: true });
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  },
+  async save(draft: any): Promise<any> {
+    const res = await apiRequest<{ success: boolean; draft: any }>("/bills/drafts", {
+      method: "POST",
+      body: draft,
+      auth: true,
+    });
+    return res?.draft || draft;
+  },
+  async delete(id: string): Promise<void> {
+    await apiRequest(`/bills/drafts/${encodeURIComponent(id)}`, { method: "DELETE", auth: true });
+  },
+  async clear(): Promise<void> {
+    await apiRequest("/bills/drafts", { method: "DELETE", auth: true });
+  },
+};
+
 export type Customer = {
   phone: string;
   name: string;

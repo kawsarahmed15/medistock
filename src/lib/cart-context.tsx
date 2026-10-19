@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
-import type { PaymentMethod, Product } from "./storage";
+import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { draftBillsStore, type PaymentMethod, type Product } from "./storage";
 import { useAuth } from "./auth-context";
 import { resolveBusinessCategory } from "@/features";
 
@@ -86,6 +86,7 @@ type CartCtx = {
   loadDraft: (draftId: string) => void;
   deleteDraft: (draftId: string) => void;
   clearDrafts: () => void;
+  refreshDrafts: () => Promise<void>;
 };
 
 const Ctx = createContext<CartCtx | null>(null);
@@ -100,6 +101,42 @@ function loadSavedDrafts(): DraftBill[] {
   } catch {
     return [];
   }
+}
+
+function mergeDrafts(local: DraftBill[], remote: DraftBill[]): { merged: DraftBill[]; unsyncedLocal: DraftBill[] } {
+  const map = new Map<string, DraftBill>();
+  const unsynced: DraftBill[] = [];
+
+  for (const d of remote) {
+    if (d && d.id) {
+      map.set(d.id, d);
+    }
+  }
+
+  for (const d of local) {
+    if (d && d.id) {
+      const existing = map.get(d.id);
+      if (!existing) {
+        map.set(d.id, d);
+        unsynced.push(d);
+      } else {
+        const localTime = new Date(d.updatedAt || d.createdAt || 0).getTime();
+        const remoteTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+        if (localTime > remoteTime) {
+          map.set(d.id, d);
+          unsynced.push(d);
+        }
+      }
+    }
+  }
+
+  const merged = Array.from(map.values()).sort((a, b) => {
+    const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+    return timeB - timeA;
+  });
+
+  return { merged, unsyncedLocal: unsynced };
 }
 
 function getNextDraftSerial(draftList: DraftBill[]): number {
@@ -203,6 +240,94 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [activeDraftId, setActiveDraftId] = useState<string | null>(initialDataRef.current().activeDraftId);
   const [activeDraftRestored, setActiveDraftRestored] = useState<boolean>(initialDataRef.current().wasRestored);
   const [drafts, setDrafts] = useState<DraftBill[]>(loadSavedDrafts);
+
+  const broadcastDraftsUpdated = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("medistock-drafts-updated"));
+      if ("BroadcastChannel" in window) {
+        try {
+          const ch = new BroadcastChannel("medistock_draft_bills_sync");
+          ch.postMessage("drafts-updated");
+          ch.close();
+        } catch {}
+      }
+    }
+  }, []);
+
+  const syncDraftsFromRemote = useCallback(async () => {
+    if (!session) return;
+    try {
+      const remote = await draftBillsStore.list();
+      const local = loadSavedDrafts();
+      const { merged, unsyncedLocal } = mergeDrafts(local, remote);
+
+      setDrafts(merged);
+      saveDraftsToStorage(merged);
+
+      if (unsyncedLocal.length > 0) {
+        for (const d of unsyncedLocal) {
+          draftBillsStore.save(d).catch((err) => {
+            console.warn("Background draft sync upload error:", err);
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to sync drafts from server:", err);
+    }
+  }, [session]);
+
+  const refreshDrafts = useCallback(async () => {
+    await syncDraftsFromRemote();
+  }, [syncDraftsFromRemote]);
+
+  // Sync drafts across all devices linked to this account
+  useEffect(() => {
+    if (!session) return;
+    syncDraftsFromRemote();
+
+    const handleFocus = () => {
+      syncDraftsFromRemote();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncDraftsFromRemote();
+      }
+    };
+
+    const handleCustomUpdate = () => {
+      syncDraftsFromRemote();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("medistock-drafts-updated", handleCustomUpdate);
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        channel = new BroadcastChannel("medistock_draft_bills_sync");
+        channel.onmessage = (event) => {
+          if (event.data === "drafts-updated") {
+            syncDraftsFromRemote();
+          }
+        };
+      } catch {}
+    }
+
+    // Background interval to keep drafts in sync in case a draft is saved on another device
+    const interval = setInterval(() => {
+      syncDraftsFromRemote();
+    }, 15000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("medistock-drafts-updated", handleCustomUpdate);
+      if (channel) channel.close();
+      clearInterval(interval);
+    };
+  }, [session, syncDraftsFromRemote]);
 
   // Sync active cart to localStorage whenever it changes
   useEffect(() => {
@@ -540,6 +665,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
+    if (session) {
+      draftBillsStore.save(newDraft).catch((err) => {
+        console.error("Failed to sync new draft to server:", err);
+      });
+      broadcastDraftsUpdated();
+    }
+
     // Reset active cart so it doesn't show this draft bill anymore and is ready for a fresh bill
     setItems([]);
     setCustomer(emptyCustomer);
@@ -602,12 +734,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (activeDraftId === draftId) {
       setActiveDraftId(null);
     }
+    if (session) {
+      draftBillsStore.delete(draftId).catch((err) => {
+        console.error("Failed to delete draft on server:", err);
+      });
+      broadcastDraftsUpdated();
+    }
   };
 
   const clearDrafts = () => {
     setDrafts([]);
     saveDraftsToStorage([]);
     setActiveDraftId(null);
+    if (session) {
+      draftBillsStore.clear().catch((err) => {
+        console.error("Failed to clear drafts on server:", err);
+      });
+      broadcastDraftsUpdated();
+    }
   };
 
   const dismissRestoredBanner = () => {
@@ -652,6 +796,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         loadDraft,
         deleteDraft,
         clearDrafts,
+        refreshDrafts,
       }}
     >
       {children}

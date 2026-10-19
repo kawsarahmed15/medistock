@@ -104,6 +104,103 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/drafts", async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, customer_name, customer_phone, total, created_by_name, data, created_at, updated_at
+       FROM draft_bills
+       WHERE user_id = ?
+       ORDER BY updated_at DESC`,
+      [req.auth.userId]
+    );
+
+    const drafts = rows.map((r) => {
+      let parsed = {};
+      try {
+        parsed = typeof r.data === "string" ? JSON.parse(r.data) : (r.data || {});
+      } catch {
+        parsed = {};
+      }
+      return {
+        ...parsed,
+        id: r.id,
+        name: r.name || parsed.name || "Draft Bill",
+        createdAt: parsed.createdAt || (r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString()),
+        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : (parsed.updatedAt || new Date().toISOString()),
+      };
+    });
+
+    res.json(drafts);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/drafts", async (req, res, next) => {
+  try {
+    const draft = req.body;
+    if (!draft || typeof draft !== "object") {
+      throw buildApiError(400, "Draft body is required");
+    }
+
+    const id = String(draft.id || "").trim() || `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const name = String(draft.name || "Draft Bill").trim();
+    const customerName = draft.customer?.name ? String(draft.customer.name).trim() : null;
+    const customerPhone = draft.customer?.phone ? String(draft.customer.phone).trim() : null;
+    const total = Number(draft.total) || 0;
+    const createdByName = req.auth.isEmployee ? req.auth.employeeName : req.auth.name;
+    const cleanDraft = {
+      ...draft,
+      id,
+      name,
+    };
+    const dataStr = JSON.stringify(cleanDraft);
+
+    await pool.query(
+      `INSERT INTO draft_bills (id, user_id, name, customer_name, customer_phone, total, created_by_name, data, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         customer_name = VALUES(customer_name),
+         customer_phone = VALUES(customer_phone),
+         total = VALUES(total),
+         created_by_name = VALUES(created_by_name),
+         data = VALUES(data),
+         updated_at = NOW()`,
+      [id, req.auth.userId, name, customerName, customerPhone, total, createdByName, dataStr]
+    );
+
+    res.status(200).json({ success: true, draft: cleanDraft });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/drafts/:id", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      `DELETE FROM draft_bills WHERE user_id = ? AND id = ?`,
+      [req.auth.userId, id]
+    );
+    res.json({ success: true, id });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/drafts", async (req, res, next) => {
+  try {
+    await pool.query(
+      `DELETE FROM draft_bills WHERE user_id = ?`,
+      [req.auth.userId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method,

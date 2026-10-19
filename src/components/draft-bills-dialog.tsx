@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   FileText,
@@ -35,9 +35,15 @@ function formatMoney(n: number) {
 }
 
 export function DraftBillsDialog({ open, onOpenChange }: DraftBillsDialogProps) {
-  const { drafts, loadDraft, deleteDraft, clearDrafts, activeDraftId } = useCart();
+  const { drafts, loadDraft, deleteDraft, clearDrafts, refreshDrafts, activeDraftId } = useCart();
   const navigate = useNavigate();
   const [selectedDraft, setSelectedDraft] = useState<DraftBill | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      refreshDrafts();
+    }
+  }, [open, refreshDrafts]);
 
   const handleProcessDraft = (d: DraftBill) => {
     loadDraft(d.id);
