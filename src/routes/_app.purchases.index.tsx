@@ -27,6 +27,7 @@ import {
   Phone,
   Pill,
   X,
+  Filter,
 } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
 import { downloadPurchasePdf } from "@/lib/purchase-pdf";
@@ -93,6 +94,16 @@ function numberToWords(num: number): string {
   str += n[4] != "0" ? (a[Number(n[4])] || b[n[4][0] as any] + " " + a[n[4][1] as any]) + "Hundred " : "";
   str += n[5] != "00" ? (str != "" ? "and " : "") + (a[Number(n[5])] || b[n[5][0] as any] + " " + a[n[5][1] as any]) + "Rupees " : "Rupees ";
   return str.trim() + " Only";
+}
+
+function safeToIsoDate(d: any): string {
+  if (!d) return "";
+  try {
+    const date = new Date(d);
+    return isNaN(date.getTime()) ? "" : date.toISOString();
+  } catch {
+    return "";
+  }
 }
 
 function PurchasesPage() {
@@ -312,10 +323,10 @@ function PurchasesPage() {
     const thisMonthStr = new Date().toISOString().slice(0, 7);
 
     const todayBills = purchases.filter(
-      (p) => new Date(p.createdAt).toISOString().slice(0, 10) === todayStr
+      (p) => safeToIsoDate(p.createdAt).slice(0, 10) === todayStr
     );
     const monthlyBills = purchases.filter(
-      (p) => new Date(p.createdAt).toISOString().slice(0, 7) === thisMonthStr
+      (p) => safeToIsoDate(p.createdAt).slice(0, 7) === thisMonthStr
     );
 
     const todayPurchase = todayBills.reduce((s, p) => s + p.total, 0);
@@ -386,11 +397,11 @@ function PurchasesPage() {
     if (dateFilter) {
       if (dateFilter.length === 7) {
         result = result.filter(
-          (p) => new Date(p.createdAt).toISOString().slice(0, 7) === dateFilter
+          (p) => safeToIsoDate(p.createdAt).slice(0, 7) === dateFilter
         );
       } else {
         result = result.filter(
-          (p) => new Date(p.createdAt).toISOString().slice(0, 10) === dateFilter
+          (p) => safeToIsoDate(p.createdAt).slice(0, 10) === dateFilter
         );
       }
     }
@@ -510,7 +521,7 @@ function PurchasesPage() {
   const handleTodayPurchaseClick = () => {
     const todayStr = new Date().toISOString().slice(0, 10);
     const bills = purchases.filter(
-      (p) => new Date(p.createdAt).toISOString().slice(0, 10) === todayStr
+      (p) => safeToIsoDate(p.createdAt).slice(0, 10) === todayStr
     );
     setKpiModalTitle("Today's Purchases");
     setKpiModalBills(bills);
@@ -520,7 +531,7 @@ function PurchasesPage() {
   const handleMonthlyPurchaseClick = () => {
     const thisMonthStr = new Date().toISOString().slice(0, 7);
     const bills = purchases.filter(
-      (p) => new Date(p.createdAt).toISOString().slice(0, 7) === thisMonthStr
+      (p) => safeToIsoDate(p.createdAt).slice(0, 7) === thisMonthStr
     );
     setKpiModalTitle("Monthly Purchases (This Month)");
     setKpiModalBills(bills);
@@ -562,7 +573,7 @@ function PurchasesPage() {
 
 
 
-  const handlePrint = (p: Purchase) => {
+  const handlePrint = () => {
     window.print();
   };
 
@@ -717,7 +728,7 @@ function PurchasesPage() {
               <span className="font-semibold">Unsaved Draft:</span> You have an incomplete purchase invoice in progress (Supplier: {draftSupplierName || "Unspecified"}).
             </div>
           </div>
-          <Button asChild size="xs" variant="ghost" className="text-amber-700 hover:text-amber-800 hover:bg-amber-100 font-semibold">
+          <Button asChild size="sm" variant="ghost" className="h-7 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-100 font-semibold">
             <Link to="/purchases/new">Resume Draft &rarr;</Link>
           </Button>
         </div>
@@ -785,10 +796,10 @@ function PurchasesPage() {
           </TabsList>
           
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="xs" onClick={handleExportExcel}>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleExportExcel}>
               <Download className="h-3.5 w-3.5 mr-1" /> Excel
             </Button>
-            <Button variant="outline" size="xs" onClick={handleExportPDF}>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleExportPDF}>
               <FileText className="h-3.5 w-3.5 mr-1" /> PDF
             </Button>
           </div>
@@ -931,7 +942,7 @@ function PurchasesPage() {
                 </div>
                 <Button 
                   variant="ghost" 
-                  size="xs" 
+                  size="sm" 
                   onClick={resetFilters} 
                   className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 px-2"
                 >
@@ -976,7 +987,13 @@ function PurchasesPage() {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableSkeleton columns={9} rows={5} />
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell colSpan={9} className="py-4">
+                          <div className="h-6 w-full bg-muted/40 animate-pulse rounded" />
+                        </TableCell>
+                      </TableRow>
+                    ))
                   ) : paginatedData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={9} className="h-32 text-center text-muted-foreground text-sm">

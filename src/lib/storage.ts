@@ -549,6 +549,12 @@ export const purchasesStore = {
       auth: true,
     });
     return rowToPurchase(data, data.items || []);
+  },
+  async remove(id: string): Promise<void> {
+    await apiRequest<void>(`/purchases/${id}`, {
+      method: "DELETE",
+      auth: true,
+    });
   }
 };
 

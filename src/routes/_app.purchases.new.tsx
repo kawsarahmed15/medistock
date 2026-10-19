@@ -141,7 +141,7 @@ function AddPurchasePage() {
   const { session } = useAuth();
   const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const navigate = useNavigate();
-  const searchParams = useSearch({ from: "/_app/purchases/new" }) as any;
+  const searchParams = (useSearch({ strict: false }) || {}) as any;
   const duplicateFrom = searchParams.duplicateFrom;
   const editFrom = searchParams.editFrom;
 

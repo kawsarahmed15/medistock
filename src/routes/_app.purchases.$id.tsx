@@ -144,7 +144,7 @@ function PurchaseDetailsPage() {
             <div className="flex gap-1.5">
               {purchase.returns.map((r: any) => (
                 <Button key={r.id || r.number} asChild size="sm" variant="outline" className="text-xs h-7 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20">
-                  <Link to={`/purchases/${r.id}`}>View {r.number}</Link>
+                  <Link to="/purchases/$id" params={{ id: r.id }}>View {r.number}</Link>
                 </Button>
               ))}
             </div>
