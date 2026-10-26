@@ -123,7 +123,7 @@ function BillsPage() {
     if (!confirm(`Are you sure you want to delete draft "${d.name}"?`)) return;
     cart.deleteDraft(d.id);
     toast.success("Draft bill deleted", {
-      description: "Product stocks remain unchanged.",
+      description: "Reserved stock has been unlocked.",
     });
   };
 
@@ -725,8 +725,8 @@ function BillsPage() {
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-border/60">
-                  <span className="text-[11px] text-muted-foreground">
-                    Stock unaffected
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                    {d.items.reduce((s, i) => s + (Number(i.qty) || 0), 0)} units locked
                   </span>
                   <div className="flex items-center gap-1.5">
                     <Button
@@ -965,7 +965,10 @@ function BillsPage() {
                       {d.paymentMethod || "cash"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {d.items.length} ({d.items.reduce((s, i) => s + i.qty, 0)} units)
+                      <div>{d.items.length} items</div>
+                      <div className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                        {d.items.reduce((s, i) => s + (Number(i.qty) || 0), 0)} units locked
+                      </div>
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-bold">
                       {formatMoney(d.total)}

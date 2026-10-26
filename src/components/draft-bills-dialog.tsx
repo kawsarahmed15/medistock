@@ -58,7 +58,7 @@ export function DraftBillsDialog({ open, onOpenChange }: DraftBillsDialogProps) 
     e.stopPropagation();
     deleteDraft(d.id);
     toast.success("Draft bill removed", {
-      description: "No stock was affected.",
+      description: "Reserved stock has been unlocked.",
     });
   };
 
@@ -85,7 +85,7 @@ export function DraftBillsDialog({ open, onOpenChange }: DraftBillsDialogProps) 
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Saved in-progress bills. Processing and generating a bill will finalize it and decrease stock.
+                  Saved in-progress bills. Item quantities are locked while in draft. Generating a bill finalizes it and deducts from inventory.
                 </DialogDescription>
               </div>
             </div>
@@ -146,9 +146,9 @@ export function DraftBillsDialog({ open, onOpenChange }: DraftBillsDialogProps) 
                         ) : (
                           <span className="text-muted-foreground italic">No customer attached</span>
                         )}
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
                           <Package className="h-3.5 w-3.5" />
-                          {itemCount} {itemCount === 1 ? "unit" : "units"} ({d.items.length} items)
+                          {itemCount} {itemCount === 1 ? "unit" : "units"} locked ({d.items.length} items)
                         </span>
                         <span className="font-semibold text-foreground">
                           Total: {formatMoney(d.total)}

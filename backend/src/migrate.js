@@ -202,6 +202,105 @@ async function runMigration() {
       console.warn("draft_bills table check skipped:", e.message);
     }
 
+    try {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS draft_bill_items (
+          id VARCHAR(64) PRIMARY KEY,
+          draft_id VARCHAR(64) NOT NULL,
+          user_id CHAR(36) NOT NULL,
+          product_id VARCHAR(64) NULL,
+          batch_id VARCHAR(64) NULL,
+          batch_no VARCHAR(100) NULL,
+          product_name VARCHAR(255) NOT NULL,
+          qty DECIMAL(12,4) NOT NULL DEFAULT 0,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_draft_items_draft (draft_id),
+          INDEX idx_draft_items_user_prod (user_id, product_id),
+          INDEX idx_draft_items_user_batch (user_id, product_id, batch_no),
+          CONSTRAINT fk_draft_items_draft FOREIGN KEY (draft_id) REFERENCES draft_bills(id) ON DELETE CASCADE,
+          CONSTRAINT fk_draft_items_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      // Repair any existing negative stock
+      await connection.query("UPDATE product_batches SET available_qty = 0.00 WHERE available_qty < 0;");
+
+      // Backfill draft_bill_items for existing draft_bills if needed
+      const [existingDrafts] = await connection.query("SELECT id, user_id, data FROM draft_bills");
+      for (const d of existingDrafts) {
+        const [cnt] = await connection.query("SELECT COUNT(*) AS c FROM draft_bill_items WHERE draft_id = ?", [d.id]);
+        if (cnt[0]?.c === 0 && d.data) {
+          try {
+            const parsed = typeof d.data === "string" ? JSON.parse(d.data) : d.data;
+            const items = Array.isArray(parsed?.items) ? parsed.items : [];
+            for (const item of items) {
+              const rawId = (item.productId && String(item.productId).trim()) ||
+                            (item.product_id && String(item.product_id).trim()) ||
+                            (item.product?.id && String(item.product.id).trim()) || null;
+              const rawName = (item.name && String(item.name).trim()) ||
+                              (item.product?.name && String(item.product.name).trim()) || "Unknown Product";
+              const rawBatch = (item.batch && String(item.batch).trim()) ||
+                               (item.product?.batch && String(item.product.batch).trim()) || null;
+              const itemQty = Math.abs(Number(item.qty || 0)) + Math.abs(Number(item.freeQty || item.free_qty || 0));
+
+              if (itemQty <= 0) continue;
+
+              let targetProductId = null;
+              let targetBatchId = null;
+              let targetBatchNo = rawBatch;
+
+              if (rawId) {
+                const [pCheck] = await connection.query("SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1", [d.user_id, rawId]);
+                if (pCheck.length > 0) {
+                  targetProductId = pCheck[0].id;
+                } else {
+                  const [bCheck] = await connection.query(
+                    "SELECT b.id, b.product_id, b.batch_no FROM product_batches b JOIN products p ON b.product_id = p.id WHERE p.user_id = ? AND b.id = ? LIMIT 1",
+                    [d.user_id, rawId]
+                  );
+                  if (bCheck.length > 0) {
+                    targetBatchId = bCheck[0].id;
+                    targetProductId = bCheck[0].product_id;
+                    if (!targetBatchNo) targetBatchNo = bCheck[0].batch_no;
+                  }
+                }
+              }
+
+              if (!targetProductId && rawName) {
+                const [pMatch] = await connection.query(
+                  "SELECT id FROM products WHERE user_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1",
+                  [d.user_id, rawName]
+                );
+                if (pMatch.length > 0) targetProductId = pMatch[0].id;
+              }
+
+              if (targetProductId && targetBatchNo && !targetBatchId) {
+                const [bMatch] = await connection.query(
+                  "SELECT id, batch_no FROM product_batches WHERE product_id = ? AND LOWER(TRIM(batch_no)) = LOWER(TRIM(?)) LIMIT 1",
+                  [targetProductId, targetBatchNo]
+                );
+                if (bMatch.length > 0) {
+                  targetBatchId = bMatch[0].id;
+                  targetBatchNo = bMatch[0].batch_no;
+                }
+              }
+
+              const itemId = `dbi_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+              await connection.query(
+                `INSERT INTO draft_bill_items (id, draft_id, user_id, product_id, batch_id, batch_no, product_name, qty)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [itemId, d.id, d.user_id, targetProductId, targetBatchId, targetBatchNo, rawName, itemQty]
+              );
+            }
+          } catch (itemErr) {
+            console.warn(`Draft ${d.id} items backfill failed:`, itemErr.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("draft_bill_items check skipped:", e.message);
+    }
+
     console.log("MySQL migration completed successfully.");
   } finally {
     await connection.end();

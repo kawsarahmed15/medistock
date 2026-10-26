@@ -9,6 +9,8 @@ export type Product = {
   price: number;
   costPrice?: number;
   stock: number;
+  physicalStock?: number;
+  lockedQty?: number;
   expiry: string; // ISO
   mrp?: number;
   pack?: string;
@@ -116,6 +118,8 @@ function rowToProduct(r: ProductRow): Product {
   })();
 
   const totalStock = batchesList.reduce((sum, b) => sum + (Number(b.available_qty) || 0), 0);
+  const totalPhysical = batchesList.reduce((sum, b) => sum + (Number((b as any).physical_qty ?? b.available_qty) || 0), 0);
+  const totalLocked = Number((r as any).locked_qty || 0);
 
   const baseConv = Number(r.conversion_factor) || 1;
   const activeConv = activeBatch ? (Number((activeBatch as any).conversion_factor || (activeBatch as any).conversionFactor) || baseConv) : baseConv;
@@ -127,6 +131,8 @@ function rowToProduct(r: ProductRow): Product {
     price: activeBatch ? Number(activeBatch.selling_price) : (Number(r.price) || 0),
     costPrice: activeBatch ? Number(activeBatch.purchase_price) : (r.cost_price != null ? Number(r.cost_price) : undefined),
     stock: activeBatch ? totalStock : (Number(r.stock) || 0),
+    physicalStock: totalPhysical > 0 ? totalPhysical : (Number((r as any).total_stock ?? r.stock) || 0),
+    lockedQty: totalLocked,
     expiry: activeBatch ? activeBatch.expiry_date : (r.expiry || "2030-12-31"),
     mrp: activeBatch ? Number(activeBatch.mrp) : (r.mrp != null ? Number(r.mrp) : undefined),
     pack: r.pack ?? undefined,
@@ -144,6 +150,8 @@ function rowToProduct(r: ProductRow): Product {
       price: Number(b.selling_price) || 0,
       costPrice: Number(b.purchase_price) || 0,
       stock: Number(b.available_qty) || 0,
+      physicalStock: Number((b as any).physical_qty ?? b.available_qty) || 0,
+      lockedQty: Number((b as any).locked_qty || 0),
       expiry: b.expiry_date,
       mrp: Number(b.mrp) || 0,
       pack: r.pack ?? undefined,
@@ -172,6 +180,8 @@ export const productsStore = {
       price: Number(b.selling_price) || 0,
       costPrice: Number(b.purchase_price) || 0,
       stock: Number(b.available_qty) || 0,
+      physicalStock: Number(b.physical_qty ?? b.available_qty) || 0,
+      lockedQty: Number(b.locked_qty || 0),
       expiry: b.expiry_date,
       mrp: Number(b.mrp) || 0,
       pack: b.pack ?? undefined,

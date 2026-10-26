@@ -141,6 +141,37 @@ router.get("/batches", async (req, res, next) => {
        ORDER BY b.expiry_date ASC`,
       [req.auth.userId],
     );
+
+    const [draftItems] = await pool.query(
+      `SELECT product_id, batch_id, batch_no, SUM(qty) AS locked_qty
+       FROM draft_bill_items
+       WHERE user_id = ?
+       GROUP BY product_id, batch_id, batch_no`,
+      [req.auth.userId]
+    );
+
+    const lockedByBatchId = new Map();
+    const lockedByBatchKey = new Map();
+    for (const d of draftItems) {
+      const q = Number(d.locked_qty || 0);
+      if (d.batch_id) {
+        lockedByBatchId.set(d.batch_id, (lockedByBatchId.get(d.batch_id) || 0) + q);
+      }
+      if (d.product_id && d.batch_no) {
+        const key = `${d.product_id}:::${String(d.batch_no).toLowerCase().trim()}`;
+        lockedByBatchKey.set(key, (lockedByBatchKey.get(key) || 0) + q);
+      }
+    }
+
+    for (const b of rows) {
+      const phys = Math.max(0, Number(b.available_qty || 0));
+      const key = `${b.product_id}:::${String(b.batch_no || "").toLowerCase().trim()}`;
+      const locked = lockedByBatchId.get(b.id) || lockedByBatchKey.get(key) || 0;
+      b.physical_qty = phys;
+      b.locked_qty = locked;
+      b.available_qty = Math.max(0, Number((phys - locked).toFixed(4)));
+    }
+
     res.json(rows);
   } catch (error) {
     next(error);
@@ -172,6 +203,41 @@ router.get("/", async (req, res, next) => {
       ids,
     );
 
+    const [draftItems] = await pool.query(
+      `SELECT product_id, batch_id, batch_no, SUM(qty) AS locked_qty
+       FROM draft_bill_items
+       WHERE user_id = ?
+       GROUP BY product_id, batch_id, batch_no`,
+      [req.auth.userId]
+    );
+
+    const lockedByProd = new Map();
+    const lockedByBatchId = new Map();
+    const lockedByBatchKey = new Map();
+
+    for (const d of draftItems) {
+      const q = Number(d.locked_qty || 0);
+      if (d.product_id) {
+        lockedByProd.set(d.product_id, (lockedByProd.get(d.product_id) || 0) + q);
+      }
+      if (d.batch_id) {
+        lockedByBatchId.set(d.batch_id, (lockedByBatchId.get(d.batch_id) || 0) + q);
+      }
+      if (d.product_id && d.batch_no) {
+        const key = `${d.product_id}:::${String(d.batch_no).toLowerCase().trim()}`;
+        lockedByBatchKey.set(key, (lockedByBatchKey.get(key) || 0) + q);
+      }
+    }
+
+    for (const batch of batches) {
+      const phys = Math.max(0, Number(batch.available_qty || 0));
+      const key = `${batch.product_id}:::${String(batch.batch_no || "").toLowerCase().trim()}`;
+      const locked = lockedByBatchId.get(batch.id) || lockedByBatchKey.get(key) || 0;
+      batch.physical_qty = phys;
+      batch.locked_qty = locked;
+      batch.available_qty = Math.max(0, Number((phys - locked).toFixed(4)));
+    }
+
     const map = new Map();
     for (const batch of batches) {
       const arr = map.get(batch.product_id) || [];
@@ -179,10 +245,20 @@ router.get("/", async (req, res, next) => {
       map.set(batch.product_id, arr);
     }
 
-    const data = products.map((product) => ({
-      ...product,
-      batches: map.get(product.id) || [],
-    }));
+    const data = products.map((product) => {
+      const pBatches = map.get(product.id) || [];
+      const totalPhysical = pBatches.reduce((sum, b) => sum + (Number(b.physical_qty) || 0), 0);
+      const totalLocked = Number((lockedByProd.get(product.id) || 0).toFixed(4));
+      const availableStock = Math.max(0, Number((totalPhysical - totalLocked).toFixed(4)));
+      return {
+        ...product,
+        total_stock: totalPhysical,
+        locked_qty: totalLocked,
+        stock: availableStock,
+        available_stock: availableStock,
+        batches: pBatches,
+      };
+    });
 
     res.json(data);
   } catch (error) {
@@ -235,7 +311,49 @@ router.get("/:id", async (req, res, next) => {
       [product.id],
     );
 
-    res.json({ ...product, batches });
+    const [draftItems] = await pool.query(
+      `SELECT product_id, batch_id, batch_no, SUM(qty) AS locked_qty
+       FROM draft_bill_items
+       WHERE user_id = ? AND product_id = ?
+       GROUP BY product_id, batch_id, batch_no`,
+      [req.auth.userId, product.id]
+    );
+
+    const lockedByBatchId = new Map();
+    const lockedByBatchKey = new Map();
+    let totalLocked = 0;
+    for (const d of draftItems) {
+      const q = Number(d.locked_qty || 0);
+      totalLocked += q;
+      if (d.batch_id) {
+        lockedByBatchId.set(d.batch_id, (lockedByBatchId.get(d.batch_id) || 0) + q);
+      }
+      if (d.product_id && d.batch_no) {
+        const key = `${d.product_id}:::${String(d.batch_no).toLowerCase().trim()}`;
+        lockedByBatchKey.set(key, (lockedByBatchKey.get(key) || 0) + q);
+      }
+    }
+
+    for (const batch of batches) {
+      const phys = Math.max(0, Number(batch.available_qty || 0));
+      const key = `${batch.product_id}:::${String(batch.batch_no || "").toLowerCase().trim()}`;
+      const locked = lockedByBatchId.get(batch.id) || lockedByBatchKey.get(key) || 0;
+      batch.physical_qty = phys;
+      batch.locked_qty = locked;
+      batch.available_qty = Math.max(0, Number((phys - locked).toFixed(4)));
+    }
+
+    const totalPhysical = batches.reduce((sum, b) => sum + (Number(b.physical_qty) || 0), 0);
+    const availableStock = Math.max(0, Number((totalPhysical - totalLocked).toFixed(4)));
+
+    res.json({
+      ...product,
+      total_stock: totalPhysical,
+      locked_qty: totalLocked,
+      stock: availableStock,
+      available_stock: availableStock,
+      batches,
+    });
   } catch (error) {
     next(error);
   }

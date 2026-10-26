@@ -104,6 +104,75 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+async function syncDraftItems(conn, userId, draftId, items) {
+  await conn.query("DELETE FROM draft_bill_items WHERE draft_id = ? AND user_id = ?", [draftId, userId]);
+
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  for (const item of items) {
+    if (!item) continue;
+    const rawId = (item.productId && String(item.productId).trim()) ||
+                  (item.product_id && String(item.product_id).trim()) ||
+                  (item.product?.id && String(item.product.id).trim()) || null;
+    const rawName = (item.name && String(item.name).trim()) ||
+                    (item.product?.name && String(item.product.name).trim()) || "Unknown Product";
+    const rawBatch = (item.batch && String(item.batch).trim()) ||
+                     (item.product?.batch && String(item.product.batch).trim()) || null;
+    const itemQty = Math.abs(Number(item.qty || 0)) + Math.abs(Number(item.freeQty || item.free_qty || 0));
+
+    if (itemQty <= 0) continue;
+
+    let targetProductId = null;
+    let targetBatchId = null;
+    let targetBatchNo = rawBatch;
+
+    if (rawId) {
+      const [pCheck] = await conn.query("SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1", [userId, rawId]);
+      if (pCheck.length > 0) {
+        targetProductId = pCheck[0].id;
+      } else {
+        const [bCheck] = await conn.query(
+          "SELECT b.id, b.product_id, b.batch_no FROM product_batches b JOIN products p ON b.product_id = p.id WHERE p.user_id = ? AND b.id = ? LIMIT 1",
+          [userId, rawId]
+        );
+        if (bCheck.length > 0) {
+          targetBatchId = bCheck[0].id;
+          targetProductId = bCheck[0].product_id;
+          if (!targetBatchNo) targetBatchNo = bCheck[0].batch_no;
+        }
+      }
+    }
+
+    if (!targetProductId && rawName) {
+      const [pMatch] = await conn.query(
+        "SELECT id FROM products WHERE user_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1",
+        [userId, rawName]
+      );
+      if (pMatch.length > 0) {
+        targetProductId = pMatch[0].id;
+      }
+    }
+
+    if (targetProductId && targetBatchNo && !targetBatchId) {
+      const [bMatch] = await conn.query(
+        "SELECT id, batch_no FROM product_batches WHERE product_id = ? AND LOWER(TRIM(batch_no)) = LOWER(TRIM(?)) LIMIT 1",
+        [targetProductId, targetBatchNo]
+      );
+      if (bMatch.length > 0) {
+        targetBatchId = bMatch[0].id;
+        targetBatchNo = bMatch[0].batch_no;
+      }
+    }
+
+    const itemId = `dbi_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    await conn.query(
+      `INSERT INTO draft_bill_items (id, draft_id, user_id, product_id, batch_id, batch_no, product_name, qty)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [itemId, draftId, userId, targetProductId, targetBatchId, targetBatchNo, rawName, itemQty]
+    );
+  }
+}
+
 router.get("/drafts", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
@@ -156,19 +225,23 @@ router.post("/drafts", async (req, res, next) => {
     };
     const dataStr = JSON.stringify(cleanDraft);
 
-    await pool.query(
-      `INSERT INTO draft_bills (id, user_id, name, customer_name, customer_phone, total, created_by_name, data, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-       ON DUPLICATE KEY UPDATE
-         name = VALUES(name),
-         customer_name = VALUES(customer_name),
-         customer_phone = VALUES(customer_phone),
-         total = VALUES(total),
-         created_by_name = VALUES(created_by_name),
-         data = VALUES(data),
-         updated_at = NOW()`,
-      [id, req.auth.userId, name, customerName, customerPhone, total, createdByName, dataStr]
-    );
+    await withTransaction(async (conn) => {
+      await conn.query(
+        `INSERT INTO draft_bills (id, user_id, name, customer_name, customer_phone, total, created_by_name, data, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+         ON DUPLICATE KEY UPDATE
+           name = VALUES(name),
+           customer_name = VALUES(customer_name),
+           customer_phone = VALUES(customer_phone),
+           total = VALUES(total),
+           created_by_name = VALUES(created_by_name),
+           data = VALUES(data),
+           updated_at = NOW()`,
+        [id, req.auth.userId, name, customerName, customerPhone, total, createdByName, dataStr]
+      );
+
+      await syncDraftItems(conn, req.auth.userId, id, draft.items || []);
+    });
 
     res.status(200).json({ success: true, draft: cleanDraft });
   } catch (error) {
@@ -179,10 +252,10 @@ router.post("/drafts", async (req, res, next) => {
 router.delete("/drafts/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
-    await pool.query(
-      `DELETE FROM draft_bills WHERE user_id = ? AND id = ?`,
-      [req.auth.userId, id]
-    );
+    await withTransaction(async (conn) => {
+      await conn.query(`DELETE FROM draft_bill_items WHERE user_id = ? AND draft_id = ?`, [req.auth.userId, id]);
+      await conn.query(`DELETE FROM draft_bills WHERE user_id = ? AND id = ?`, [req.auth.userId, id]);
+    });
     res.json({ success: true, id });
   } catch (error) {
     next(error);
@@ -191,10 +264,10 @@ router.delete("/drafts/:id", async (req, res, next) => {
 
 router.delete("/drafts", async (req, res, next) => {
   try {
-    await pool.query(
-      `DELETE FROM draft_bills WHERE user_id = ?`,
-      [req.auth.userId]
-    );
+    await withTransaction(async (conn) => {
+      await conn.query(`DELETE FROM draft_bill_items WHERE user_id = ?`, [req.auth.userId]);
+      await conn.query(`DELETE FROM draft_bills WHERE user_id = ?`, [req.auth.userId]);
+    });
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -447,7 +520,7 @@ async function applyStockDeduction(conn, userId, items, invoiceNo, actorName) {
           if (remainingToDec <= 0) break;
 
           if (idx === batches.length - 1 && remainingToDec > b.available_qty) {
-            const nextQty = b.available_qty - remainingToDec;
+            const nextQty = Math.max(0, b.available_qty - remainingToDec);
             await conn.query("UPDATE product_batches SET available_qty = ? WHERE id = ?", [nextQty, b.id]);
             remainingToDec = 0;
           } else {
@@ -677,6 +750,80 @@ router.post("/", async (req, res, next) => {
     }
 
     const created = await withTransaction(async (conn) => {
+      // 1. If generated from a draft, atomically lock and remove the draft
+      if (body.draftId) {
+        const [draftRows] = await conn.query(
+          "SELECT id FROM draft_bills WHERE id = ? AND user_id = ? FOR UPDATE",
+          [body.draftId, req.auth.userId]
+        );
+        if (draftRows.length === 0) {
+          throw buildApiError(409, "This draft bill has already been completed or deleted on another device.");
+        }
+        await conn.query("DELETE FROM draft_bill_items WHERE user_id = ? AND draft_id = ?", [req.auth.userId, body.draftId]);
+        await conn.query("DELETE FROM draft_bills WHERE id = ? AND user_id = ?", [body.draftId, req.auth.userId]);
+      }
+
+      // 2. Validate available stock for non-return sales (protecting locked stock)
+      if (!isReturn) {
+        for (const item of items) {
+          const rawId = (item.productId && String(item.productId).trim()) || (item.product_id && String(item.product_id).trim()) || null;
+          const rawName = item.name ? String(item.name).trim() : null;
+          const totalItemQty = Math.abs(Number(item.qty || 0)) + Math.abs(Number(item.freeQty || item.free_qty || 0));
+
+          if (totalItemQty <= 0) continue;
+
+          let targetProductId = null;
+          if (rawId) {
+            const [pCheck] = await conn.query("SELECT id FROM products WHERE user_id = ? AND id = ? LIMIT 1", [req.auth.userId, rawId]);
+            if (pCheck.length > 0) {
+              targetProductId = pCheck[0].id;
+            } else {
+              const [bCheck] = await conn.query(
+                "SELECT b.product_id FROM product_batches b JOIN products p ON b.product_id = p.id WHERE p.user_id = ? AND b.id = ? LIMIT 1",
+                [req.auth.userId, rawId]
+              );
+              if (bCheck.length > 0) targetProductId = bCheck[0].product_id;
+            }
+          }
+          if (!targetProductId && rawName) {
+            const [pMatch] = await conn.query(
+              "SELECT id FROM products WHERE user_id = ? AND LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1",
+              [req.auth.userId, rawName]
+            );
+            if (pMatch.length > 0) targetProductId = pMatch[0].id;
+          }
+
+          if (targetProductId) {
+            const [stockRows] = await conn.query(
+              "SELECT COALESCE(SUM(available_qty), 0) AS total_physical FROM product_batches WHERE product_id = ?",
+              [targetProductId]
+            );
+            const totalPhysical = Math.max(0, Number(stockRows[0]?.total_physical || 0));
+
+            const [lockedRows] = await conn.query(
+              "SELECT COALESCE(SUM(qty), 0) AS total_locked FROM draft_bill_items WHERE user_id = ? AND product_id = ?",
+              [req.auth.userId, targetProductId]
+            );
+            const totalLocked = Math.max(0, Number(lockedRows[0]?.total_locked || 0));
+            const availableForSale = Math.max(0, totalPhysical - totalLocked);
+
+            if (totalItemQty > availableForSale) {
+              if (totalLocked > 0) {
+                throw buildApiError(
+                  400,
+                  `Cannot complete sale: Insufficient available stock for "${item.name}". Requested ${totalItemQty}, but only ${availableForSale} available (${totalLocked} units are reserved in draft bills).`
+                );
+              } else {
+                throw buildApiError(
+                  400,
+                  `Cannot complete sale: Insufficient stock for "${item.name}". Requested ${totalItemQty}, but only ${availableForSale} available in inventory.`
+                );
+              }
+            }
+          }
+        }
+      }
+
       const prefix = isReturn ? "SR" : "INV";
       const [maxRows] = await conn.query(
         `SELECT MAX(CAST(SUBSTRING_INDEX(number, '-', -1) AS UNSIGNED)) AS maxNo

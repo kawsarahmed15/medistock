@@ -279,6 +279,7 @@ function CartPage() {
       const combinedNotes = [baseNotes, ...rxParts].filter(Boolean).join("\n");
 
       const bill = await billsStore.add({
+        draftId: cart.activeDraftId || undefined,
         customerName: cart.customer.name || undefined,
         customerPhone: cart.customer.phone || undefined,
         customerAddress: cart.customer.address || undefined,
@@ -318,8 +319,14 @@ function CartPage() {
       setCheckoutOpen(false);
       cart.clear({ removeDraft: true });
       navigate({ to: "/bills/$id", params: { id: bill.id } });
-    } catch (e) {
-      toast.error((e as Error).message || "Failed to generate bill");
+    } catch (e: any) {
+      const msg = (e as Error).message || "Failed to generate bill";
+      toast.error(msg);
+      if (msg.includes("already been completed or deleted")) {
+        setCheckoutOpen(false);
+        cart.clear({ removeDraft: false });
+        navigate({ to: "/bills", search: { status: "completed" } });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1618,7 +1625,9 @@ function CartAddDialog({
                               ? "text-amber-600 dark:text-amber-400"
                               : ""
                         )}>
-                          {outOfStock ? "Out of stock" : `${p.stock} in stock`}
+                          {outOfStock
+                            ? ((p.lockedQty ?? 0) > 0 ? `Out of stock (${p.lockedQty} in draft)` : "Out of stock")
+                            : ((p.lockedQty ?? 0) > 0 ? `${p.stock} in stock (${p.lockedQty} in draft)` : `${p.stock} in stock`)}
                         </span>
                         <span>·</span>
                         <span className={cn(
@@ -1710,7 +1719,7 @@ function CartAddDialog({
                       {formatMoney(b.price)}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      Stock: {b.stock} units
+                      Stock: {b.stock} units{((b.lockedQty ?? 0) > 0) ? ` (${b.lockedQty} in draft)` : ""}
                     </div>
                   </div>
                 </button>

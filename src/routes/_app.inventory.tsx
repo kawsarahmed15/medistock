@@ -206,6 +206,8 @@ function InventoryPage() {
       const totalStock = batches.length > 0
         ? batches.reduce((sum, b) => sum + (Number(b?.stock ?? b?.available_qty) || 0), 0)
         : (Number(p.stock) || 0);
+      const totalPhysical = p.physicalStock != null ? Number(p.physicalStock) : totalStock;
+      const lockedUnits = p.lockedQty != null ? Number(p.lockedQty) : 0;
 
       if (batches.length === 0) {
         list.push({
@@ -215,7 +217,8 @@ function InventoryPage() {
           batch: p.batch || "—",
           expiry: p.expiry || "—",
           stock: totalStock,
-          totalProductStock: totalStock,
+          totalProductStock: totalPhysical,
+          lockedQty: lockedUnits,
         } as any);
       } else {
         // Sort batches to pick the LATEST batch (by createdAt descending or expiry date descending)
@@ -242,7 +245,8 @@ function InventoryPage() {
           taxPercent: p.taxPercent ?? latestBatch.taxPercent ?? 0,
           prescription: p.prescription ?? latestBatch.prescription ?? false,
           stock: totalStock,
-          totalProductStock: totalStock,
+          totalProductStock: totalPhysical,
+          lockedQty: lockedUnits,
           batches: batches,
         } as any);
       }
@@ -1184,21 +1188,28 @@ function InventoryPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <span
-                              className={cn(
-                                "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums",
-                                isOutOfStock
-                                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
-                                  : isLowStock
-                                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                                    : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span
+                                className={cn(
+                                  "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums",
+                                  isOutOfStock
+                                    ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
+                                    : isLowStock
+                                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                                      : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                )}
+                              >
+                                {isMedicineTabCap
+                                  ? formatStripPcDisplay(totalQty, pps, (p as any).stockType, p.pack, p.name)
+                                  : `${totalQty} Pcs`}
+                                {isOutOfStock ? " (Out)" : isLowStock ? " (Low)" : ""}
+                              </span>
+                              {((p as any).lockedQty ?? 0) > 0 && (
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                  {(p as any).lockedQty} in draft
+                                </span>
                               )}
-                            >
-                              {isMedicineTabCap
-                                ? formatStripPcDisplay(totalQty, pps, (p as any).stockType, p.pack, p.name)
-                                : `${totalQty} Pcs`}
-                              {isOutOfStock ? " (Out)" : isLowStock ? " (Low)" : ""}
-                            </span>
+                            </div>
                           </TableCell>
                         </>
                       );

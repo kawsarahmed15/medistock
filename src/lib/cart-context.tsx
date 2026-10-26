@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
+import { toast } from "sonner";
 import { draftBillsStore, type PaymentMethod, type Product } from "./storage";
 import { useAuth } from "./auth-context";
 import { resolveBusinessCategory } from "@/features";
@@ -33,6 +34,7 @@ export type DraftBill = {
   tax: number;
   discount: number;
   total: number;
+  _pendingUpload?: boolean;
 };
 
 const emptyCustomer: Customer = {
@@ -104,33 +106,46 @@ function loadSavedDrafts(): DraftBill[] {
 }
 
 function mergeDrafts(local: DraftBill[], remote: DraftBill[]): { merged: DraftBill[]; unsyncedLocal: DraftBill[] } {
-  const map = new Map<string, DraftBill>();
-  const unsynced: DraftBill[] = [];
-
+  const remoteMap = new Map<string, DraftBill>();
   for (const d of remote) {
     if (d && d.id) {
-      map.set(d.id, d);
+      remoteMap.set(d.id, d);
     }
   }
 
+  const mergedMap = new Map<string, DraftBill>();
+  const unsynced: DraftBill[] = [];
+
+  // Start with remote as the authoritative truth across devices
+  for (const d of remote) {
+    mergedMap.set(d.id, { ...d, _pendingUpload: false });
+  }
+
+  // Handle local drafts:
+  // ONLY keep a local draft that is missing from remote if it was created offline and is explicitly pending upload!
+  // If it was already uploaded in the past (_pendingUpload is false/undefined), and is no longer on remote,
+  // that means it was completed or deleted on another device. Drop it so it never resurrects!
   for (const d of local) {
-    if (d && d.id) {
-      const existing = map.get(d.id);
-      if (!existing) {
-        map.set(d.id, d);
+    if (!d || !d.id) continue;
+    const remoteDraft = remoteMap.get(d.id);
+    if (!remoteDraft) {
+      if (d._pendingUpload) {
+        mergedMap.set(d.id, d);
         unsynced.push(d);
-      } else {
+      }
+    } else {
+      if (d._pendingUpload) {
         const localTime = new Date(d.updatedAt || d.createdAt || 0).getTime();
-        const remoteTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+        const remoteTime = new Date(remoteDraft.updatedAt || remoteDraft.createdAt || 0).getTime();
         if (localTime > remoteTime) {
-          map.set(d.id, d);
+          mergedMap.set(d.id, d);
           unsynced.push(d);
         }
       }
     }
   }
 
-  const merged = Array.from(map.values()).sort((a, b) => {
+  const merged = Array.from(mergedMap.values()).sort((a, b) => {
     const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
     const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
     return timeB - timeA;
@@ -264,17 +279,41 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setDrafts(merged);
       saveDraftsToStorage(merged);
 
+      // If active draft was completed or deleted elsewhere, clear active draft from cart
+      if (activeDraftId && !merged.some((d) => d.id === activeDraftId)) {
+        setActiveDraftId(null);
+        setActiveDraftRestored(false);
+        setItems([]);
+        setCustomer(emptyCustomer);
+        setCustomerSubmitted(false);
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(ACTIVE_CART_STORAGE_KEY);
+        }
+        toast.info("A draft bill being processed was completed or removed on another device.", {
+          id: "draft-completed-remote",
+        });
+      }
+
       if (unsyncedLocal.length > 0) {
         for (const d of unsyncedLocal) {
-          draftBillsStore.save(d).catch((err) => {
-            console.warn("Background draft sync upload error:", err);
-          });
+          draftBillsStore
+            .save(d)
+            .then(() => {
+              setDrafts((prev) => {
+                const next = prev.map((item) => (item.id === d.id ? { ...item, _pendingUpload: false } : item));
+                saveDraftsToStorage(next);
+                return next;
+              });
+            })
+            .catch((err) => {
+              console.warn("Background draft sync upload error:", err);
+            });
         }
       }
     } catch (err) {
       console.warn("Failed to sync drafts from server:", err);
     }
-  }, [session]);
+  }, [session, activeDraftId]);
 
   const refreshDrafts = useCallback(async () => {
     await syncDraftsFromRemote();
@@ -318,7 +357,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // Background interval to keep drafts in sync in case a draft is saved on another device
     const interval = setInterval(() => {
       syncDraftsFromRemote();
-    }, 15000);
+    }, 5000);
 
     return () => {
       window.removeEventListener("focus", handleFocus);
@@ -485,12 +524,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const isFirst = items.length === 0;
     setItems((prev) => {
       const existing = prev.find((i) => i.product.id === product.id);
-      if (existing) {
-        return prev.map((i) =>
-          i.product.id === product.id ? { ...i, qty: Math.min(product.stock, i.qty + qty) } : i,
+      const existingQty = existing ? existing.qty : 0;
+      const physicalLimit = product.physicalStock != null ? product.physicalStock : product.stock;
+      const maxAllowed = Math.min(physicalLimit, (product.stock || 0) + existingQty);
+
+      if (maxAllowed <= 0) {
+        toast.warning(`Cannot add ${product.name}: stock is currently reserved in draft bills.`);
+        return prev;
+      }
+
+      const targetQty = existingQty + qty;
+      const finalQty = Math.min(maxAllowed, targetQty);
+
+      if (targetQty > maxAllowed) {
+        toast.warning(
+          `Limited to ${finalQty} units (${product.stock} available${product.lockedQty ? `, ${product.lockedQty} locked in draft` : ""}).`
         );
       }
-      return [...prev, { product, qty: Math.min(product.stock, qty) }];
+
+      if (existing) {
+        return prev.map((i) =>
+          i.product.id === product.id ? { ...i, qty: finalQty } : i,
+        );
+      }
+      return [...prev, { product, qty: finalQty }];
     });
     return { isFirst };
   };
@@ -502,8 +559,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) =>
       prev.map((i) => {
         if (i.product.id !== id) return i;
-        const newQty = Math.max(0.0001, Math.min(i.product.stock, Number(Number(qty).toFixed(4))));
-        return { ...i, qty: newQty, freeQty: Math.min(i.freeQty || 0, newQty) };
+        const physicalLimit = i.product.physicalStock != null ? i.product.physicalStock : i.product.stock;
+        const maxAllowed = Math.min(physicalLimit, (i.product.stock || 0) + i.qty);
+        const parsedQty = Math.max(0.0001, Number(Number(qty).toFixed(4)));
+        const finalQty = Math.min(maxAllowed, parsedQty);
+
+        if (parsedQty > maxAllowed) {
+          toast.warning(
+            `Cannot exceed available stock (${i.product.stock} available${i.product.lockedQty ? `, ${i.product.lockedQty} locked in draft` : ""}).`
+          );
+        }
+
+        return { ...i, qty: finalQty, freeQty: Math.min(i.freeQty || 0, finalQty) };
       }),
     );
 
@@ -656,6 +723,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       tax,
       discount,
       total,
+      _pendingUpload: true,
     };
 
     setDrafts((prev) => {
@@ -666,9 +734,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
 
     if (session) {
-      draftBillsStore.save(newDraft).catch((err) => {
-        console.error("Failed to sync new draft to server:", err);
-      });
+      draftBillsStore
+        .save(newDraft)
+        .then(() => {
+          setDrafts((prev) => {
+            const next = prev.map((item) => (item.id === draftId ? { ...item, _pendingUpload: false } : item));
+            saveDraftsToStorage(next);
+            return next;
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to sync new draft to server:", err);
+        });
       broadcastDraftsUpdated();
     }
 

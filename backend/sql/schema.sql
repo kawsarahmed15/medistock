@@ -225,3 +225,21 @@ CREATE TABLE IF NOT EXISTS draft_bills (
   CONSTRAINT fk_draft_bills_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS draft_bill_items (
+  id VARCHAR(64) PRIMARY KEY,
+  draft_id VARCHAR(64) NOT NULL,
+  user_id CHAR(36) NOT NULL,
+  product_id VARCHAR(64) NULL,
+  batch_id VARCHAR(64) NULL,
+  batch_no VARCHAR(100) NULL,
+  product_name VARCHAR(255) NOT NULL,
+  qty DECIMAL(12,4) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_draft_items_draft (draft_id),
+  INDEX idx_draft_items_user_prod (user_id, product_id),
+  INDEX idx_draft_items_user_batch (user_id, product_id, batch_no),
+  CONSTRAINT fk_draft_items_draft FOREIGN KEY (draft_id) REFERENCES draft_bills(id) ON DELETE CASCADE,
+  CONSTRAINT fk_draft_items_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
