@@ -29,6 +29,8 @@ import {
   Clock,
   Pill,
   AlertCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,6 +145,7 @@ function CartPage() {
   const [draftsOpen, setDraftsOpen] = useState(false);
   const browseButtonRef = useRef<HTMLButtonElement>(null);
   const [productList, setProductList] = useState<Product[]>([]);
+  const [showCostPrice, setShowCostPrice] = useState(false);
 
   useEffect(() => {
     productsStore.list().then(setProductList).catch(() => {});
@@ -537,10 +540,22 @@ function CartPage() {
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-4">
         <Card className="shadow-soft">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-base">
               Items {cart.count > 0 ? `(${cart.count})` : ""}
             </CardTitle>
+            {!session?.isEmployee && cart.items.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCostPrice((v) => !v)}
+                className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1.5 px-2"
+                title={showCostPrice ? "Hide buying prices (privacy protection)" : "Show buying prices"}
+              >
+                {showCostPrice ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                <span className="text-[11px]">{showCostPrice ? "Hide Buying" : "Show Buying"}</span>
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="px-0 pb-0">
             {cart.items.length === 0 ? (
@@ -674,12 +689,12 @@ function CartPage() {
                               </div>
                             );
                           })()}
-                          <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                          <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-1.5">
                             {i.freeQty && i.freeQty === i.qty ? (
                               <span className="font-semibold text-primary">Free</span>
                             ) : (
                               <>
-                                <span className="flex items-center gap-1">
+                                <span className="inline-flex items-center gap-1 shrink-0">
                                   <span>Price: ₹</span>
                                   <input
                                     type="number"
@@ -711,78 +726,115 @@ function CartPage() {
                                     onClick={(e) => e.stopPropagation()}
                                   />
                                 </span>
-                                <span>· {i.product.taxPercent ?? (isRetailer ? 5 : 0)}% tax</span>
+
+                                {/* MRP Display */}
+                                {i.product.mrp && i.product.mrp > 0 ? (
+                                  <span
+                                    className="inline-flex items-center text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/60 font-medium shrink-0"
+                                    title={`Printed MRP: ${formatMoney(i.product.mrp)}`}
+                                  >
+                                    MRP: {formatMoney(i.product.mrp)}
+                                  </span>
+                                ) : null}
+
+                                {/* Quick Customer Price / Standard Price Toggle (Compact & Responsive) */}
+                                {(() => {
+                                  const normName = i.product.name ? i.product.name.trim().toLowerCase() : "";
+                                  const cp = cart.customerPrices[normName] || (i.product.id ? cart.customerPrices[i.product.id] : undefined);
+                                  if (!cp || !cp.price || cp.price <= 0) return null;
+
+                                  const prevPrice = cp.price;
+                                  const standardPrice = i.product.price;
+                                  const activePrice = i.customPrice !== undefined ? i.customPrice : standardPrice;
+                                  const isPrevActive = Math.abs(activePrice - prevPrice) < 0.001;
+                                  const isStdActive = Math.abs(activePrice - standardPrice) < 0.001;
+
+                                  return (
+                                    <span
+                                      className="inline-flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => cart.setCustomPrice(i.product.id, prevPrice)}
+                                        className={cn(
+                                          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all border shadow-2xs cursor-pointer",
+                                          isPrevActive
+                                            ? "bg-emerald-600 text-white border-emerald-700 ring-1 ring-emerald-500"
+                                            : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
+                                        )}
+                                        title={`Previous customer price from ${cp.billNumber || "past bill"}`}
+                                      >
+                                        <span>Prev: ₹{prevPrice.toFixed(2)}</span>
+                                        {isPrevActive && <Check className="h-2.5 w-2.5 ml-0.5" />}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => cart.setCustomPrice(i.product.id, standardPrice)}
+                                        className={cn(
+                                          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all border shadow-2xs cursor-pointer",
+                                          isStdActive
+                                            ? "bg-primary text-primary-foreground border-primary"
+                                            : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                                        )}
+                                        title="Standard product catalog selling price"
+                                      >
+                                        <span>Std: ₹{standardPrice.toFixed(2)}</span>
+                                        {isStdActive && <Check className="h-2.5 w-2.5 ml-0.5" />}
+                                      </button>
+                                      {!isPrevActive && !isStdActive && (
+                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic">
+                                          (Custom: ₹{activePrice.toFixed(2)})
+                                        </span>
+                                      )}
+                                    </span>
+                                  );
+                                })()}
+
+                                <span className="shrink-0">· {i.product.taxPercent ?? (isRetailer ? 5 : 0)}% tax</span>
+
                                 {(() => {
                                   const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
                                   const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
                                   return isDual ? (
-                                    <span className="text-[11px] text-muted-foreground font-medium">
+                                    <span className="text-[11px] text-muted-foreground font-medium shrink-0">
                                       (₹{getPerPcPrice(i.customPrice ?? i.product.price, pps)}/pc)
                                     </span>
                                   ) : null;
                                 })()}
-                                {i.product.costPrice ? (
-                                  <span className="text-[10px] bg-muted px-1 py-0.5 rounded text-muted-foreground">
-                                    Buying: {formatMoney(i.product.costPrice)}
-                                  </span>
+
+                                {/* Buying Price: Hidden for employee; Eye toggle privacy protection for owner */}
+                                {!session?.isEmployee && i.product.costPrice ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowCostPrice((v) => !v);
+                                    }}
+                                    className={cn(
+                                      "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors border cursor-pointer shrink-0",
+                                      showCostPrice
+                                        ? "bg-muted text-foreground border-border"
+                                        : "bg-muted/40 hover:bg-muted text-muted-foreground/80 hover:text-foreground border-border/40"
+                                    )}
+                                    title={showCostPrice ? "Click to hide buying price (counter protection)" : "Click to view buying price (owner only)"}
+                                  >
+                                    {showCostPrice ? (
+                                      <>
+                                        <EyeOff className="h-2.5 w-2.5 text-muted-foreground" />
+                                        <span>Buy: {formatMoney(i.product.costPrice)}</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Eye className="h-2.5 w-2.5 text-muted-foreground" />
+                                        <span>Buy: ••••</span>
+                                      </>
+                                    )}
+                                  </button>
                                 ) : null}
                               </>
                             )}
                           </div>
-                          {/* Quick Customer Price / Standard Price Selector */}
-                          {(() => {
-                            const normName = i.product.name ? i.product.name.trim().toLowerCase() : "";
-                            const cp = cart.customerPrices[normName] || (i.product.id ? cart.customerPrices[i.product.id] : undefined);
-                            if (!cp || !cp.price || cp.price <= 0) return null;
-
-                            const prevPrice = cp.price;
-                            const standardPrice = i.product.price;
-                            const activePrice = i.customPrice !== undefined ? i.customPrice : standardPrice;
-                            const isPrevActive = Math.abs(activePrice - prevPrice) < 0.001;
-                            const isStdActive = Math.abs(activePrice - standardPrice) < 0.001;
-
-                            return (
-                              <div
-                                className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <span className="text-[10px] text-muted-foreground font-medium">Select Price:</span>
-                                <button
-                                  type="button"
-                                  onClick={() => cart.setCustomPrice(i.product.id, prevPrice)}
-                                  className={cn(
-                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all border shadow-2xs cursor-pointer",
-                                    isPrevActive
-                                      ? "bg-emerald-600 text-white border-emerald-700 ring-1 ring-emerald-500"
-                                      : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
-                                  )}
-                                  title={`Previous customer price from ${cp.billNumber || "past bill"}`}
-                                >
-                                  <span>Prev: ₹{prevPrice.toFixed(2)}</span>
-                                  {isPrevActive && <Check className="h-3 w-3 ml-0.5" />}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => cart.setCustomPrice(i.product.id, standardPrice)}
-                                  className={cn(
-                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all border shadow-2xs cursor-pointer",
-                                    isStdActive
-                                      ? "bg-primary text-primary-foreground border-primary"
-                                      : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
-                                  )}
-                                  title="Standard product catalog selling price"
-                                >
-                                  <span>Standard: ₹{standardPrice.toFixed(2)}</span>
-                                  {isStdActive && <Check className="h-3 w-3 ml-0.5" />}
-                                </button>
-                                {!isPrevActive && !isStdActive && (
-                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic">
-                                    (Custom: ₹{activePrice.toFixed(2)} - will save for next bill)
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })()}
                           {(() => {
                             const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
                             const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
@@ -1670,6 +1722,11 @@ function CartAddDialog({
                       </div>
                       <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span>{formatMoney(p.price)}</span>
+                        {p.mrp && p.mrp > 0 && (
+                          <span className="text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.2 rounded border border-border/50">
+                            MRP: {formatMoney(p.mrp)}
+                          </span>
+                        )}
                         {(() => {
                           const normName = p.name ? p.name.trim().toLowerCase() : "";
                           const cp = cart.customerPrices[normName] || (p.id ? cart.customerPrices[p.id] : undefined);
@@ -1782,6 +1839,11 @@ function CartAddDialog({
                     <div className="font-semibold text-primary">
                       {formatMoney(b.price)}
                     </div>
+                    {b.mrp && b.mrp > 0 && (
+                      <div className="text-[10px] text-muted-foreground">
+                        MRP: {formatMoney(b.mrp)}
+                      </div>
+                    )}
                     {(() => {
                       const normName = (batchesProduct?.name || b.name || "").trim().toLowerCase();
                       const cp = cart.customerPrices[normName] || (b.id ? cart.customerPrices[b.id] : undefined);
