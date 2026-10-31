@@ -32,37 +32,39 @@ router.get("/pending-count", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const statusParam = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
-    let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, created_by_name, employee_id, approved_at, approved_by, created_at
-       FROM bills
-       WHERE user_id = ?`;
+    let query = `SELECT b.id, b.number, b.customer_name, b.customer_phone, b.customer_address, b.customer_drug_lic_no, b.customer_gstin, b.customer_notes, b.cashier, b.payment_method, b.advance_amount, b.advance_payment_method, b.subtotal, b.tax, b.discount, b.total, b.status, b.created_by_role, b.created_by_name, b.employee_id, b.approved_at, b.approved_by, b.created_at,
+              u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number AS pharmacy_gst_number, u.drug_lic_no AS pharmacy_drug_lic_no
+       FROM bills b
+       LEFT JOIN users u ON b.user_id = u.id
+       WHERE b.user_id = ?`;
     const params = [req.auth.userId];
 
     if (req.auth.isEmployee) {
       const empName = req.auth.employeeName || req.auth.name;
       if (req.auth.employeeId) {
-        query += ` AND (employee_id = ? OR created_by_name = ? OR cashier = ?)`;
+        query += ` AND (b.employee_id = ? OR b.created_by_name = ? OR b.cashier = ?)`;
         params.push(req.auth.employeeId, empName, empName);
       } else {
-        query += ` AND (created_by_name = ? OR cashier = ?)`;
+        query += ` AND (b.created_by_name = ? OR b.cashier = ?)`;
         params.push(empName, empName);
       }
     } else {
       const employeeIdParam = req.query.employeeId ? String(req.query.employeeId).trim() : null;
       if (employeeIdParam) {
-        query += ` AND (employee_id = ? OR created_by_name = ?)`;
+        query += ` AND (b.employee_id = ? OR b.created_by_name = ?)`;
         params.push(employeeIdParam, employeeIdParam);
       }
     }
 
     if (statusParam === "pending") {
-      query += ` AND status = 'pending'`;
+      query += ` AND b.status = 'pending'`;
     } else if (statusParam === "completed") {
-      query += ` AND (status = 'completed' OR status IS NULL)`;
+      query += ` AND (b.status = 'completed' OR b.status IS NULL)`;
     } else if (statusParam === "rejected") {
-      query += ` AND status = 'rejected'`;
+      query += ` AND b.status = 'rejected'`;
     }
 
-    query += ` ORDER BY created_at DESC LIMIT 500`;
+    query += ` ORDER BY b.created_at DESC LIMIT 500`;
 
     const [bills] = await pool.query(query, params);
 
@@ -276,19 +278,21 @@ router.delete("/drafts", async (req, res, next) => {
 
 router.get("/:id", async (req, res, next) => {
   try {
-    let query = `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method, advance_amount, advance_payment_method,
-              subtotal, tax, discount, total, status, created_by_role, created_by_name, employee_id, approved_at, approved_by, created_at
-       FROM bills
-       WHERE user_id = ? AND id = ?`;
+    let query = `SELECT b.id, b.number, b.customer_name, b.customer_phone, b.customer_address, b.customer_drug_lic_no, b.customer_gstin, b.customer_notes, b.cashier, b.payment_method, b.advance_amount, b.advance_payment_method,
+              b.subtotal, b.tax, b.discount, b.total, b.status, b.created_by_role, b.created_by_name, b.employee_id, b.approved_at, b.approved_by, b.created_at,
+              u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number AS pharmacy_gst_number, u.drug_lic_no AS pharmacy_drug_lic_no
+       FROM bills b
+       LEFT JOIN users u ON b.user_id = u.id
+       WHERE b.user_id = ? AND b.id = ?`;
     const params = [req.auth.userId, req.params.id];
 
     if (req.auth.isEmployee) {
       const empName = req.auth.employeeName || req.auth.name;
       if (req.auth.employeeId) {
-        query += ` AND (employee_id = ? OR created_by_name = ? OR cashier = ?)`;
+        query += ` AND (b.employee_id = ? OR b.created_by_name = ? OR b.cashier = ?)`;
         params.push(req.auth.employeeId, empName, empName);
       } else {
-        query += ` AND (created_by_name = ? OR cashier = ?)`;
+        query += ` AND (b.created_by_name = ? OR b.cashier = ?)`;
         params.push(empName, empName);
       }
     }
@@ -875,6 +879,19 @@ router.post("/", async (req, res, next) => {
         ? Number((billSubtotal + billTax - discountVal).toFixed(2))
         : (body.total != null ? Number(Number(body.total).toFixed(2)) : calcTotal);
 
+      let customerDrugLicNo = body.customerDrugLicNo ? String(body.customerDrugLicNo).trim().toUpperCase() : null;
+      if (!customerDrugLicNo && customerPhone) {
+        const [prevDlRows] = await conn.query(
+          `SELECT customer_drug_lic_no FROM bills 
+           WHERE user_id = ? AND customer_phone = ? AND customer_drug_lic_no IS NOT NULL AND customer_drug_lic_no != '' 
+           ORDER BY created_at DESC LIMIT 1`,
+          [req.auth.userId, customerPhone]
+        );
+        if (prevDlRows.length > 0 && prevDlRows[0].customer_drug_lic_no) {
+          customerDrugLicNo = prevDlRows[0].customer_drug_lic_no;
+        }
+      }
+
       const id = generateId();
       await conn.query(
         `INSERT INTO bills (id, user_id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes,
@@ -887,8 +904,8 @@ router.post("/", async (req, res, next) => {
           body.customerName || null,
           customerPhone || null,
           body.customerAddress || null,
-          body.customerDrugLicNo || null,
-          body.customerGstin || null,
+          customerDrugLicNo,
+          body.customerGstin ? String(body.customerGstin).trim().toUpperCase() : null,
           body.customerNotes || null,
           body.cashier || defaultCashier,
           ["cash", "online", "credit"].includes(body.paymentMethod) ? body.paymentMethod : "cash",
@@ -943,14 +960,40 @@ router.post("/", async (req, res, next) => {
     });
 
     const [rows] = await pool.query(
-      `SELECT id, number, customer_name, customer_phone, customer_address, customer_drug_lic_no, customer_gstin, customer_notes, cashier, payment_method,
-              advance_amount, advance_payment_method, subtotal, tax, discount, total, status, created_by_role, approved_at, approved_by, created_at
-       FROM bills
-       WHERE user_id = ? AND id = ?
+      `SELECT b.id, b.number, b.customer_name, b.customer_phone, b.customer_address, b.customer_drug_lic_no, b.customer_gstin, b.customer_notes, b.cashier, b.payment_method,
+              b.advance_amount, b.advance_payment_method, b.subtotal, b.tax, b.discount, b.total, b.status, b.created_by_role, b.created_by_name, b.employee_id, b.approved_at, b.approved_by, b.created_at,
+              u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number AS pharmacy_gst_number, u.drug_lic_no AS pharmacy_drug_lic_no
+       FROM bills b
+       LEFT JOIN users u ON b.user_id = u.id
+       WHERE b.user_id = ? AND b.id = ?
        LIMIT 1`,
       [req.auth.userId, created.id],
     );
     res.status(201).json({ ...rows[0], items: [] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/:id/customer", async (req, res, next) => {
+  try {
+    const { customerName, customerPhone, customerAddress, customerDrugLicNo, customerGstin, customerNotes } = req.body || {};
+    await pool.query(
+      `UPDATE bills 
+       SET customer_name = ?, customer_phone = ?, customer_address = ?, customer_drug_lic_no = ?, customer_gstin = ?, customer_notes = ?
+       WHERE user_id = ? AND id = ?`,
+      [
+        customerName || null,
+        customerPhone || null,
+        customerAddress || null,
+        customerDrugLicNo ? String(customerDrugLicNo).trim().toUpperCase() : null,
+        customerGstin ? String(customerGstin).trim().toUpperCase() : null,
+        customerNotes || null,
+        req.auth.userId,
+        req.params.id,
+      ]
+    );
+    res.json({ success: true });
   } catch (error) {
     next(error);
   }

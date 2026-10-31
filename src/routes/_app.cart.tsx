@@ -3209,8 +3209,11 @@ function CheckoutFlowDialog({
                     {cart.customer.name || "Walk-in Customer"}
                   </span>
                   {cart.customer.phone && <span className="text-muted-foreground block">Phone: {cart.customer.phone}</span>}
-                  {cart.customer.address && <span className="text-muted-foreground block truncate">{cart.customer.address}</span>}
+                  {cart.customer.drugLicNo && (
+                    <span className="text-muted-foreground block">D.L.No.: {cart.customer.drugLicNo.toUpperCase()}</span>
+                  )}
                   {cart.customer.gstin && <span className="text-muted-foreground block">GSTIN: {cart.customer.gstin}</span>}
+                  {cart.customer.address && <span className="text-muted-foreground block truncate">{cart.customer.address}</span>}
                 </div>
                 <div className="text-right">
                   <span className="font-bold text-primary uppercase block mb-0.5 text-[10px]">PAYMENT TERMS:</span>

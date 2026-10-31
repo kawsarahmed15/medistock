@@ -453,20 +453,21 @@ function BillsPage() {
     try {
       const fresh = (await billsStore.get(b.id)) ?? b;
       await downloadBillPdf(fresh, {
-        pharmacyName: session?.pharmacyName,
-        pharmacyPhone: session?.pharmacyPhone,
-        pharmacyAddress: session?.pharmacyAddress,
-        gstNumber: session?.gstNumber,
-        drugLicNo: session?.drugLicNo,
+        pharmacyName: fresh.pharmacyName || session?.pharmacyName,
+        pharmacyPhone: fresh.pharmacyPhone || session?.pharmacyPhone,
+        pharmacyAddress: fresh.pharmacyAddress || session?.pharmacyAddress,
+        gstNumber: fresh.pharmacyGstNumber || session?.gstNumber,
+        drugLicNo: fresh.pharmacyDrugLicNo || session?.drugLicNo,
         billColor: session?.billColor,
         signature: session?.signature,
       });
     } catch {
       await downloadBillPdf(b, {
-        pharmacyName: session?.pharmacyName,
-        pharmacyAddress: session?.pharmacyAddress,
-        gstNumber: session?.gstNumber,
-        drugLicNo: session?.drugLicNo,
+        pharmacyName: b.pharmacyName || session?.pharmacyName,
+        pharmacyPhone: b.pharmacyPhone || session?.pharmacyPhone,
+        pharmacyAddress: b.pharmacyAddress || session?.pharmacyAddress,
+        gstNumber: b.pharmacyGstNumber || session?.gstNumber,
+        drugLicNo: b.pharmacyDrugLicNo || session?.drugLicNo,
         billColor: session?.billColor,
         signature: session?.signature,
       });
@@ -809,7 +810,14 @@ function BillsPage() {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm mt-1.5 truncate">{b.customerName ?? "Walk-in"}</div>
+                    <div className="text-sm mt-1.5 truncate">
+                      <span>{b.customerName ?? "Walk-in"}</span>
+                      {b.customerDrugLicNo && (
+                        <span className="ml-1.5 text-[11px] text-muted-foreground font-mono">
+                          (D.L. {b.customerDrugLicNo})
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className={`font-semibold tabular-nums ${isReturnBill ? "text-amber-700" : ""}`}>
@@ -1066,7 +1074,14 @@ function BillsPage() {
                     <TableCell className="whitespace-nowrap">
                       {new Date(b.createdAt).toLocaleString()}
                     </TableCell>
-                    <TableCell>{b.customerName ?? "Walk-in"}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{b.customerName ?? "Walk-in"}</div>
+                      {b.customerDrugLicNo && (
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          D.L.: {b.customerDrugLicNo}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <span className="text-xs font-medium text-muted-foreground">
                         {b.cashier || "Admin"}

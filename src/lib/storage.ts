@@ -57,6 +57,11 @@ export type Bill = {
   customerDrugLicNo?: string;
   customerGstin?: string;
   customerNotes?: string;
+  pharmacyName?: string;
+  pharmacyPhone?: string;
+  pharmacyAddress?: string;
+  pharmacyGstNumber?: string;
+  pharmacyDrugLicNo?: string;
   items: BillItem[];
   subtotal: number;
   tax: number;
@@ -242,6 +247,11 @@ type BillRow = {
   approved_at?: string | null;
   approved_by?: string | null;
   created_at: string;
+  pharmacy_name?: string | null;
+  pharmacy_phone?: string | null;
+  pharmacy_address?: string | null;
+  pharmacy_gst_number?: string | null;
+  pharmacy_drug_lic_no?: string | null;
   original_subtotal?: number | string | null;
   original_tax?: number | string | null;
   original_total?: number | string | null;
@@ -297,6 +307,11 @@ function rowToBill(b: BillRow, items: BillItemRow[]): Bill {
     approvedAt: b.approved_at ?? undefined,
     approvedBy: b.approved_by ?? undefined,
     createdAt: b.created_at,
+    pharmacyName: b.pharmacy_name ?? undefined,
+    pharmacyPhone: b.pharmacy_phone ?? undefined,
+    pharmacyAddress: b.pharmacy_address ?? undefined,
+    pharmacyGstNumber: b.pharmacy_gst_number ?? undefined,
+    pharmacyDrugLicNo: b.pharmacy_drug_lic_no ?? undefined,
     originalSubtotal: num(b.original_subtotal),
     originalTax: num(b.original_tax),
     originalTotal: num(b.original_total),
@@ -359,6 +374,19 @@ export const billsStore = {
   },
   async reject(id: string): Promise<void> {
     await apiRequest(`/bills/${id}/reject`, { method: "POST", auth: true });
+  },
+  async updateCustomer(
+    id: string,
+    data: {
+      customerName?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+      customerDrugLicNo?: string;
+      customerGstin?: string;
+      customerNotes?: string;
+    }
+  ): Promise<void> {
+    await apiRequest(`/bills/${id}/customer`, { method: "PATCH", body: data, auth: true });
   },
 };
 

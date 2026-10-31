@@ -90,11 +90,11 @@ export async function downloadBillPdf(
   const right = pageWidth - 20;
   const isReturn = bill.number.startsWith("SR-");
 
-  const pharmacyName = settings?.pharmacyName || "MediStock Pharmacy";
-  const pharmacyPhone = settings?.pharmacyPhone || "";
-  const pharmacyAddress = settings?.pharmacyAddress || "";
-  const gstNumber = settings?.gstNumber || "";
-  const drugLicNo = settings?.drugLicNo || "";
+  const pharmacyName = settings?.pharmacyName || bill.pharmacyName || "MediStock Pharmacy";
+  const pharmacyPhone = settings?.pharmacyPhone || bill.pharmacyPhone || "";
+  const pharmacyAddress = settings?.pharmacyAddress || bill.pharmacyAddress || "";
+  const gstNumber = settings?.gstNumber || bill.pharmacyGstNumber || "";
+  const drugLicNo = settings?.drugLicNo || bill.pharmacyDrugLicNo || "";
   const billColor = settings?.billColor || "#1a9890";
   const signature = settings?.signature || "";
 
@@ -156,6 +156,12 @@ export async function downloadBillPdf(
   if (gstNumber) {
     doc.text(`GSTIN: ${clean(gstNumber.toUpperCase())}`, headerLeftX, headerBottomY);
     headerBottomY += 12;
+  }
+  if (drugLicNo) {
+    const dlText = `D.L.No.: ${clean(drugLicNo.toUpperCase())}`;
+    const dlLines = doc.splitTextToSize(dlText, 250);
+    doc.text(dlLines, headerLeftX, headerBottomY);
+    headerBottomY += dlLines.length * 12;
   }
 
   // Right Side Header
@@ -240,7 +246,7 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`PHONE: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerPhone), left + 65, leftY);
+    doc.text(clean(bill.customerPhone), left + 60, leftY);
     leftY += 12;
   }
 
@@ -248,15 +254,19 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 65, leftY);
-    leftY += 12;
+    const dlLines = doc.splitTextToSize(
+      clean(bill.customerDrugLicNo.toUpperCase()),
+      pageWidth / 2 - 75,
+    );
+    doc.text(dlLines, left + 60, leftY);
+    leftY += dlLines.length * 12;
   }
 
   if (bill.customerGstin) {
     doc.setTextColor(110, 110, 110);
     doc.text(`GSTIN: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerGstin.toUpperCase()), left + 65, leftY);
+    doc.text(clean(bill.customerGstin.toUpperCase()), left + 60, leftY);
     leftY += 12;
   }
 
@@ -268,7 +278,7 @@ export async function downloadBillPdf(
       clean(bill.customerAddress).trim(),
       pageWidth / 2 - 75,
     );
-    doc.text(custAddrLines, left + 65, leftY);
+    doc.text(custAddrLines, left + 60, leftY);
     leftY += custAddrLines.length * 12;
   }
   doc.setFontSize(9);
@@ -325,7 +335,7 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`PHONE: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerPhone), left + 45, leftY);
+    doc.text(clean(bill.customerPhone), left + 60, leftY);
     leftY += 12;
   }
 
@@ -333,15 +343,19 @@ export async function downloadBillPdf(
     doc.setTextColor(110, 110, 110);
     doc.text(`D.L.NO.: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerDrugLicNo.toUpperCase()), left + 45, leftY);
-    leftY += 12;
+    const dlLines = doc.splitTextToSize(
+      clean(bill.customerDrugLicNo.toUpperCase()),
+      pageWidth / 2 - 75,
+    );
+    doc.text(dlLines, left + 60, leftY);
+    leftY += dlLines.length * 12;
   }
 
   if (bill.customerGstin) {
     doc.setTextColor(110, 110, 110);
     doc.text(`GSTIN: `, left + 12, leftY);
     doc.setTextColor(35, 35, 35);
-    doc.text(clean(bill.customerGstin.toUpperCase()), left + 45, leftY);
+    doc.text(clean(bill.customerGstin.toUpperCase()), left + 60, leftY);
     leftY += 12;
   }
 
@@ -353,7 +367,7 @@ export async function downloadBillPdf(
       clean(bill.customerAddress).trim(),
       pageWidth / 2 - 75,
     );
-    doc.text(custAddrLines, left + 57, leftY);
+    doc.text(custAddrLines, left + 60, leftY);
     leftY += custAddrLines.length * 12;
   }
   doc.setFontSize(9);

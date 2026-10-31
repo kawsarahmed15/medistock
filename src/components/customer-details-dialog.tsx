@@ -415,15 +415,16 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cd-drug-lic" className="text-xs">
-              Drug.lic.no
+              Drug License No. (D.L. No.)
             </Label>
             <Input
               id="cd-drug-lic"
               value={form.drugLicNo || ""}
               maxLength={100}
               autoComplete="off"
-              onChange={(e) => setForm({ ...form, drugLicNo: e.target.value })}
-              placeholder="e.g. DL-12345"
+              onChange={(e) => setForm({ ...form, drugLicNo: e.target.value.toUpperCase() })}
+              placeholder="e.g. DL-12345 or 20B/21B"
+              className="font-mono uppercase"
             />
           </div>
           <div className="space-y-1.5">

@@ -1,9 +1,18 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, Printer, Pill, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Download, Printer, Pill, CheckCircle2, XCircle, Clock, AlertTriangle, Pencil } from "lucide-react";
 import QRCode from "react-qr-code";
 import { billsStore, type Bill } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { downloadBillPdf } from "@/lib/bill-pdf";
 import { useAuth } from "@/lib/auth-context";
 import { BillDetailSkeleton } from "@/components/loading-skeleton";
@@ -79,8 +88,21 @@ function BillDetailPage() {
   const isEmployee = Boolean(session?.isEmployee);
   const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
 
-  const pharmacyName = session?.pharmacyName || "MediStock Pharmacy";
-  const pharmacyAddress = session?.pharmacyAddress || "";
+  const [customerEditOpen, setCustomerEditOpen] = useState(false);
+  const [customerForm, setCustomerForm] = useState({
+    customerName: "",
+    customerPhone: "",
+    customerDrugLicNo: "",
+    customerGstin: "",
+    customerAddress: "",
+  });
+  const [customerSaving, setCustomerSaving] = useState(false);
+
+  const pharmacyName = bill?.pharmacyName || session?.pharmacyName || "MediStock Pharmacy";
+  const pharmacyAddress = bill?.pharmacyAddress || session?.pharmacyAddress || "";
+  const pharmacyPhone = bill?.pharmacyPhone || session?.pharmacyPhone || "";
+  const gstNumber = bill?.pharmacyGstNumber || session?.gstNumber || "";
+  const drugLicNo = bill?.pharmacyDrugLicNo || session?.drugLicNo || "";
 
   // Backspace → go back to bills list or sell page (guarded when typing)
   useEffect(() => {
@@ -176,14 +198,42 @@ function BillDetailPage() {
   const handlePrint = () => {
     downloadBillPdf(bill, {
       pharmacyName,
-      pharmacyPhone: session?.pharmacyPhone,
+      pharmacyPhone,
       pharmacyAddress,
-      gstNumber: session?.gstNumber,
-      drugLicNo: session?.drugLicNo,
+      gstNumber,
+      drugLicNo,
       billColor: session?.billColor,
       signature: session?.signature,
       print: true,
     });
+  };
+
+  const handleOpenCustomerEdit = () => {
+    if (!bill) return;
+    setCustomerForm({
+      customerName: bill.customerName || "",
+      customerPhone: bill.customerPhone || "",
+      customerDrugLicNo: bill.customerDrugLicNo || "",
+      customerGstin: bill.customerGstin || "",
+      customerAddress: bill.customerAddress || "",
+    });
+    setCustomerEditOpen(true);
+  };
+
+  const handleSaveCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bill) return;
+    setCustomerSaving(true);
+    try {
+      await billsStore.updateCustomer(bill.id, customerForm);
+      toast.success("Customer details updated successfully");
+      setCustomerEditOpen(false);
+      loadBill();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update customer details");
+    } finally {
+      setCustomerSaving(false);
+    }
   };
 
   return (
@@ -258,10 +308,10 @@ function BillDetailPage() {
             onClick={() =>
               void downloadBillPdf(bill, {
                 pharmacyName,
-                pharmacyPhone: session?.pharmacyPhone,
+                pharmacyPhone,
                 pharmacyAddress,
-                gstNumber: session?.gstNumber,
-                drugLicNo: session?.drugLicNo,
+                gstNumber,
+                drugLicNo,
                 billColor: session?.billColor,
                 signature: session?.signature,
                 print: false,
@@ -368,19 +418,19 @@ function BillDetailPage() {
                 </p>
               )}
               <div className="flex flex-wrap flex-col gap-y-1 mt-2 text-xs font-mono text-muted-foreground">
-                {session?.pharmacyPhone && (
+                {pharmacyPhone && (
                   <p>
-                    <strong>Phone:</strong> {session.pharmacyPhone}
+                    <strong>Phone:</strong> {pharmacyPhone}
                   </p>
                 )}
-                {session?.gstNumber && (
+                {gstNumber && (
                   <p>
-                    <strong>GSTIN:</strong> {session.gstNumber.toUpperCase()}
+                    <strong>GSTIN:</strong> {gstNumber.toUpperCase()}
                   </p>
                 )}
-                {session?.drugLicNo && (
+                {drugLicNo && (
                   <p>
-                    <strong>D.L.No.:</strong> {session.drugLicNo.toUpperCase()}
+                    <strong>D.L.No.:</strong> {drugLicNo.toUpperCase()}
                   </p>
                 )}
               </div>
@@ -446,7 +496,20 @@ function BillDetailPage() {
         {/* Customer Details */}
         <div className="border border-border rounded-lg p-4 mb-4 flex flex-col sm:flex-row justify-between text-xs gap-4 bg-muted/20">
           <div className="sm:w-1/2">
-            <p className="font-semibold mb-1 uppercase text-xs text-primary">CUSTOMER DETAILS</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-semibold uppercase text-xs text-primary">CUSTOMER DETAILS</p>
+              {!isEmployee && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-primary print:hidden"
+                  onClick={handleOpenCustomerEdit}
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+              )}
+            </div>
             <p className="font-bold uppercase text-base">
               {bill.customerName || "Walk-in Customer"}
             </p>
@@ -457,7 +520,7 @@ function BillDetailPage() {
             )}
             {bill.customerDrugLicNo && (
               <p className="text-muted-foreground">
-                D.L.NO.: <span className="text-foreground uppercase">{bill.customerDrugLicNo}</span>
+                D.L.NO.: <span className="text-foreground uppercase font-semibold">{bill.customerDrugLicNo}</span>
               </p>
             )}
             {bill.customerGstin && (
@@ -757,6 +820,77 @@ function BillDetailPage() {
           Thank you for your business. Get well soon!
         </div>
       </div>
+
+      {/* Edit Customer Details Dialog */}
+      <Dialog open={customerEditOpen} onOpenChange={setCustomerEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleSaveCustomer}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-primary" />
+                Edit Customer Details
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-4 text-xs">
+              <div className="space-y-1">
+                <Label htmlFor="cust-name">Customer Name</Label>
+                <Input
+                  id="cust-name"
+                  value={customerForm.customerName}
+                  onChange={(e) => setCustomerForm({ ...customerForm, customerName: e.target.value })}
+                  placeholder="e.g. S.A DRUGS or Walk-in Customer"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="cust-phone">Phone Number</Label>
+                <Input
+                  id="cust-phone"
+                  value={customerForm.customerPhone}
+                  onChange={(e) => setCustomerForm({ ...customerForm, customerPhone: e.target.value })}
+                  placeholder="+91 9876543210"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="cust-dl">Drug License Number (D.L. No.)</Label>
+                <Input
+                  id="cust-dl"
+                  value={customerForm.customerDrugLicNo}
+                  onChange={(e) => setCustomerForm({ ...customerForm, customerDrugLicNo: e.target.value.toUpperCase() })}
+                  placeholder="e.g. KMJ/3351/3352 or 20B/21B"
+                  className="font-mono uppercase"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="cust-gstin">GSTIN</Label>
+                <Input
+                  id="cust-gstin"
+                  value={customerForm.customerGstin}
+                  onChange={(e) => setCustomerForm({ ...customerForm, customerGstin: e.target.value.toUpperCase() })}
+                  placeholder="e.g. 18AABCT1234G1Z5"
+                  className="font-mono uppercase"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="cust-address">Address</Label>
+                <Input
+                  id="cust-address"
+                  value={customerForm.customerAddress}
+                  onChange={(e) => setCustomerForm({ ...customerForm, customerAddress: e.target.value })}
+                  placeholder="Customer address"
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" size="sm" onClick={() => setCustomerEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={customerSaving}>
+                {customerSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
