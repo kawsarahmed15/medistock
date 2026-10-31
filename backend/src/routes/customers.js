@@ -208,6 +208,65 @@ router.post("/pay", async (req, res, next) => {
   }
 });
 
+router.get("/product-prices", async (req, res, next) => {
+  try {
+    const rawName = String(req.query.name || "").trim();
+    const rawPhone = String(req.query.phone || "").trim();
+    const cleanDigits = rawPhone.replace(/\D/g, "").slice(-10);
+
+    if (!rawName && !cleanDigits) {
+      return res.json({});
+    }
+
+    let query = `
+      SELECT id, product_id, product_name, last_price, last_bill_number, updated_at
+      FROM customer_product_prices
+      WHERE user_id = ? AND (
+    `;
+    const params = [req.auth.userId];
+    const conditions = [];
+
+    if (rawName) {
+      conditions.push(`LOWER(TRIM(customer_name)) = LOWER(TRIM(?))`);
+      params.push(rawName);
+    }
+    if (cleanDigits && cleanDigits.length === 10) {
+      conditions.push(`(customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?)`);
+      params.push(rawPhone, cleanDigits);
+    } else if (rawPhone) {
+      conditions.push(`customer_phone = ?`);
+      params.push(rawPhone);
+    }
+
+    query += conditions.join(" OR ") + `) ORDER BY updated_at DESC`;
+
+    const [rows] = await pool.query(query, params);
+
+    const prices = {};
+    for (const r of rows) {
+      const normName = String(r.product_name).trim().toLowerCase();
+      const val = {
+        price: Number(r.last_price),
+        billNumber: r.last_bill_number,
+        updatedAt: r.updated_at,
+        productName: r.product_name,
+        productId: r.product_id,
+      };
+
+      if (!prices[normName]) {
+        prices[normName] = val;
+      }
+      if (r.product_id && !prices[r.product_id]) {
+        prices[r.product_id] = val;
+      }
+    }
+
+    res.json(prices);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/:phone/credit-history", async (req, res, next) => {
   try {
     const rawPhone = (req.params.phone || "").trim();

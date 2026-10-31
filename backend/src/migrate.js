@@ -301,6 +301,72 @@ async function runMigration() {
       console.warn("draft_bill_items check skipped:", e.message);
     }
 
+    try {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS customer_product_prices (
+          id CHAR(36) PRIMARY KEY,
+          user_id CHAR(36) NOT NULL,
+          customer_name VARCHAR(190) NOT NULL,
+          customer_phone VARCHAR(50) NULL,
+          product_id VARCHAR(64) NULL,
+          product_name VARCHAR(255) NOT NULL,
+          last_price DECIMAL(12,2) NOT NULL,
+          last_bill_number VARCHAR(50) NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_cpp_user (user_id),
+          INDEX idx_cpp_user_cust (user_id, customer_name),
+          INDEX idx_cpp_user_phone (user_id, customer_phone),
+          INDEX idx_cpp_lookup (user_id, customer_name, product_name),
+          CONSTRAINT fk_cpp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      const [existingPrices] = await connection.query("SELECT COUNT(*) AS cnt FROM customer_product_prices");
+      if (existingPrices[0]?.cnt === 0) {
+        const [historicalItems] = await connection.query(`
+          SELECT b.user_id, b.customer_name, b.customer_phone, b.number as bill_number, bi.product_id, bi.name as product_name, bi.price, b.created_at
+          FROM bill_items bi
+          JOIN bills b ON bi.bill_id = b.id
+          WHERE (b.status IS NULL OR b.status = 'completed')
+            AND (b.customer_name IS NOT NULL AND b.customer_name != '' AND LOWER(b.customer_name) != 'walk-in' AND LOWER(b.customer_name) != 'walk-in customer')
+            AND bi.price > 0
+          ORDER BY b.created_at ASC
+        `);
+
+        for (const item of historicalItems) {
+          const custName = String(item.customer_name).trim();
+          const prodName = String(item.product_name).trim();
+          const rawPhone = item.customer_phone ? String(item.customer_phone).trim() : null;
+          if (!custName || !prodName) continue;
+
+          const [exists] = await connection.query(
+            `SELECT id FROM customer_product_prices 
+             WHERE user_id = ? AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?)) AND LOWER(TRIM(product_name)) = LOWER(TRIM(?)) LIMIT 1`,
+            [item.user_id, custName, prodName]
+          );
+
+          if (exists.length > 0) {
+            await connection.query(
+              `UPDATE customer_product_prices 
+               SET last_price = ?, last_bill_number = ?, product_id = ?, customer_phone = COALESCE(?, customer_phone), updated_at = ?
+               WHERE id = ?`,
+              [item.price, item.bill_number, item.product_id || null, rawPhone, item.created_at, exists[0].id]
+            );
+          } else {
+            await connection.query(
+              `INSERT INTO customer_product_prices (id, user_id, customer_name, customer_phone, product_id, product_name, last_price, last_bill_number, created_at, updated_at)
+               VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [item.user_id, custName, rawPhone, item.product_id || null, prodName, item.price, item.bill_number, item.created_at, item.created_at]
+            );
+          }
+        }
+        console.log(`Backfilled historical customer prices successfully.`);
+      }
+    } catch (e) {
+      console.warn("customer_product_prices migration check skipped:", e.message);
+    }
+
     console.log("MySQL migration completed successfully.");
   } finally {
     await connection.end();

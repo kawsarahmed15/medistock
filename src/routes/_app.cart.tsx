@@ -729,6 +729,60 @@ function CartPage() {
                               </>
                             )}
                           </div>
+                          {/* Quick Customer Price / Standard Price Selector */}
+                          {(() => {
+                            const normName = i.product.name ? i.product.name.trim().toLowerCase() : "";
+                            const cp = cart.customerPrices[normName] || (i.product.id ? cart.customerPrices[i.product.id] : undefined);
+                            if (!cp || !cp.price || cp.price <= 0) return null;
+
+                            const prevPrice = cp.price;
+                            const standardPrice = i.product.price;
+                            const activePrice = i.customPrice !== undefined ? i.customPrice : standardPrice;
+                            const isPrevActive = Math.abs(activePrice - prevPrice) < 0.001;
+                            const isStdActive = Math.abs(activePrice - standardPrice) < 0.001;
+
+                            return (
+                              <div
+                                className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span className="text-[10px] text-muted-foreground font-medium">Select Price:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => cart.setCustomPrice(i.product.id, prevPrice)}
+                                  className={cn(
+                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all border shadow-2xs cursor-pointer",
+                                    isPrevActive
+                                      ? "bg-emerald-600 text-white border-emerald-700 ring-1 ring-emerald-500"
+                                      : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
+                                  )}
+                                  title={`Previous customer price from ${cp.billNumber || "past bill"}`}
+                                >
+                                  <span>Prev: ₹{prevPrice.toFixed(2)}</span>
+                                  {isPrevActive && <Check className="h-3 w-3 ml-0.5" />}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => cart.setCustomPrice(i.product.id, standardPrice)}
+                                  className={cn(
+                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold transition-all border shadow-2xs cursor-pointer",
+                                    isStdActive
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                                  )}
+                                  title="Standard product catalog selling price"
+                                >
+                                  <span>Standard: ₹{standardPrice.toFixed(2)}</span>
+                                  {isStdActive && <Check className="h-3 w-3 ml-0.5" />}
+                                </button>
+                                {!isPrevActive && !isStdActive && (
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic">
+                                    (Custom: ₹{activePrice.toFixed(2)} - will save for next bill)
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {(() => {
                             const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
                             const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
@@ -1616,6 +1670,16 @@ function CartAddDialog({
                       </div>
                       <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span>{formatMoney(p.price)}</span>
+                        {(() => {
+                          const normName = p.name ? p.name.trim().toLowerCase() : "";
+                          const cp = cart.customerPrices[normName] || (p.id ? cart.customerPrices[p.id] : undefined);
+                          if (!cp || !cp.price || cp.price <= 0 || Math.abs(cp.price - p.price) < 0.001) return null;
+                          return (
+                            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-700">
+                              Prev cust: ₹{cp.price.toFixed(2)}
+                            </span>
+                          );
+                        })()}
                         <span>·</span>
                         <span className={cn(
                           "font-semibold",
@@ -1718,6 +1782,16 @@ function CartAddDialog({
                     <div className="font-semibold text-primary">
                       {formatMoney(b.price)}
                     </div>
+                    {(() => {
+                      const normName = (batchesProduct?.name || b.name || "").trim().toLowerCase();
+                      const cp = cart.customerPrices[normName] || (b.id ? cart.customerPrices[b.id] : undefined);
+                      if (!cp || !cp.price || cp.price <= 0 || Math.abs(cp.price - b.price) < 0.001) return null;
+                      return (
+                        <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          Prev cust: ₹{cp.price.toFixed(2)}
+                        </div>
+                      );
+                    })()}
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       Stock: {b.stock} units{((b.lockedQty ?? 0) > 0) ? ` (${b.lockedQty} in draft)` : ""}
                     </div>

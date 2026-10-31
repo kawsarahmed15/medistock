@@ -430,7 +430,27 @@ export type Customer = {
   lastVisit: string; // ISO
 };
 
+export type CustomerProductPrice = {
+  price: number;
+  billNumber?: string;
+  updatedAt?: string;
+  productName?: string;
+  productId?: string;
+};
+
 export const customersStore = {
+  async getProductPrices(name?: string, phone?: string): Promise<Record<string, CustomerProductPrice>> {
+    if (!name && !phone) return {};
+    const params = new URLSearchParams();
+    if (name) params.set("name", name);
+    if (phone) params.set("phone", phone);
+    try {
+      const data = await apiRequest<Record<string, CustomerProductPrice>>(`/customers/product-prices?${params.toString()}`, { auth: true });
+      return data || {};
+    } catch {
+      return {};
+    }
+  },
   async list(from?: string, to?: string): Promise<Customer[]> {
     const params = new URLSearchParams();
     if (from) params.append("from", from);

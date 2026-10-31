@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { toast } from "sonner";
-import { draftBillsStore, type PaymentMethod, type Product } from "./storage";
+import { draftBillsStore, customersStore, type PaymentMethod, type Product, type CustomerProductPrice } from "./storage";
 import { useAuth } from "./auth-context";
 import { resolveBusinessCategory } from "@/features";
 
@@ -68,6 +68,8 @@ type CartCtx = {
   setCustomer: (c: Customer) => void;
   customerSubmitted: boolean;
   setCustomerSubmitted: (v: boolean) => void;
+  customerPrices: Record<string, CustomerProductPrice>;
+  loadCustomerPrices: (name?: string, phone?: string) => Promise<void>;
   paymentMethod: PaymentMethod;
   setPaymentMethod: (m: PaymentMethod) => void;
   advanceAmount: number;
@@ -255,6 +257,50 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [activeDraftId, setActiveDraftId] = useState<string | null>(initialDataRef.current().activeDraftId);
   const [activeDraftRestored, setActiveDraftRestored] = useState<boolean>(initialDataRef.current().wasRestored);
   const [drafts, setDrafts] = useState<DraftBill[]>(loadSavedDrafts);
+  const [customerPrices, setCustomerPrices] = useState<Record<string, CustomerProductPrice>>({});
+
+  const loadCustomerPrices = useCallback(async (name?: string, phone?: string) => {
+    const custName = (name ?? customer.name ?? "").trim();
+    const custPhone = (phone ?? customer.phone ?? "").trim();
+    if (!custName && !custPhone) {
+      setCustomerPrices({});
+      return;
+    }
+    if (custName.toLowerCase() === "walk-in" || custName.toLowerCase() === "walk-in customer") {
+      setCustomerPrices({});
+      return;
+    }
+    try {
+      const prices = await customersStore.getProductPrices(custName, custPhone);
+      setCustomerPrices(prices || {});
+    } catch {
+      setCustomerPrices({});
+    }
+  }, [customer.name, customer.phone]);
+
+  useEffect(() => {
+    if (customer.name || customer.phone) {
+      void loadCustomerPrices(customer.name, customer.phone);
+    } else {
+      setCustomerPrices({});
+    }
+  }, [customer.name, customer.phone, loadCustomerPrices]);
+
+  // When customer prices change, auto-apply to items in cart that have not had a custom price manually altered (Option A)
+  useEffect(() => {
+    if (Object.keys(customerPrices).length === 0) return;
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.customPrice !== undefined) return item;
+        const normName = item.product.name ? item.product.name.trim().toLowerCase() : "";
+        const cp = customerPrices[normName] || (item.product.id ? customerPrices[item.product.id] : undefined);
+        if (cp && cp.price > 0 && Math.abs(cp.price - item.product.price) > 0.001) {
+          return { ...item, customPrice: cp.price };
+        }
+        return item;
+      })
+    );
+  }, [customerPrices]);
 
   const broadcastDraftsUpdated = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -522,6 +568,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const add: CartCtx["add"] = (product, qty = 1) => {
     const isFirst = items.length === 0;
+    const normName = product.name ? product.name.trim().toLowerCase() : "";
+    const cp = customerPrices[normName] || (product.id ? customerPrices[product.id] : undefined);
+    const initialCustomPrice = cp && cp.price > 0 && Math.abs(cp.price - product.price) > 0.001 ? cp.price : undefined;
+
     setItems((prev) => {
       const existing = prev.find((i) => i.product.id === product.id);
       const existingQty = existing ? existing.qty : 0;
@@ -544,10 +594,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       if (existing) {
         return prev.map((i) =>
-          i.product.id === product.id ? { ...i, qty: finalQty } : i,
+          i.product.id === product.id
+            ? { ...i, qty: finalQty, customPrice: i.customPrice !== undefined ? i.customPrice : initialCustomPrice }
+            : i,
         );
       }
-      return [...prev, { product, qty: finalQty }];
+      return [...prev, { product, qty: finalQty, customPrice: initialCustomPrice }];
     });
     return { isFirst };
   };
@@ -628,6 +680,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
     setItems([]);
     setCustomer(emptyCustomer);
+    setCustomerPrices({});
     setCustomerSubmitted(false);
     setPaymentMethod("cash");
     setAdvanceAmount(0);
@@ -752,6 +805,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // Reset active cart so it doesn't show this draft bill anymore and is ready for a fresh bill
     setItems([]);
     setCustomer(emptyCustomer);
+    setCustomerPrices({});
     setCustomerSubmitted(false);
     setPaymentMethod("cash");
     setAdvanceAmount(0);
@@ -854,6 +908,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCustomer,
         customerSubmitted,
         setCustomerSubmitted,
+        customerPrices,
+        loadCustomerPrices,
         paymentMethod,
         setPaymentMethod,
         advanceAmount,

@@ -948,6 +948,41 @@ router.post("/", async (req, res, next) => {
         );
       }
 
+      // Save customer product prices for future bills
+      const custName = (body.customerName || "").trim();
+      if (custName && custName.toLowerCase() !== "walk-in" && custName.toLowerCase() !== "walk-in customer") {
+        for (const item of items) {
+          const itemPrice = Number(item.price || 0);
+          const rawItemName = (item.name || "").trim();
+          if (itemPrice > 0 && rawItemName) {
+            try {
+              const [existing] = await conn.query(
+                `SELECT id FROM customer_product_prices 
+                 WHERE user_id = ? AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?)) AND LOWER(TRIM(product_name)) = LOWER(TRIM(?)) LIMIT 1`,
+                [req.auth.userId, custName, rawItemName]
+              );
+              if (existing.length > 0) {
+                await conn.query(
+                  `UPDATE customer_product_prices 
+                   SET last_price = ?, last_bill_number = ?, product_id = ?, customer_phone = COALESCE(?, customer_phone), updated_at = NOW()
+                   WHERE id = ?`,
+                  [itemPrice, invoiceNo, item.productId || null, customerPhone || null, existing[0].id]
+                );
+              } else {
+                await conn.query(
+                  `INSERT INTO customer_product_prices 
+                   (id, user_id, customer_name, customer_phone, product_id, product_name, last_price, last_bill_number)
+                   VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?)`,
+                  [req.auth.userId, custName, customerPhone || null, item.productId || null, rawItemName, itemPrice, invoiceNo]
+                );
+              }
+            } catch (priceErr) {
+              console.warn("Failed to update customer product price:", priceErr.message);
+            }
+          }
+        }
+      }
+
       if (!isEmployee) {
         if (isReturn) {
           await applyReturnStock(conn, req.auth.userId, items, invoiceNo);
