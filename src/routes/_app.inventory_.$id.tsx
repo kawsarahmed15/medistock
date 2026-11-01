@@ -15,10 +15,11 @@ import {
   Edit,
   FileText,
   RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -106,6 +107,7 @@ function ProductDetails() {
   // Batch dialog state
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [editingBatch, setEditingBatch] = useState<any>(null); // null means creating
+  const [confirmingBatchChange, setConfirmingBatchChange] = useState(false);
   const [batchForm, setBatchForm] = useState<any>({
     batchNo: "",
     expiryDate: "",
@@ -143,7 +145,13 @@ function ProductDetails() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (batchDialogOpen) return;
+        if (batchDialogOpen) {
+          if (confirmingBatchChange) {
+            e.preventDefault();
+            setConfirmingBatchChange(false);
+          }
+          return;
+        }
         e.preventDefault();
         navigate({ to: "/inventory" });
       }
@@ -151,7 +159,7 @@ function ProductDetails() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate, batchDialogOpen]);
+  }, [navigate, batchDialogOpen, confirmingBatchChange]);
 
   const startEdit = () => {
     setEditForm({
@@ -251,6 +259,7 @@ function ProductDetails() {
   // Batch operations
   const openAddBatch = () => {
     setEditingBatch(null);
+    setConfirmingBatchChange(false);
     setBatchForm({
       batchNo: "",
       expiryDate: "",
@@ -265,8 +274,9 @@ function ProductDetails() {
 
   const openEditBatch = (batch: any) => {
     setEditingBatch(batch);
+    setConfirmingBatchChange(false);
     setBatchForm({
-      batchNo: batch.batch_no,
+      batchNo: batch.batch_no || "",
       expiryDate: (() => {
         if (!batch.expiry_date) return "";
         const dateObj = new Date(batch.expiry_date);
@@ -283,11 +293,7 @@ function ProductDetails() {
     setBatchDialogOpen(true);
   };
 
-  const handleBatchSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!batchForm.batchNo.trim()) return toast.error("Batch number is required");
-    if (!batchForm.expiryDate.trim()) return toast.error("Expiry date is required");
-
+  const executeSaveBatch = async () => {
     // Expiry conversion helper (from MM/YY or YYYY-MM-DD to YYYY-MM-DD)
     const formattedExpiry = (() => {
       const exp = batchForm.expiryDate.trim();
@@ -332,6 +338,7 @@ function ProductDetails() {
         });
         toast.success("Batch created successfully");
       }
+      setConfirmingBatchChange(false);
       setBatchDialogOpen(false);
       loadData();
     } catch (err: any) {
@@ -339,6 +346,23 @@ function ProductDetails() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batchForm.batchNo.trim()) return toast.error("Batch number is required");
+    if (!batchForm.expiryDate.trim()) return toast.error("Expiry date is required");
+
+    const batchNoChanged =
+      editingBatch &&
+      batchForm.batchNo.trim().toUpperCase() !== (editingBatch.batch_no || "").trim().toUpperCase();
+
+    if (batchNoChanged) {
+      setConfirmingBatchChange(true);
+      return;
+    }
+
+    await executeSaveBatch();
   };
 
   const handleDeleteBatch = async (batchId: string, batchNo: string) => {
@@ -739,114 +763,213 @@ function ProductDetails() {
       </div>
 
       {/* Add / Edit Batch Modal */}
-      <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
-        <DialogContent className="max-w-xs">
+      <Dialog
+        open={batchDialogOpen}
+        onOpenChange={(open) => {
+          setBatchDialogOpen(open);
+          if (!open) {
+            setConfirmingBatchChange(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base">{editingBatch ? "Edit Selling Price" : "Add New Batch"}</DialogTitle>
+            <DialogTitle className="text-base">
+              {confirmingBatchChange
+                ? "Confirm Batch Number Change"
+                : editingBatch
+                ? "Edit Selling Price"
+                : "Add New Batch"}
+            </DialogTitle>
+            {confirmingBatchChange && (
+              <DialogDescription className="text-xs text-muted-foreground">
+                Please review and confirm before making changes to the batch number.
+              </DialogDescription>
+            )}
           </DialogHeader>
-          <form onSubmit={handleBatchSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs">Batch Number</Label>
-              <Input
-                value={batchForm.batchNo}
-                onChange={(e) => setBatchForm({ ...batchForm, batchNo: e.target.value.toUpperCase() })}
-                placeholder="e.g. ABC123XYZ"
-                required
-                disabled={!!editingBatch}
-              />
-            </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Expiry Date (MM/YY or YYYY-MM-DD)</Label>
-              <Input
-                value={batchForm.expiryDate}
-                onChange={(e) => {
-                  let val = e.target.value.replace(/[^\d/-]/g, "");
-                  if (val.length === 2 && !val.includes("/") && !val.includes("-")) {
-                    val = val + "/";
-                  }
-                  setBatchForm({ ...batchForm, expiryDate: val });
-                }}
-                placeholder="e.g. 10/28 or 2028-10-31"
-                required
-                disabled={!!editingBatch}
-              />
-            </div>
+          {confirmingBatchChange ? (
+            <div className="space-y-4 py-1">
+              <div className="rounded-lg border border-amber-300/80 bg-amber-500/10 p-3.5 text-foreground">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1 text-xs">
+                    <p className="font-semibold text-amber-900 dark:text-amber-300">
+                      Batch Number Modification Confirmation
+                    </p>
+                    <p className="text-muted-foreground leading-relaxed">
+                      You are changing the batch number for <strong className="text-foreground">{product?.name}</strong>.
+                      Please verify the updated batch details below before applying the changes.
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">HSN Code</Label>
-              <Input
-                value={batchForm.sku}
-                onChange={(e) => setBatchForm({ ...batchForm, sku: e.target.value.toUpperCase() })}
-                placeholder="e.g. 3004"
-                disabled={!!editingBatch}
-              />
-            </div>
+              <div className="rounded-lg border bg-muted/40 p-3.5 space-y-2.5 text-xs">
+                <div className="flex justify-between items-center py-1 border-b border-border/50">
+                  <span className="text-muted-foreground font-medium">Medicine</span>
+                  <span className="font-semibold text-right max-w-[200px] truncate">{product?.name}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-border/50">
+                  <span className="text-muted-foreground font-medium">Current Batch Number</span>
+                  <span className="font-mono font-medium line-through text-destructive bg-destructive/10 px-2 py-0.5 rounded">
+                    {editingBatch?.batch_no || "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-border/50">
+                  <span className="text-muted-foreground font-medium">New Batch Number</span>
+                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded">
+                    {batchForm.batchNo.trim().toUpperCase()}
+                  </span>
+                </div>
+                {batchForm.sellingPrice !== "" && Number(batchForm.sellingPrice) !== Number(editingBatch?.selling_price) && (
+                  <div className="flex justify-between items-center py-1 border-b border-border/50">
+                    <span className="text-muted-foreground font-medium">Selling Price Change</span>
+                    <span className="font-medium">
+                      ₹{Number(editingBatch?.selling_price || 0).toFixed(2)} → <strong className="text-foreground font-semibold">₹{Number(batchForm.sellingPrice).toFixed(2)}</strong>
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-muted-foreground font-medium">Available Stock</span>
+                  <span className="font-medium font-mono">{editingBatch?.available_qty || 0}</span>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 gap-3">
+              <div className="text-[11px] text-muted-foreground bg-muted/20 p-2 rounded">
+                Note: This will update the batch identification for this product in your inventory records.
+              </div>
+
+              <DialogFooter className="pt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirmingBatchChange(false)}
+                  disabled={submitting}
+                >
+                  Back to Edit
+                </Button>
+                <Button
+                  type="button"
+                  onClick={executeSaveBatch}
+                  disabled={submitting}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-medium"
+                >
+                  {submitting ? "Saving Changes..." : "Confirm & Save Changes"}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <form onSubmit={handleBatchSubmit} className="space-y-4">
               <div className="space-y-1">
-                <Label className="text-xs">Purchase Price (PTR)</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Batch Number</Label>
+                  {editingBatch && (
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      (Editable)
+                    </span>
+                  )}
+                </div>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={batchForm.purchasePrice}
-                  onChange={(e) => setBatchForm({ ...batchForm, purchasePrice: e.target.value })}
-                  placeholder="₹0.00"
-                  disabled={!!editingBatch}
+                  value={batchForm.batchNo}
+                  onChange={(e) => setBatchForm({ ...batchForm, batchNo: e.target.value.toUpperCase() })}
+                  placeholder="e.g. ABC123XYZ"
+                  required
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Selling Price</Label>
+                <Label className="text-xs">Expiry Date (MM/YY or YYYY-MM-DD)</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={batchForm.sellingPrice}
-                  onChange={(e) => setBatchForm({ ...batchForm, sellingPrice: e.target.value })}
-                  placeholder="₹0.00"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">MRP</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={batchForm.mrp}
-                  onChange={(e) => setBatchForm({ ...batchForm, mrp: e.target.value })}
-                  placeholder="₹0.00"
-                  disabled={!!editingBatch}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Available Stock Qty</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={batchForm.availableQty}
-                  onChange={(e) => setBatchForm({ ...batchForm, availableQty: e.target.value })}
-                  placeholder="e.g. 100"
+                  value={batchForm.expiryDate}
+                  onChange={(e) => {
+                    let val = e.target.value.replace(/[^\d/-]/g, "");
+                    if (val.length === 2 && !val.includes("/") && !val.includes("-")) {
+                      val = val + "/";
+                    }
+                    setBatchForm({ ...batchForm, expiryDate: val });
+                  }}
+                  placeholder="e.g. 10/28 or 2028-10-31"
                   required
                   disabled={!!editingBatch}
                 />
               </div>
-            </div>
 
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="ghost" onClick={() => setBatchDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                Save Batch
-              </Button>
-            </DialogFooter>
-          </form>
+              <div className="space-y-1">
+                <Label className="text-xs">HSN Code</Label>
+                <Input
+                  value={batchForm.sku}
+                  onChange={(e) => setBatchForm({ ...batchForm, sku: e.target.value.toUpperCase() })}
+                  placeholder="e.g. 3004"
+                  disabled={!!editingBatch}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Purchase Price (PTR)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={batchForm.purchasePrice}
+                    onChange={(e) => setBatchForm({ ...batchForm, purchasePrice: e.target.value })}
+                    placeholder="₹0.00"
+                    disabled={!!editingBatch}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Selling Price</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={batchForm.sellingPrice}
+                    onChange={(e) => setBatchForm({ ...batchForm, sellingPrice: e.target.value })}
+                    placeholder="₹0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">MRP</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={batchForm.mrp}
+                    onChange={(e) => setBatchForm({ ...batchForm, mrp: e.target.value })}
+                    placeholder="₹0.00"
+                    disabled={!!editingBatch}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Available Stock Qty</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={batchForm.availableQty}
+                    onChange={(e) => setBatchForm({ ...batchForm, availableQty: e.target.value })}
+                    placeholder="e.g. 100"
+                    required
+                    disabled={!!editingBatch}
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="ghost" onClick={() => setBatchDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  Save Batch
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

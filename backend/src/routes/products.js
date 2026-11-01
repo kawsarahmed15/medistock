@@ -855,10 +855,31 @@ router.patch("/batches/:batchId", requireAdminOnly, async (req, res, next) => {
       sku: "sku",
     };
 
+    if (body.batchNo) {
+      const cleanBatchNo = String(body.batchNo).trim().toUpperCase();
+      body.batchNo = cleanBatchNo;
+      const [currentBatch] = await pool.query(
+        "SELECT id, product_id, batch_no FROM product_batches WHERE id = ?",
+        [batchId]
+      );
+      if (currentBatch.length > 0) {
+        const [existing] = await pool.query(
+          "SELECT id FROM product_batches WHERE product_id = ? AND UPPER(TRIM(batch_no)) = ? AND id != ? LIMIT 1",
+          [currentBatch[0].product_id, cleanBatchNo, batchId]
+        );
+        if (existing.length > 0) {
+          throw buildApiError(400, `Batch number "${cleanBatchNo}" already exists for this medicine`);
+        }
+      }
+    }
+
     for (const [inputKey, dbKey] of Object.entries(map)) {
       if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
         fields.push(`${dbKey} = ?`);
         let val = body[inputKey];
+        if (inputKey === "batchNo" && typeof val === "string") {
+          val = val.trim().toUpperCase();
+        }
         if (["purchasePrice", "mrp", "sellingPrice", "availableQty", "stripQty"].includes(inputKey) && val != null) {
           val = Number(val);
         }
@@ -877,6 +898,17 @@ router.patch("/batches/:batchId", requireAdminOnly, async (req, res, next) => {
       `UPDATE product_batches SET ${fields.join(", ")} WHERE id = ?`,
       [...values, batchId]
     );
+
+    if (body.batchNo) {
+      try {
+        await pool.query(
+          "UPDATE draft_bill_items SET batch_no = ? WHERE batch_id = ?",
+          [body.batchNo, batchId]
+        );
+      } catch (err) {
+        // non-blocking
+      }
+    }
 
     // If available quantity updated to 0 or less, delete the batch
     const [checkRows] = await pool.query(
