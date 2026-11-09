@@ -78,6 +78,14 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "INR" }).format(n);
 }
 
+function formatQty(val: number | string | undefined | null): string {
+  if (val === null || val === undefined || val === "") return "0";
+  const num = Number(val);
+  if (isNaN(num)) return "0";
+  const rounded = Math.round(num * 100) / 100;
+  return rounded.toString();
+}
+
 // ─── Cart Add Dialog – Product Form State ─────────────────────────────────────
 
 type FormState = {
@@ -455,6 +463,66 @@ function CartPage() {
   const entryInputRef = useRef<HTMLInputElement>(null);
   const entryDropdownRef = useRef<HTMLDivElement>(null);
 
+  // ── 2D Cell Navigation Matrix Refs ─────────────────────────────────────────
+  const cellRefs = useRef<{ [row: number]: { [col: number]: HTMLElement | null } }>({});
+
+  const setCellRef = (row: number, col: number, el: HTMLElement | null) => {
+    if (!cellRefs.current[row]) {
+      cellRefs.current[row] = {};
+    }
+    cellRefs.current[row][col] = el;
+  };
+
+  const focusCell = (row: number, col: number) => {
+    const el = cellRefs.current[row]?.[col];
+    if (el) {
+      el.focus();
+      setSelectedIdx(row);
+    }
+  };
+
+  const handleCellNav = (e: React.KeyboardEvent, rowIdx: number, colIdx: number) => {
+    if (e.key === "Enter" || e.key === "ArrowRight") {
+      e.preventDefault();
+      if (colIdx < 9) {
+        focusCell(rowIdx, colIdx + 1);
+      } else {
+        // Reached end of row -> jump to search box for next item!
+        entryInputRef.current?.focus();
+      }
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      if (colIdx > 0) {
+        focusCell(rowIdx, colIdx - 1);
+      } else {
+        entryInputRef.current?.focus();
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (rowIdx < cart.items.length - 1) {
+        focusCell(rowIdx + 1, colIdx);
+      } else {
+        entryInputRef.current?.focus();
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (rowIdx > 0) {
+        focusCell(rowIdx - 1, colIdx);
+      }
+    } else if (e.key === "Delete") {
+      const item = cart.items[rowIdx];
+      if (item) setDeleteTarget(item.product.id);
+    }
+  };
+
+  // Autofocus the medicine search box on initial load
+  useEffect(() => {
+    const t = setTimeout(() => {
+      entryInputRef.current?.focus();
+    }, 120);
+    return () => clearTimeout(t);
+  }, []);
+
   const entryMatches = useMemo(() => {
     const q = entryQuery.trim().toLowerCase();
     if (!q) return [];
@@ -469,6 +537,7 @@ function CartPage() {
   }, [productList, entryQuery]);
 
   const handleAddProduct = (p: Product) => {
+    const targetRow = cart.items.length;
     const activeBatches = p.batches ? p.batches.filter((b) => b.stock > 0) : [];
     if (activeBatches.length > 1) {
       cart.add(activeBatches[0], 1);
@@ -483,9 +552,12 @@ function CartPage() {
     setEntryQuery("");
     setEntryDropdownOpen(false);
     setEntryActiveIdx(0);
+
+    // Autofocus advances box-by-box into the added row
     setTimeout(() => {
-      entryInputRef.current?.focus();
-    }, 50);
+      setSelectedIdx(targetRow);
+      focusCell(targetRow, 1); // Focuses PACK box, user can hit Enter/Right Arrow to cycle to QTY, PCS, RATE, etc.
+    }, 60);
   };
 
   const handleEntryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -493,11 +565,15 @@ function CartPage() {
       e.preventDefault();
       if (entryMatches.length > 0) {
         setEntryActiveIdx((prev) => (prev < entryMatches.length - 1 ? prev + 1 : 0));
+      } else if (cart.items.length > 0) {
+        focusCell(0, 0);
       }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (entryMatches.length > 0) {
         setEntryActiveIdx((prev) => (prev > 0 ? prev - 1 : entryMatches.length - 1));
+      } else if (cart.items.length > 0) {
+        focusCell(cart.items.length - 1, 0);
       }
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -552,12 +628,15 @@ function CartPage() {
     }
     cart.clear();
     setCustomerOpen(true);
+    setTimeout(() => {
+      entryInputRef.current?.focus();
+    }, 100);
   };
 
   const selectedItem = selectedIdx >= 0 && selectedIdx < cart.items.length ? cart.items[selectedIdx] : null;
 
   return (
-    <div className="space-y-2.5 max-w-[1700px] mx-auto pb-10">
+    <div className="space-y-2.5 max-w-[1750px] mx-auto pb-10">
       {cart.activeDraftRestored && (
         <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs animate-fade-in shadow-2xs">
           <div className="flex items-center gap-2">
@@ -742,13 +821,13 @@ function CartPage() {
         </div>
       </div>
 
-      {/* ─── Main 2-Column Desktop Grid Layout ────────────────────────────────── */}
+      {/* ─── Main 2-Column Desktop Grid Layout (Bigger full-screen feel) ───────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] xl:grid-cols-[1fr_330px] gap-3 items-start">
-        {/* Left Column: Grid + Bottom Details Panel */}
+        {/* Left Column: Grid + Bottom Details Panel + Shortcut List */}
         <div className="space-y-2.5 min-w-0">
-          {/* ─── SECTION B: Medicine Items Table ──────────────────────────────── */}
+          {/* ─── SECTION B: Medicine Items Table (Enlarged) ───────────────────── */}
           <div className="border border-border/80 rounded-lg shadow-2xs overflow-hidden bg-card flex flex-col">
-            <div className="overflow-x-auto min-h-[340px] max-h-[calc(100vh-380px)] overflow-y-auto no-scrollbar">
+            <div className="overflow-x-auto min-h-[460px] md:min-h-[500px] max-h-[calc(100vh-290px)] overflow-y-auto no-scrollbar">
               <table className="w-full text-xs text-left border-collapse min-w-[950px]">
                 <thead className="bg-slate-100 dark:bg-muted/70 text-slate-700 dark:text-slate-300 font-semibold text-[11px] uppercase tracking-wider sticky top-0 z-10 border-b border-border">
                   <tr>
@@ -788,7 +867,6 @@ function CartPage() {
                         key={i.product.id}
                         ref={(el) => { itemRefs.current[idx] = el; }}
                         onClick={() => setSelectedIdx(idx)}
-                        tabIndex={0}
                         aria-selected={isSelected}
                         className={cn(
                           "transition-colors cursor-pointer outline-none",
@@ -803,8 +881,13 @@ function CartPage() {
                           {idx + 1}
                         </td>
 
-                        {/* 2. Product Name */}
-                        <td className="py-1.5 px-3 font-semibold text-foreground">
+                        {/* 2. Product Name (Box 0) */}
+                        <td
+                          ref={(el) => setCellRef(idx, 0, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => handleCellNav(e, idx, 0)}
+                          className="py-1.5 px-3 font-semibold text-foreground outline-none focus:ring-1 focus:ring-primary focus:bg-primary/10 rounded transition-all"
+                        >
                           <div className="flex items-center gap-1.5 truncate">
                             <span className="truncate">{i.product.name}</span>
                             {i.product.prescription && (
@@ -818,15 +901,22 @@ function CartPage() {
                           </div>
                         </td>
 
-                        {/* 3. Pack */}
-                        <td className="py-1.5 px-2 text-center text-muted-foreground font-medium">
+                        {/* 3. Pack (Box 1 - Non-customisable) */}
+                        <td
+                          ref={(el) => setCellRef(idx, 1, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => handleCellNav(e, idx, 1)}
+                          className="py-1.5 px-2 text-center text-muted-foreground font-medium outline-none focus:ring-1 focus:ring-primary focus:bg-primary/10 rounded transition-all select-none"
+                          title="Pack size (Read-only)"
+                        >
                           {i.product.pack || "—"}
                         </td>
 
-                        {/* 4. Batch */}
+                        {/* 4. Batch (Box 2) */}
                         <td className="py-1.5 px-2 text-center">
                           {activeBatches.length > 1 ? (
                             <select
+                              ref={(el) => setCellRef(idx, 2, el)}
                               className="bg-transparent border border-border/80 rounded px-1 py-0.5 text-xs text-foreground font-semibold outline-none focus:ring-1 focus:ring-primary w-full max-w-[90px]"
                               value={i.product.id}
                               onChange={(e) => {
@@ -837,6 +927,15 @@ function CartPage() {
                                 }
                               }}
                               onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === "ArrowRight") {
+                                  e.preventDefault();
+                                  focusCell(idx, 3);
+                                } else if (e.key === "ArrowLeft") {
+                                  e.preventDefault();
+                                  focusCell(idx, 1);
+                                }
+                              }}
                             >
                               {activeBatches.map((b) => (
                                 <option key={b.id} value={b.id}>
@@ -845,14 +944,25 @@ function CartPage() {
                               ))}
                             </select>
                           ) : (
-                            <span className="font-semibold text-foreground font-mono">
+                            <div
+                              ref={(el) => setCellRef(idx, 2, el)}
+                              tabIndex={0}
+                              onKeyDown={(e) => handleCellNav(e, idx, 2)}
+                              className="font-semibold text-foreground font-mono outline-none focus:ring-1 focus:ring-primary focus:bg-primary/10 rounded px-1 transition-all select-none"
+                            >
                               {String(i.product.batch || "—").toUpperCase()}
-                            </span>
+                            </div>
                           )}
                         </td>
 
-                        {/* 5. Expiry */}
-                        <td className="py-1.5 px-2 text-center text-muted-foreground font-medium font-mono">
+                        {/* 5. Expiry (Box 3 - Non-customisable) */}
+                        <td
+                          ref={(el) => setCellRef(idx, 3, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => handleCellNav(e, idx, 3)}
+                          className="py-1.5 px-2 text-center text-muted-foreground font-medium font-mono outline-none focus:ring-1 focus:ring-primary focus:bg-primary/10 rounded transition-all select-none"
+                          title="Expiry date (Read-only)"
+                        >
                           {i.product.expiry
                             ? new Date(i.product.expiry).toLocaleDateString("en-IN", {
                                 month: "2-digit",
@@ -861,10 +971,24 @@ function CartPage() {
                             : "—"}
                         </td>
 
-                        {/* 6. Quantity (Dual Strip or Single) */}
-                        <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        {/* 6. Quantity (Box 4 - Dual Strip or Single) */}
+                        <td
+                          className="py-1.5 px-2 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                          ref={(el) => setCellRef(idx, 4, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === "ArrowRight") {
+                              e.preventDefault();
+                              focusCell(idx, 5);
+                            } else if (e.key === "ArrowLeft") {
+                              e.preventDefault();
+                              focusCell(idx, 3);
+                            }
+                          }}
+                        >
                           {isDual ? (
-                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto">
+                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto focus-within:ring-1 focus-within:ring-primary">
                               <span className="text-[9px] uppercase font-bold text-muted-foreground mr-0.5">Str</span>
                               <Button
                                 variant="ghost"
@@ -883,7 +1007,7 @@ function CartPage() {
                                 <Minus className="h-2.5 w-2.5" />
                               </Button>
                               <span className="w-5 text-center text-xs tabular-nums font-bold text-foreground">
-                                {strips}
+                                {formatQty(strips)}
                               </span>
                               <Button
                                 variant="ghost"
@@ -894,7 +1018,7 @@ function CartPage() {
                                   if (newQty <= i.product.stock) {
                                     cart.setQty(i.product.id, newQty);
                                   } else {
-                                    toast.warning(`Only ${i.product.stock} in stock`);
+                                    toast.warning(`Only ${formatQty(i.product.stock)} in stock`);
                                   }
                                 }}
                                 disabled={i.qty + 1 > i.product.stock}
@@ -904,7 +1028,7 @@ function CartPage() {
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto">
+                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto focus-within:ring-1 focus-within:ring-primary">
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -915,7 +1039,7 @@ function CartPage() {
                                 <Minus className="h-2.5 w-2.5" />
                               </Button>
                               <span className="w-6 text-center text-xs tabular-nums font-bold text-foreground">
-                                {i.qty}
+                                {formatQty(i.qty)}
                               </span>
                               <Button
                                 variant="ghost"
@@ -925,7 +1049,7 @@ function CartPage() {
                                   if (i.qty < i.product.stock) {
                                     cart.setQty(i.product.id, i.qty + 1);
                                   } else {
-                                    toast.warning(`Only ${i.product.stock} in stock`);
+                                    toast.warning(`Only ${formatQty(i.product.stock)} in stock`);
                                   }
                                 }}
                                 disabled={i.qty >= i.product.stock}
@@ -937,10 +1061,24 @@ function CartPage() {
                           )}
                         </td>
 
-                        {/* 7. Pieces (Dual Pieces or Free Qty) */}
-                        <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        {/* 7. Pieces (Box 5 - Dual Pieces or Free Qty) */}
+                        <td
+                          className="py-1.5 px-2 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                          ref={(el) => setCellRef(idx, 5, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === "ArrowRight") {
+                              e.preventDefault();
+                              focusCell(idx, 6);
+                            } else if (e.key === "ArrowLeft") {
+                              e.preventDefault();
+                              focusCell(idx, 4);
+                            }
+                          }}
+                        >
                           {isDual ? (
-                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto">
+                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto focus-within:ring-1 focus-within:ring-primary">
                               <span className="text-[9px] uppercase font-bold text-muted-foreground mr-0.5">Pc</span>
                               <Button
                                 variant="ghost"
@@ -961,7 +1099,7 @@ function CartPage() {
                                 <Minus className="h-2.5 w-2.5" />
                               </Button>
                               <span className="w-5 text-center text-xs tabular-nums font-bold text-foreground">
-                                {pcs}
+                                {formatQty(pcs)}
                               </span>
                               <Button
                                 variant="ghost"
@@ -978,7 +1116,7 @@ function CartPage() {
                                   if (newQty <= i.product.stock) {
                                     cart.setQty(i.product.id, newQty);
                                   } else {
-                                    toast.warning(`Only ${i.product.stock} in stock`);
+                                    toast.warning(`Only ${formatQty(i.product.stock)} in stock`);
                                   }
                                 }}
                                 disabled={i.qty + 1 / pps > i.product.stock}
@@ -989,26 +1127,33 @@ function CartPage() {
                             </div>
                           ) : (i.freeQty && i.freeQty > 0) ? (
                             <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-300">
-                              {i.freeQty} Free
+                              {formatQty(i.freeQty)} Free
                             </span>
                           ) : (
                             <span className="text-muted-foreground/60">—</span>
                           )}
                         </td>
 
-                        {/* 8. MRP */}
-                        <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground font-medium">
+                        {/* 8. MRP (Box 6 - Non-customisable) */}
+                        <td
+                          ref={(el) => setCellRef(idx, 6, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => handleCellNav(e, idx, 6)}
+                          className="py-1.5 px-2 text-right tabular-nums text-muted-foreground font-medium outline-none focus:ring-1 focus:ring-primary focus:bg-primary/10 rounded transition-all select-none"
+                          title="Printed MRP (Read-only)"
+                        >
                           {i.product.mrp && i.product.mrp > 0 ? formatMoney(i.product.mrp) : "—"}
                         </td>
 
-                        {/* 9. Selling Rate & Previous Price Toggle */}
+                        {/* 9. Selling Rate & Previous Price Toggle (Box 7) */}
                         <td className="py-1.5 px-2 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex flex-col items-end gap-1">
                             <input
+                              ref={(el) => setCellRef(idx, 7, el)}
                               type="number"
                               step="0.01"
                               key={`${i.product.id}-rate-input`}
-                              className="w-20 h-6 px-1.5 border border-border/80 rounded bg-background text-foreground outline-none font-semibold focus:ring-1 focus:ring-primary text-xs text-right"
+                              className="w-20 h-6 px-1.5 border border-border/80 rounded bg-background text-foreground outline-none font-semibold focus:ring-2 focus:ring-primary text-xs text-right"
                               value={i.customPrice !== undefined ? i.customPrice : i.product.price}
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value);
@@ -1027,8 +1172,12 @@ function CartPage() {
                                 }
                               }}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  (e.target as HTMLInputElement).blur();
+                                if (e.key === "Enter" || e.key === "ArrowRight") {
+                                  e.preventDefault();
+                                  focusCell(idx, 8);
+                                } else if (e.key === "ArrowLeft") {
+                                  e.preventDefault();
+                                  focusCell(idx, 6);
                                 }
                               }}
                             />
@@ -1050,13 +1199,25 @@ function CartPage() {
                           </div>
                         </td>
 
-                        {/* 10. GST % */}
-                        <td className="py-1.5 px-2 text-center tabular-nums text-muted-foreground font-medium">
+                        {/* 10. GST % (Box 8 - Non-customisable) */}
+                        <td
+                          ref={(el) => setCellRef(idx, 8, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => handleCellNav(e, idx, 8)}
+                          className="py-1.5 px-2 text-center tabular-nums text-muted-foreground font-medium outline-none focus:ring-1 focus:ring-primary focus:bg-primary/10 rounded transition-all select-none"
+                          title="GST Tax % (Read-only)"
+                        >
                           {i.product.taxPercent != null ? `${i.product.taxPercent}%` : (isRetailer ? "5%" : "0%")}
                         </td>
 
-                        {/* 11. Net Line Total */}
-                        <td className="py-1.5 px-3 text-right tabular-nums font-bold text-foreground">
+                        {/* 11. Net Line Total (Box 9 - Non-customisable, Enter returns to search!) */}
+                        <td
+                          ref={(el) => setCellRef(idx, 9, el)}
+                          tabIndex={0}
+                          onKeyDown={(e) => handleCellNav(e, idx, 9)}
+                          className="py-1.5 px-3 text-right tabular-nums font-bold text-foreground outline-none focus:ring-1 focus:ring-primary focus:bg-primary/10 rounded transition-all select-none"
+                          title="Net total (Press Enter to search next product)"
+                        >
                           {i.freeQty === i.qty
                             ? "₹0.00"
                             : formatMoney((i.customPrice ?? i.product.price) * (i.qty - (i.freeQty || 0)))}
@@ -1078,19 +1239,23 @@ function CartPage() {
                     );
                   })}
 
-                  {/* ── Active Inline Medicine Entry Row ──────────────────────── */}
-                  <tr className="bg-primary/5 border-t border-primary/20">
-                    <td className="py-2 px-2 text-center font-bold text-primary">
+                  {/* ── Active Inline Medicine Entry Row (Exact column match, adjusts just before PACK!) ── */}
+                  <tr className="bg-primary/5 border-t-2 border-primary/30">
+                    {/* 1. # */}
+                    <td className="py-1.5 px-2 text-center font-bold text-primary font-mono text-xs">
                       {cart.items.length + 1}
                     </td>
-                    <td className="py-1 px-3 relative" colSpan={4}>
+
+                    {/* 2. PRODUCT / MEDICINE NAME (Fits directly inside column, right before PACK) */}
+                    <td className="py-1 px-2 relative border-r border-border/50">
                       <div className="relative flex items-center">
-                        <Search className="h-3.5 w-3.5 absolute left-2 text-muted-foreground pointer-events-none" />
+                        <Search className="h-3 w-3 absolute left-2 text-muted-foreground pointer-events-none" />
                         <input
                           ref={entryInputRef}
+                          autoFocus
                           type="text"
-                          className="w-full h-8 pl-8 pr-3 border border-primary/40 rounded bg-background text-xs font-medium focus:ring-2 focus:ring-primary/40 outline-none placeholder:text-muted-foreground/70"
-                          placeholder="Type medicine name to search & add directly..."
+                          className="w-full h-7 pl-7 pr-2 border border-primary/50 rounded bg-background text-xs font-semibold focus:ring-2 focus:ring-primary/50 outline-none placeholder:text-muted-foreground/60 placeholder:font-normal"
+                          placeholder="Type medicine name & Enter..."
                           value={entryQuery}
                           onChange={(e) => {
                             setEntryQuery(e.target.value);
@@ -1107,11 +1272,11 @@ function CartPage() {
                         {entryDropdownOpen && entryMatches.length > 0 && (
                           <div
                             ref={entryDropdownRef}
-                            className="absolute z-50 top-full left-0 mt-1 w-full min-w-[500px] max-w-[650px] bg-popover border border-border rounded-md shadow-xl max-h-60 overflow-y-auto no-scrollbar"
+                            className="absolute z-50 top-full left-0 mt-1 w-[460px] max-w-[550px] bg-popover border border-border rounded-md shadow-2xl max-h-60 overflow-y-auto no-scrollbar"
                           >
-                            <div className="p-1 text-[10px] uppercase font-bold text-muted-foreground bg-muted/40 border-b px-2 flex justify-between">
+                            <div className="p-1 text-[10px] uppercase font-bold text-muted-foreground bg-muted/50 border-b px-2 flex justify-between">
                               <span>Matching Medicines ({entryMatches.length})</span>
-                              <span>Press Enter to Add · Esc to Close</span>
+                              <span>Enter to Select · Esc to Close</span>
                             </div>
                             {entryMatches.map((p, pIdx) => {
                               const isActive = pIdx === entryActiveIdx;
@@ -1120,7 +1285,7 @@ function CartPage() {
                                   key={p.id}
                                   data-active-match={isActive}
                                   className={cn(
-                                    "px-3 py-2 cursor-pointer text-xs transition-colors flex items-center justify-between gap-3 border-b last:border-b-0",
+                                    "px-3 py-1.5 cursor-pointer text-xs transition-colors flex items-center justify-between gap-2 border-b last:border-b-0",
                                     isActive
                                       ? "bg-accent text-accent-foreground font-semibold"
                                       : "hover:bg-muted/60"
@@ -1130,7 +1295,7 @@ function CartPage() {
                                     handleAddProduct(p);
                                   }}
                                 >
-                                  <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex items-center gap-1.5 min-w-0">
                                     <span className="font-semibold text-foreground truncate">{p.name}</span>
                                     {p.prescription && (
                                       <span className="text-[9px] font-bold px-1 rounded bg-destructive/10 text-destructive shrink-0">
@@ -1143,9 +1308,9 @@ function CartPage() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-3 shrink-0 text-[11px]">
+                                  <div className="flex items-center gap-2.5 shrink-0 text-[11px]">
                                     <span className={cn("font-medium", p.stock > 0 ? "text-muted-foreground" : "text-destructive")}>
-                                      Stock: {p.stock}
+                                      Stock: {formatQty(p.stock)}
                                     </span>
                                     {p.mrp && p.mrp > 0 && (
                                       <span className="text-muted-foreground">MRP: {formatMoney(p.mrp)}</span>
@@ -1159,28 +1324,74 @@ function CartPage() {
                         )}
                       </div>
                     </td>
-                    <td colSpan={7} className="py-1 px-3 text-right">
+
+                    {/* 3. PACK */}
+                    <td className="py-1.5 px-2 text-center text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 4. BATCH */}
+                    <td className="py-1.5 px-2 text-center text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 5. EXP */}
+                    <td className="py-1.5 px-2 text-center text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 6. QTY */}
+                    <td className="py-1.5 px-2 text-center text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 7. PCS */}
+                    <td className="py-1.5 px-2 text-center text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 8. MRP */}
+                    <td className="py-1.5 px-2 text-right text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 9. RATE */}
+                    <td className="py-1.5 px-2 text-right text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 10. GST% */}
+                    <td className="py-1.5 px-2 text-center text-muted-foreground/60 font-mono border-r border-border/50 select-none">
+                      —
+                    </td>
+
+                    {/* 11. NET */}
+                    <td className="py-1.5 px-3 text-right text-muted-foreground/60 font-semibold font-mono border-r border-border/50 select-none">
+                      ₹0.00
+                    </td>
+
+                    {/* 12. Action */}
+                    <td className="py-1.5 px-1 text-center">
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => setAddOpen(true)}
-                        className="h-7 text-xs text-primary gap-1"
+                        className="h-6 w-6 text-muted-foreground hover:text-primary"
                         title="Browse catalog (Alt+B)"
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        <span>Browse Catalog (Alt+B)</span>
                       </Button>
                     </td>
                   </tr>
 
                   {cart.items.length === 0 && (
                     <tr>
-                      <td colSpan={12} className="py-10 text-center text-muted-foreground">
+                      <td colSpan={12} className="py-14 text-center text-muted-foreground">
                         <div className="space-y-1">
-                          <p className="font-medium text-xs">Your cart is empty.</p>
-                          <p className="text-[11px] text-muted-foreground/80">
-                            Type a medicine name above to add items, or press <kbd className="px-1 py-0.5 rounded bg-muted border text-[10px] font-semibold">Alt+B</kbd> to browse.
+                          <p className="font-semibold text-sm">Your cart is empty.</p>
+                          <p className="text-xs text-muted-foreground/80">
+                            Type a medicine name in the row above to add items, or press <kbd className="px-1 py-0.5 rounded bg-muted border text-[10px] font-semibold">Alt+B</kbd> to browse.
                           </p>
                         </div>
                       </td>
@@ -1214,11 +1425,11 @@ function CartPage() {
                 <div>
                   <div className="text-muted-foreground text-[10px]">Stock Available</div>
                   <div className="font-semibold text-foreground">
-                    {selectedItem.product.stock} units
+                    {formatQty(selectedItem.product.stock)} units
                     {(() => {
                       const pps = getPiecesPerStrip(selectedItem.product.pack, selectedItem.product.stockType, selectedItem.product.conversionFactor);
                       if (isRetailer && pps > 1) {
-                        return ` (${Math.floor(selectedItem.product.stock)} str, ${Math.round((selectedItem.product.stock % 1) * pps)} pcs)`;
+                        return ` (${formatQty(Math.floor(selectedItem.product.stock))} str, ${formatQty(Math.round((selectedItem.product.stock % 1) * pps))} pcs)`;
                       }
                       return null;
                     })()}
@@ -1259,6 +1470,41 @@ function CartPage() {
             ) : (
               <div className="text-muted-foreground italic text-center py-1">
                 No product selected on active row.
+              </div>
+            )}
+          </div>
+
+          {/* ─── SECTION E: Compact Keyboard Shortcut Bar (Below Product Details) ─ */}
+          <div className="bg-slate-100 dark:bg-muted/60 border border-border/80 rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground flex items-center justify-between flex-wrap gap-2 shadow-2xs">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">↑↓</kbd> Move Row
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">←→</kbd> Move Box / Qty
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Enter</kbd> Next Box
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Ctrl+←→</kbd> Free Qty
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Del</kbd> Remove
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Alt+B</kbd> Browse
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Alt+N</kbd> New Bill
+              </span>
+              <span className="flex items-center gap-1 font-medium">
+                <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">F9</kbd> Pay &amp; Save
+              </span>
+            </div>
+            {selectedItem && (
+              <div className="text-primary font-semibold text-xs ml-auto">
+                Row {selectedIdx + 1}: {selectedItem.product.name}
               </div>
             )}
           </div>
@@ -1339,7 +1585,7 @@ function CartPage() {
             <div className="flex items-center justify-between text-muted-foreground">
               <span>Total Items:</span>
               <span className="font-semibold text-foreground">
-                {cart.items.length} ({cart.count} units)
+                {cart.items.length} ({formatQty(cart.count)} units)
               </span>
             </div>
             <div className="flex items-center justify-between text-muted-foreground">
@@ -1421,39 +1667,6 @@ function CartPage() {
           </div>
         </div>
       </div>
-
-      {/* ─── SECTION E: Compact Keyboard Shortcut Bar ─────────────────────────── */}
-      <div className="bg-slate-100 dark:bg-muted/60 border border-border/80 rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground flex items-center justify-between flex-wrap gap-2 shadow-2xs">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="flex items-center gap-1 font-medium">
-            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">↑↓</kbd> Select Row
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">←→</kbd> Qty
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Ctrl+←→</kbd> Free Qty
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Del</kbd> Remove
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Alt+B</kbd> Browse
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Alt+N</kbd> New Bill
-          </span>
-          <span className="flex items-center gap-1 font-medium">
-            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">F9</kbd> Pay &amp; Save
-          </span>
-        </div>
-        {selectedItem && (
-          <div className="text-primary font-semibold text-xs ml-auto">
-            Row {selectedIdx + 1}: {selectedItem.product.name}
-          </div>
-        )}
-      </div>
-
       <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
       <CartAddDialog open={addOpen} onOpenChange={setAddOpen} />
       <DraftBillsDialog open={draftsOpen} onOpenChange={setDraftsOpen} />
