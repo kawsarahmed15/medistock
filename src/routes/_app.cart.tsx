@@ -448,12 +448,119 @@ function CartPage() {
   const hasCustomer =
     cart.customer.name.trim() || cart.customer.phone.trim() || cart.customer.notes.trim();
 
+  // ── Inline Medicine Entry & Autocomplete State ─────────────────────────────
+  const [entryQuery, setEntryQuery] = useState("");
+  const [entryDropdownOpen, setEntryDropdownOpen] = useState(false);
+  const [entryActiveIdx, setEntryActiveIdx] = useState(0);
+  const entryInputRef = useRef<HTMLInputElement>(null);
+  const entryDropdownRef = useRef<HTMLDivElement>(null);
+
+  const entryMatches = useMemo(() => {
+    const q = entryQuery.trim().toLowerCase();
+    if (!q) return [];
+    return productList
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.sku ?? "").toLowerCase().includes(q) ||
+          (p.category ?? "").toLowerCase().includes(q)
+      )
+      .slice(0, 10);
+  }, [productList, entryQuery]);
+
+  const handleAddProduct = (p: Product) => {
+    const activeBatches = p.batches ? p.batches.filter((b) => b.stock > 0) : [];
+    if (activeBatches.length > 1) {
+      cart.add(activeBatches[0], 1);
+      toast.success(`${p.name} added (Batch ${activeBatches[0].batch})`);
+    } else if (activeBatches.length === 1) {
+      cart.add(activeBatches[0], 1);
+      toast.success(`${p.name} added`);
+    } else {
+      cart.add(p, 1);
+      toast.success(`${p.name} added`);
+    }
+    setEntryQuery("");
+    setEntryDropdownOpen(false);
+    setEntryActiveIdx(0);
+    setTimeout(() => {
+      entryInputRef.current?.focus();
+    }, 50);
+  };
+
+  const handleEntryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (entryMatches.length > 0) {
+        setEntryActiveIdx((prev) => (prev < entryMatches.length - 1 ? prev + 1 : 0));
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (entryMatches.length > 0) {
+        setEntryActiveIdx((prev) => (prev > 0 ? prev - 1 : entryMatches.length - 1));
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (entryMatches.length > 0 && entryMatches[entryActiveIdx]) {
+        const p = entryMatches[entryActiveIdx];
+        if (p.stock > 0) {
+          handleAddProduct(p);
+        } else {
+          toast.warning(`${p.name} is out of stock`);
+        }
+      }
+    } else if (e.key === "Escape") {
+      setEntryDropdownOpen(false);
+    }
+  };
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        entryDropdownRef.current &&
+        !entryDropdownRef.current.contains(e.target as Node) &&
+        entryInputRef.current &&
+        !entryInputRef.current.contains(e.target as Node)
+      ) {
+        setEntryDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Scroll active suggestion into view
+  useEffect(() => {
+    if (entryDropdownRef.current) {
+      const activeEl = entryDropdownRef.current.querySelector<HTMLElement>("[data-active-match='true']");
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [entryActiveIdx]);
+
+  const handleNewBill = () => {
+    if (cart.items.length > 0) {
+      if (
+        !window.confirm(
+          "You have an active bill. Are you sure you want to clear it and start a new one?"
+        )
+      ) {
+        return;
+      }
+    }
+    cart.clear();
+    setCustomerOpen(true);
+  };
+
+  const selectedItem = selectedIdx >= 0 && selectedIdx < cart.items.length ? cart.items[selectedIdx] : null;
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-2.5 max-w-[1700px] mx-auto pb-10">
       {cart.activeDraftRestored && (
-        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs animate-fade-in shadow-xs">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs animate-fade-in shadow-2xs">
+          <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
               <strong>Draft in Progress:</strong> Your in-progress bill was preserved. You can edit items and generate the bill when ready.
@@ -463,7 +570,7 @@ function CartPage() {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-[11px] bg-background/80 border-amber-500/30 hover:bg-background"
+              className="h-6 text-[11px] bg-background/80 border-amber-500/30 hover:bg-background"
               onClick={() => setDraftsOpen(true)}
             >
               View Drafts ({cart.drafts.length})
@@ -471,896 +578,880 @@ function CartPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-amber-700 hover:text-foreground"
+              className="h-5 w-5 text-amber-700 hover:text-foreground"
               onClick={() => cart.dismissRestoredBanner()}
               title="Dismiss banner"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </Button>
           </div>
         </div>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5 text-primary" /> Cart
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Review items, choose payment, and finalize the sale.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDraftsOpen(true)}
-            className="relative gap-1.5 h-8 text-xs"
-            title="Saved Draft Bills"
-          >
-            <FileText className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Drafts</span>
-            {cart.drafts.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px] font-bold">
-                {cart.drafts.length}
-              </Badge>
-            )}
-          </Button>
+      {/* ─── SECTION A: Compact Billing Header ───────────────────────────────── */}
+      <div className="space-y-1">
+        {/* Bill Tabs Bar */}
+        <div className="flex items-center justify-between border-b border-border/70 px-1 pt-1 bg-muted/40 rounded-t-lg flex-wrap gap-1">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+            {/* Active Bill Tab */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-t-md text-xs font-bold bg-background border-t-2 border-primary text-primary shadow-2xs border-x border-border/60">
+              <FileText className="h-3.5 w-3.5" />
+              <span>{cart.activeDraftId ? "Draft Bill" : "Bill #1"}</span>
+              <span className="text-muted-foreground font-normal">·</span>
+              <span className="max-w-[130px] truncate text-foreground">
+                {cart.customer.name.trim() || "Walk-in Customer"}
+              </span>
+            </div>
 
-          {cart.items.length > 0 && (
+            {/* Draft Tabs */}
+            {cart.drafts.map((d) => {
+              if (d.id === cart.activeDraftId) return null;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => {
+                    cart.loadDraft(d.id);
+                    toast.success(`Switched to ${d.name}`);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-t-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border-t-2 border-transparent"
+                  title={`Switch to draft: ${d.name}`}
+                >
+                  <Clock className="h-3 w-3 text-amber-500 shrink-0" />
+                  <span className="max-w-[110px] truncate">{d.name}</span>
+                  <span className="text-[10px] text-muted-foreground/80">({d.items.length})</span>
+                </button>
+              );
+            })}
+
+            {/* + New Bill Button */}
             <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleNewBill}
+              className="h-7 text-xs px-2 gap-1 text-primary hover:bg-primary/10 ml-1"
+              title="Start a new bill (Alt+N)"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>New Bill</span>
+              <kbd className="text-[9px] font-semibold bg-muted px-1 rounded border">Alt+N</kbd>
+            </Button>
+          </div>
+
+          {/* Header Action Buttons */}
+          <div className="flex items-center gap-1.5 pb-1">
+            <Button
+              type="button"
               variant="outline"
               size="sm"
-              onClick={handleSaveDraft}
-              className="gap-1.5 h-8 text-xs border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-              title="Save current bill as draft without decreasing stock"
+              onClick={() => setDraftsOpen(true)}
+              className="h-7 text-xs px-2.5 gap-1.5 border-border/80"
+              title="Saved Draft Bills"
             >
-              <Save className="h-3.5 w-3.5" />
-              <span>Save as Draft</span>
+              <Pencil className="h-3 w-3 text-muted-foreground" />
+              <span>Modify Bill</span>
+              {cart.drafts.length > 0 && (
+                <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold">
+                  {cart.drafts.length}
+                </Badge>
+              )}
             </Button>
-          )}
 
-          <Button
-            ref={browseButtonRef}
-            variant="outline"
-            size="sm"
-            onClick={() => setAddOpen(true)}
-            title="Browse & Add Item (Alt+B)"
-            id="cart-browse-btn"
-            className="h-8 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Browse &amp; Add Item
-            <kbd className="ml-2 hidden sm:inline-flex items-center gap-0.5 rounded border bg-muted px-1 py-0.2 text-[9px] font-semibold text-muted-foreground">
-              Alt+B
-            </kbd>
-          </Button>
+            <Button
+              ref={browseButtonRef}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAddOpen(true)}
+              className="h-7 text-xs px-2.5 gap-1.5 border-border/80 text-foreground"
+              title="Browse & Add Item (Alt+B)"
+              id="cart-browse-btn"
+            >
+              <Plus className="h-3.5 w-3.5 text-primary" />
+              <span>Browse Catalog</span>
+              <kbd className="hidden sm:inline-flex text-[9px] font-semibold bg-muted px-1 rounded border">Alt+B</kbd>
+            </Button>
+          </div>
+        </div>
+
+        {/* Compact Header Fields Row */}
+        <div className="bg-card border border-border/80 rounded-b-lg p-2.5 shadow-2xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2.5 items-center text-xs">
+            {/* Date */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">Date</label>
+              <div className="h-7 px-2 flex items-center bg-muted/40 border border-border/80 rounded text-xs font-semibold text-foreground">
+                {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              </div>
+            </div>
+
+            {/* Patient / Party Name */}
+            <div className="col-span-2">
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Patient / Party Name</label>
+                <button
+                  type="button"
+                  onClick={() => setCustomerOpen(true)}
+                  className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-0.5"
+                >
+                  <Pencil className="h-2.5 w-2.5" /> {hasCustomer ? "Edit Details" : "Add Details"}
+                </button>
+              </div>
+              <input
+                type="text"
+                className="w-full h-7 px-2 border border-border/80 rounded bg-background text-xs font-semibold focus:ring-1 focus:ring-primary outline-none"
+                placeholder="Walk-in Customer"
+                value={cart.customer.name}
+                onChange={(e) => cart.setCustomer({ ...cart.customer, name: e.target.value })}
+              />
+            </div>
+
+            {/* Mobile Number */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">Mobile Number</label>
+              <input
+                type="tel"
+                className="w-full h-7 px-2 border border-border/80 rounded bg-background text-xs font-semibold focus:ring-1 focus:ring-primary outline-none"
+                placeholder="Mobile (10 digits)"
+                value={cart.customer.phone}
+                onChange={(e) => cart.setCustomer({ ...cart.customer, phone: e.target.value })}
+              />
+            </div>
+
+            {/* Prescribing Doctor */}
+            <div>
+              <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">Prescribing Doctor</label>
+              <input
+                type="text"
+                className="w-full h-7 px-2 border border-border/80 rounded bg-background text-xs focus:ring-1 focus:ring-primary outline-none"
+                placeholder="Dr. Name / Ref"
+                value={cart.customer.prescriptionRef || ""}
+                onChange={(e) => cart.setCustomer({ ...cart.customer, prescriptionRef: e.target.value })}
+              />
+            </div>
+
+            {/* Invoice Number */}
+            <div className="text-right ml-auto">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">Invoice #</label>
+              <span className="inline-flex items-center h-7 px-2.5 font-mono font-bold text-xs rounded bg-primary/10 text-primary border border-primary/20">
+                {cart.activeDraftId ? "DRAFT" : "#INV-NEW"}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-4">
-        <Card className="shadow-soft">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base">
-              Items {cart.count > 0 ? `(${cart.count})` : ""}
-            </CardTitle>
-            {!session?.isEmployee && cart.items.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCostPrice((v) => !v)}
-                className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1.5 px-2"
-                title={showCostPrice ? "Hide buying prices (privacy protection)" : "Show buying prices"}
-              >
-                {showCostPrice ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                <span className="text-[11px]">{showCostPrice ? "Hide Buying" : "Show Buying"}</span>
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent className="px-0 pb-0">
-            {cart.items.length === 0 ? (
-              <div className="text-center py-12 space-y-3 px-6">
-                <p className="text-sm text-muted-foreground">Your cart is empty.</p>
-                <Button size="sm" onClick={() => setAddOpen(true)} id="cart-browse-empty-btn">
-                  <Plus className="h-4 w-4 mr-2" /> Browse &amp; Add Item
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Press <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-semibold">Alt+B</kbd> to open the product selector
-                </p>
-              </div>
-            ) : (
-              <div>
-                {/* Keyboard hint bar */}
-                <div className="flex items-center gap-3 px-4 py-1.5 bg-muted/40 border-b text-[11px] text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1">
-                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">↑↓</kbd>
-                    select row
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">←→</kbd>
-                    qty
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">Ctrl</kbd>
-                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">←→</kbd>
-                    free qty
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <kbd className="rounded border bg-background px-1 py-0.5 font-semibold">Del</kbd>
-                    remove
-                  </span>
-                  {selectedIdx >= 0 && (
-                    <span className="ml-auto text-primary font-medium">
-                      Row {selectedIdx + 1} selected
-                      {cart.items[selectedIdx] && (
-                        <span className="ml-2 text-muted-foreground font-normal">
-                          · qty <span className="font-semibold text-foreground">{cart.items[selectedIdx].qty}</span>
-                          {(cart.items[selectedIdx].freeQty ?? 0) > 0 && (
-                            <span className="ml-1 text-primary font-semibold">
-                              ({cart.items[selectedIdx].freeQty} free)
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-
-                {/* Items list */}
-                <div ref={itemsContainerRef} className="divide-y px-2">
+      {/* ─── Main 2-Column Desktop Grid Layout ────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] xl:grid-cols-[1fr_330px] gap-3 items-start">
+        {/* Left Column: Grid + Bottom Details Panel */}
+        <div className="space-y-2.5 min-w-0">
+          {/* ─── SECTION B: Medicine Items Table ──────────────────────────────── */}
+          <div className="border border-border/80 rounded-lg shadow-2xs overflow-hidden bg-card flex flex-col">
+            <div className="overflow-x-auto min-h-[340px] max-h-[calc(100vh-380px)] overflow-y-auto no-scrollbar">
+              <table className="w-full text-xs text-left border-collapse min-w-[950px]">
+                <thead className="bg-slate-100 dark:bg-muted/70 text-slate-700 dark:text-slate-300 font-semibold text-[11px] uppercase tracking-wider sticky top-0 z-10 border-b border-border">
+                  <tr>
+                    <th className="py-2 px-2 text-center w-[35px] border-r border-border/50">#</th>
+                    <th className="py-2 px-3 min-w-[240px] border-r border-border/50">PRODUCT / MEDICINE NAME</th>
+                    <th className="py-2 px-2 text-center w-[75px] border-r border-border/50">PACK</th>
+                    <th className="py-2 px-2 text-center w-[95px] border-r border-border/50">BATCH</th>
+                    <th className="py-2 px-2 text-center w-[75px] border-r border-border/50">EXP</th>
+                    <th className="py-2 px-2 text-center w-[95px] border-r border-border/50">QTY</th>
+                    <th className="py-2 px-2 text-center w-[65px] border-r border-border/50">PCS</th>
+                    <th className="py-2 px-2 text-right w-[85px] border-r border-border/50">MRP (₹)</th>
+                    <th className="py-2 px-2 text-right w-[105px] border-r border-border/50">RATE (₹)</th>
+                    <th className="py-2 px-2 text-center w-[60px] border-r border-border/50">GST%</th>
+                    <th className="py-2 px-3 text-right w-[95px] border-r border-border/50">NET (₹)</th>
+                    <th className="py-2 px-1 text-center w-[40px]"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
                   {cart.items.map((i, idx) => {
                     const isSelected = idx === selectedIdx;
+                    const parentProduct = productList.find((p) => p.id === i.product.productId);
+                    const activeBatches = parentProduct?.batches?.filter((b) => b.stock > 0 || b.id === i.product.id) || [];
+                    const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
+                    const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
+                    const { strips, pcs } = isDual ? splitQtyToStripAndPc(i.qty, pps) : { strips: i.qty, pcs: 0 };
+
+                    const normName = i.product.name ? i.product.name.trim().toLowerCase() : "";
+                    const cp = cart.customerPrices[normName] || (i.product.id ? cart.customerPrices[i.product.id] : undefined);
+                    const hasPrevPrice = cp && cp.price && cp.price > 0;
+                    const prevPrice = hasPrevPrice ? cp.price : 0;
+                    const standardPrice = i.product.price;
+                    const activePrice = i.customPrice !== undefined ? i.customPrice : standardPrice;
+                    const isPrevActive = hasPrevPrice && Math.abs(activePrice - prevPrice) < 0.001;
+
                     return (
-                      <div
+                      <tr
                         key={i.product.id}
                         ref={(el) => { itemRefs.current[idx] = el; }}
                         onClick={() => setSelectedIdx(idx)}
                         tabIndex={0}
                         aria-selected={isSelected}
                         className={cn(
-                          "flex items-center gap-3 py-3 px-2 rounded-lg animate-fade-in cursor-pointer transition-colors outline-none",
+                          "transition-colors cursor-pointer outline-none",
                           isSelected
-                            ? "bg-primary/20 ring-1.5 ring-primary/50"
-                            : "hover:bg-muted/40",
+                            ? "bg-blue-50/70 dark:bg-blue-950/30"
+                            : "hover:bg-muted/30"
                         )}
                       >
-                        {/* Row selection indicator */}
-                        <div className={cn(
-                          "w-1 self-stretch rounded-full shrink-0 transition-colors",
-                          isSelected ? "bg-primary" : "bg-transparent",
-                        )} />
+                        {/* 1. Row # & Active Indicator */}
+                        <td className="py-1.5 px-2 text-center font-mono font-medium text-muted-foreground relative">
+                          {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
+                          {idx + 1}
+                        </td>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate flex items-center gap-1.5">
-                            {i.product.name}
+                        {/* 2. Product Name */}
+                        <td className="py-1.5 px-3 font-semibold text-foreground">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="truncate">{i.product.name}</span>
                             {i.product.prescription && (
                               <span
-                                className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-destructive/10 text-destructive shrink-0"
-                                title="Prescription required"
+                                className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.2 rounded bg-destructive/10 text-destructive border border-destructive/20 shrink-0"
+                                title="Prescription required (Rx)"
                               >
                                 Rx
                               </span>
                             )}
-                            {i.product.pack && (
-                              <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-                                {i.product.pack}
-                              </span>
-                            )}
                           </div>
-                          {(() => {
-                            const parentProduct = productList.find((p) => p.id === i.product.productId);
-                            const activeBatches = parentProduct?.batches?.filter((b) => b.stock > 0 || b.id === i.product.id) || [];
-                            if (activeBatches.length > 1) {
-                              return (
-                                <div className="flex items-center gap-1.5 mt-1 text-[11px]">
-                                  <span className="text-muted-foreground font-medium">Batch:</span>
-                                  <select
-                                    className="bg-transparent border border-border rounded px-1.5 py-0.5 text-xs text-foreground font-semibold outline-none focus:ring-1 focus:ring-primary"
-                                    value={i.product.id}
-                                    onChange={(e) => {
-                                      const newBatch = activeBatches.find(b => b.id === e.target.value);
-                                      if (newBatch) {
-                                        cart.switchBatch(i.product.id, newBatch);
-                                        toast.success(`Switched to batch ${newBatch.batch}`);
-                                      }
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {activeBatches.map(b => (
-                                      <option key={b.id} value={b.id}>
-                                        {String(b.batch || "No Batch").toUpperCase()} (Stock: {b.stock} · Exp: {b.expiry ? new Date(b.expiry).toLocaleDateString().slice(3) : "N/A"})
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              );
-                            }
-                            return (
-                              <div className="text-[11px] text-muted-foreground mt-1 font-medium">
-                                Batch: <span className="font-semibold text-slate-800 dark:text-slate-200 uppercase">{String(i.product.batch || "—").toUpperCase()}</span>
-                                {i.product.expiry && (
-                                  <>
-                                    {" · Exp: "}
-                                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                      {new Date(i.product.expiry).toLocaleDateString()}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-1.5">
-                            {i.freeQty && i.freeQty === i.qty ? (
-                              <span className="font-semibold text-primary">Free</span>
-                            ) : (
-                              <>
-                                <span className="inline-flex items-center gap-1 shrink-0">
-                                  <span>Price: ₹</span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    key={`${i.product.id}-price-input`}
-                                    className="w-16 h-6 px-1.5 border rounded bg-background text-foreground outline-none font-medium focus:ring-1 focus:ring-primary text-xs"
-                                    value={i.customPrice !== undefined ? i.customPrice : i.product.price}
-                                    onChange={(e) => {
-                                      const val = parseFloat(e.target.value);
-                                      if (!isNaN(val) && val > 0) {
-                                        cart.setCustomPrice(i.product.id, val);
-                                      }
-                                    }}
-                                    onBlur={(e) => {
-                                      const val = parseFloat(e.target.value);
-                                      const cost = i.product.costPrice ?? 0;
-                                      if (isNaN(val) || val <= cost) {
-                                        toast.error(`Price must be higher than buying price (${formatMoney(cost)}). Please fix the price.`);
-                                        cart.setCustomPrice(i.product.id, i.product.price);
-                                      } else {
-                                        cart.setCustomPrice(i.product.id, val);
-                                      }
-                                    }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        (e.target as HTMLInputElement).blur();
-                                      }
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </span>
+                        </td>
 
-                                {/* MRP Display */}
-                                {i.product.mrp && i.product.mrp > 0 ? (
-                                  <span
-                                    className="inline-flex items-center text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded border border-border/60 font-medium shrink-0"
-                                    title={`Printed MRP: ${formatMoney(i.product.mrp)}`}
-                                  >
-                                    MRP: {formatMoney(i.product.mrp)}
-                                  </span>
-                                ) : null}
+                        {/* 3. Pack */}
+                        <td className="py-1.5 px-2 text-center text-muted-foreground font-medium">
+                          {i.product.pack || "—"}
+                        </td>
 
-                                {/* Quick Customer Price / Standard Price Toggle (Compact & Responsive) */}
-                                {(() => {
-                                  const normName = i.product.name ? i.product.name.trim().toLowerCase() : "";
-                                  const cp = cart.customerPrices[normName] || (i.product.id ? cart.customerPrices[i.product.id] : undefined);
-                                  if (!cp || !cp.price || cp.price <= 0) return null;
-
-                                  const prevPrice = cp.price;
-                                  const standardPrice = i.product.price;
-                                  const activePrice = i.customPrice !== undefined ? i.customPrice : standardPrice;
-                                  const isPrevActive = Math.abs(activePrice - prevPrice) < 0.001;
-                                  const isStdActive = Math.abs(activePrice - standardPrice) < 0.001;
-
-                                  return (
-                                    <span
-                                      className="inline-flex items-center gap-1"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={() => cart.setCustomPrice(i.product.id, prevPrice)}
-                                        className={cn(
-                                          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all border shadow-2xs cursor-pointer",
-                                          isPrevActive
-                                            ? "bg-emerald-600 text-white border-emerald-700 ring-1 ring-emerald-500"
-                                            : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
-                                        )}
-                                        title={`Previous customer price from ${cp.billNumber || "past bill"}`}
-                                      >
-                                        <span>Prev: ₹{prevPrice.toFixed(2)}</span>
-                                        {isPrevActive && <Check className="h-2.5 w-2.5 ml-0.5" />}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => cart.setCustomPrice(i.product.id, standardPrice)}
-                                        className={cn(
-                                          "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-all border shadow-2xs cursor-pointer",
-                                          isStdActive
-                                            ? "bg-primary text-primary-foreground border-primary"
-                                            : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
-                                        )}
-                                        title="Standard product catalog selling price"
-                                      >
-                                        <span>Std: ₹{standardPrice.toFixed(2)}</span>
-                                        {isStdActive && <Check className="h-2.5 w-2.5 ml-0.5" />}
-                                      </button>
-                                      {!isPrevActive && !isStdActive && (
-                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium italic">
-                                          (Custom: ₹{activePrice.toFixed(2)})
-                                        </span>
-                                      )}
-                                    </span>
-                                  );
-                                })()}
-
-                                <span className="shrink-0">· {i.product.taxPercent ?? (isRetailer ? 5 : 0)}% tax</span>
-
-                                {(() => {
-                                  const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
-                                  const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
-                                  return isDual ? (
-                                    <span className="text-[11px] text-muted-foreground font-medium shrink-0">
-                                      (₹{getPerPcPrice(i.customPrice ?? i.product.price, pps)}/pc)
-                                    </span>
-                                  ) : null;
-                                })()}
-
-                                {/* Buying Price: Hidden for employee; Eye toggle privacy protection for owner */}
-                                {!session?.isEmployee && i.product.costPrice ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShowCostPrice((v) => !v);
-                                    }}
-                                    className={cn(
-                                      "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors border cursor-pointer shrink-0",
-                                      showCostPrice
-                                        ? "bg-muted text-foreground border-border"
-                                        : "bg-muted/40 hover:bg-muted text-muted-foreground/80 hover:text-foreground border-border/40"
-                                    )}
-                                    title={showCostPrice ? "Click to hide buying price (counter protection)" : "Click to view buying price (owner only)"}
-                                  >
-                                    {showCostPrice ? (
-                                      <>
-                                        <EyeOff className="h-2.5 w-2.5 text-muted-foreground" />
-                                        <span>Buy: {formatMoney(i.product.costPrice)}</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Eye className="h-2.5 w-2.5 text-muted-foreground" />
-                                        <span>Buy: ••••</span>
-                                      </>
-                                    )}
-                                  </button>
-                                ) : null}
-                              </>
-                            )}
-                          </div>
-                          {(() => {
-                            const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
-                            const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
-                            return isDual ? (
-                              <div className="text-[11px] font-semibold text-primary mt-0.5">
-                                {formatStripPcDisplay(i.qty, pps, i.product.stockType, i.product.pack, i.product.name)}
-                              </div>
-                            ) : null;
-                          })()}
-                        </div>
-
-                        {/* Quantity Controls: Strip & Pc for Retailer Tab/Cap, Single Qty otherwise */}
-                        {(() => {
-                          const pps = getPiecesPerStrip(i.product.pack, i.product.stockType, i.product.conversionFactor);
-                          const isDual = isRetailer && (pps > 1 || isTabOrCap(i.product.stockType, i.product.pack, i.product.name));
-                          if (!isDual) return null;
-                          const { strips, pcs } = splitQtyToStripAndPc(i.qty, pps);
-
-                          return (
-                            <div className="flex items-center gap-2">
-                              {/* Strip +/- */}
-                              <div className="flex items-center border border-border/80 rounded-md bg-background h-8 px-1">
-                                <span className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
-                                  Strip
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (strips > 0 || pcs > 0) {
-                                      const newStrips = Math.max(0, strips - 1);
-                                      const newQty = combineStripAndPcToQty(newStrips, (newStrips === 0 && pcs === 0) ? 1 : pcs, pps);
-                                      cart.setQty(i.product.id, Math.max(1 / pps, newQty));
-                                    }
-                                  }}
-                                  disabled={i.qty <= (1 / pps)}
-                                  title="Decrease strip"
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className={cn(
-                                  "w-6 text-center text-xs tabular-nums font-semibold transition-colors",
-                                  isSelected ? "text-primary" : "",
-                                )}>
-                                  {strips}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const newQty = combineStripAndPcToQty(strips + 1, pcs, pps);
-                                    if (newQty <= i.product.stock) {
-                                      cart.setQty(i.product.id, newQty);
-                                    } else {
-                                      toast.warning(`Only ${i.product.stock} in stock`);
-                                    }
-                                  }}
-                                  disabled={i.qty + 1 > i.product.stock}
-                                  title="Increase strip"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                              </div>
-
-                              {/* Pc +/- */}
-                              <div className="flex items-center border border-border/80 rounded-md bg-background h-8 px-1">
-                                <span className="text-[10px] uppercase font-bold text-muted-foreground mr-1">
-                                  Pc
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (pcs > 0) {
-                                      const newQty = combineStripAndPcToQty(strips, pcs - 1, pps);
-                                      cart.setQty(i.product.id, Math.max(1 / pps, newQty));
-                                    } else if (strips > 0) {
-                                      const newQty = combineStripAndPcToQty(strips - 1, pps - 1, pps);
-                                      cart.setQty(i.product.id, Math.max(1 / pps, newQty));
-                                    }
-                                  }}
-                                  disabled={i.qty <= (1 / pps)}
-                                  title="Decrease piece"
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <span className={cn(
-                                  "w-6 text-center text-xs tabular-nums font-semibold transition-colors",
-                                  isSelected ? "text-primary" : "",
-                                )}>
-                                  {pcs}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    let newStrips = strips;
-                                    let newPcs = pcs + 1;
-                                    if (newPcs >= pps) {
-                                      newStrips += Math.floor(newPcs / pps);
-                                      newPcs = newPcs % pps;
-                                    }
-                                    const newQty = combineStripAndPcToQty(newStrips, newPcs, pps);
-                                    if (newQty <= i.product.stock) {
-                                      cart.setQty(i.product.id, newQty);
-                                    } else {
-                                      toast.warning(`Only ${i.product.stock} in stock`);
-                                    }
-                                  }}
-                                  disabled={i.qty + (1 / pps) > i.product.stock}
-                                  title="Increase piece"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })() || (
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center border rounded-md px-1.5 bg-background h-8">
-                              <span className="text-[10px] uppercase font-medium text-muted-foreground mr-1">
-                                Free
-                              </span>
-                              <select
-                                className="text-xs bg-transparent outline-none cursor-pointer"
-                                value={i.freeQty || 0}
-                                onChange={(e) => cart.setFreeQty(i.product.id, Number(e.target.value))}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {Array.from({ length: Math.floor(i.qty) + 1 }, (_, k) => (
-                                  <option key={k} value={k}>{k}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty - 1); }}
-                              title="Decrease qty (← when row selected)"
+                        {/* 4. Batch */}
+                        <td className="py-1.5 px-2 text-center">
+                          {activeBatches.length > 1 ? (
+                            <select
+                              className="bg-transparent border border-border/80 rounded px-1 py-0.5 text-xs text-foreground font-semibold outline-none focus:ring-1 focus:ring-primary w-full max-w-[90px]"
+                              value={i.product.id}
+                              onChange={(e) => {
+                                const newBatch = activeBatches.find((b) => b.id === e.target.value);
+                                if (newBatch) {
+                                  cart.switchBatch(i.product.id, newBatch);
+                                  toast.success(`Switched to batch ${newBatch.batch}`);
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className={cn(
-                              "w-8 text-center text-sm tabular-nums font-semibold transition-colors",
-                              isSelected ? "text-primary" : "",
-                            )}>
-                              {i.qty}
+                              {activeBatches.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                  {String(b.batch || "No Batch").toUpperCase()}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="font-semibold text-foreground font-mono">
+                              {String(i.product.batch || "—").toUpperCase()}
                             </span>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => { e.stopPropagation(); cart.setQty(i.product.id, i.qty + 1); }}
-                              disabled={i.qty >= i.product.stock}
-                              title="Increase qty (→ when row selected)"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
+                          )}
+                        </td>
 
-                        <div className="w-24 text-right tabular-nums font-medium">
+                        {/* 5. Expiry */}
+                        <td className="py-1.5 px-2 text-center text-muted-foreground font-medium font-mono">
+                          {i.product.expiry
+                            ? new Date(i.product.expiry).toLocaleDateString("en-IN", {
+                                month: "2-digit",
+                                year: "2-digit",
+                              })
+                            : "—"}
+                        </td>
+
+                        {/* 6. Quantity (Dual Strip or Single) */}
+                        <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                          {isDual ? (
+                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto">
+                              <span className="text-[9px] uppercase font-bold text-muted-foreground mr-0.5">Str</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 p-0"
+                                onClick={() => {
+                                  if (strips > 0 || pcs > 0) {
+                                    const newStrips = Math.max(0, strips - 1);
+                                    const newQty = combineStripAndPcToQty(newStrips, newStrips === 0 && pcs === 0 ? 1 : pcs, pps);
+                                    cart.setQty(i.product.id, Math.max(1 / pps, newQty));
+                                  }
+                                }}
+                                disabled={i.qty <= 1 / pps}
+                                title="Decrease strip"
+                              >
+                                <Minus className="h-2.5 w-2.5" />
+                              </Button>
+                              <span className="w-5 text-center text-xs tabular-nums font-bold text-foreground">
+                                {strips}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 p-0"
+                                onClick={() => {
+                                  const newQty = combineStripAndPcToQty(strips + 1, pcs, pps);
+                                  if (newQty <= i.product.stock) {
+                                    cart.setQty(i.product.id, newQty);
+                                  } else {
+                                    toast.warning(`Only ${i.product.stock} in stock`);
+                                  }
+                                }}
+                                disabled={i.qty + 1 > i.product.stock}
+                                title="Increase strip"
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 p-0"
+                                onClick={() => cart.setQty(i.product.id, i.qty - 1)}
+                                title="Decrease qty"
+                              >
+                                <Minus className="h-2.5 w-2.5" />
+                              </Button>
+                              <span className="w-6 text-center text-xs tabular-nums font-bold text-foreground">
+                                {i.qty}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 p-0"
+                                onClick={() => {
+                                  if (i.qty < i.product.stock) {
+                                    cart.setQty(i.product.id, i.qty + 1);
+                                  } else {
+                                    toast.warning(`Only ${i.product.stock} in stock`);
+                                  }
+                                }}
+                                disabled={i.qty >= i.product.stock}
+                                title="Increase qty"
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 7. Pieces (Dual Pieces or Free Qty) */}
+                        <td className="py-1.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                          {isDual ? (
+                            <div className="flex items-center justify-center gap-0.5 border border-border/80 rounded bg-background h-7 px-1 w-fit mx-auto">
+                              <span className="text-[9px] uppercase font-bold text-muted-foreground mr-0.5">Pc</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 p-0"
+                                onClick={() => {
+                                  if (pcs > 0) {
+                                    const newQty = combineStripAndPcToQty(strips, pcs - 1, pps);
+                                    cart.setQty(i.product.id, Math.max(1 / pps, newQty));
+                                  } else if (strips > 0) {
+                                    const newQty = combineStripAndPcToQty(strips - 1, pps - 1, pps);
+                                    cart.setQty(i.product.id, Math.max(1 / pps, newQty));
+                                  }
+                                }}
+                                disabled={i.qty <= 1 / pps}
+                                title="Decrease piece"
+                              >
+                                <Minus className="h-2.5 w-2.5" />
+                              </Button>
+                              <span className="w-5 text-center text-xs tabular-nums font-bold text-foreground">
+                                {pcs}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 p-0"
+                                onClick={() => {
+                                  let newStrips = strips;
+                                  let newPcs = pcs + 1;
+                                  if (newPcs >= pps) {
+                                    newStrips += Math.floor(newPcs / pps);
+                                    newPcs = newPcs % pps;
+                                  }
+                                  const newQty = combineStripAndPcToQty(newStrips, newPcs, pps);
+                                  if (newQty <= i.product.stock) {
+                                    cart.setQty(i.product.id, newQty);
+                                  } else {
+                                    toast.warning(`Only ${i.product.stock} in stock`);
+                                  }
+                                }}
+                                disabled={i.qty + 1 / pps > i.product.stock}
+                                title="Increase piece"
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                              </Button>
+                            </div>
+                          ) : (i.freeQty && i.freeQty > 0) ? (
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-300">
+                              {i.freeQty} Free
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/60">—</span>
+                          )}
+                        </td>
+
+                        {/* 8. MRP */}
+                        <td className="py-1.5 px-2 text-right tabular-nums text-muted-foreground font-medium">
+                          {i.product.mrp && i.product.mrp > 0 ? formatMoney(i.product.mrp) : "—"}
+                        </td>
+
+                        {/* 9. Selling Rate & Previous Price Toggle */}
+                        <td className="py-1.5 px-2 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex flex-col items-end gap-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              key={`${i.product.id}-rate-input`}
+                              className="w-20 h-6 px-1.5 border border-border/80 rounded bg-background text-foreground outline-none font-semibold focus:ring-1 focus:ring-primary text-xs text-right"
+                              value={i.customPrice !== undefined ? i.customPrice : i.product.price}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val > 0) {
+                                  cart.setCustomPrice(i.product.id, val);
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const val = parseFloat(e.target.value);
+                                const cost = i.product.costPrice ?? 0;
+                                if (isNaN(val) || val <= cost) {
+                                  toast.error(`Price must be higher than buying price (${formatMoney(cost)}). Please fix.`);
+                                  cart.setCustomPrice(i.product.id, i.product.price);
+                                } else {
+                                  cart.setCustomPrice(i.product.id, val);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  (e.target as HTMLInputElement).blur();
+                                }
+                              }}
+                            />
+                            {hasPrevPrice && (
+                              <button
+                                type="button"
+                                onClick={() => cart.setCustomPrice(i.product.id, isPrevActive ? standardPrice : prevPrice)}
+                                className={cn(
+                                  "text-[9px] px-1 py-0.2 rounded font-semibold border transition-all cursor-pointer",
+                                  isPrevActive
+                                    ? "bg-emerald-600 text-white border-emerald-700"
+                                    : "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200"
+                                )}
+                                title={`Toggle customer previous price (₹${prevPrice.toFixed(2)})`}
+                              >
+                                {isPrevActive ? "Prev: ₹" + prevPrice.toFixed(0) : "Use Prev: ₹" + prevPrice.toFixed(0)}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 10. GST % */}
+                        <td className="py-1.5 px-2 text-center tabular-nums text-muted-foreground font-medium">
+                          {i.product.taxPercent != null ? `${i.product.taxPercent}%` : (isRetailer ? "5%" : "0%")}
+                        </td>
+
+                        {/* 11. Net Line Total */}
+                        <td className="py-1.5 px-3 text-right tabular-nums font-bold text-foreground">
                           {i.freeQty === i.qty
                             ? "₹0.00"
                             : formatMoney((i.customPrice ?? i.product.price) * (i.qty - (i.freeQty || 0)))}
-                        </div>
+                        </td>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            "h-8 w-8 transition-colors",
-                            isSelected ? "text-destructive hover:bg-destructive/10" : "text-muted-foreground hover:text-destructive",
-                          )}
-                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(i.product.id); }}
-                          title="Remove item (Del when row selected)"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                        {/* 12. Delete Action */}
+                        <td className="py-1.5 px-1 text-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeleteTarget(i.product.id)}
+                            title="Remove item (Del)"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
                     );
-
                   })}
-                </div>
 
-                <div className="pt-3 pb-2 px-4">
-                  <Button
-                    variant="outline"
-                    className="w-full border-dashed"
-                    size="sm"
-                    onClick={() => setAddOpen(true)}
-                    id="cart-browse-add-btn"
-                    title="Browse & Add Item (Alt+B)"
-                  >
-                    <Plus className="h-4 w-4 mr-2" /> Browse &amp; Add Item
-                    <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                      Alt+B
-                    </kbd>
-                  </Button>
+                  {/* ── Active Inline Medicine Entry Row ──────────────────────── */}
+                  <tr className="bg-primary/5 border-t border-primary/20">
+                    <td className="py-2 px-2 text-center font-bold text-primary">
+                      {cart.items.length + 1}
+                    </td>
+                    <td className="py-1 px-3 relative" colSpan={4}>
+                      <div className="relative flex items-center">
+                        <Search className="h-3.5 w-3.5 absolute left-2 text-muted-foreground pointer-events-none" />
+                        <input
+                          ref={entryInputRef}
+                          type="text"
+                          className="w-full h-8 pl-8 pr-3 border border-primary/40 rounded bg-background text-xs font-medium focus:ring-2 focus:ring-primary/40 outline-none placeholder:text-muted-foreground/70"
+                          placeholder="Type medicine name to search & add directly..."
+                          value={entryQuery}
+                          onChange={(e) => {
+                            setEntryQuery(e.target.value);
+                            setEntryDropdownOpen(true);
+                            setEntryActiveIdx(0);
+                          }}
+                          onFocus={() => {
+                            if (entryQuery.trim()) setEntryDropdownOpen(true);
+                          }}
+                          onKeyDown={handleEntryKeyDown}
+                        />
+
+                        {/* Autocomplete Dropdown */}
+                        {entryDropdownOpen && entryMatches.length > 0 && (
+                          <div
+                            ref={entryDropdownRef}
+                            className="absolute z-50 top-full left-0 mt-1 w-full min-w-[500px] max-w-[650px] bg-popover border border-border rounded-md shadow-xl max-h-60 overflow-y-auto no-scrollbar"
+                          >
+                            <div className="p-1 text-[10px] uppercase font-bold text-muted-foreground bg-muted/40 border-b px-2 flex justify-between">
+                              <span>Matching Medicines ({entryMatches.length})</span>
+                              <span>Press Enter to Add · Esc to Close</span>
+                            </div>
+                            {entryMatches.map((p, pIdx) => {
+                              const isActive = pIdx === entryActiveIdx;
+                              return (
+                                <div
+                                  key={p.id}
+                                  data-active-match={isActive}
+                                  className={cn(
+                                    "px-3 py-2 cursor-pointer text-xs transition-colors flex items-center justify-between gap-3 border-b last:border-b-0",
+                                    isActive
+                                      ? "bg-accent text-accent-foreground font-semibold"
+                                      : "hover:bg-muted/60"
+                                  )}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleAddProduct(p);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-semibold text-foreground truncate">{p.name}</span>
+                                    {p.prescription && (
+                                      <span className="text-[9px] font-bold px-1 rounded bg-destructive/10 text-destructive shrink-0">
+                                        Rx
+                                      </span>
+                                    )}
+                                    {p.pack && (
+                                      <span className="text-[10px] text-muted-foreground bg-muted px-1 rounded">
+                                        {p.pack}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0 text-[11px]">
+                                    <span className={cn("font-medium", p.stock > 0 ? "text-muted-foreground" : "text-destructive")}>
+                                      Stock: {p.stock}
+                                    </span>
+                                    {p.mrp && p.mrp > 0 && (
+                                      <span className="text-muted-foreground">MRP: {formatMoney(p.mrp)}</span>
+                                    )}
+                                    <span className="font-bold text-primary">₹{p.price.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td colSpan={7} className="py-1 px-3 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAddOpen(true)}
+                        className="h-7 text-xs text-primary gap-1"
+                        title="Browse catalog (Alt+B)"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Browse Catalog (Alt+B)</span>
+                      </Button>
+                    </td>
+                  </tr>
+
+                  {cart.items.length === 0 && (
+                    <tr>
+                      <td colSpan={12} className="py-10 text-center text-muted-foreground">
+                        <div className="space-y-1">
+                          <p className="font-medium text-xs">Your cart is empty.</p>
+                          <p className="text-[11px] text-muted-foreground/80">
+                            Type a medicine name above to add items, or press <kbd className="px-1 py-0.5 rounded bg-muted border text-[10px] font-semibold">Alt+B</kbd> to browse.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ─── SECTION D: Bottom Product Details Panel ───────────────────────── */}
+          <div className="border border-border/80 rounded-lg p-2.5 bg-muted/20 text-xs shadow-2xs">
+            <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-1.5 flex items-center justify-between">
+              <span>Product Details</span>
+              {selectedItem && (
+                <span className="text-primary font-semibold">Row {selectedIdx + 1} Selected</span>
+              )}
+            </div>
+            {selectedItem ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Medicine</div>
+                  <div className="font-bold text-foreground truncate">{selectedItem.product.name}</div>
                 </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Pack / Type</div>
+                  <div className="font-semibold text-foreground truncate">
+                    {selectedItem.product.pack || "—"} ({selectedItem.product.stockType || "Item"})
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Stock Available</div>
+                  <div className="font-semibold text-foreground">
+                    {selectedItem.product.stock} units
+                    {(() => {
+                      const pps = getPiecesPerStrip(selectedItem.product.pack, selectedItem.product.stockType, selectedItem.product.conversionFactor);
+                      if (isRetailer && pps > 1) {
+                        return ` (${Math.floor(selectedItem.product.stock)} str, ${Math.round((selectedItem.product.stock % 1) * pps)} pcs)`;
+                      }
+                      return null;
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Batch &amp; Expiry</div>
+                  <div className="font-semibold text-foreground">
+                    {selectedItem.product.batch || "No Batch"} ·{" "}
+                    {selectedItem.product.expiry
+                      ? new Date(selectedItem.product.expiry).toLocaleDateString()
+                      : "No Exp"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Manufacturer / Category</div>
+                  <div className="font-semibold text-foreground truncate">
+                    {selectedItem.product.manufacturer || selectedItem.product.category || "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px]">Buying Price</div>
+                  {!session?.isEmployee && selectedItem.product.costPrice ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCostPrice((v) => !v)}
+                      className="flex items-center gap-1 font-semibold text-xs text-foreground hover:text-primary transition-colors cursor-pointer"
+                      title={showCostPrice ? "Hide buying price" : "Show buying price"}
+                    >
+                      {showCostPrice ? <EyeOff className="h-3 w-3 text-muted-foreground" /> : <Eye className="h-3 w-3 text-muted-foreground" />}
+                      <span>{showCostPrice ? formatMoney(selectedItem.product.costPrice) : "••••"}</span>
+                    </button>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-muted-foreground italic text-center py-1">
+                No product selected on active row.
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <div className="space-y-4">
-          <Card className="shadow-soft">
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base flex items-center gap-2">
-                <UserRound className="h-4 w-4 text-primary" /> Customer
-              </CardTitle>
+        {/* ─── SECTION C: Right-Side Bill Summary Panel ───────────────────────── */}
+        <div className="space-y-2.5">
+          {/* Bill Discount Card */}
+          <div className="border border-border/80 rounded-lg p-3 bg-card shadow-2xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Bill Discount</span>
+              <span className="text-[11px] font-semibold text-emerald-600">
+                {cart.discount > 0 ? `-${formatMoney(cart.discount)}` : "None"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
               <Button
-                variant="ghost"
+                type="button"
                 size="sm"
-                onClick={() => setCustomerOpen(true)}
-                disabled={cart.items.length === 0}
+                variant={cart.discountType === "percentage" ? "default" : "outline"}
+                className="h-7 text-xs"
+                onClick={() => cart.setDiscountType("percentage")}
               >
-                <Pencil className="h-3.5 w-3.5" /> {hasCustomer ? "Edit" : "Add"}
+                % Percentage
               </Button>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {hasCustomer ? (
-                <div className="space-y-1">
-                  {cart.customer.name && <div className="font-medium">{cart.customer.name}</div>}
-                  {cart.customer.phone && (
-                    <div className="text-muted-foreground">{cart.customer.phone}</div>
-                  )}
-                  {cart.customer.address && (
-                    <div className="text-muted-foreground whitespace-pre-wrap mt-0.5 leading-snug">
-                      {cart.customer.address}
-                    </div>
-                  )}
-                  {cart.customer.drugLicNo && (
-                    <div className="text-muted-foreground text-xs mt-0.5">
-                      D.L. No: {cart.customer.drugLicNo}
-                    </div>
-                  )}
-                  {cart.customer.gstin && (
-                    <div className="text-muted-foreground text-xs mt-0.5">
-                      GSTIN: {cart.customer.gstin}
-                    </div>
-                  )}
-                  {cart.customer.notes && (
-                    <div className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap">
-                      {cart.customer.notes}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">Walk-in customer.</p>
-              )}
-            </CardContent>
-          </Card>
+              <Button
+                type="button"
+                size="sm"
+                variant={cart.discountType === "flat" ? "default" : "outline"}
+                className="h-7 text-xs"
+                onClick={() => cart.setDiscountType("flat")}
+              >
+                ₹ Flat Amount
+              </Button>
+            </div>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-bold">
+                {cart.discountType === "percentage" ? "%" : "₹"}
+              </span>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max={cart.discountType === "percentage" ? 100 : cart.subtotal + cart.tax}
+                value={cart.discountValue || ""}
+                onChange={(e) => cart.setDiscountValue(Number(e.target.value))}
+                className="h-8 pl-7 text-xs font-semibold"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
 
-          {/* Payment method (Commented out: now selected via checkout dialog modal)
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="text-base">Payment</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-2">
-                <PayChoice
-                  label="Cash"
-                  Icon={Banknote}
-                  active={cart.paymentMethod === "cash"}
-                  onClick={() => {
-                    cart.setPaymentMethod("cash");
-                    cart.setAdvanceAmount(0);
-                  }}
-                />
-                <PayChoice
-                  label="Online"
-                  Icon={Smartphone}
-                  active={cart.paymentMethod === "online"}
-                  onClick={() => {
-                    cart.setPaymentMethod("online");
-                    cart.setAdvanceAmount(0);
-                  }}
-                />
-                <PayChoice
-                  label="Credit"
-                  Icon={CreditCard}
-                  active={cart.paymentMethod === "credit"}
-                  onClick={() => {
-                    const isWalkIn =
-                      !cart.customer.name?.trim() ||
-                      cart.customer.name.trim().toLowerCase() === "walk-in customer" ||
-                      cart.customer.name.trim().toLowerCase() === "walk-in" ||
-                      cart.customer.name.trim().toLowerCase() === "walkin";
-
-                    if (isWalkIn || !cart.customer.phone?.trim()) {
-                      toast.info("Credit bills require registered customer details.", {
-                        description: "Please enter customer name & phone number. Walk-in customers cannot generate bills in credit.",
-                      });
-                      setCustomerOpen(true);
-                    }
-                    cart.setPaymentMethod("credit");
-                  }}
-                />
-              </div>
-
-              {cart.paymentMethod === "credit" && (
-                (!cart.customer.name?.trim() ||
-                  cart.customer.name.trim().toLowerCase() === "walk-in customer" ||
-                  cart.customer.name.trim().toLowerCase() === "walk-in" ||
-                  cart.customer.name.trim().toLowerCase() === "walkin" ||
-                  !cart.customer.phone?.trim()) && (
-                  <div className="mt-3 text-xs bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 p-2.5 rounded-lg flex items-start justify-between gap-2 animate-fade-in">
-                    <div className="space-y-0.5">
-                      <span className="font-semibold">Customer details required:</span>
-                      <p className="text-[11px] text-muted-foreground">
-                        Credit bills cannot be generated for Walk-in Customers. Please provide customer name and phone.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-[11px] px-2 shrink-0 border-amber-500/40 hover:bg-amber-500/20"
-                      onClick={() => setCustomerOpen(true)}
-                    >
-                      Enter Details
-                    </Button>
-                  </div>
-                )
-              )}
-
-              {cart.paymentMethod === "credit" && (
-                <div className="mt-4 space-y-1.5 animate-fade-in">
-                  <Label className="text-xs">Advance Payment (Optional)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                      ₹
-                    </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max={cart.total}
-                      value={cart.advanceAmount || ""}
-                      onChange={(e) => cart.setAdvanceAmount(Number(e.target.value))}
-                      className="pl-7"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  {cart.advanceAmount > 0 && (
-                    <div className="mt-2 space-y-1 animate-fade-in">
-                      <Label className="text-[11px] text-muted-foreground">Advance Pay Method</Label>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant={cart.advancePaymentMethod === "cash" ? "default" : "outline"}
-                          size="sm"
-                          className="flex-1 text-xs py-1 h-8"
-                          onClick={() => cart.setAdvancePaymentMethod("cash")}
-                        >
-                          Cash
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={cart.advancePaymentMethod === "online" ? "default" : "outline"}
-                          size="sm"
-                          className="flex-1 text-xs py-1 h-8"
-                          onClick={() => cart.setAdvancePaymentMethod("online")}
-                        >
-                          Online
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          */}
-
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="text-base">Discount</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => cart.setDiscountType("percentage")}
-                  className={cn(
-                    "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
-                    cart.discountType === "percentage"
-                      ? "bg-primary/10 border-primary text-primary shadow-soft"
-                      : "border-border hover:bg-accent/40",
-                  )}
-                >
-                  % Percentage
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cart.setDiscountType("flat")}
-                  className={cn(
-                    "px-4 py-2 text-sm font-medium rounded-md border transition-smooth text-center",
-                    cart.discountType === "flat"
-                      ? "bg-primary/10 border-primary text-primary shadow-soft"
-                      : "border-border hover:bg-accent/40",
-                  )}
-                >
-                  ₹ Flat Amount
-                </button>
-              </div>
-
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  {cart.discountType === "percentage" ? "%" : "₹"}
-                </span>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={cart.discountType === "percentage" ? 100 : cart.subtotal + cart.tax}
-                  value={cart.discountValue || ""}
-                  onChange={(e) => cart.setDiscountValue(Number(e.target.value))}
-                  className="pl-8"
-                  placeholder="0.00"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {cart.discountType === "percentage"
-                  ? "Enter discount percentage to reduce the total bill."
-                  : "Enter flat discount amount to reduce the total bill."}
-              </p>
-            </CardContent>
-          </Card>
-
+          {/* Rx Requirement Warning Card (if Rx items exist) */}
           {hasRx && (
-            <Card className="shadow-soft border-destructive/40">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2 text-destructive">
-                  <FileWarning className="h-4 w-4" /> Prescription required
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  This sale contains {rxItems.length} Rx item
-                  {rxItems.length === 1 ? "" : "s"}:{" "}
-                  <span className="font-medium text-foreground">
-                    {rxItems.map((i) => i.product.name).join(", ")}
-                  </span>
-                  . Provide the prescription as a photo <em>or</em> reference text to continue.
-                </p>
-                <RxInput
-                  refValue={cart.customer.prescriptionRef ?? ""}
-                  photoValue={cart.customer.prescriptionPhoto ?? ""}
-                  onChange={(patch) => cart.setCustomer({ ...cart.customer, ...patch })}
-                />
-              </CardContent>
-            </Card>
+            <div className="border border-destructive/40 rounded-lg p-3 bg-destructive/5 space-y-2 text-xs">
+              <div className="font-bold text-destructive flex items-center gap-1.5">
+                <FileWarning className="h-4 w-4" /> Prescription Required
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Sale contains {rxItems.length} Rx item(s):{" "}
+                <span className="font-medium text-foreground">
+                  {rxItems.map((i) => i.product.name).join(", ")}
+                </span>
+              </p>
+              <RxInput
+                refValue={cart.customer.prescriptionRef ?? ""}
+                photoValue={cart.customer.prescriptionPhoto ?? ""}
+                onChange={(patch) => cart.setCustomer({ ...cart.customer, ...patch })}
+              />
+            </div>
           )}
 
-          <Card className="shadow-soft">
-            <CardHeader>
-              <CardTitle className="text-base">Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <Row label="Subtotal" value={formatMoney(cart.subtotal)} />
-              <Row label="Tax" value={formatMoney(cart.tax)} />
-              {cart.discount > 0 && (
-                <Row
-                  label="Discount"
-                  value={`-${formatMoney(cart.discount)}`}
-                  className="text-emerald-500"
-                />
-              )}
-              {(() => {
-                const roundOff = cart.total - (cart.subtotal + cart.tax - cart.discount);
-                return Math.abs(roundOff) >= 0.01 ? (
-                  <Row
-                    label="Round Off"
-                    value={`${roundOff > 0 ? "+" : ""}${formatMoney(roundOff)}`}
-                    className="text-muted-foreground"
-                  />
-                ) : null;
-              })()}
-              <div className="border-t pt-2">
-                <Row label="Total" value={formatMoney(cart.total)} bold />
+          {/* Bill Summary Card */}
+          <div className="border border-border/80 rounded-lg p-3 bg-card shadow-2xs space-y-2 text-xs">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground pb-1 border-b">
+              Bill Summary
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>Total Items:</span>
+              <span className="font-semibold text-foreground">
+                {cart.items.length} ({cart.count} units)
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>Gross Total:</span>
+              <span className="font-semibold text-foreground">
+                {formatMoney(isRetailer ? cart.subtotal + cart.tax : cart.subtotal)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>Taxable Value:</span>
+              <span className="font-semibold text-foreground">{formatMoney(cart.subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>CGST:</span>
+              <span className="font-semibold text-foreground">{formatMoney(cart.tax / 2)}</span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span>SGST:</span>
+              <span className="font-semibold text-foreground">{formatMoney(cart.tax / 2)}</span>
+            </div>
+            {(() => {
+              const roundOff = cart.total - (cart.subtotal + cart.tax - cart.discount);
+              if (Math.abs(roundOff) >= 0.01) {
+                return (
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Round Off:</span>
+                    <span className="font-semibold text-foreground">
+                      {roundOff > 0 ? "+" : ""}
+                      {formatMoney(roundOff)}
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
+            {/* Net Payable Highlight Box */}
+            <div className="pt-2 border-t mt-2">
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-center space-y-1">
+                <div className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
+                  Net Payable
+                </div>
+                <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                  {formatMoney(cart.total)}
+                </div>
               </div>
+            </div>
+
+            {/* Primary Action Button: Save & Payment (F9) */}
+            <Button
+              className="w-full h-10 text-xs font-bold shadow-sm mt-2 gap-2"
+              size="default"
+              onClick={handleOpenCheckout}
+              disabled={cart.items.length === 0 || submitting || rxBlocked}
+              id="cart-checkout-btn"
+              title="Save & Payment (F9)"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span>{submitting ? "Processing…" : rxBlocked ? "Prescription Required" : "Save & Payment"}</span>
+              <kbd className="ml-auto text-[10px] bg-primary-foreground/20 text-primary-foreground px-1 py-0.5 rounded border border-primary-foreground/30 font-mono">
+                F9
+              </kbd>
+            </Button>
+
+            {/* Secondary Action Button: Save as Draft */}
+            {cart.items.length > 0 && (
               <Button
-                className="w-full shadow-soft mt-3"
-                size="lg"
-                onClick={handleOpenCheckout}
-                disabled={cart.items.length === 0 || submitting || rxBlocked}
-                id="cart-checkout-btn"
-                title="Generate Bill (F9)"
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full h-8 text-xs gap-1.5 border-dashed border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                onClick={handleSaveDraft}
+                title="Save current bill as draft (no inventory deduction)"
               >
-                {submitting
-                  ? "Generating…"
-                  : rxBlocked
-                    ? "Add Rx photo or reference"
-                    : "Generate bill"}
+                <Save className="h-3.5 w-3.5" />
+                <span>Save as Draft</span>
               </Button>
-
-              {cart.items.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full mt-2 gap-1.5 border-dashed border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-                  onClick={handleSaveDraft}
-                  title="Save current bill as draft"
-                >
-                  <Save className="h-4 w-4" />
-                  Save as Draft (No stock change)
-                </Button>
-              )}
-
-              <p className="text-xs text-center text-muted-foreground">
-                Press <kbd className="rounded border bg-muted px-1 py-0.5 text-[10px] font-semibold">F9</kbd> to generate bill
-              </p>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* ─── SECTION E: Compact Keyboard Shortcut Bar ─────────────────────────── */}
+      <div className="bg-slate-100 dark:bg-muted/60 border border-border/80 rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground flex items-center justify-between flex-wrap gap-2 shadow-2xs">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="flex items-center gap-1 font-medium">
+            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">↑↓</kbd> Select Row
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">←→</kbd> Qty
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Ctrl+←→</kbd> Free Qty
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Del</kbd> Remove
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Alt+B</kbd> Browse
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">Alt+N</kbd> New Bill
+          </span>
+          <span className="flex items-center gap-1 font-medium">
+            <kbd className="px-1 py-0.5 rounded bg-background border text-[10px] font-bold">F9</kbd> Pay &amp; Save
+          </span>
+        </div>
+        {selectedItem && (
+          <div className="text-primary font-semibold text-xs ml-auto">
+            Row {selectedIdx + 1}: {selectedItem.product.name}
+          </div>
+        )}
       </div>
 
       <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
