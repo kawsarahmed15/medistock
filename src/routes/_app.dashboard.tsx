@@ -1,14 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useCart } from "@/lib/cart-context";
 import {
   Package,
   ReceiptText,
   ShoppingCart,
+  ShoppingBag,
   AlertTriangle,
   IndianRupee,
   TrendingUp,
   Clock,
+  Truck,
+  Users,
+  CreditCard,
+  BookOpen,
+  Settings,
+  UserCheck,
+  ArrowRight,
+  LayoutGrid,
 } from "lucide-react";
 import { productsStore, billsStore, type Product, type Bill } from "@/lib/storage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +47,7 @@ function DashboardPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
+  const { count } = useCart();
   const expiryDays = session?.expiryDays ?? 60;
   const lowStockQty = session?.lowStockQty ?? 10;
 
@@ -61,7 +72,10 @@ function DashboardPage() {
     };
   }, []);
 
-  const completedBills = useMemo(() => bills.filter((b) => b.status === "completed" || !b.status), [bills]);
+  const completedBills = useMemo(
+    () => bills.filter((b) => b.status === "completed" || !b.status),
+    [bills],
+  );
   const pendingBills = useMemo(() => bills.filter((b) => b.status === "pending"), [bills]);
 
   // Month-to-date: strictly bounded to the current calendar month
@@ -87,7 +101,14 @@ function DashboardPage() {
   const stockValue = useMemo(() => {
     return products.reduce((total, p) => {
       if (p.batches && p.batches.length > 0) {
-        return total + p.batches.reduce((bSum, b) => bSum + Math.round((b.costPrice ?? b.price ?? 0) * (b.stock || 0) * 100) / 100, 0);
+        return (
+          total +
+          p.batches.reduce(
+            (bSum, b) =>
+              bSum + Math.round((b.costPrice ?? b.price ?? 0) * (b.stock || 0) * 100) / 100,
+            0,
+          )
+        );
       }
       return total + Math.round((p.costPrice ?? p.price ?? 0) * (p.stock || 0) * 100) / 100;
     }, 0);
@@ -201,6 +222,131 @@ function DashboardPage() {
     },
   ];
 
+  const isEmployee = Boolean(session?.isEmployee);
+
+  const availableFunctions = useMemo(() => {
+    if (isEmployee) {
+      return [
+        {
+          to: "/new-sale",
+          title: "New Sale",
+          subtitle: "Walk-in patient & quick billing",
+          icon: ShoppingCart,
+          iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+          badge: "F2",
+        },
+        {
+          to: "/cart",
+          title: "Cart & Billing",
+          subtitle: "Active bill, medicine grid & payment",
+          icon: ShoppingBag,
+          iconBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+          badge: count > 0 ? `${count} in Cart` : undefined,
+        },
+        {
+          to: "/inventory",
+          title: "Inventory (Stock)",
+          subtitle: "Search medicines, batch stocks & rates",
+          icon: Package,
+          iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+          badge: `${products.length} Products`,
+        },
+        {
+          to: "/bills",
+          title: "My Bills",
+          subtitle: "Submitted invoices & approval status",
+          icon: ReceiptText,
+          iconBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        },
+      ];
+    }
+
+    return [
+      {
+        to: "/cart",
+        title: "Cart & Billing",
+        subtitle: "Active POS counter, medicine grid & checkout",
+        icon: ShoppingBag,
+        iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+        badge: count > 0 ? `${count} in Cart` : "POS",
+      },
+      {
+        to: "/new-sale",
+        title: "New Sale",
+        subtitle: "Start fresh patient sale or prescription",
+        icon: ShoppingCart,
+        iconBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        badge: "F2",
+      },
+      {
+        to: "/inventory",
+        title: "Inventory (Stock)",
+        subtitle: "Stock levels, batch expiries, MRP & barcodes",
+        icon: Package,
+        iconBg: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+        badge: `${products.length} Products`,
+      },
+      {
+        to: "/bills",
+        title: "Bills & Invoices",
+        subtitle: "Sales history, tax invoices & bill approvals",
+        icon: ReceiptText,
+        iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+        badge: pendingBills.length > 0 ? `${pendingBills.length} Pending` : `${bills.length} Bills`,
+      },
+      {
+        to: "/purchases",
+        title: "Purchases",
+        subtitle: "Supplier inward, batch additions & invoices",
+        icon: Truck,
+        iconBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        badge: "Inward",
+      },
+      {
+        to: "/customers",
+        title: "Customers & Khata",
+        subtitle: "Patient profiles, phone records & dues",
+        icon: Users,
+        iconBg: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+      },
+      {
+        to: "/credit",
+        title: "Credit Sales",
+        subtitle: "Khata ledger, credit balances & settlements",
+        icon: CreditCard,
+        iconBg: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+      },
+      {
+        to: "/ledger",
+        title: "Ledger",
+        subtitle: "Accounting records, expenses & transactions",
+        icon: BookOpen,
+        iconBg: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+      },
+      {
+        to: "/revenue",
+        title: "Revenue & Analytics",
+        subtitle: "Monthly turnover, profit margins & sales trends",
+        icon: TrendingUp,
+        iconBg: "bg-green-500/10 text-green-600 dark:text-green-400",
+      },
+      {
+        to: "/employees",
+        title: "Employees & Staff",
+        subtitle: "Cashier logins, dispensary staff & permissions",
+        icon: UserCheck,
+        iconBg: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+      },
+      {
+        to: "/settings",
+        title: "Settings",
+        subtitle: "Store profile, GSTIN, thermal printer & backups",
+        icon: Settings,
+        iconBg: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+      },
+    ];
+  }, [isEmployee, count, products.length, pendingBills.length, bills.length]);
+
   return (
     <div className="space-y-4 sm:space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -224,6 +370,66 @@ function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Main Functions Launchpad Grid (Shown First After Login) ── */}
+      <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-xs p-4 sm:p-5 shadow-soft space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+              <LayoutGrid className="h-5 w-5 text-primary" />
+              <span>All Pharmacy Functions</span>
+              <span className="text-[11px] font-semibold text-primary px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                {availableFunctions.length} Modules Available
+              </span>
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Click any function below to enter its workspace. The sidebar will automatically be
+              hidden to give you full screen width.
+            </p>
+          </div>
+          {count > 0 && (
+            <Link
+              to="/cart"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-soft hover:shadow-glow transition-all shrink-0 self-start sm:self-auto"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              <span>Resume Active Cart ({count})</span>
+            </Link>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
+          {availableFunctions.map((fn) => (
+            <Link
+              key={fn.to}
+              to={fn.to}
+              className="group relative flex flex-col justify-between p-3.5 rounded-xl border border-border/60 bg-background/80 hover:bg-accent/40 hover:border-primary/50 shadow-xs hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer select-none"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div
+                  className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-110 ${fn.iconBg}`}
+                >
+                  <fn.icon className="h-4.5 w-4.5" />
+                </div>
+                {fn.badge && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0 truncate max-w-[80px]">
+                    {fn.badge}
+                  </span>
+                )}
+              </div>
+              <div className="mt-3">
+                <div className="text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors flex items-center justify-between">
+                  <span className="truncate">{fn.title}</span>
+                  <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary shrink-0" />
+                </div>
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 line-clamp-1 leading-tight">
+                  {fn.subtitle}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {pendingBills.length > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-soft">
           <div className="flex items-center gap-3">
@@ -232,14 +438,20 @@ function DashboardPage() {
             </div>
             <div>
               <h4 className="text-xs font-semibold">
-                {pendingBills.length} Employee Bill{pendingBills.length === 1 ? "" : "s"} Awaiting Approval
+                {pendingBills.length} Employee Bill{pendingBills.length === 1 ? "" : "s"} Awaiting
+                Approval
               </h4>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Staff submitted sales invoices that require your review and confirmation before stock is deducted.
+                Staff submitted sales invoices that require your review and confirmation before
+                stock is deducted.
               </p>
             </div>
           </div>
-          <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs h-7 text-xs">
+          <Button
+            asChild
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs h-7 text-xs"
+          >
             <Link to="/bills" search={{ status: "pending" }}>
               Review & Approve Bills →
             </Link>
@@ -332,7 +544,11 @@ function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {bills.length === 0 ? (
-              <EmptyHint label="No bills yet. Make your first sale." to="/new-sale" cta="New sale" />
+              <EmptyHint
+                label="No bills yet. Make your first sale."
+                to="/new-sale"
+                cta="New sale"
+              />
             ) : (
               bills.slice(0, 5).map((b) => (
                 <div

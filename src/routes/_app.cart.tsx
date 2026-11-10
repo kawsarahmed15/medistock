@@ -844,36 +844,6 @@ function CartPage() {
                 F2
               </kbd>
             </button>
-
-            {/* Modify Bill Button */}
-            <button
-              type="button"
-              onClick={() => setDraftsOpen(true)}
-              title="Modify / Edit Existing Bill (F3)"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-bold text-amber-800 hover:text-amber-950 hover:bg-amber-100/80 transition-colors cursor-pointer"
-            >
-              <span className="text-sm">✏️</span>
-              <span>Modify Bill</span>
-              <kbd className="text-[10px] font-mono font-bold text-amber-900 bg-amber-200 border border-amber-300 px-1.5 py-0.5 rounded shadow-xs">
-                F3
-              </kbd>
-            </button>
-
-            {/* Browse Catalog Button */}
-            <button
-              ref={browseButtonRef}
-              type="button"
-              onClick={() => setAddOpen(true)}
-              id="cart-browse-btn"
-              title="Browse Catalog (Alt+B)"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-bold text-slate-700 hover:text-blue-700 hover:bg-white/80 transition-colors cursor-pointer"
-            >
-              <span className="text-sm">📦</span>
-              <span>Browse Catalog</span>
-              <kbd className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded shadow-xs">
-                Alt+B
-              </kbd>
-            </button>
           </div>
 
           {/* Right side of Tabs bar */}
@@ -1496,16 +1466,7 @@ function CartPage() {
                     <td className="px-2 py-1 w-24 text-right text-slate-300 font-mono font-semibold text-[11px] select-none">
                       ₹0.00
                     </td>
-                    <td className="px-2 py-1 w-8 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setAddOpen(true)}
-                        className="text-slate-400 hover:text-blue-600 font-bold text-xs cursor-pointer"
-                        title="Browse catalog (Alt+B)"
-                      >
-                        ➕
-                      </button>
-                    </td>
+                    <td className="px-2 py-1 w-8 text-center" />
                   </tr>
                 </tbody>
               </table>
@@ -1954,18 +1915,6 @@ function CartPage() {
               Ctrl+T
             </kbd>
             <span className="truncate">New Bill Tab</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <kbd className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded border border-slate-300 font-mono font-bold text-[9px]">
-              F3
-            </kbd>
-            <span className="truncate">Modify Bill / Edit</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <kbd className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded border border-slate-300 font-mono font-bold text-[9px]">
-              Alt+B
-            </kbd>
-            <span className="truncate">Catalog</span>
           </div>
         </div>
         <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500 shrink-0">

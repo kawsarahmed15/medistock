@@ -35,11 +35,7 @@ function LoginPage() {
 
   useEffect(() => {
     if (ready && session) {
-      if (session.isEmployee) {
-        navigate({ to: "/new-sale" });
-      } else {
-        navigate({ to: "/dashboard" });
-      }
+      navigate({ to: "/dashboard" });
     }
   }, [ready, session, navigate]);
 
@@ -50,10 +46,8 @@ function LoginPage() {
       const s = await login(email, password);
       if (s?.isEmployee) {
         toast.success("Signed in to Employee Panel");
-        navigate({ to: "/new-sale" });
-      } else {
-        navigate({ to: "/dashboard" });
       }
+      navigate({ to: "/dashboard" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -87,11 +81,15 @@ function LoginPage() {
           </div>
 
           {expired && (
-            <Alert variant="destructive" className="animate-fade-in border-destructive/20 bg-destructive/5 text-destructive dark:bg-destructive/10">
+            <Alert
+              variant="destructive"
+              className="animate-fade-in border-destructive/20 bg-destructive/5 text-destructive dark:bg-destructive/10"
+            >
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Session Expired</AlertTitle>
               <AlertDescription>
-                You have been logged out due to 1 hour of inactivity. Please sign in again to resume.
+                You have been logged out due to 1 hour of inactivity. Please sign in again to
+                resume.
               </AlertDescription>
             </Alert>
           )}

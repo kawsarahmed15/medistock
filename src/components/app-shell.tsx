@@ -22,6 +22,7 @@ import {
   UserCheck,
   PanelLeftClose,
   PanelLeftOpen,
+  LayoutGrid,
 } from "lucide-react";
 import { UserProfileDialog } from "@/components/user-profile-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -76,12 +77,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     prevPathRef.current = location.pathname;
   }, [location.pathname, isDenseRoute]);
 
-  // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar
+  // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
-        setIsSidebarCollapsed((prev) => !prev);
+        setMobileNavOpen((prev) => !prev);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -153,7 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 if (!seenDevices.includes(s.deviceId)) {
                   addNotification(
                     "Security Alert: New Login",
-                    `${s.deviceBrowser || "Browser"} on ${s.deviceOs || "OS"} logged in.`
+                    `${s.deviceBrowser || "Browser"} on ${s.deviceOs || "OS"} logged in.`,
                   );
                   updatedSeen.push(s.deviceId);
                   addedAny = true;
@@ -195,8 +196,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (mainContainer) {
         const focusableElements = Array.from(
           mainContainer.querySelectorAll<HTMLElement>(
-            "a, button, input, select, textarea, [tabindex]"
-          )
+            "a, button, input, select, textarea, [tabindex]",
+          ),
         ).filter((el) => {
           const tabIndexAttr = el.getAttribute("tabindex");
           const isNotTabbable = tabIndexAttr === "-1" || el.hasAttribute("disabled");
@@ -216,7 +217,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
 
     const focusable = Array.from(
-      e.currentTarget.querySelectorAll<HTMLElement>(".sidebar-focus-item")
+      e.currentTarget.querySelectorAll<HTMLElement>(".sidebar-focus-item"),
     );
     if (focusable.length === 0) return;
 
@@ -227,7 +228,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % focusable.length;
     } else if (e.key === "ArrowUp") {
       nextIndex =
-        currentIndex === -1 ? focusable.length - 1 : (currentIndex - 1 + focusable.length) % focusable.length;
+        currentIndex === -1
+          ? focusable.length - 1
+          : (currentIndex - 1 + focusable.length) % focusable.length;
     }
 
     e.preventDefault();
@@ -261,14 +264,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       onKeyDown={handleSidebarKeyDown}
       className={cn(
         "h-full flex flex-col bg-sidebar shadow-soft overflow-hidden print:hidden select-none",
-        collapsed ? "items-center" : ""
+        collapsed ? "items-center" : "",
       )}
     >
       {/* Brand Header */}
       <div
         className={cn(
           "flex items-center border-b border-sidebar-border transition-all duration-300",
-          collapsed ? "justify-center p-3 w-full" : "gap-2.5 px-4 py-3.5"
+          collapsed ? "justify-center p-3 w-full" : "gap-2.5 px-4 py-3.5",
         )}
       >
         <Link
@@ -279,7 +282,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div
             className={cn(
               "h-8 w-8 rounded-lg flex items-center justify-center shadow-glow shrink-0 transition-transform hover:scale-105",
-              isEmployee ? "bg-amber-500 text-white" : "bg-gradient-primary text-primary-foreground"
+              isEmployee
+                ? "bg-amber-500 text-white"
+                : "bg-gradient-primary text-primary-foreground",
             )}
           >
             <Pill className="h-4 w-4" />
@@ -291,7 +296,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <div className="text-[10px] text-muted-foreground truncate">
                 {isEmployee ? (
-                  <span className="text-amber-600 dark:text-amber-400 font-medium">Employee Panel</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-medium">
+                    Employee Panel
+                  </span>
                 ) : (
                   "Pharmacy Suite"
                 )}
@@ -302,10 +309,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Navigation items */}
-      <nav className={cn("flex-1 py-3 space-y-1 overflow-y-auto no-scrollbar", collapsed ? "px-1.5 w-full" : "px-2.5")}>
+      <nav
+        className={cn(
+          "flex-1 py-3 space-y-1 overflow-y-auto no-scrollbar",
+          collapsed ? "px-1.5 w-full" : "px-2.5",
+        )}
+      >
         {dynamicNav.map(({ to, label, icon: Icon }, idx) => {
           const active = location.pathname.startsWith(to);
-          const unreadCount = to === "/notifications" ? notifications.filter((n) => n.unread).length : 0;
+          const unreadCount =
+            to === "/notifications" ? notifications.filter((n) => n.unread).length : 0;
           return (
             <Link
               key={to}
@@ -320,7 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 collapsed ? "justify-center h-10 w-full px-0" : "gap-2.5 px-2.5 py-2",
                 active
                   ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-soft"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
               )}
             >
               <Icon className="h-4 w-4 shrink-0 transition-transform group-hover:scale-110" />
@@ -364,7 +377,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Footer user profile & actions */}
-      <div className={cn("border-t border-sidebar-border space-y-1", collapsed ? "p-2 w-full flex flex-col items-center" : "p-2.5")}>
+      <div
+        className={cn(
+          "border-t border-sidebar-border space-y-1",
+          collapsed ? "p-2 w-full flex flex-col items-center" : "p-2.5",
+        )}
+      >
         <button
           type="button"
           onClick={() => {
@@ -379,7 +397,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={cn(
             "sidebar-focus-item rounded-lg transition-smooth flex items-center",
             collapsed ? "justify-center h-10 w-full p-0" : "w-full text-left px-2.5 py-1.5 gap-2.5",
-            isEmployee ? "cursor-default opacity-90" : "hover:bg-sidebar-accent/60"
+            isEmployee ? "cursor-default opacity-90" : "hover:bg-sidebar-accent/60",
           )}
           aria-label="User info"
         >
@@ -388,7 +406,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold shadow-glow shrink-0",
               isEmployee
                 ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                : "bg-gradient-primary text-primary-foreground"
+                : "bg-gradient-primary text-primary-foreground",
             )}
           >
             {(session?.name || session?.email || "U").charAt(0).toUpperCase()}
@@ -402,7 +420,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     Staff
                   </span>
                 ) : (
-                  <span className={cn("text-[9px] font-semibold px-1 py-0.2 rounded border", businessModule.badgeClass)}>
+                  <span
+                    className={cn(
+                      "text-[9px] font-semibold px-1 py-0.2 rounded border",
+                      businessModule.badgeClass,
+                    )}
+                  >
                     {businessModule.shortTitle}
                   </span>
                 )}
@@ -410,7 +433,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="text-[10px] text-muted-foreground truncate">{session?.email}</div>
             </div>
           )}
-          {!collapsed && !isEmployee && <UserCog className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+          {!collapsed && !isEmployee && (
+            <UserCog className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          )}
         </button>
 
         {!collapsed && session?.role === "superadmin" && !isEmployee && (
@@ -429,12 +454,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           variant="ghost"
           size="sm"
           onClick={() => void logout()}
-          tabIndex={activeFocusIndex === (session?.role === "superadmin" && !isEmployee ? 12 : 11) ? 0 : -1}
-          onFocus={() => setActiveFocusIndex(session?.role === "superadmin" && !isEmployee ? 12 : 11)}
+          tabIndex={
+            activeFocusIndex === (session?.role === "superadmin" && !isEmployee ? 12 : 11) ? 0 : -1
+          }
+          onFocus={() =>
+            setActiveFocusIndex(session?.role === "superadmin" && !isEmployee ? 12 : 11)
+          }
           title={collapsed ? "Sign out" : undefined}
           className={cn(
             "sidebar-focus-item text-xs font-medium text-muted-foreground hover:text-foreground",
-            collapsed ? "h-9 w-9 p-0 justify-center" : "w-full justify-start gap-2 h-8 px-2.5"
+            collapsed ? "h-9 w-9 p-0 justify-center" : "w-full justify-start gap-2 h-8 px-2.5",
           )}
         >
           <LogOut className="h-4 w-4 shrink-0" />
@@ -456,13 +485,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sun
         className={cn(
           "h-3.5 w-3.5 absolute transition-all duration-300 ease-out text-amber-500",
-          theme === "light" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"
+          theme === "light" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0",
         )}
       />
       <Moon
         className={cn(
           "h-3.5 w-3.5 absolute transition-all duration-300 ease-out text-sky-400",
-          theme === "dark" ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0"
+          theme === "dark" ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0",
         )}
       />
     </Button>
@@ -487,14 +516,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       className="h-full flex flex-col min-w-0 bg-gradient-soft print:block print:h-auto"
     >
       <header className="h-12 sm:h-13 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10 print:hidden shrink-0">
-        {/* Mobile hamburger -> opens sidebar sheet */}
+        {/* Navigation Drawer Menu button (opens sidebar drawer on all screen sizes) */}
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden shrink-0 h-8 w-8"
-              aria-label="Open menu"
+              className="shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
+              aria-label="Open navigation menu"
+              title="Menu / All Functions (Ctrl+B)"
             >
               <Menu className="h-4 w-4" />
             </Button>
@@ -505,21 +535,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SheetContent>
         </Sheet>
 
-        {/* Desktop sidebar toggle button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-          className="hidden md:inline-flex shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-          title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-          aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isSidebarCollapsed ? (
-            <PanelLeftOpen className="h-4 w-4 text-primary" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4" />
+        {/* Quick Launchpad / All Functions Link */}
+        <Link
+          to="/dashboard"
+          title="All Pharmacy Functions (Dashboard)"
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 border",
+            location.pathname === "/dashboard" || location.pathname === "/dashboard/"
+              ? "bg-primary/10 text-primary border-primary/30 shadow-xs"
+              : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border-border/50",
           )}
-        </Button>
+        >
+          <LayoutGrid className="h-3.5 w-3.5 text-primary" />
+          <span className="hidden sm:inline">All Functions</span>
+        </Link>
 
         {/* Global search — fills available space */}
         <div className="flex-1 min-w-0 max-w-md animate-fade-in">
@@ -534,7 +563,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div
             className={cn(
               "hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold shrink-0 border",
-              businessModule.badgeClass
+              businessModule.badgeClass,
             )}
           >
             <businessModule.icon className="h-3 w-3" />
@@ -553,7 +582,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         id="main-content-wrapper"
         className={cn(
           "flex-1 overflow-auto animate-fade-in print:p-0 print:overflow-visible",
-          isDenseRoute ? "p-2 sm:p-3 md:p-3.5" : "px-3 sm:px-5 md:px-6 py-3 sm:py-4 md:py-5"
+          isDenseRoute ? "p-2 sm:p-3 md:p-3.5" : "px-3 sm:px-5 md:px-6 py-3 sm:py-4 md:py-5",
         )}
       >
         {children}
@@ -564,19 +593,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 
+  const isDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
+  const isPageEntered = !isDashboard;
+
   return (
     <div className="h-screen w-full bg-gradient-soft overflow-hidden flex print:h-auto print:overflow-visible">
-      {/* Desktop Collapsible Sidebar */}
-      <div
-        className={cn(
-          "hidden md:flex flex-col shrink-0 h-full border-r border-sidebar-border bg-sidebar shadow-soft transition-all duration-300 ease-in-out print:hidden z-20",
-          isSidebarCollapsed ? "w-14" : "w-56 lg:w-60"
-        )}
-      >
-        {sidebarBody(undefined, isSidebarCollapsed)}
-      </div>
+      {/* Desktop Sidebar — removed after entering a page to give full width to page information */}
+      {!isPageEntered && !isSidebarCollapsed && (
+        <div
+          className={cn(
+            "hidden md:flex flex-col shrink-0 h-full border-r border-sidebar-border bg-sidebar shadow-soft transition-all duration-300 ease-in-out print:hidden z-20 w-56 lg:w-60",
+          )}
+        >
+          {sidebarBody(undefined, false)}
+        </div>
+      )}
 
-      {/* Main Workspace Area */}
+      {/* Main Workspace Area — gets 100% full width when on a page */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden print:h-auto print:overflow-visible">
         {main}
       </div>
