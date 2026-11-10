@@ -537,32 +537,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div
       id="main"
       onKeyDown={handleMainKeyDown}
-      className="h-full flex flex-col min-w-0 bg-slate-50 print:block print:h-auto"
+      className="h-full flex flex-col min-w-0 bg-gradient-soft print:block print:h-auto"
     >
-      <header className="h-10 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-4 shrink-0 shadow-2xs select-none relative z-30">
+      <header className="h-10 sm:h-11 bg-background/85 backdrop-blur-md border-b border-border flex items-center justify-between px-3 sm:px-4 shrink-0 shadow-2xs select-none relative z-30">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <Link
             to="/dashboard"
-            className="flex items-center gap-2 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            className="flex items-center gap-2 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
             title="MediStock Main Menu"
           >
-            <div className="w-5 h-5 rounded bg-blue-600 text-white flex items-center justify-center font-black text-[11px] shadow-xs">
+            <div className="w-5 h-5 rounded bg-primary text-primary-foreground flex items-center justify-center font-black text-[11px] shadow-xs">
               Rx
             </div>
-            <span className="font-extrabold text-sm tracking-tight text-slate-900">
-              Pharma<span className="text-blue-600">POS</span>
+            <span className="font-extrabold text-sm tracking-tight text-foreground">
+              Pharma<span className="text-primary">POS</span>
             </span>
           </Link>
 
-          <div className="h-4 w-px bg-slate-200 shrink-0" />
+          <div className="h-4 w-px bg-border shrink-0" />
 
           {isDashboard ? (
             <div className="flex items-center gap-2 min-w-0 text-xs">
-              <span className="font-bold text-slate-800 tracking-tight truncate max-w-[200px] sm:max-w-[320px]">
+              <span className="font-bold text-foreground tracking-tight truncate max-w-[200px] sm:max-w-[320px]">
                 {session?.pharmacyName || "MEDPLUS PHARMACY & SURGICALS"}
               </span>
-              <span className="text-slate-300 shrink-0">·</span>
-              <span className="text-[11px] text-slate-500 font-mono shrink-0 hidden sm:inline truncate max-w-[240px]">
+              <span className="text-muted-foreground/40 shrink-0">·</span>
+              <span className="text-[11px] text-muted-foreground font-mono shrink-0 hidden sm:inline truncate max-w-[240px]">
                 DL: {session?.drugLicNo || "DL-20B-889900"}
               </span>
             </div>
@@ -570,16 +570,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 min-w-0">
               <Link
                 to="/dashboard"
-                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold border border-slate-200 shadow-2xs transition-colors cursor-pointer shrink-0"
+                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted/80 hover:bg-muted text-foreground text-xs font-bold border border-border shadow-2xs transition-colors cursor-pointer shrink-0"
                 title="Return to Main Menu (Esc / F10)"
               >
                 <span>🏠 Main Menu</span>
-                <kbd className="text-[9px] font-mono bg-white border border-slate-300 px-1 py-0.2 rounded text-slate-600">
+                <kbd className="text-[9px] font-mono bg-card border border-border px-1 py-0.2 rounded text-muted-foreground">
                   Esc
                 </kbd>
               </Link>
-              <div className="h-3.5 w-px bg-slate-200 shrink-0" />
-              <span className="font-bold text-xs text-slate-800 tracking-tight truncate">
+              <div className="h-3.5 w-px bg-border shrink-0" />
+              <span className="font-bold text-xs text-foreground tracking-tight truncate">
                 {getPageTitle(location.pathname)}
               </span>
             </div>
@@ -592,22 +592,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          <div className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-mono font-medium text-slate-600 hidden xs:inline-block">
+          <div className="px-1.5 py-0.5 rounded bg-muted/80 border border-border text-[11px] font-mono font-medium text-muted-foreground hidden xs:inline-block">
             POS-01
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 font-mono">
-            <span className="text-slate-400">🕒</span>
-            <span className="font-semibold text-slate-800">{liveTime}</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+            <span>🕒</span>
+            <span className="font-semibold text-foreground">{liveTime}</span>
           </div>
 
-          <div className="h-4 w-px bg-slate-200" />
+          <div className="h-4 w-px bg-border" />
 
           {/* Cart Counter badge if items in cart */}
           {count > 0 && location.pathname !== "/cart" && (
             <Link
               to="/cart"
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs shadow-xs transition-colors"
               title={`${count} items in Cart`}
             >
               <ShoppingCart className="h-3.5 w-3.5" />
@@ -621,7 +621,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="shrink-0 h-7 w-7 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                className="shrink-0 h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
                 aria-label="Navigation drawer"
                 title="Quick Navigation (Ctrl+B)"
               >
@@ -641,13 +641,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setProfileOpen(true)}
-            className="flex items-center gap-1.5 pl-1 text-xs text-slate-700 hover:text-blue-700 cursor-pointer"
+            className="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
             title={`${session?.name || "User"} (${session?.email})`}
           >
-            <div className="h-6 w-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
+            <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[10px]">
               {(session?.name || session?.email || "U").charAt(0).toUpperCase()}
             </div>
-            <span className="hidden md:inline font-medium max-w-[90px] truncate">
+            <span className="hidden md:inline font-medium max-w-[90px] truncate text-foreground">
               {session?.name || "User"}
             </span>
           </button>
@@ -667,7 +667,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="h-screen w-full bg-slate-50 overflow-hidden flex flex-col print:h-auto print:overflow-visible">
+    <div className="h-screen w-full bg-gradient-soft overflow-hidden flex flex-col print:h-auto print:overflow-visible">
       {/* Main Workspace Area — gets 100% full width everywhere with zero sidebar */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden print:h-auto print:overflow-visible">
         {main}
