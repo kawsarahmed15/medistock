@@ -235,25 +235,36 @@ function CartPage() {
   const cartRef = useRef(cart);
   const checkoutRef = useRef<() => void>();
   const newBillRef = useRef<() => void>();
+  const entryInputRef = useRef<HTMLInputElement>(null);
+  const entryDropdownRef = useRef<HTMLDivElement>(null);
+
+  const handleNewBill = () => {
+    if (cart.items.length > 0) {
+      if (
+        !window.confirm(
+          "You have an active bill. Are you sure you want to clear it and start a new one?",
+        )
+      ) {
+        return;
+      }
+    }
+    cart.clear();
+    setCustomerOpen(true);
+    setTimeout(() => {
+      entryInputRef.current?.focus();
+    }, 100);
+  };
 
   // Keep refs in sync every render (no re-subscription needed)
   useEffect(() => {
     selectedIdxRef.current = selectedIdx;
-  });
-  useEffect(() => {
     addOpenRef.current = addOpen;
-  });
-  useEffect(() => {
     customerOpenRef.current = customerOpen;
-  });
-  useEffect(() => {
     checkoutOpenRef.current = checkoutOpen;
-  });
-  useEffect(() => {
     deleteTargetRef.current = deleteTarget;
-  });
-  useEffect(() => {
     cartRef.current = cart;
+    checkoutRef.current = handleOpenCheckout;
+    newBillRef.current = handleNewBill;
   });
 
   const handleOpenCheckout = () => {
@@ -365,11 +376,6 @@ function CartPage() {
       setSubmitting(false);
     }
   };
-
-  // Keep checkoutRef in sync so the stable keyboard handler can call it
-  checkoutRef.current = handleOpenCheckout;
-
-  newBillRef.current = handleNewBill;
 
   // ── Cart keyboard handler — registered once, reads live values via refs ──────
   useEffect(() => {
@@ -510,8 +516,6 @@ function CartPage() {
   const [entryQuery, setEntryQuery] = useState("");
   const [entryDropdownOpen, setEntryDropdownOpen] = useState(false);
   const [entryActiveIdx, setEntryActiveIdx] = useState(0);
-  const entryInputRef = useRef<HTMLInputElement>(null);
-  const entryDropdownRef = useRef<HTMLDivElement>(null);
 
   // ── 2D Cell Navigation Matrix Refs ─────────────────────────────────────────
   const cellRefs = useRef<{ [row: number]: { [col: number]: HTMLElement | null } }>({});
@@ -667,23 +671,6 @@ function CartPage() {
       }
     }
   }, [entryActiveIdx]);
-
-  const handleNewBill = () => {
-    if (cart.items.length > 0) {
-      if (
-        !window.confirm(
-          "You have an active bill. Are you sure you want to clear it and start a new one?",
-        )
-      ) {
-        return;
-      }
-    }
-    cart.clear();
-    setCustomerOpen(true);
-    setTimeout(() => {
-      entryInputRef.current?.focus();
-    }, 100);
-  };
 
   // Focus and cell navigation state matching reference
   const [customerFocused, setCustomerFocused] = useState(false);
