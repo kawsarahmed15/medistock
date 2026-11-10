@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Package,
@@ -50,32 +50,54 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const { count } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeFocusIndex, setActiveFocusIndex] = useState(0);
 
-  // Sidebar collapse state
-  const isDenseRoute =
-    location.pathname.startsWith("/purchases/new") ||
-    location.pathname.startsWith("/cart") ||
-    (/^\/purchases\/[^\/]+$/.test(location.pathname) && location.pathname !== "/purchases");
+  const [liveTime, setLiveTime] = useState(() => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  });
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isDenseRoute);
-  const prevPathRef = useRef(location.pathname);
-
-  // Auto-collapse on dense routes, restore on navigation to normal pages
   useEffect(() => {
-    if (isDenseRoute) {
-      setIsSidebarCollapsed(true);
-    } else if (
-      prevPathRef.current.startsWith("/purchases/new") ||
-      prevPathRef.current.startsWith("/cart") ||
-      (/^\/purchases\/[^\/]+$/.test(prevPathRef.current) && prevPathRef.current !== "/purchases")
-    ) {
-      setIsSidebarCollapsed(false);
-    }
-    prevPathRef.current = location.pathname;
-  }, [location.pathname, isDenseRoute]);
+    const t = setInterval(() => {
+      const d = new Date();
+      setLiveTime(
+        `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+      );
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const getPageTitle = (path: string) => {
+    if (path.startsWith("/cart")) return "Sale / Cart";
+    if (path.startsWith("/new-sale")) return "New Sale";
+    if (path.startsWith("/inventory")) return "Inventory (Stock)";
+    if (path.startsWith("/bills")) return "Sale Book (Bills)";
+    if (path.startsWith("/purchases/new")) return "Purchase Bill";
+    if (path.startsWith("/purchases")) return "Purchases";
+    if (path.startsWith("/credit")) return "Credit Sales";
+    if (path.startsWith("/ledger")) return "Ledger";
+    if (path.startsWith("/revenue")) return "Reports & Revenue";
+    if (path.startsWith("/customers")) return "Customers";
+    if (path.startsWith("/employees")) return "Employees";
+    if (path.startsWith("/settings")) return "Settings";
+    if (path.startsWith("/notifications")) return "Notifications";
+    return "Pharma POS";
+  };
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if ((e.key === "Escape" || e.key === "F10") && location.pathname !== "/dashboard") {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        navigate({ to: "/dashboard" });
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [location.pathname, navigate]);
 
   // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar drawer
   useEffect(() => {
@@ -509,81 +531,132 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </Link>
   );
 
+  const isDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
+
   const main = (
     <div
       id="main"
       onKeyDown={handleMainKeyDown}
-      className="h-full flex flex-col min-w-0 bg-gradient-soft print:block print:h-auto"
+      className="h-full flex flex-col min-w-0 bg-slate-50 print:block print:h-auto"
     >
-      <header className="h-12 sm:h-13 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-10 print:hidden shrink-0">
-        {/* Navigation Drawer Menu button (opens sidebar drawer on all screen sizes) */}
-        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-              aria-label="Open navigation menu"
-              title="Menu / All Functions (Ctrl+B)"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72 max-w-[80vw]">
-            <SheetTitle className="sr-only">Navigation</SheetTitle>
-            {sidebarBody(() => setMobileNavOpen(false), false)}
-          </SheetContent>
-        </Sheet>
+      <header className="h-10 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-4 shrink-0 shadow-2xs select-none relative z-30">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            title="MediStock Main Menu"
+          >
+            <div className="w-5 h-5 rounded bg-blue-600 text-white flex items-center justify-center font-black text-[11px] shadow-xs">
+              Rx
+            </div>
+            <span className="font-extrabold text-sm tracking-tight text-slate-900">
+              Pharma<span className="text-blue-600">POS</span>
+            </span>
+          </Link>
 
-        {/* Quick Launchpad / All Functions Link */}
-        <Link
-          to="/dashboard"
-          title="All Pharmacy Functions (Dashboard)"
-          className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 border",
-            location.pathname === "/dashboard" || location.pathname === "/dashboard/"
-              ? "bg-primary/10 text-primary border-primary/30 shadow-xs"
-              : "bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border-border/50",
+          <div className="h-4 w-px bg-slate-200 shrink-0" />
+
+          {isDashboard ? (
+            <div className="flex items-center gap-2 min-w-0 text-xs">
+              <span className="font-bold text-slate-800 tracking-tight truncate max-w-[200px] sm:max-w-[320px]">
+                {session?.pharmacyName || "MEDPLUS PHARMACY & SURGICALS"}
+              </span>
+              <span className="text-slate-300 shrink-0">·</span>
+              <span className="text-[11px] text-slate-500 font-mono shrink-0 hidden sm:inline truncate max-w-[240px]">
+                DL: {session?.drugLicNo || "DL-20B-889900"}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 min-w-0">
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold border border-slate-200 shadow-2xs transition-colors cursor-pointer shrink-0"
+                title="Return to Main Menu (Esc / F10)"
+              >
+                <span>🏠 Main Menu</span>
+                <kbd className="text-[9px] font-mono bg-white border border-slate-300 px-1 py-0.2 rounded text-slate-600">
+                  Esc
+                </kbd>
+              </Link>
+              <div className="h-3.5 w-px bg-slate-200 shrink-0" />
+              <span className="font-bold text-xs text-slate-800 tracking-tight truncate">
+                {getPageTitle(location.pathname)}
+              </span>
+            </div>
           )}
-        >
-          <LayoutGrid className="h-3.5 w-3.5 text-primary" />
-          <span className="hidden sm:inline">All Functions</span>
-        </Link>
+        </div>
 
-        {/* Global search — fills available space */}
-        <div className="flex-1 min-w-0 max-w-md animate-fade-in">
+        {/* Global search */}
+        <div className="flex-1 min-w-0 max-w-xs md:max-w-sm mx-2 hidden sm:block">
           <GlobalSearch />
         </div>
 
-        {isEmployee ? (
-          <div className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-semibold shrink-0">
-            <ShieldCheck className="h-3 w-3" /> Employee Mode
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <div className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-mono font-medium text-slate-600 hidden xs:inline-block">
+            POS-01
           </div>
-        ) : (
-          <div
-            className={cn(
-              "hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold shrink-0 border",
-              businessModule.badgeClass,
-            )}
+
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 font-mono">
+            <span className="text-slate-400">🕒</span>
+            <span className="font-semibold text-slate-800">{liveTime}</span>
+          </div>
+
+          <div className="h-4 w-px bg-slate-200" />
+
+          {/* Cart Counter badge if items in cart */}
+          {count > 0 && location.pathname !== "/cart" && (
+            <Link
+              to="/cart"
+              className="flex items-center gap-1 px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"
+              title={`${count} items in Cart`}
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              <span>{count}</span>
+            </Link>
+          )}
+
+          {/* Quick Drawer Menu trigger */}
+          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-7 w-7 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                aria-label="Navigation drawer"
+                title="Quick Navigation (Ctrl+B)"
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-72 max-w-[80vw]">
+              <SheetTitle className="sr-only">Navigation</SheetTitle>
+              {sidebarBody(() => setMobileNavOpen(false), false)}
+            </SheetContent>
+          </Sheet>
+
+          {/* Theme button */}
+          {themeButton}
+
+          {/* User Profile / Logout */}
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            className="flex items-center gap-1.5 pl-1 text-xs text-slate-700 hover:text-blue-700 cursor-pointer"
+            title={`${session?.name || "User"} (${session?.email})`}
           >
-            <businessModule.icon className="h-3 w-3" />
-            <span>{businessModule.badgeLabel}</span>
-          </div>
-        )}
-
-        <div className="hidden md:flex flex-1" />
-
-        {sellButton}
-
-        {themeButton}
+            <div className="h-6 w-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">
+              {(session?.name || session?.email || "U").charAt(0).toUpperCase()}
+            </div>
+            <span className="hidden md:inline font-medium max-w-[90px] truncate">
+              {session?.name || "User"}
+            </span>
+          </button>
+        </div>
       </header>
 
       <main
         id="main-content-wrapper"
-        className={cn(
-          "flex-1 overflow-auto animate-fade-in print:p-0 print:overflow-visible",
-          isDenseRoute ? "p-2 sm:p-3 md:p-3.5" : "px-3 sm:px-5 md:px-6 py-3 sm:py-4 md:py-5",
-        )}
+        className="flex-1 overflow-auto animate-fade-in print:p-0 print:overflow-visible p-2 sm:p-3"
       >
         {children}
       </main>
@@ -593,23 +666,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  const isDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
-  const isPageEntered = !isDashboard;
-
   return (
-    <div className="h-screen w-full bg-gradient-soft overflow-hidden flex print:h-auto print:overflow-visible">
-      {/* Desktop Sidebar — removed after entering a page to give full width to page information */}
-      {!isPageEntered && !isSidebarCollapsed && (
-        <div
-          className={cn(
-            "hidden md:flex flex-col shrink-0 h-full border-r border-sidebar-border bg-sidebar shadow-soft transition-all duration-300 ease-in-out print:hidden z-20 w-56 lg:w-60",
-          )}
-        >
-          {sidebarBody(undefined, false)}
-        </div>
-      )}
-
-      {/* Main Workspace Area — gets 100% full width when on a page */}
+    <div className="h-screen w-full bg-slate-50 overflow-hidden flex flex-col print:h-auto print:overflow-visible">
+      {/* Main Workspace Area — gets 100% full width everywhere with zero sidebar */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden print:h-auto print:overflow-visible">
         {main}
       </div>

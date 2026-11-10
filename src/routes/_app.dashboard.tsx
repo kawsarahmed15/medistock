@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
@@ -17,21 +17,12 @@ import {
   BookOpen,
   Settings,
   UserCheck,
-  ArrowRight,
-  LayoutGrid,
+  RotateCw,
+  Eye,
+  EyeOff,
+  CheckCircle2,
 } from "lucide-react";
 import { productsStore, billsStore, type Product, type Bill } from "@/lib/storage";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
 
 export const Route = createFileRoute("/_app/dashboard")({
@@ -46,30 +37,34 @@ function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hideAmounts, setHideAmounts] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
   const { session } = useAuth();
   const { count } = useCart();
+  const navigate = useNavigate();
+
   const expiryDays = session?.expiryDays ?? 60;
   const lowStockQty = session?.lowStockQty ?? 10;
+  const isEmployee = Boolean(session?.isEmployee);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadData = () => {
     setLoading(true);
     Promise.all([productsStore.list(), billsStore.list()])
       .then(([p, b]) => {
-        if (cancelled) return;
         setProducts(p);
         setBills(b);
         setLoading(false);
       })
       .catch(() => {
-        if (cancelled) return;
         setProducts([]);
         setBills([]);
         setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const completedBills = useMemo(
@@ -78,567 +73,596 @@ function DashboardPage() {
   );
   const pendingBills = useMemo(() => bills.filter((b) => b.status === "pending"), [bills]);
 
-  // Month-to-date: strictly bounded to the current calendar month
-  const { monthStart, monthEnd } = useMemo(() => {
-    const d = new Date();
-    const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-    return { monthStart: start, monthEnd: end };
-  }, []);
-
-  const billsThisMonth = useMemo(
-    () =>
-      completedBills.filter((b) => {
-        const t = new Date(b.createdAt).getTime();
-        return t >= monthStart && t <= monthEnd;
-      }),
-    [completedBills, monthStart, monthEnd],
-  );
-
-  const totalSales = billsThisMonth.reduce((s, b) => s + b.total, 0);
-
-  // Stock value = sum of rounded (batch purchase price × batch quantity) across all batches
-  const stockValue = useMemo(() => {
-    return products.reduce((total, p) => {
-      if (p.batches && p.batches.length > 0) {
-        return (
-          total +
-          p.batches.reduce(
-            (bSum, b) =>
-              bSum + Math.round((b.costPrice ?? b.price ?? 0) * (b.stock || 0) * 100) / 100,
-            0,
-          )
-        );
-      }
-      return total + Math.round((p.costPrice ?? p.price ?? 0) * (p.stock || 0) * 100) / 100;
-    }, 0);
-  }, [products]);
-
-  const lowStock = products.filter((p) => p.stock <= lowStockQty);
-
-  const expiringSoon = products
-    .filter((p) => {
-      const d = new Date(p.expiry).getTime();
-      const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
-      return days <= expiryDays && days >= 0;
-    })
-    .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime());
-
-  const expired = products.filter((p) => new Date(p.expiry).getTime() < Date.now());
-
-  // Last 14 days revenue trend for the dashboard graph
-  const trendData = useMemo(() => {
-    const days: { label: string; key: string; revenue: number }[] = [];
+  // Today's range: midnight today to 23:59:59.999 today
+  const todayBills = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      days.push({
-        key: `${year}-${month}-${day}`,
-        label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        revenue: 0,
-      });
-    }
-    const map = new Map(days.map((d) => [d.key, d]));
-    for (const b of completedBills) {
-      const d = new Date(b.createdAt);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const k = `${year}-${month}-${day}`;
-      const row = map.get(k);
-      if (row) row.revenue += b.total;
-    }
-    return days;
+    const todayStart = today.getTime();
+    const todayEnd = todayStart + 86400000;
+    return completedBills.filter((b) => {
+      const t = new Date(b.createdAt).getTime();
+      return t >= todayStart && t < todayEnd;
+    });
   }, [completedBills]);
 
-  const trendDelta = useMemo(() => {
-    const half = Math.floor(trendData.length / 2);
-    const first = trendData.slice(0, half).reduce((s, d) => s + d.revenue, 0);
-    const second = trendData.slice(half).reduce((s, d) => s + d.revenue, 0);
-    if (first === 0) return second > 0 ? 100 : 0;
-    return ((second - first) / first) * 100;
-  }, [trendData]);
+  const todaySalesTotal = useMemo(
+    () => todayBills.reduce((sum, b) => sum + (b.total || 0), 0),
+    [todayBills],
+  );
 
-  if (loading) return <DashboardSkeleton />;
+  const todayCashTotal = useMemo(
+    () =>
+      todayBills
+        .filter((b) => b.paymentMethod === "cash" || !b.paymentMethod)
+        .reduce((sum, b) => sum + (b.total || 0), 0),
+    [todayBills],
+  );
 
-  const stats: Array<{
-    label: string;
-    value: string | number;
-    icon: typeof Package;
-    tint: string;
-    to: string;
-    search?: Record<string, string | number>;
-  }> = [
-    {
-      label: "Products",
-      value: products.length,
-      icon: Package,
-      tint: "bg-primary/10 text-primary",
-      to: "/inventory",
-    },
-    {
-      label: "Stock value",
-      value: formatMoney(stockValue),
-      icon: IndianRupee,
-      tint: "bg-primary/10 text-primary",
-      to: "/inventory",
-    },
-    {
-      label: "Bills this month",
-      value: billsThisMonth.length,
-      icon: ReceiptText,
-      tint: "bg-accent text-accent-foreground",
-      to: "/bills",
-      search: { range: "month" },
-    },
-    {
-      label: "Revenue this month",
-      value: formatMoney(totalSales),
-      icon: IndianRupee,
-      tint: "bg-success/15 text-success",
-      to: "/revenue",
-      search: { range: "month" },
-    },
-    {
-      label: "Low stock",
-      value: lowStock.length,
-      icon: AlertTriangle,
-      tint: "bg-warning/20 text-warning-foreground",
-      to: "/inventory",
-      search: { filter: "low" },
-    },
-    {
-      label: "Expiring soon",
-      value: expiringSoon.length,
-      icon: AlertTriangle,
-      tint: "bg-destructive/10 text-destructive",
-      to: "/inventory",
-      search: { filter: "expiring" },
-    },
-  ];
+  const todayUpiTotal = useMemo(
+    () =>
+      todayBills
+        .filter((b) => b.paymentMethod === "upi")
+        .reduce((sum, b) => sum + (b.total || 0), 0),
+    [todayBills],
+  );
 
-  const isEmployee = Boolean(session?.isEmployee);
+  const avgBillValue = todayBills.length > 0 ? Math.round(todaySalesTotal / todayBills.length) : 0;
 
-  const availableFunctions = useMemo(() => {
+  const lowStock = useMemo(
+    () => products.filter((p) => (p.stock || 0) <= lowStockQty),
+    [products, lowStockQty],
+  );
+
+  const expiringSoon = useMemo(() => {
+    return products
+      .filter((p) => {
+        if (!p.expiry) return false;
+        const d = new Date(p.expiry).getTime();
+        const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
+        return days <= expiryDays && days >= 0;
+      })
+      .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime());
+  }, [products, expiryDays]);
+
+  const expired = useMemo(() => {
+    return products.filter((p) => p.expiry && new Date(p.expiry).getTime() < Date.now());
+  }, [products]);
+
+  // Reference groups & menu items matching https://medistock.docslot.in/#/
+  const menuGroups = useMemo(() => {
     if (isEmployee) {
       return [
         {
-          to: "/new-sale",
-          title: "New Sale",
-          subtitle: "Walk-in patient & quick billing",
-          icon: ShoppingCart,
-          iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-          badge: "F2",
+          key: "BILLING",
+          label: "Billing",
+          items: [
+            {
+              num: "1",
+              hotkey: "S",
+              title: "Sale",
+              path: "/cart",
+              desc: "Counter billing, patient khata, barcode search",
+              icon: ShoppingBag,
+              badge: count > 0 ? `${count} in Cart` : undefined,
+            },
+            {
+              num: "2",
+              hotkey: "N",
+              title: "New Sale",
+              path: "/new-sale",
+              desc: "Start fresh patient sale or prescription entry",
+              icon: ShoppingCart,
+            },
+          ],
         },
         {
-          to: "/cart",
-          title: "Cart & Billing",
-          subtitle: "Active bill, medicine grid & payment",
-          icon: ShoppingBag,
-          iconBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-          badge: count > 0 ? `${count} in Cart` : undefined,
+          key: "BOOKS_ACCOUNTS",
+          label: "Books & Accounts",
+          items: [
+            {
+              num: "4",
+              hotkey: "B",
+              title: "Sale Book",
+              path: "/bills",
+              desc: "My submitted bills and approval status",
+              icon: ReceiptText,
+            },
+          ],
         },
         {
-          to: "/inventory",
-          title: "Inventory (Stock)",
-          subtitle: "Search medicines, batch stocks & rates",
-          icon: Package,
-          iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
-          badge: `${products.length} Products`,
-        },
-        {
-          to: "/bills",
-          title: "My Bills",
-          subtitle: "Submitted invoices & approval status",
-          icon: ReceiptText,
-          iconBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+          key: "STOCK_SETUP",
+          label: "Stock & Setup",
+          items: [
+            {
+              num: "8",
+              hotkey: "I",
+              title: "Inventory",
+              path: "/inventory",
+              desc: "Stock, batches, expiry and prices",
+              icon: Package,
+              badge: `${products.length} Items`,
+            },
+          ],
         },
       ];
     }
 
     return [
       {
-        to: "/cart",
-        title: "Cart & Billing",
-        subtitle: "Active POS counter, medicine grid & checkout",
-        icon: ShoppingBag,
-        iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-        badge: count > 0 ? `${count} in Cart` : "POS",
+        key: "BILLING",
+        label: "Billing",
+        items: [
+          {
+            num: "1",
+            hotkey: "S",
+            title: "Sale",
+            path: "/cart",
+            desc: "Counter billing, patient khata, barcode search",
+            icon: ShoppingBag,
+            badge: count > 0 ? `${count} in Cart` : undefined,
+          },
+          {
+            num: "2",
+            hotkey: "P",
+            title: "Purchase Bill",
+            path: "/purchases/new",
+            desc: "Supplier invoice with batch and expiry",
+            icon: Truck,
+          },
+          {
+            num: "3",
+            hotkey: "C",
+            title: "Purchases",
+            path: "/purchases",
+            desc: "Goods receipt note and purchase bills",
+            icon: Package,
+          },
+        ],
       },
       {
-        to: "/new-sale",
-        title: "New Sale",
-        subtitle: "Start fresh patient sale or prescription",
-        icon: ShoppingCart,
-        iconBg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-        badge: "F2",
+        key: "BOOKS_ACCOUNTS",
+        label: "Books & Accounts",
+        items: [
+          {
+            num: "4",
+            hotkey: "B",
+            title: "Sale Book",
+            path: "/bills",
+            desc: "Sales register, invoices and receipts",
+            icon: ReceiptText,
+            badge: pendingBills.length > 0 ? `${pendingBills.length} pending` : undefined,
+          },
+          {
+            num: "5",
+            hotkey: "K",
+            title: "Credit Sales",
+            path: "/credit",
+            desc: "Customer dues, khata ledger and settlements",
+            icon: CreditCard,
+          },
+          {
+            num: "6",
+            hotkey: "L",
+            title: "Ledger",
+            path: "/ledger",
+            desc: "Customer khata and supplier statements",
+            icon: BookOpen,
+          },
+          {
+            num: "7",
+            hotkey: "R",
+            title: "Reports",
+            path: "/revenue",
+            desc: "Schedule H1 register, sales and profit",
+            icon: TrendingUp,
+          },
+          {
+            num: "U",
+            hotkey: "U",
+            title: "Customers",
+            path: "/customers",
+            desc: "Patient directory and outstanding balances",
+            icon: Users,
+          },
+        ],
       },
       {
-        to: "/inventory",
-        title: "Inventory (Stock)",
-        subtitle: "Stock levels, batch expiries, MRP & barcodes",
-        icon: Package,
-        iconBg: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-        badge: `${products.length} Products`,
-      },
-      {
-        to: "/bills",
-        title: "Bills & Invoices",
-        subtitle: "Sales history, tax invoices & bill approvals",
-        icon: ReceiptText,
-        iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
-        badge: pendingBills.length > 0 ? `${pendingBills.length} Pending` : `${bills.length} Bills`,
-      },
-      {
-        to: "/purchases",
-        title: "Purchases",
-        subtitle: "Supplier inward, batch additions & invoices",
-        icon: Truck,
-        iconBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-        badge: "Inward",
-      },
-      {
-        to: "/customers",
-        title: "Customers & Khata",
-        subtitle: "Patient profiles, phone records & dues",
-        icon: Users,
-        iconBg: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-      },
-      {
-        to: "/credit",
-        title: "Credit Sales",
-        subtitle: "Khata ledger, credit balances & settlements",
-        icon: CreditCard,
-        iconBg: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-      },
-      {
-        to: "/ledger",
-        title: "Ledger",
-        subtitle: "Accounting records, expenses & transactions",
-        icon: BookOpen,
-        iconBg: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
-      },
-      {
-        to: "/revenue",
-        title: "Revenue & Analytics",
-        subtitle: "Monthly turnover, profit margins & sales trends",
-        icon: TrendingUp,
-        iconBg: "bg-green-500/10 text-green-600 dark:text-green-400",
-      },
-      {
-        to: "/employees",
-        title: "Employees & Staff",
-        subtitle: "Cashier logins, dispensary staff & permissions",
-        icon: UserCheck,
-        iconBg: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-      },
-      {
-        to: "/settings",
-        title: "Settings",
-        subtitle: "Store profile, GSTIN, thermal printer & backups",
-        icon: Settings,
-        iconBg: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+        key: "STOCK_SETUP",
+        label: "Stock & Setup",
+        items: [
+          {
+            num: "8",
+            hotkey: "I",
+            title: "Inventory",
+            path: "/inventory",
+            desc: "Stock, batches, expiry and reorder levels",
+            icon: Package,
+            badge: lowStock.length > 0 ? `${lowStock.length} low` : undefined,
+          },
+          {
+            num: "M",
+            hotkey: "M",
+            title: "Employees",
+            path: "/employees",
+            desc: "Staff accounts, cashier mode and permissions",
+            icon: UserCheck,
+          },
+          {
+            num: "0",
+            hotkey: "T",
+            title: "Settings",
+            path: "/settings",
+            desc: "Printer, store profile, GSTIN and backup",
+            icon: Settings,
+          },
+        ],
       },
     ];
-  }, [isEmployee, count, products.length, pendingBills.length, bills.length]);
+  }, [isEmployee, count, products.length, pendingBills.length, lowStock.length]);
+
+  const flatItems = useMemo(() => menuGroups.flatMap((g) => g.items), [menuGroups]);
+  const activeItem = flatItems[selectedIdx] || flatItems[0];
+
+  // Hotkey navigation matching reference
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "F5") {
+        e.preventDefault();
+        loadData();
+        return;
+      }
+
+      // Hotkey by Number (1-9, 0)
+      const matchNum = flatItems.find((item) => item.num === e.key);
+      if (matchNum) {
+        e.preventDefault();
+        navigate({ to: matchNum.path });
+        return;
+      }
+
+      // Hotkey by Letter (S, P, C, B, K, L, R, U, I, M, T)
+      if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
+        const keyUpper = e.key.toUpperCase();
+        const matchHotkey = flatItems.find((item) => item.hotkey.toUpperCase() === keyUpper);
+        if (matchHotkey) {
+          e.preventDefault();
+          navigate({ to: matchHotkey.path });
+          return;
+        }
+      }
+
+      // Arrow navigation
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev < flatItems.length - 1 ? prev + 1 : 0));
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setSelectedIdx((prev) => (prev > 0 ? prev - 1 : flatItems.length - 1));
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        setSelectedIdx(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        setSelectedIdx(flatItems.length - 1);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const item = flatItems[selectedIdx];
+        if (item) navigate({ to: item.path });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [flatItems, selectedIdx, navigate]);
+
+  const hasIssues = lowStock.length > 0 || expiringSoon.length > 0 || pendingBills.length > 0;
+
+  if (loading && products.length === 0 && bills.length === 0) {
+    return <DashboardSkeleton />;
+  }
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Overview of your pharmacy operations, inventory, and revenue.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-            <Link to="/inventory" search={{ add: 1 }}>
-              Add product
-            </Link>
-          </Button>
-          <Button asChild size="sm" className="shadow-soft h-8 text-xs">
-            <Link to="/new-sale">
-              <ShoppingCart className="h-3.5 w-3.5" /> New sale
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <div className="-m-2 sm:-m-3 h-[calc(100vh-40px)] flex flex-col justify-between overflow-hidden bg-slate-50 select-none">
+      {/* ── Main Content Area ── */}
+      <main className="flex-1 overflow-hidden px-4 sm:px-6 py-3 flex flex-col lg:flex-row gap-5 items-stretch min-h-0">
+        {/* Left Section: Menu Cards Grid (58-60% width) */}
+        <section className="w-full lg:w-[58%] xl:w-[60%] flex flex-col justify-between overflow-y-auto no-scrollbar pr-1">
+          <div className="space-y-3.5">
+            {menuGroups.map((group) => {
+              const items = group.items;
+              if (items.length === 0) return null;
 
-      {/* ── Main Functions Launchpad Grid (Shown First After Login) ── */}
-      <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-xs p-4 sm:p-5 shadow-soft space-y-3.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-3">
-          <div>
-            <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-              <LayoutGrid className="h-5 w-5 text-primary" />
-              <span>All Pharmacy Functions</span>
-              <span className="text-[11px] font-semibold text-primary px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
-                {availableFunctions.length} Modules Available
-              </span>
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Click any function below to enter its workspace. The sidebar will automatically be
-              hidden to give you full screen width.
-            </p>
-          </div>
-          {count > 0 && (
-            <Link
-              to="/cart"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow-soft hover:shadow-glow transition-all shrink-0 self-start sm:self-auto"
-            >
-              <ShoppingBag className="h-4 w-4" />
-              <span>Resume Active Cart ({count})</span>
-            </Link>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
-          {availableFunctions.map((fn) => (
-            <Link
-              key={fn.to}
-              to={fn.to}
-              className="group relative flex flex-col justify-between p-3.5 rounded-xl border border-border/60 bg-background/80 hover:bg-accent/40 hover:border-primary/50 shadow-xs hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer select-none"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div
-                  className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 shadow-xs transition-transform group-hover:scale-110 ${fn.iconBg}`}
-                >
-                  <fn.icon className="h-4.5 w-4.5" />
-                </div>
-                {fn.badge && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0 truncate max-w-[80px]">
-                    {fn.badge}
-                  </span>
-                )}
-              </div>
-              <div className="mt-3">
-                <div className="text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors flex items-center justify-between">
-                  <span className="truncate">{fn.title}</span>
-                  <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary shrink-0" />
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 line-clamp-1 leading-tight">
-                  {fn.subtitle}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {pendingBills.length > 0 && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-soft">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
-              <Clock className="h-4 w-4 animate-pulse" />
-            </div>
-            <div>
-              <h4 className="text-xs font-semibold">
-                {pendingBills.length} Employee Bill{pendingBills.length === 1 ? "" : "s"} Awaiting
-                Approval
-              </h4>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Staff submitted sales invoices that require your review and confirmation before
-                stock is deducted.
-              </p>
-            </div>
-          </div>
-          <Button
-            asChild
-            size="sm"
-            className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs h-7 text-xs"
-          >
-            <Link to="/bills" search={{ status: "pending" }}>
-              Review & Approve Bills →
-            </Link>
-          </Button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
-        {stats.map((s, i) => (
-          <Link key={s.label} to={s.to} search={s.search ?? {}} className="block group">
-            <Card
-              className="shadow-soft border-border/60 animate-fade-in transition-smooth hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer h-full"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <CardContent className="p-3.5">
-                <div
-                  className={`inline-flex h-9 w-9 rounded-lg items-center justify-center ${s.tint}`}
-                >
-                  <s.icon className="h-5 w-5" />
-                </div>
-                <div className="mt-4 text-2xl font-semibold">{s.value}</div>
-                <div className="text-xs text-muted-foreground mt-1 group-hover:text-foreground transition-smooth">
-                  {s.label}
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      <Card className="shadow-soft animate-fade-in">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Revenue trend</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Last 14 days · see if your sales are trending up or down.
-            </p>
-          </div>
-          <div
-            className={
-              "inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full " +
-              (trendDelta >= 0
-                ? "bg-success/15 text-success"
-                : "bg-destructive/10 text-destructive")
-            }
-          >
-            <TrendingUp className={"h-3.5 w-3.5 " + (trendDelta < 0 ? "rotate-180" : "")} />
-            {trendDelta >= 0 ? "+" : ""}
-            {trendDelta.toFixed(1)}%
-          </div>
-        </CardHeader>
-        <CardContent className="h-60">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trendData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--color-popover)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  color: "var(--color-popover-foreground)",
-                }}
-                formatter={(v) => formatMoney(Number(v))}
-              />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="var(--color-primary)"
-                strokeWidth={2}
-                fill="url(#rev)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card className="shadow-soft animate-fade-in">
-          <CardHeader>
-            <CardTitle className="text-base">Recent bills</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {bills.length === 0 ? (
-              <EmptyHint
-                label="No bills yet. Make your first sale."
-                to="/new-sale"
-                cta="New sale"
-              />
-            ) : (
-              bills.slice(0, 5).map((b) => (
-                <div
-                  key={b.id}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-smooth"
-                >
-                  <div>
-                    <div className="font-medium text-sm">{b.number}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(b.createdAt).toLocaleString()} · {b.items.length} items
-                    </div>
+              return (
+                <div key={group.key} className="space-y-1.5">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1">
+                    {group.label}
                   </div>
-                  <div className="text-sm font-semibold">{formatMoney(b.total)}</div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {items.map((item) => {
+                      const itemIdx = flatItems.findIndex((x) => x.path === item.path);
+                      const isSelected = itemIdx === selectedIdx;
+                      const Icon = item.icon;
 
-        <Card className="shadow-soft animate-fade-in">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Expiring soon</CardTitle>
-            <span className="text-xs text-muted-foreground">Next {expiryDays} days</span>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {expired.length === 0 && expiringSoon.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No products expiring soon.</p>
-            ) : (
-              <>
-                {expired.slice(0, 3).map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-smooth"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Batch {p.batch ?? "—"} · {p.stock} in stock
-                      </div>
-                    </div>
-                    <span className="text-destructive bg-destructive/10 px-2 py-0.5 rounded-md text-xs font-medium shrink-0">
-                      Expired {new Date(p.expiry).toLocaleDateString()}
-                    </span>
-                  </div>
-                ))}
-                {expiringSoon.slice(0, 6).map((p) => {
-                  const days = Math.max(
-                    0,
-                    Math.ceil((new Date(p.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-                  );
-                  const urgent = days <= 14;
-                  return (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-smooth"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm truncate">{p.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Batch {p.batch ?? "—"} · {p.stock} in stock
+                      return (
+                        <div
+                          key={item.path}
+                          tabIndex={0}
+                          role="button"
+                          aria-label={`${item.title}, hotkey ${item.hotkey}`}
+                          onClick={() => {
+                            setSelectedIdx(itemIdx);
+                            navigate({ to: item.path });
+                          }}
+                          onMouseEnter={() => setSelectedIdx(itemIdx)}
+                          className={`min-h-[56px] rounded-lg p-2.5 border transition-all cursor-pointer flex items-center justify-between text-left outline-none ${
+                            isSelected
+                              ? "border-blue-500 bg-blue-50/70 shadow-sm ring-2 ring-blue-500/30"
+                              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70 shadow-xs"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-2">
+                            <div
+                              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+                                isSelected
+                                  ? "bg-blue-100 text-blue-700 border-blue-200 shadow-xs"
+                                  : "bg-slate-100 text-slate-700 border-slate-200"
+                              }`}
+                            >
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm text-slate-900 leading-tight">
+                                  {item.title}
+                                </span>
+                                {item.badge && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-500 mt-0.5 leading-snug line-clamp-1">
+                                {item.desc}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="shrink-0 pl-1">
+                            <kbd
+                              className={`inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded font-mono font-bold text-xs border transition-colors ${
+                                isSelected
+                                  ? "bg-blue-600 text-white border-blue-700 shadow-xs"
+                                  : "bg-slate-100 text-slate-700 border-slate-300"
+                              }`}
+                            >
+                              {item.hotkey}
+                            </kbd>
+                          </div>
                         </div>
-                      </div>
-                      <span
-                        className={
-                          urgent
-                            ? "text-destructive bg-destructive/10 px-2 py-0.5 rounded-md text-xs font-medium shrink-0"
-                            : "text-warning-foreground bg-warning/30 px-2 py-0.5 rounded-md text-xs font-medium shrink-0"
-                        }
-                      >
-                        {days}d · {new Date(p.expiry).toLocaleDateString()}
-                      </span>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-function EmptyHint({ label, to, cta }: { label: string; to: string; cta: string }) {
-  return (
-    <div className="text-center py-6 space-y-3">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <Button asChild size="sm">
-        <Link to={to}>{cta}</Link>
-      </Button>
+          {/* Active Item Description bar */}
+          {activeItem && (
+            <div className="mt-3 py-1.5 px-3 rounded bg-slate-100/90 border border-slate-200 flex items-center gap-2 text-xs text-slate-700 shrink-0">
+              <span className="font-bold text-slate-900">{activeItem.title}:</span>
+              <span className="text-slate-600 truncate">{activeItem.desc}</span>
+            </div>
+          )}
+        </section>
+
+        {/* Right Section: Today & Needs Attention panels (40-42% width) */}
+        <section className="hidden lg:flex w-[42%] xl:w-[40%] min-w-[340px] flex-col gap-3 justify-between overflow-y-auto no-scrollbar">
+          {/* ── Today Card (QN) ── */}
+          <div className="clean-card rounded-xl p-4 bg-white border border-slate-200/90 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-slate-900 tracking-tight">Today</span>
+                <span className="text-[11px] text-slate-400 font-mono">Updated just now</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setHideAmounts(!hideAmounts)}
+                  title={hideAmounts ? "Show Amounts" : "Hide Amounts"}
+                  className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  {hideAmounts ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={loadData}
+                  title="Refresh Today's Data (F5)"
+                  className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-3 space-y-3">
+              <div>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Total Sales
+                </span>
+                <div className="text-2xl font-bold font-mono text-slate-900 mt-0.5">
+                  {hideAmounts ? "₹ ••••••" : formatMoney(todaySalesTotal)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 text-xs">
+                <div className="p-2 rounded bg-slate-50 border border-slate-100">
+                  <div className="text-slate-500 text-[11px]">Cash Collection</div>
+                  <div className="font-bold font-mono text-slate-800 mt-0.5">
+                    {hideAmounts ? "₹ •••" : formatMoney(todayCashTotal)}
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-slate-50 border border-slate-100">
+                  <div className="text-slate-500 text-[11px]">UPI / Online</div>
+                  <div className="font-bold font-mono text-slate-800 mt-0.5">
+                    {hideAmounts ? "₹ •••" : formatMoney(todayUpiTotal)}
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-slate-50 border border-slate-100">
+                  <div className="text-slate-500 text-[11px]">Total Bills</div>
+                  <div className="font-bold font-mono text-slate-800 mt-0.5">
+                    {todayBills.length} sales
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-slate-50 border border-slate-100">
+                  <div className="text-slate-500 text-[11px]">Average Bill</div>
+                  <div className="font-bold font-mono text-slate-800 mt-0.5">
+                    {hideAmounts ? "₹ •••" : formatMoney(avgBillValue)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Needs Attention Card (qN) ── */}
+          <div className="clean-card rounded-xl p-4 bg-white border border-slate-200/90 shadow-xs flex flex-col justify-between flex-1">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-slate-900 tracking-tight">
+                  Needs Attention
+                </span>
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider ${
+                    hasIssues
+                      ? "bg-amber-100 text-amber-800 border border-amber-200"
+                      : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                  }`}
+                >
+                  {hasIssues ? "Action items" : "Healthy"}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {lowStock.length + expiringSoon.length + pendingBills.length} alerts
+              </span>
+            </div>
+
+            <div className="py-2 space-y-2 flex-1 overflow-y-auto no-scrollbar">
+              {lowStock.length > 0 && (
+                <div
+                  onClick={() => navigate({ to: "/inventory" })}
+                  className="p-2.5 rounded-lg border border-amber-200 bg-amber-50/70 hover:bg-amber-100/70 transition-colors cursor-pointer flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-600 font-bold text-xs">⚠️</span>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Low Stock Medicines</div>
+                      <div className="text-[11px] text-slate-600">
+                        {lowStock.length} items below minimum reorder level
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                    Open →
+                  </span>
+                </div>
+              )}
+
+              {expiringSoon.length > 0 && (
+                <div
+                  onClick={() => navigate({ to: "/inventory" })}
+                  className="p-2.5 rounded-lg border border-orange-200 bg-orange-50/70 hover:bg-orange-100/70 transition-colors cursor-pointer flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-orange-600 font-bold text-xs">⏰</span>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Near Expiry Alert</div>
+                      <div className="text-[11px] text-slate-600">
+                        {expiringSoon.length} items expiring within {expiryDays} days
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-orange-800 bg-orange-100 px-2 py-0.5 rounded border border-orange-200">
+                    Open →
+                  </span>
+                </div>
+              )}
+
+              {pendingBills.length > 0 && (
+                <div
+                  onClick={() => navigate({ to: "/bills" })}
+                  className="p-2.5 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100/70 transition-colors cursor-pointer flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-bold text-xs">⏳</span>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">Pending Bill Approvals</div>
+                      <div className="text-[11px] text-slate-600">
+                        {pendingBills.length} employee bills awaiting review
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
+                    Review →
+                  </span>
+                </div>
+              )}
+
+              {!hasIssues && (
+                <div className="h-full flex flex-col items-center justify-center py-6 text-center text-slate-500">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-1" />
+                  <div className="text-xs font-semibold text-slate-800">All Systems Healthy</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    No low stock, near-expiry or pending approval issues.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* ── Bottom Shortcut Footer Bar (ya) matching reference ── */}
+      <footer className="h-7 bg-white border-t border-slate-200 px-4 flex items-center justify-between text-[11px] text-slate-600 shrink-0 select-none shadow-xs">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <span className="font-semibold text-slate-700">Shortcuts:</span>
+          <span className="flex items-center gap-1">
+            <kbd className="bg-slate-100 border border-slate-300 px-1 rounded font-mono font-bold text-[9px]">
+              F1
+            </kbd>
+            <span>Help</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="bg-slate-100 border border-slate-300 px-1 rounded font-mono font-bold text-[9px]">
+              F5
+            </kbd>
+            <span>Refresh</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="bg-slate-100 border border-slate-300 px-1 rounded font-mono font-bold text-[9px]">
+              Enter
+            </kbd>
+            <span>Open</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="bg-slate-100 border border-slate-300 px-1 rounded font-mono font-bold text-[9px]">
+              1-9
+            </kbd>
+            <span>Quick Jump</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="bg-slate-100 border border-slate-300 px-1 rounded font-mono font-bold text-[9px]">
+              Esc
+            </kbd>
+            <span>Menu</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span>MediStock ERP · Ready</span>
+        </div>
+      </footer>
     </div>
   );
 }
