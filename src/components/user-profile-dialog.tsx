@@ -98,7 +98,7 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserCog className="h-5 w-5 text-primary" /> Your profile
@@ -106,55 +106,62 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
           <DialogDescription>Update your display name and account password.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-5 min-w-0">
           {/* Account snapshot */}
-          <div className="rounded-lg border p-3.5 space-y-2.5">
-            <div className="flex items-center gap-3">
+          <div className="rounded-lg border p-3.5 space-y-2.5 overflow-hidden">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="h-10 w-10 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-semibold shadow-glow shrink-0">
                 {(session?.name || session?.email || "U").charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium truncate flex items-center gap-2">
-                  <span>{session?.name ?? "—"}</span>
-                  <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", businessModule.badgeClass)}>
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-medium truncate min-w-0">{session?.name ?? "—"}</span>
+                  <span
+                    className={cn(
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
+                      businessModule.badgeClass,
+                    )}
+                  >
                     {businessModule.badgeLabel}
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  {session?.email}
+                <div className="text-xs text-muted-foreground flex items-center gap-1 min-w-0 mt-0.5">
+                  <Mail className="h-3 w-3 shrink-0" />
+                  <span className="truncate min-w-0">{session?.email}</span>
                 </div>
               </div>
             </div>
 
             {/* Category permanent lock notice */}
-            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground bg-muted/30 px-2.5 py-1.5 rounded-md">
-              <div className="flex items-center gap-1.5">
-                <businessModule.icon className="h-3.5 w-3.5 text-foreground/80" />
-                <span className="font-medium text-foreground">{businessModule.name}</span>
+            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground bg-muted/30 px-2.5 py-1.5 rounded-md gap-2 min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <businessModule.icon className="h-3.5 w-3.5 text-foreground/80 shrink-0" />
+                <span className="font-medium text-foreground truncate min-w-0">{businessModule.name}</span>
               </div>
-              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
-                <Lock className="h-3 w-3" /> Locked Category
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 shrink-0">
+                <Lock className="h-3 w-3 shrink-0" /> Locked Category
               </span>
             </div>
           </div>
 
           {/* Display name */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <Label htmlFor="profile-name" className="text-xs">
               Display name
             </Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <Input
                 id="profile-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
+                className="flex-1 min-w-0"
               />
               <Button
                 type="button"
                 onClick={() => void saveName()}
                 disabled={savingName || name.trim() === (session?.name ?? "")}
+                className="shrink-0"
               >
                 {savingName ? "Saving…" : "Save"}
               </Button>
@@ -162,32 +169,35 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
           </div>
 
           {/* Password */}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <Label className="text-xs flex items-center gap-1.5">
-              <KeyRound className="h-3 w-3" /> Change password
+              <KeyRound className="h-3 w-3 shrink-0" /> Change password
             </Label>
             <Input
               type="password"
               value={currentPwd}
               onChange={(e) => setCurrentPwd(e.target.value)}
               placeholder="Current password"
+              className="w-full min-w-0"
             />
             <Input
               type="password"
               value={pwd}
               onChange={(e) => setPwd(e.target.value)}
               placeholder="New password (min 8 chars)"
+              className="w-full min-w-0"
             />
             <Input
               type="password"
               value={pwd2}
               onChange={(e) => setPwd2(e.target.value)}
               placeholder="Confirm new password"
+              className="w-full min-w-0"
             />
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="w-full shrink-0"
               onClick={() => void savePassword()}
               disabled={savingPwd || !currentPwd || !pwd || !pwd2}
             >
@@ -196,8 +206,8 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:justify-between items-center">
-          <div className="flex flex-wrap gap-2">
+        <DialogFooter className="gap-2 sm:justify-between items-stretch sm:items-center flex-col-reverse sm:flex-row min-w-0">
+          <div className="flex flex-wrap gap-2 min-w-0">
             <Button
               type="button"
               variant="ghost"
@@ -205,17 +215,17 @@ export function UserProfileDialog({ open, onOpenChange }: Props) {
                 await logout();
                 onOpenChange(false);
               }}
-              className="text-destructive hover:text-destructive h-9 px-3"
+              className="text-destructive hover:text-destructive h-9 px-3 shrink-0"
             >
               <LogOut className="h-4 w-4 mr-2" /> Sign out
             </Button>
-            <Button asChild variant="outline" className="h-9 px-3" onClick={() => onOpenChange(false)}>
-              <Link to="/subscription">
+            <Button asChild variant="outline" className="h-9 px-3 shrink-0" onClick={() => onOpenChange(false)}>
+              <Link to="/subscription" search={{ order_id: undefined }}>
                 <Crown className="h-4 w-4 mr-2 text-amber-500" /> Subscription
               </Link>
             </Button>
           </div>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="shrink-0">
             Close
           </Button>
         </DialogFooter>

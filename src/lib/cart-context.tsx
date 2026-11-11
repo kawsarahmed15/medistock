@@ -613,7 +613,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (i.product.id !== id) return i;
         const physicalLimit = i.product.physicalStock != null ? i.product.physicalStock : i.product.stock;
         const maxAllowed = Math.min(physicalLimit, (i.product.stock || 0) + i.qty);
-        const parsedQty = Math.max(0.0001, Number(Number(qty).toFixed(4)));
+        const parsedQty = Math.max(0, Number(Number(qty || 0).toFixed(4)));
         const finalQty = Math.min(maxAllowed, parsedQty);
 
         if (parsedQty > maxAllowed) {

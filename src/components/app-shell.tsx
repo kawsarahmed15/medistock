@@ -90,8 +90,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if ((e.key === "Escape" || e.key === "F10") && location.pathname !== "/dashboard") {
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (e.defaultPrevented) return;
+        // Check if an open modal or alert dialog is present
+        const hasOpenDialog = Boolean(
+          document.querySelector(
+            '[role="dialog"], [role="alertdialog"], [data-radix-portal] [data-state="open"]'
+          )
+        );
+        if (hasOpenDialog) return;
+
+        // If an input/textarea/select is focused, blur it first
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        e.preventDefault();
         navigate({ to: "/dashboard" });
       }
     };
@@ -547,7 +559,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             title="MediStock Main Menu"
           >
             <div className="w-5 h-5 rounded bg-primary text-primary-foreground flex items-center justify-center font-black text-[11px] shadow-xs">
-              Rx
+              M
             </div>
             <span className="font-extrabold text-sm tracking-tight text-foreground">
               Medi<span className="text-primary">stock</span>
@@ -568,17 +580,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted/80 hover:bg-muted text-foreground text-xs font-bold border border-border shadow-2xs transition-colors cursor-pointer shrink-0"
-                title="Return to Main Menu (Esc / F10)"
-              >
-                <span>🏠 Main Menu</span>
-                <kbd className="text-[9px] font-mono bg-card border border-border px-1 py-0.2 rounded text-muted-foreground">
-                  Esc
-                </kbd>
-              </Link>
-              <div className="h-3.5 w-px bg-border shrink-0" />
               <span className="font-bold text-xs text-foreground tracking-tight truncate">
                 {getPageTitle(location.pathname)}
               </span>

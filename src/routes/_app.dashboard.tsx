@@ -143,18 +143,15 @@ function DashboardPage() {
               path: "/cart",
               desc: "Counter billing, patient khata, barcode search",
               icon: ShoppingBag,
-              iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
               badge: count > 0 ? `${count} in Cart` : undefined,
             },
             {
               num: "2",
-              hotkey: "N",
-              title: "New Sale",
-              path: "/new-sale",
-              desc: "Start fresh patient sale or prescription entry",
-              icon: ShoppingCart,
-              iconBg:
-                "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+              hotkey: "B",
+              title: "Sale Book",
+              path: "/bills",
+              desc: "My submitted bills and approval status",
+              icon: ReceiptText,
             },
           ],
         },
@@ -163,28 +160,12 @@ function DashboardPage() {
           label: "Books & Accounts",
           items: [
             {
-              num: "4",
-              hotkey: "B",
-              title: "Sale Book",
-              path: "/bills",
-              desc: "My submitted bills and approval status",
-              icon: ReceiptText,
-              iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
-            },
-          ],
-        },
-        {
-          key: "STOCK_SETUP",
-          label: "Stock & Setup",
-          items: [
-            {
-              num: "8",
+              num: "3",
               hotkey: "I",
               title: "Inventory",
               path: "/inventory",
               desc: "Stock, batches, expiry and prices",
               icon: Package,
-              iconBg: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
               badge: `${products.length} Items`,
             },
           ],
@@ -204,27 +185,32 @@ function DashboardPage() {
             path: "/cart",
             desc: "Counter billing, patient khata, barcode search",
             icon: ShoppingBag,
-            iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
             badge: count > 0 ? `${count} in Cart` : undefined,
           },
           {
             num: "2",
-            hotkey: "P",
-            title: "Purchase Bill",
-            path: "/purchases/new",
-            desc: "Supplier invoice with batch and expiry",
-            icon: Truck,
-            iconBg:
-              "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+            hotkey: "B",
+            title: "Sale Book",
+            path: "/bills",
+            desc: "Sales register, invoices and receipts",
+            icon: ReceiptText,
+            badge: pendingBills.length > 0 ? `${pendingBills.length} pending` : undefined,
           },
           {
             num: "3",
+            hotkey: "P",
+            title: "Purchase",
+            path: "/purchases/new",
+            desc: "Supplier invoice with batch and expiry",
+            icon: Truck,
+          },
+          {
+            num: "4",
             hotkey: "C",
-            title: "Purchases",
+            title: "Purchase Book",
             path: "/purchases",
             desc: "Goods receipt note and purchase bills",
             icon: Package,
-            iconBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
           },
         ],
       },
@@ -233,66 +219,51 @@ function DashboardPage() {
         label: "Books & Accounts",
         items: [
           {
-            num: "4",
-            hotkey: "B",
-            title: "Sale Book",
-            path: "/bills",
-            desc: "Sales register, invoices and receipts",
-            icon: ReceiptText,
-            iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
-            badge: pendingBills.length > 0 ? `${pendingBills.length} pending` : undefined,
-          },
-          {
             num: "5",
-            hotkey: "K",
-            title: "Credit Sales",
-            path: "/credit",
-            desc: "Customer dues, khata ledger and settlements",
-            icon: CreditCard,
-            iconBg: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
-          },
-          {
-            num: "6",
-            hotkey: "L",
-            title: "Ledger",
-            path: "/ledger",
-            desc: "Customer khata and supplier statements",
-            icon: BookOpen,
-            iconBg: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-          },
-          {
-            num: "7",
-            hotkey: "R",
-            title: "Reports",
-            path: "/revenue",
-            desc: "Schedule H1 register, sales and profit",
-            icon: TrendingUp,
-            iconBg: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
-          },
-          {
-            num: "U",
-            hotkey: "U",
-            title: "Customers",
-            path: "/customers",
-            desc: "Patient directory and outstanding balances",
-            icon: Users,
-            iconBg: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
-          },
-        ],
-      },
-      {
-        key: "STOCK_SETUP",
-        label: "Stock & Setup",
-        items: [
-          {
-            num: "8",
             hotkey: "I",
             title: "Inventory",
             path: "/inventory",
             desc: "Stock, batches, expiry and reorder levels",
             icon: Package,
-            iconBg: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
             badge: lowStock.length > 0 ? `${lowStock.length} low` : undefined,
+          },
+          {
+            num: "6",
+            hotkey: "R",
+            title: "Reports",
+            path: "/revenue",
+            desc: "Schedule H1 register, sales and profit",
+            icon: TrendingUp,
+          },
+          {
+            num: "7",
+            hotkey: "K",
+            title: "Credit Sales",
+            path: "/credit",
+            desc: "Customer dues, khata ledger and settlements",
+            icon: CreditCard,
+          },
+          {
+            num: "8",
+            hotkey: "U",
+            title: "Customers",
+            path: "/customers",
+            desc: "Patient directory and outstanding balances",
+            icon: Users,
+          },
+        ],
+      },
+      {
+        key: "LEDGER_SETUP",
+        label: "Ledger & Setup",
+        items: [
+          {
+            num: "9",
+            hotkey: "L",
+            title: "Ledger",
+            path: "/ledger",
+            desc: "Customer khata and supplier statements",
+            icon: BookOpen,
           },
           {
             num: "M",
@@ -301,7 +272,6 @@ function DashboardPage() {
             path: "/employees",
             desc: "Staff accounts, cashier mode and permissions",
             icon: UserCheck,
-            iconBg: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20",
           },
           {
             num: "0",
@@ -310,7 +280,6 @@ function DashboardPage() {
             path: "/settings",
             desc: "Printer, store profile, GSTIN and backup",
             icon: Settings,
-            iconBg: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20",
           },
         ],
       },
@@ -417,14 +386,16 @@ function DashboardPage() {
                           className={`min-h-[58px] rounded-xl p-2.5 sm:p-3 border transition-smooth cursor-pointer flex items-center justify-between text-left outline-none ${
                             isSelected
                               ? "border-primary bg-primary/10 shadow-soft ring-2 ring-primary/25"
-                              : "border-border/70 bg-card/75 backdrop-blur-xs hover:border-primary/50 hover:bg-card/95 hover:shadow-soft shadow-xs"
+                              : "border-neutral-300 dark:border-neutral-800 bg-card/75 backdrop-blur-xs hover:border-primary/50 hover:bg-card/95 hover:shadow-soft shadow-xs"
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0 pr-2">
                             <div
                               className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border transition-transform duration-200 ${
-                                isSelected ? "scale-105 shadow-xs" : ""
-                              } ${item.iconBg || "bg-muted text-muted-foreground border-border"}`}
+                                isSelected
+                                  ? "scale-105 shadow-xs bg-primary text-primary-foreground border-primary"
+                                  : "bg-neutral-100 dark:bg-neutral-900 text-black dark:text-white border-neutral-300 dark:border-neutral-800"
+                              }`}
                             >
                               <Icon className="w-4.5 h-4.5" />
                             </div>
@@ -432,13 +403,19 @@ function DashboardPage() {
                               <div className="flex items-center gap-2">
                                 <span
                                   className={`font-bold text-sm leading-tight transition-colors ${
-                                    isSelected ? "text-primary" : "text-foreground"
+                                    isSelected ? "text-primary" : "text-black dark:text-white"
                                   }`}
                                 >
                                   {item.title}
                                 </span>
                                 {item.badge && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${
+                                      isSelected
+                                        ? "bg-primary text-primary-foreground border border-primary"
+                                        : "bg-neutral-100 dark:bg-neutral-900 text-black dark:text-white border border-neutral-300 dark:border-neutral-800"
+                                    }`}
+                                  >
                                     {item.badge}
                                   </span>
                                 )}
@@ -453,7 +430,7 @@ function DashboardPage() {
                               className={`inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded font-mono font-bold text-xs border transition-colors ${
                                 isSelected
                                   ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                                  : "bg-muted/80 text-foreground border-border/80"
+                                  : "bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white border-neutral-300 dark:border-neutral-700"
                               }`}
                             >
                               {item.hotkey}

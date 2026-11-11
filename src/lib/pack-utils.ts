@@ -117,6 +117,9 @@ export function formatStripPcDisplay(
   const sign = isNegative ? "-" : "";
 
   const pps = Math.max(1, piecesPerStrip || 1);
+  if (absQty < 0.001) {
+    return pps <= 1 && !isTabOrCap(stockType, pack, name) ? "0 Pcs" : "0 Strips";
+  }
   if (pps <= 1 && !isTabOrCap(stockType, pack, name)) {
     const qtyNum = absQty;
     return `${sign}${qtyNum} ${qtyNum === 1 ? "Pc" : "Pcs"}`;

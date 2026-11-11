@@ -686,6 +686,32 @@ function CartPage() {
   const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
   const [discountPctFocused, setDiscountPctFocused] = useState(false);
   const [discountFlatFocused, setDiscountFlatFocused] = useState(false);
+  const [discountPctInput, setDiscountPctInput] = useState<string>("");
+  const [discountFlatInput, setDiscountFlatInput] = useState<string>("");
+
+  useEffect(() => {
+    if (!discountPctFocused) {
+      if (cart.discountType === "percentage") {
+        setDiscountPctInput(cart.discountValue ? String(cart.discountValue) : "");
+      } else {
+        setDiscountPctInput(
+          cart.subtotal > 0 && cart.discount > 0
+            ? String(Number(((cart.discount / cart.subtotal) * 100).toFixed(2)))
+            : ""
+        );
+      }
+    }
+  }, [cart.discountValue, cart.discountType, cart.discount, cart.subtotal, discountPctFocused]);
+
+  useEffect(() => {
+    if (!discountFlatFocused) {
+      if (cart.discountType === "flat") {
+        setDiscountFlatInput(cart.discountValue ? String(cart.discountValue) : "");
+      } else {
+        setDiscountFlatInput(cart.discount > 0 ? String(Number(cart.discount.toFixed(2))) : "");
+      }
+    }
+  }, [cart.discountValue, cart.discountType, cart.discount, discountFlatFocused]);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number }>({
     top: 0,
     left: 0,
@@ -1224,7 +1250,15 @@ function CartPage() {
                             inputMode="numeric"
                             autoComplete="off"
                             spellCheck={false}
-                            value={isDual ? strips : i.qty}
+                            value={
+                              isDual
+                                ? strips === 0
+                                  ? ""
+                                  : strips
+                                : i.qty === 0 || i.qty < 0.001
+                                  ? ""
+                                  : i.qty
+                            }
                             onKeyDown={(e) => {
                               if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
                                 // Disable arrow left/right from changing quantity or jumping
@@ -1250,7 +1284,10 @@ function CartPage() {
                                 return;
                               }
                               const val = parseInt(raw, 10);
-                              if (isNaN(val) || val < 0) return;
+                              if (isNaN(val) || val <= 0) {
+                                cart.setQty(i.product.id, 0);
+                                return;
+                              }
                               const maxStock = i.product.stock ?? 0;
                               if (maxStock > 0 && val > maxStock) {
                                 toast.warning(
@@ -1910,23 +1947,29 @@ function CartPage() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0"
-                    value={
-                      cart.discountType === "percentage"
-                        ? cart.discountValue || ""
-                        : cart.subtotal > 0 && cart.discount > 0
-                          ? ((cart.discount / cart.subtotal) * 100).toFixed(1)
-                          : ""
-                    }
+                    value={discountPctInput}
                     onFocus={(e) => {
                       setDiscountPctFocused(true);
                       e.target.select();
                     }}
-                    onBlur={() => setDiscountPctFocused(false)}
+                    onBlur={() => {
+                      setDiscountPctFocused(false);
+                      const parsed = parseFloat(discountPctInput);
+                      if (!isNaN(parsed) && parsed > 0) {
+                        setDiscountPctInput(String(parsed));
+                        cart.setDiscountValue(parsed);
+                      } else {
+                        setDiscountPctInput("");
+                        cart.setDiscountValue(0);
+                      }
+                    }}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                        setDiscountPctInput(val);
                         cart.setDiscountType("percentage");
-                        cart.setDiscountValue(val === "" ? 0 : parseFloat(val) || 0);
+                        const num = val === "" || val === "." ? 0 : parseFloat(val);
+                        cart.setDiscountValue(isNaN(num) ? 0 : num);
                       }
                     }}
                     className={cn(
@@ -1957,23 +2000,29 @@ function CartPage() {
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
-                    value={
-                      cart.discountType === "flat"
-                        ? cart.discountValue || ""
-                        : cart.discount > 0
-                          ? cart.discount.toFixed(2)
-                          : ""
-                    }
+                    value={discountFlatInput}
                     onFocus={(e) => {
                       setDiscountFlatFocused(true);
                       e.target.select();
                     }}
-                    onBlur={() => setDiscountFlatFocused(false)}
+                    onBlur={() => {
+                      setDiscountFlatFocused(false);
+                      const parsed = parseFloat(discountFlatInput);
+                      if (!isNaN(parsed) && parsed > 0) {
+                        setDiscountFlatInput(String(parsed));
+                        cart.setDiscountValue(parsed);
+                      } else {
+                        setDiscountFlatInput("");
+                        cart.setDiscountValue(0);
+                      }
+                    }}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                        setDiscountFlatInput(val);
                         cart.setDiscountType("flat");
-                        cart.setDiscountValue(val === "" ? 0 : parseFloat(val) || 0);
+                        const num = val === "" || val === "." ? 0 : parseFloat(val);
+                        cart.setDiscountValue(isNaN(num) ? 0 : num);
                       }
                     }}
                     className={cn(
