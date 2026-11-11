@@ -84,7 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (path.startsWith("/employees")) return "Employees";
     if (path.startsWith("/settings")) return "Settings";
     if (path.startsWith("/notifications")) return "Notifications";
-    return "Pharma POS";
+    return "Medistock";
   };
 
   useEffect(() => {
@@ -550,7 +550,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Rx
             </div>
             <span className="font-extrabold text-sm tracking-tight text-foreground">
-              Pharma<span className="text-primary">POS</span>
+              Medi<span className="text-primary">stock</span>
             </span>
           </Link>
 
@@ -584,11 +584,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </div>
           )}
-        </div>
-
-        {/* Global search */}
-        <div className="flex-1 min-w-0 max-w-xs md:max-w-sm mx-2 hidden sm:block">
-          <GlobalSearch />
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">

@@ -37,7 +37,7 @@ export const Route = createFileRoute("/_app/settings")({
 });
 
 const PRESETS = [
-  { name: "Teal (Default)", hex: "#1a9890" },
+  { name: "Teal (Professional)", hex: "#1a9890" },
   { name: "Blue (Trust)", hex: "#2563eb" },
   { name: "Indigo (Premium)", hex: "#4f46e5" },
   { name: "Purple (Royal)", hex: "#7c3aed" },
@@ -47,7 +47,15 @@ const PRESETS = [
 ];
 
 function SettingsPage() {
-  const { session, updateSession, requestEmailChange, logout, setEmployeePassword, toggleEmployeeStatus, removeEmployeePassword } = useAuth();
+  const {
+    session,
+    updateSession,
+    requestEmailChange,
+    logout,
+    setEmployeePassword,
+    toggleEmployeeStatus,
+    removeEmployeePassword,
+  } = useAuth();
   const businessModule = getBusinessModule(session?.role);
   const [newEmail, setNewEmail] = useState("");
   const [requestingEmailChange, setRequestingEmailChange] = useState(false);
@@ -75,14 +83,18 @@ function SettingsPage() {
   const loadSessions = async () => {
     try {
       const data = await apiRequest<any[]>("/auth/sessions", { auth: true });
-      
-      const mySessId = currentSessionId || (typeof window !== "undefined" ? window.localStorage.getItem("medistock.auth.sessionId") : null);
-      const currentIsAdmin = data.find(s => s.sessionId === mySessId)?.isAdmin === 1;
+
+      const mySessId =
+        currentSessionId ||
+        (typeof window !== "undefined"
+          ? window.localStorage.getItem("medistock.auth.sessionId")
+          : null);
+      const currentIsAdmin = data.find((s) => s.sessionId === mySessId)?.isAdmin === 1;
 
       if (currentIsAdmin && sessions.length > 0) {
-        data.forEach(newS => {
-          if (newS.status === 'active' && newS.sessionId !== mySessId) {
-            const alreadyExisted = sessions.some(oldS => oldS.deviceId === newS.deviceId);
+        data.forEach((newS) => {
+          if (newS.status === "active" && newS.sessionId !== mySessId) {
+            const alreadyExisted = sessions.some((oldS) => oldS.deviceId === newS.deviceId);
             if (!alreadyExisted) {
               toast.info("Security Alert: New device logged in!", {
                 description: `${newS.deviceBrowser || "Browser"} on ${newS.deviceOs || "OS"}`,
@@ -149,6 +161,19 @@ function SettingsPage() {
       toast.error("Failed to read file");
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleColorChange = (hex: string) => {
+    setBillColor(hex);
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      root.style.setProperty("--primary", hex);
+      root.style.setProperty("--color-primary", hex);
+      root.style.setProperty("--ring", hex);
+      root.style.setProperty("--primary-glow", hex);
+      root.style.setProperty("--sidebar-primary", hex);
+      root.style.setProperty("--primary-foreground", "#ffffff");
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -223,7 +248,9 @@ function SettingsPage() {
     setTogglingEmployeeStatus(true);
     try {
       await toggleEmployeeStatus(checked);
-      toast.success(checked ? "Staff / Employee access enabled." : "Staff / Employee access disabled.");
+      toast.success(
+        checked ? "Staff / Employee access enabled." : "Staff / Employee access disabled.",
+      );
     } catch (err: any) {
       toast.error(err.message || "Failed to update employee status.");
     } finally {
@@ -232,7 +259,12 @@ function SettingsPage() {
   };
 
   const handleRemoveEmployee = async () => {
-    if (!confirm("Are you sure you want to remove the employee password? Staff will no longer be able to log in.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to remove the employee password? Staff will no longer be able to log in.",
+      )
+    )
+      return;
     try {
       await removeEmployeePassword();
       toast.success("Employee password removed.");
@@ -269,20 +301,30 @@ function SettingsPage() {
       return;
     }
 
-    const targetSession = sessions.find(s => s.sessionId === sessId);
-    const isAlreadyLoggedOut = targetSession?.status === 'logged_out';
+    const targetSession = sessions.find((s) => s.sessionId === sessId);
+    const isAlreadyLoggedOut = targetSession?.status === "logged_out";
 
     try {
       await apiRequest(`/auth/sessions/${sessId}`, { method: "DELETE", auth: true });
-      toast.success(isAlreadyLoggedOut ? "Device removed successfully" : "Device logged out successfully");
+      toast.success(
+        isAlreadyLoggedOut ? "Device removed successfully" : "Device logged out successfully",
+      );
       loadSessions();
     } catch (err: any) {
-      toast.error(err.message || (isAlreadyLoggedOut ? "Failed to remove device" : "Failed to log out device"));
+      toast.error(
+        err.message ||
+          (isAlreadyLoggedOut ? "Failed to remove device" : "Failed to log out device"),
+      );
     }
   };
 
   const handleTransferAdmin = async (sessId: string) => {
-    if (!confirm("Are you sure you want to transfer admin rights to this device? Once transferred, only that device can manage other sessions.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to transfer admin rights to this device? Once transferred, only that device can manage other sessions.",
+      )
+    )
+      return;
     try {
       await apiRequest(`/auth/sessions/${sessId}/transfer-admin`, { method: "POST", auth: true });
       toast.success("Admin rights transferred successfully");
@@ -324,7 +366,12 @@ function SettingsPage() {
                   <div>
                     <div className="text-xs font-semibold text-foreground flex items-center gap-2">
                       <span>{businessModule.name}</span>
-                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", businessModule.badgeClass)}>
+                      <span
+                        className={cn(
+                          "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                          businessModule.badgeClass,
+                        )}
+                      >
                         {businessModule.badgeLabel}
                       </span>
                     </div>
@@ -410,7 +457,7 @@ function SettingsPage() {
                   <button
                     key={p.hex}
                     type="button"
-                    onClick={() => setBillColor(p.hex)}
+                    onClick={() => handleColorChange(p.hex)}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all duration-200",
                       billColor === p.hex
@@ -437,13 +484,13 @@ function SettingsPage() {
                       id="custom-color"
                       type="color"
                       value={billColor}
-                      onChange={(e) => setBillColor(e.target.value)}
+                      onChange={(e) => handleColorChange(e.target.value)}
                       className="w-12 h-10 p-0.5 border cursor-pointer rounded-lg"
                     />
                     <Input
                       type="text"
                       value={billColor}
-                      onChange={(e) => setBillColor(e.target.value)}
+                      onChange={(e) => handleColorChange(e.target.value)}
                       className="w-28 font-mono text-xs"
                       maxLength={7}
                     />
@@ -557,7 +604,8 @@ function SettingsPage() {
                     Employee Section & Staff Access
                   </CardTitle>
                   <CardDescription>
-                    Configure a dedicated password for your pharmacy staff to log in with limited privileges.
+                    Configure a dedicated password for your pharmacy staff to log in with limited
+                    privileges.
                   </CardDescription>
                 </div>
                 <div>
@@ -587,16 +635,20 @@ function SettingsPage() {
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-muted-foreground leading-relaxed">
                   <li>
-                    Staff log in using your store email: <strong className="text-foreground font-mono">{session?.email}</strong>
+                    Staff log in using your store email:{" "}
+                    <strong className="text-foreground font-mono">{session?.email}</strong>
                   </li>
                   <li>
-                    When staff enter the <strong>Employee Password</strong>, the system opens the restricted <strong>Employee Panel</strong>.
+                    When staff enter the <strong>Employee Password</strong>, the system opens the
+                    restricted <strong>Employee Panel</strong>.
                   </li>
                   <li>
-                    Staff can <strong>only check inventory stock</strong> and <strong>generate sales bills</strong>.
+                    Staff can <strong>only check inventory stock</strong> and{" "}
+                    <strong>generate sales bills</strong>.
                   </li>
                   <li>
-                    Bills created by staff are saved as <strong>Pending</strong>. Stock is deducted and sales are officially recorded only after you confirm and approve them.
+                    Bills created by staff are saved as <strong>Pending</strong>. Stock is deducted
+                    and sales are officially recorded only after you confirm and approve them.
                   </li>
                 </ul>
               </div>
@@ -620,7 +672,9 @@ function SettingsPage() {
               <form onSubmit={handleSaveEmployeePassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="employee-password">
-                    {session?.hasEmployeePassword ? "Update Employee Password" : "Set Employee Password"}
+                    {session?.hasEmployeePassword
+                      ? "Update Employee Password"
+                      : "Set Employee Password"}
                   </Label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -637,7 +691,11 @@ function SettingsPage() {
                         onClick={() => setShowEmployeePassword(!showEmployeePassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showEmployeePassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showEmployeePassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                     </div>
                     <Button
@@ -816,105 +874,123 @@ function SettingsPage() {
                 <div className="text-center text-xs text-muted-foreground py-4">
                   No active sessions found.
                 </div>
-              ) : (() => {
-                const currentSession = sessions.find((s) => s.sessionId === currentSessionId);
-                const currentIsAdmin = currentSession?.isAdmin === 1;
+              ) : (
+                (() => {
+                  const currentSession = sessions.find((s) => s.sessionId === currentSessionId);
+                  const currentIsAdmin = currentSession?.isAdmin === 1;
 
-                return (
-                  <div className="space-y-3">
-                    {sessions.map((s) => {
-                      const isCurrent = s.sessionId === currentSessionId;
-                      const isDeviceActive = isCurrent || s.isDeviceActive === 1;
+                  return (
+                    <div className="space-y-3">
+                      {sessions.map((s) => {
+                        const isCurrent = s.sessionId === currentSessionId;
+                        const isDeviceActive = isCurrent || s.isDeviceActive === 1;
 
-                      return (
-                        <div
-                          key={s.sessionId}
-                          className={cn(
-                            "flex items-center justify-between gap-3 p-4 rounded-lg border text-xs",
-                            isCurrent ? "bg-primary/5 border-primary/20" : "bg-muted/20 border-border"
-                          )}
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className={cn(
-                              "p-2 rounded-lg shrink-0",
-                              isCurrent ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                            )}>
-                              {s.deviceOs === "Android" || s.deviceOs === "iOS" ? (
+                        return (
+                          <div
+                            key={s.sessionId}
+                            className={cn(
+                              "flex items-center justify-between gap-3 p-4 rounded-lg border text-xs",
+                              isCurrent
+                                ? "bg-primary/5 border-primary/20"
+                                : "bg-muted/20 border-border",
+                            )}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div
+                                className={cn(
+                                  "p-2 rounded-lg shrink-0",
+                                  isCurrent
+                                    ? "bg-primary/10 text-primary"
+                                    : "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {s.deviceOs === "Android" || s.deviceOs === "iOS" ? (
                                   <Smartphone className="h-5 w-5" />
-                              ) : (
-                                  <Monitor className="h-5 w-5" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1 pr-3">
-                              <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-foreground font-semibold text-xs">
-                                <span>{s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}</span>
-                                {s.status === 'logged_out' ? (
-                                  <span className="text-[9px] text-zinc-500 bg-zinc-50 border border-zinc-200 px-1.5 py-0.25 rounded font-medium shrink-0">
-                                    Logged Out
-                                  </span>
-                                ) : isDeviceActive ? (
-                                  <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
-                                    <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
-                                    Active
-                                  </span>
                                 ) : (
-                                  <span className="text-[9px] text-amber-600 bg-amber-50 border border-amber-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
-                                    <span className="h-1 w-1 rounded-full bg-amber-500" />
-                                    Inactive
-                                  </span>
-                                )}
-                                {s.isAdmin === 1 && (
-                                  <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
-                                    Admin Device
-                                  </span>
-                                )}
-                                {s.createdAt && (
-                                  <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded text-muted-foreground font-normal shrink-0">
-                                    Logged in: {new Date(s.createdAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
-                                  </span>
+                                  <Monitor className="h-5 w-5" />
                                 )}
                               </div>
+                              <div className="min-w-0 flex-1 pr-3">
+                                <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-foreground font-semibold text-xs">
+                                  <span>
+                                    {s.deviceBrowser || "Browser"} on {s.deviceOs || "Device"}
+                                  </span>
+                                  {s.status === "logged_out" ? (
+                                    <span className="text-[9px] text-zinc-500 bg-zinc-50 border border-zinc-200 px-1.5 py-0.25 rounded font-medium shrink-0">
+                                      Logged Out
+                                    </span>
+                                  ) : isDeviceActive ? (
+                                    <span className="text-[9px] text-emerald-600 bg-emerald-50 border border-emerald-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
+                                      <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-amber-600 bg-amber-50 border border-amber-500/20 px-1.5 py-0.25 rounded font-medium shrink-0 flex items-center gap-1">
+                                      <span className="h-1 w-1 rounded-full bg-amber-500" />
+                                      Inactive
+                                    </span>
+                                  )}
+                                  {s.isAdmin === 1 && (
+                                    <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.25 rounded font-medium shrink-0">
+                                      Admin Device
+                                    </span>
+                                  )}
+                                  {s.createdAt && (
+                                    <span className="text-[9px] bg-muted px-1.5 py-0.25 rounded text-muted-foreground font-normal shrink-0">
+                                      Logged in:{" "}
+                                      {new Date(s.createdAt).toLocaleString(undefined, {
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-1 shrink-0 self-start mt-0.5">
+                              {(isCurrent || currentIsAdmin) && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRevokeSession(s.sessionId)}
+                                  className={cn(
+                                    "h-6 w-[70px] text-[9.5px] shrink-0 font-medium px-1 tracking-tight text-center flex items-center justify-center",
+                                    s.status === "logged_out"
+                                      ? "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
+                                      : isCurrent
+                                        ? "text-muted-foreground border-border hover:bg-muted"
+                                        : "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500",
+                                  )}
+                                >
+                                  {s.status === "logged_out"
+                                    ? "Remove"
+                                    : isCurrent
+                                      ? "Logout"
+                                      : "Log out"}
+                                </Button>
+                              )}
+
+                              {currentIsAdmin && !isCurrent && s.status === "active" && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleTransferAdmin(s.sessionId)}
+                                  className="h-6 w-[70px] text-[9.5px] text-primary border-primary/20 hover:bg-primary/5 hover:border-primary font-medium px-1 tracking-tight text-center flex items-center justify-center shrink-0"
+                                >
+                                  Make Admin
+                                </Button>
+                              )}
                             </div>
                           </div>
-
-                          <div className="flex flex-col items-end gap-1 shrink-0 self-start mt-0.5">
-                            {(isCurrent || currentIsAdmin) && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleRevokeSession(s.sessionId)}
-                                className={cn(
-                                  "h-6 w-[70px] text-[9.5px] shrink-0 font-medium px-1 tracking-tight text-center flex items-center justify-center",
-                                  s.status === 'logged_out'
-                                    ? "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
-                                    : isCurrent 
-                                      ? "text-muted-foreground border-border hover:bg-muted" 
-                                      : "text-rose-500 border-rose-500/20 hover:bg-rose-500/5 hover:border-rose-500"
-                                )}
-                              >
-                                {s.status === 'logged_out' ? "Remove" : isCurrent ? "Logout" : "Log out"}
-                              </Button>
-                            )}
-
-                            {currentIsAdmin && !isCurrent && s.status === 'active' && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleTransferAdmin(s.sessionId)}
-                                className="h-6 w-[70px] text-[9.5px] text-primary border-primary/20 hover:bg-primary/5 hover:border-primary font-medium px-1 tracking-tight text-center flex items-center justify-center shrink-0"
-                              >
-                                Make Admin
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+                        );
+                      })}
+                    </div>
+                  );
+                })()
+              )}
             </CardContent>
           </Card>
         </div>

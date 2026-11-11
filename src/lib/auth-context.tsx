@@ -89,6 +89,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     init();
   }, []);
 
+  // Synchronize global brand / bill color theme across the entire application
+  useEffect(() => {
+    const color = session?.billColor || "#1a9890";
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      root.style.setProperty("--primary", color);
+      root.style.setProperty("--color-primary", color);
+      root.style.setProperty("--ring", color);
+      root.style.setProperty("--primary-glow", color);
+      root.style.setProperty("--sidebar-primary", color);
+      root.style.setProperty("--primary-foreground", "#ffffff");
+    }
+  }, [session?.billColor]);
+
   useEffect(() => {
     if (!session) return;
 
@@ -100,7 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
         return crypto.randomUUID();
       }
-      return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      return (
+        Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      );
     };
 
     const getOrCreateDeviceId = () => {
@@ -147,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else if (ua.indexOf("Chrome") !== -1) browser = "Chrome";
         else if (ua.indexOf("Safari") !== -1) browser = "Safari";
 
-        const isUserActive = (Date.now() - lastUserActivity) < 2 * 60 * 1000;
+        const isUserActive = Date.now() - lastUserActivity < 2 * 60 * 1000;
 
         await apiRequest("/auth/session", {
           method: "POST",
@@ -231,7 +247,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
           return crypto.randomUUID();
         }
-        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        return (
+          Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        );
       };
       const sessionId = generateUUID();
       localStorage.setItem("medistock.auth.sessionId", sessionId);

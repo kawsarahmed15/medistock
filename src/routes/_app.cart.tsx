@@ -531,6 +531,12 @@ function CartPage() {
     const el = cellRefs.current[row]?.[col];
     if (el) {
       el.focus();
+      const input =
+        el.querySelector("input") || (el.tagName === "INPUT" ? (el as HTMLInputElement) : null);
+      if (input) {
+        input.focus();
+        input.select();
+      }
       setSelectedIdx(row);
     }
   };
@@ -759,15 +765,15 @@ function CartPage() {
 
       {/* ─── SECTION A: Bill Tabs Header (xv) ───────────────────────────────── */}
       <div className="no-print shrink-0">
-        <div className="bg-slate-200 border-b border-slate-300 px-2 pt-1.5 flex items-center justify-between gap-2 select-none overflow-x-auto">
+        <div className="bg-muted/70 border-b border-border px-2 pt-1.5 flex items-center justify-between gap-2 select-none overflow-x-auto">
           <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
             {/* Active Tab */}
-            <div className="group flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-xs font-semibold cursor-pointer border-t border-x transition-all shrink-0 bg-white text-blue-900 border-slate-300 shadow-xs border-t-2 border-t-blue-600 font-bold">
+            <div className="group flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-xs font-semibold cursor-pointer border-t border-x transition-all shrink-0 bg-card text-foreground border-border shadow-xs border-t-2 border-t-primary font-bold">
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-mono bg-blue-100 text-blue-700 font-bold">
+                <span className="w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-mono bg-primary/15 text-primary font-bold">
                   1
                 </span>
-                <span className="font-mono text-slate-900">
+                <span className="font-mono text-foreground">
                   {cart.activeDraftId ? "DRAFT" : "#INV-NEW"}
                 </span>
                 {cart.activeDraftId && (
@@ -775,12 +781,12 @@ function CartPage() {
                     DRAFT
                   </span>
                 )}
-                <span className="text-slate-400">•</span>
-                <span className="max-w-[120px] truncate text-slate-800">
+                <span className="text-muted-foreground/40">•</span>
+                <span className="max-w-[120px] truncate text-foreground">
                   {cart.customer.name.trim() || "Walk-in"}
                 </span>
                 {cart.total > 0 && (
-                  <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 px-1 rounded">
+                  <span className="font-mono text-[11px] text-primary bg-primary/10 px-1 rounded font-bold">
                     ₹{cart.total.toFixed(2)}
                   </span>
                 )}
@@ -797,20 +803,20 @@ function CartPage() {
                     cart.loadDraft(d.id);
                     toast.success(`Switched to ${d.name}`);
                   }}
-                  className="group flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-xs font-semibold cursor-pointer border-t border-x transition-all shrink-0 bg-slate-100/90 text-slate-600 border-transparent hover:bg-slate-100 hover:text-slate-800"
+                  className="group flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-xs font-semibold cursor-pointer border-t border-x transition-all shrink-0 bg-muted/50 text-muted-foreground border-transparent hover:bg-card hover:text-foreground"
                   title={`Switch to draft: ${d.name}`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-mono bg-slate-200 text-slate-600">
+                    <span className="w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-mono bg-muted text-muted-foreground">
                       {dIdx + 2}
                     </span>
-                    <span className="font-mono text-slate-900">{d.name}</span>
-                    <span className="text-slate-400">•</span>
-                    <span className="max-w-[120px] truncate text-slate-800">
+                    <span className="font-mono text-foreground">{d.name}</span>
+                    <span className="text-muted-foreground/40">•</span>
+                    <span className="max-w-[120px] truncate text-muted-foreground">
                       {d.customer?.name?.trim() || "Walk-in"}
                     </span>
                     {d.total > 0 && (
-                      <span className="font-mono text-[11px] text-emerald-700 bg-emerald-50 px-1 rounded">
+                      <span className="font-mono text-[11px] text-primary bg-primary/10 px-1 rounded">
                         ₹{d.total.toFixed(2)}
                       </span>
                     )}
@@ -823,7 +829,7 @@ function CartPage() {
                       toast.info(`Deleted draft ${d.name}`);
                     }}
                     title="Close tab"
-                    className="w-4 h-4 rounded hover:bg-red-100 hover:text-red-600 text-slate-400 text-[11px] flex items-center justify-center transition-colors"
+                    className="w-4 h-4 rounded hover:bg-destructive/10 hover:text-destructive text-muted-foreground text-[11px] flex items-center justify-center transition-colors"
                   >
                     ✕
                   </button>
@@ -836,11 +842,11 @@ function CartPage() {
               type="button"
               onClick={handleNewBill}
               title="New Bill Tab (F2 / Alt+N)"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-bold text-slate-700 hover:text-blue-700 hover:bg-white/80 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-card transition-colors cursor-pointer"
             >
               <span className="text-sm">➕</span>
               <span>New Bill</span>
-              <kbd className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shadow-xs">
+              <kbd className="text-[10px] font-mono font-bold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded shadow-xs">
                 F2
               </kbd>
             </button>
@@ -849,7 +855,7 @@ function CartPage() {
           {/* Right side of Tabs bar */}
           <div className="flex items-center gap-3 pr-2 shrink-0">
             {cart.drafts.length > 0 && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-600 font-mono text-[10px]">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-card border border-border text-muted-foreground font-mono text-[10px]">
                 <span>⏳</span>
                 <span>{cart.drafts.length} Saved</span>
               </span>
@@ -860,11 +866,11 @@ function CartPage() {
 
       {/* ─── SECTION B: Customer / Doctor / Date Header Bar (ov) ───────────── */}
       <div className="no-print shrink-0">
-        <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between gap-4 text-xs select-none">
+        <div className="bg-card border-b border-border px-4 py-2 flex items-center justify-between gap-4 text-xs select-none">
           <div className="flex items-center gap-4 flex-1">
             {/* Date */}
             <div className="flex flex-col w-28">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Date</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">Date</span>
               <input
                 type="text"
                 readOnly
@@ -873,20 +879,20 @@ function CartPage() {
                   month: "2-digit",
                   year: "numeric",
                 })}
-                className="font-mono font-medium rounded px-2 py-0.5 outline-none text-center transition-colors text-slate-800 bg-slate-50 border border-slate-200 cursor-default"
+                className="font-mono font-medium rounded px-2 py-0.5 outline-none text-center transition-colors text-foreground bg-muted/40 border border-border cursor-default"
               />
             </div>
 
             {/* Patient / Party Name */}
             <div className="flex flex-col flex-1 max-w-[260px] relative">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold text-slate-400">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">
                   Patient / Party Name
                 </span>
                 <button
                   type="button"
                   onClick={() => setCustomerOpen(true)}
-                  className="text-[10px] text-blue-600 hover:underline font-semibold"
+                  className="text-[10px] text-primary hover:underline font-semibold"
                 >
                   {hasCustomer ? "Edit" : "Details"}
                 </button>
@@ -903,15 +909,17 @@ function CartPage() {
                 className={cn(
                   "font-medium rounded px-2 py-0.5 outline-none transition-colors",
                   customerFocused
-                    ? "!bg-blue-600 !border-blue-600 !text-white placeholder:!text-white/70"
-                    : "text-slate-800 bg-slate-50 border border-slate-200",
+                    ? "!bg-primary !border-primary !text-primary-foreground placeholder:!text-primary-foreground/70"
+                    : "text-foreground bg-muted/40 border border-border",
                 )}
               />
             </div>
 
             {/* Mobile No. */}
             <div className="flex flex-col w-36">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Mobile No.</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                Mobile No.
+              </span>
               <input
                 type="tel"
                 autoComplete="off"
@@ -924,15 +932,15 @@ function CartPage() {
                 className={cn(
                   "font-mono rounded px-2 py-0.5 outline-none transition-colors",
                   phoneFocused
-                    ? "!bg-blue-600 !border-blue-600 !text-white placeholder:!text-white/70"
-                    : "text-slate-800 bg-slate-50 border border-slate-200",
+                    ? "!bg-primary !border-primary !text-primary-foreground placeholder:!text-primary-foreground/70"
+                    : "text-foreground bg-muted/40 border border-border",
                 )}
               />
             </div>
 
             {/* Prescribing Doctor */}
             <div className="flex flex-col flex-1 max-w-[320px] relative">
-              <span className="text-[10px] uppercase font-bold text-slate-400">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">
                 Prescribing Doctor
               </span>
               <input
@@ -949,8 +957,8 @@ function CartPage() {
                 className={cn(
                   "font-medium rounded px-2 py-0.5 outline-none transition-colors",
                   doctorFocused
-                    ? "!bg-blue-600 !border-blue-600 !text-white placeholder:!text-white/70"
-                    : "text-slate-800 bg-slate-50 border border-slate-200",
+                    ? "!bg-primary !border-primary !text-primary-foreground placeholder:!text-primary-foreground/70"
+                    : "text-foreground bg-muted/40 border border-border",
                 )}
               />
             </div>
@@ -959,8 +967,10 @@ function CartPage() {
           {/* Invoice No */}
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Invoice No</span>
-              <span className="font-mono font-bold text-blue-700 text-sm">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                Invoice No
+              </span>
+              <span className="font-mono font-bold text-primary text-sm">
                 {cart.activeDraftId ? "DRAFT" : "#INV-NEW"}
               </span>
             </div>
@@ -973,18 +983,18 @@ function CartPage() {
         {/* Left Column: Medicine Grid + Product Details Panel */}
         <div className="flex-1 flex flex-col gap-2.5 overflow-hidden min-w-0">
           {/* Medicine Table Container (cv) */}
-          <div className="flex-[3] clean-card rounded-lg flex flex-col overflow-hidden relative min-h-[420px]">
+          <div className="flex-[3] bg-card border border-border rounded-lg flex flex-col overflow-hidden relative min-h-[420px] shadow-soft">
             <div className="flex-1 overflow-auto">
               <table className="w-full border-collapse">
-                <thead className="bg-slate-100/90 sticky top-0 z-10 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider select-none">
+                <thead className="bg-muted/70 sticky top-0 z-10 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider select-none">
                   <tr>
                     <th className="px-2 py-2 text-center w-8">#</th>
                     <th className="px-2 py-2 text-left w-[300px]">Product / Medicine Name</th>
                     <th className="px-2 py-2 text-center w-16">Pack</th>
                     <th className="px-2 py-2 text-center w-20">Batch</th>
                     <th className="px-2 py-2 text-center w-16">Exp</th>
-                    <th className="px-2 py-2 text-center w-14">Qty</th>
-                    <th className="px-2 py-2 text-center w-14">Pcs</th>
+                    <th className="px-2 py-2 text-center w-16">Qty</th>
+                    <th className="px-2 py-2 text-right w-20">Rate (₹)</th>
                     <th className="px-2 py-2 text-right w-20">MRP (₹)</th>
                     <th className="px-2 py-2 text-center w-14">Dis%</th>
                     <th className="px-2 py-2 text-center w-14">GST%</th>
@@ -1024,14 +1034,14 @@ function CartPage() {
                         }}
                         onClick={() => setSelectedIdx(idx)}
                         className={cn(
-                          "border-b border-slate-200 transition-colors text-xs cursor-pointer",
+                          "border-b border-border/60 transition-colors text-xs cursor-pointer",
                           isSelected
-                            ? "bg-amber-50/70 border-l-4 border-l-amber-500"
-                            : "hover:bg-slate-50 border-l-4 border-l-transparent",
+                            ? "bg-primary/5 border-l-4 border-l-primary"
+                            : "hover:bg-muted/40 border-l-4 border-l-transparent",
                         )}
                       >
                         {/* 1. # */}
-                        <td className="px-2 py-1 text-center text-slate-400 font-mono text-[11px] w-8">
+                        <td className="px-2 py-1 text-center text-muted-foreground font-mono text-[11px] w-8">
                           {idx + 1}
                         </td>
 
@@ -1047,14 +1057,18 @@ function CartPage() {
                           onKeyDown={(e) => handleCellNav(e, idx, 0)}
                           className={cn(
                             "px-2 py-1 text-left w-[300px] relative transition-colors outline-none",
-                            isCellFocused(idx, 0) ? "!bg-blue-600 !text-white" : "",
+                            isCellFocused(idx, 0)
+                              ? "!bg-primary !text-primary-foreground font-semibold"
+                              : "",
                           )}
                         >
                           <div className="flex items-center gap-1.5 whitespace-nowrap overflow-hidden">
                             <span
                               className={cn(
                                 "truncate font-semibold",
-                                isCellFocused(idx, 0) ? "text-white" : "text-slate-900",
+                                isCellFocused(idx, 0)
+                                  ? "!text-primary-foreground font-bold"
+                                  : "text-foreground",
                               )}
                             >
                               {i.product.name}
@@ -1064,8 +1078,8 @@ function CartPage() {
                                 className={cn(
                                   "shrink-0 inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded uppercase leading-none whitespace-nowrap",
                                   isCellFocused(idx, 0)
-                                    ? "bg-blue-800 text-white"
-                                    : "bg-red-100 text-red-700 border border-red-200",
+                                    ? "bg-primary-foreground/20 text-primary-foreground"
+                                    : "bg-destructive/10 text-destructive border border-destructive/20",
                                 )}
                                 title="Prescription required (Rx)"
                               >
@@ -1088,8 +1102,8 @@ function CartPage() {
                           className={cn(
                             "px-2 py-1 w-16 text-center font-mono text-[11px] outline-none select-none transition-colors",
                             isCellFocused(idx, 1)
-                              ? "!bg-blue-600 !text-white font-bold"
-                              : "text-slate-600",
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "text-muted-foreground",
                           )}
                         >
                           {i.product.pack || "—"}
@@ -1107,14 +1121,18 @@ function CartPage() {
                           onKeyDown={(e) => handleCellNav(e, idx, 2)}
                           className={cn(
                             "px-2 py-1 w-20 text-center font-semibold font-mono text-[11px] outline-none transition-colors",
-                            isCellFocused(idx, 2) ? "!bg-blue-600 !text-white" : "text-slate-700",
+                            isCellFocused(idx, 2)
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "text-foreground",
                           )}
                         >
                           {activeBatches.length > 1 ? (
                             <select
                               className={cn(
                                 "bg-transparent border-0 outline-none w-full text-center font-mono font-semibold text-[11px] cursor-pointer",
-                                isCellFocused(idx, 2) ? "text-white" : "text-slate-700",
+                                isCellFocused(idx, 2)
+                                  ? "!text-primary-foreground font-bold"
+                                  : "text-foreground",
                               )}
                               value={i.product.id}
                               onChange={(e) => {
@@ -1127,7 +1145,11 @@ function CartPage() {
                               onClick={(e) => e.stopPropagation()}
                             >
                               {activeBatches.map((b) => (
-                                <option key={b.id} value={b.id} className="text-slate-900 bg-white">
+                                <option
+                                  key={b.id}
+                                  value={b.id}
+                                  className="text-foreground bg-popover"
+                                >
                                   {String(b.batch || "No Batch").toUpperCase()}
                                 </option>
                               ))}
@@ -1150,8 +1172,8 @@ function CartPage() {
                           className={cn(
                             "px-2 py-1 w-16 text-center font-mono text-[11px] outline-none select-none transition-colors",
                             isCellFocused(idx, 3)
-                              ? "!bg-blue-600 !text-white font-bold"
-                              : "text-slate-600",
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "text-muted-foreground",
                           )}
                         >
                           {i.product.expiry
@@ -1172,12 +1194,14 @@ function CartPage() {
                           }}
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === "ArrowRight") {
+                            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                              // Disable left/right arrow from modifying quantity or jumping
+                              e.stopPropagation();
+                              return;
+                            }
+                            if (e.key === "Enter" || e.key === "Tab") {
                               e.preventDefault();
                               focusCell(idx, 5);
-                            } else if (e.key === "ArrowLeft") {
-                              e.preventDefault();
-                              focusCell(idx, 3);
                             } else if (e.key === "ArrowDown") {
                               e.preventDefault();
                               if (idx < cart.items.length - 1) focusCell(idx + 1, 4);
@@ -1188,19 +1212,57 @@ function CartPage() {
                             }
                           }}
                           className={cn(
-                            "px-2 py-1 w-14 text-center transition-colors outline-none",
-                            isCellFocused(idx, 4) ? "!bg-blue-600 !text-white" : "",
+                            "px-2 py-1 w-16 text-center transition-colors outline-none",
+                            isCellFocused(idx, 4)
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "",
                           )}
                         >
                           <input
+                            id={`cell-${idx}-qty`}
                             type="text"
                             inputMode="numeric"
                             autoComplete="off"
                             spellCheck={false}
                             value={isDual ? strips : i.qty}
+                            onKeyDown={(e) => {
+                              if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                                // Disable arrow left/right from changing quantity or jumping
+                                e.stopPropagation();
+                                return;
+                              }
+                              if (e.key === "Enter" || e.key === "Tab") {
+                                e.preventDefault();
+                                focusCell(idx, 5);
+                              } else if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                if (idx < cart.items.length - 1) focusCell(idx + 1, 4);
+                                else entryInputRef.current?.focus();
+                              } else if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                if (idx > 0) focusCell(idx - 1, 4);
+                              }
+                            }}
                             onChange={(e) => {
-                              const val = parseInt(e.target.value, 10);
+                              const raw = e.target.value.replace(/[^0-9]/g, "");
+                              if (raw === "") {
+                                cart.setQty(i.product.id, 0);
+                                return;
+                              }
+                              const val = parseInt(raw, 10);
                               if (isNaN(val) || val < 0) return;
+                              const maxStock = i.product.stock ?? 0;
+                              if (maxStock > 0 && val > maxStock) {
+                                toast.warning(
+                                  `Cannot enter ${val}. Only ${maxStock} Qty available in stock.`,
+                                  {
+                                    id: `stock-limit-${i.product.id}`,
+                                  },
+                                );
+                                // Do not process above stock: clamp to maxStock
+                                cart.setQty(i.product.id, maxStock);
+                                return;
+                              }
                               if (isDual) {
                                 const newQty = combineStripAndPcToQty(val, pcs, pps);
                                 cart.setQty(i.product.id, newQty);
@@ -1210,12 +1272,14 @@ function CartPage() {
                             }}
                             className={cn(
                               "w-full text-center bg-transparent font-mono font-bold outline-none",
-                              isCellFocused(idx, 4) ? "!text-white" : "text-slate-900",
+                              isCellFocused(idx, 4)
+                                ? "!text-primary-foreground font-bold"
+                                : "text-foreground",
                             )}
                           />
                         </td>
 
-                        {/* 7. Pcs */}
+                        {/* 7. Rate (₹) */}
                         <td
                           ref={(el) => setCellRef(idx, 5, el)}
                           tabIndex={0}
@@ -1225,7 +1289,7 @@ function CartPage() {
                           }}
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === "ArrowRight") {
+                            if (e.key === "Enter" || e.key === "ArrowRight" || e.key === "Tab") {
                               e.preventDefault();
                               focusCell(idx, 6);
                             } else if (e.key === "ArrowLeft") {
@@ -1241,40 +1305,92 @@ function CartPage() {
                             }
                           }}
                           className={cn(
-                            "px-2 py-1 w-14 text-center transition-colors outline-none",
-                            isCellFocused(idx, 5) ? "!bg-blue-600 !text-white" : "",
+                            "px-2 py-1 w-20 text-right transition-colors outline-none",
+                            isCellFocused(idx, 5)
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "",
                           )}
                         >
-                          {isDual ? (
+                          <div className="flex flex-col items-end">
                             <input
+                              id={`cell-${idx}-rate`}
                               type="text"
-                              inputMode="numeric"
-                              autoComplete="off"
-                              spellCheck={false}
-                              value={pcs}
+                              inputMode="decimal"
+                              value={
+                                i.customPrice !== undefined
+                                  ? i.customPrice
+                                  : rate > 0
+                                    ? rate.toFixed(2)
+                                    : "0.00"
+                              }
                               onChange={(e) => {
-                                const val = parseInt(e.target.value, 10);
-                                if (isNaN(val) || val < 0) return;
-                                const newQty = combineStripAndPcToQty(strips, val, pps);
-                                cart.setQty(i.product.id, newQty);
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val >= 0) {
+                                  cart.setCustomPrice(i.product.id, val);
+                                }
+                              }}
+                              onFocus={(e) => e.target.select()}
+                              onKeyDown={(e) => {
+                                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                                  e.stopPropagation();
+                                  return;
+                                }
+                                if (e.key === "Enter" || e.key === "Tab") {
+                                  e.preventDefault();
+                                  focusCell(idx, 6);
+                                } else if (e.key === "ArrowDown") {
+                                  e.preventDefault();
+                                  if (idx < cart.items.length - 1) focusCell(idx + 1, 5);
+                                  else entryInputRef.current?.focus();
+                                } else if (e.key === "ArrowUp") {
+                                  e.preventDefault();
+                                  if (idx > 0) focusCell(idx - 1, 5);
+                                }
                               }}
                               className={cn(
-                                "w-full text-center bg-transparent font-mono outline-none",
+                                "w-full text-right bg-transparent font-mono font-bold outline-none",
                                 isCellFocused(idx, 5)
-                                  ? "!text-white font-semibold"
-                                  : "text-slate-700",
+                                  ? "!text-primary-foreground font-bold"
+                                  : "text-foreground",
                               )}
                             />
-                          ) : (
-                            <span
-                              className={cn(
-                                "font-mono text-[11px]",
-                                isCellFocused(idx, 5) ? "text-white" : "text-slate-400",
-                              )}
-                            >
-                              0
-                            </span>
-                          )}
+                            {(() => {
+                              const normName = i.product.name
+                                ? i.product.name.trim().toLowerCase()
+                                : "";
+                              const cp =
+                                cart.customerPrices[normName] ||
+                                (i.product.id ? cart.customerPrices[i.product.id] : undefined);
+                              const hasPrevPrice = cp && cp.price && cp.price > 0;
+                              if (!hasPrevPrice) return null;
+                              const prevPrice = cp.price;
+                              const standardPrice = i.product.price;
+                              const activePrice =
+                                i.customPrice !== undefined ? i.customPrice : standardPrice;
+                              const isPrevActive = Math.abs(activePrice - prevPrice) < 0.001;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    cart.setCustomPrice(
+                                      i.product.id,
+                                      isPrevActive ? standardPrice : prevPrice,
+                                    );
+                                  }}
+                                  className={cn(
+                                    "text-[9px] px-1 py-0.2 rounded font-semibold border transition-all cursor-pointer mt-0.5",
+                                    isPrevActive
+                                      ? "bg-primary text-primary-foreground border-primary"
+                                      : "bg-primary/10 text-primary border-primary/20",
+                                  )}
+                                  title={`Previous customer rate: ₹${prevPrice.toFixed(2)}`}
+                                >
+                                  Prev: ₹{prevPrice.toFixed(0)}
+                                </button>
+                              );
+                            })()}
+                          </div>
                         </td>
 
                         {/* 8. MRP (₹) */}
@@ -1289,13 +1405,17 @@ function CartPage() {
                           onKeyDown={(e) => handleCellNav(e, idx, 6)}
                           className={cn(
                             "px-2 py-1 w-20 text-right transition-colors outline-none",
-                            isCellFocused(idx, 6) ? "!bg-blue-600 !text-white" : "",
+                            isCellFocused(idx, 6)
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "",
                           )}
                         >
                           <span
                             className={cn(
                               "font-mono font-semibold",
-                              isCellFocused(idx, 6) ? "!text-white" : "text-slate-800",
+                              isCellFocused(idx, 6)
+                                ? "!text-primary-foreground font-bold"
+                                : "text-foreground",
                             )}
                           >
                             {mrp > 0 ? mrp.toFixed(2) : "0.00"}
@@ -1314,15 +1434,17 @@ function CartPage() {
                           onKeyDown={(e) => handleCellNav(e, idx, 7)}
                           className={cn(
                             "px-2 py-1 w-14 text-center transition-colors outline-none",
-                            isCellFocused(idx, 7) ? "!bg-blue-600 !text-white" : "",
+                            isCellFocused(idx, 7)
+                              ? "!bg-primary !text-primary-foreground font-semibold"
+                              : "",
                           )}
                         >
                           <span
                             className={cn(
                               "font-mono",
                               isCellFocused(idx, 7)
-                                ? "!text-white font-semibold"
-                                : "text-slate-700",
+                                ? "!text-primary-foreground font-bold"
+                                : "text-foreground",
                             )}
                           >
                             {rowDis}%
@@ -1342,8 +1464,8 @@ function CartPage() {
                           className={cn(
                             "px-2 py-1 w-14 text-center font-mono text-[11px] outline-none select-none transition-colors",
                             isCellFocused(idx, 8)
-                              ? "!bg-blue-600 !text-white font-bold"
-                              : "text-slate-500",
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "text-muted-foreground",
                           )}
                         >
                           {i.product.taxPercent != null
@@ -1365,7 +1487,9 @@ function CartPage() {
                           onKeyDown={(e) => handleCellNav(e, idx, 9)}
                           className={cn(
                             "px-2 py-1 w-24 text-right font-mono font-bold outline-none select-none transition-colors",
-                            isCellFocused(idx, 9) ? "!bg-blue-600 !text-white" : "text-slate-900",
+                            isCellFocused(idx, 9)
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "text-foreground",
                           )}
                         >
                           ₹
@@ -1383,7 +1507,7 @@ function CartPage() {
                           <button
                             type="button"
                             onClick={() => setDeleteTarget(i.product.id)}
-                            className="text-slate-300 hover:text-red-500 font-bold text-xs cursor-pointer"
+                            className="text-muted-foreground/60 hover:text-destructive font-bold text-xs cursor-pointer"
                             title="Delete row"
                           >
                             ✕
@@ -1394,9 +1518,9 @@ function CartPage() {
                   })}
 
                   {/* ── Active Inline Medicine Entry Row (cv) ── */}
-                  <tr className="border-b border-slate-200 transition-colors text-xs bg-slate-50/50 hover:bg-slate-50">
+                  <tr className="border-b border-border/60 transition-colors text-xs bg-muted/20 hover:bg-muted/30">
                     {/* # */}
-                    <td className="px-2 py-1 text-center text-slate-400 font-mono text-[11px] w-8">
+                    <td className="px-2 py-1 text-center text-muted-foreground font-mono text-[11px] w-8">
                       {cart.items.length + 1}
                     </td>
 
@@ -1404,7 +1528,7 @@ function CartPage() {
                     <td
                       className={cn(
                         "px-2 py-1 text-left w-[300px] relative transition-colors",
-                        entryFocused ? "!bg-blue-600 !text-white" : "",
+                        entryFocused ? "!bg-primary !text-primary-foreground font-semibold" : "",
                       )}
                     >
                       <input
@@ -1433,37 +1557,37 @@ function CartPage() {
                         className={cn(
                           "w-full bg-transparent font-semibold outline-none uppercase placeholder:normal-case text-left",
                           entryFocused
-                            ? "!text-white placeholder:!text-white/80 placeholder:!font-bold placeholder:!uppercase"
-                            : "text-slate-900 placeholder:text-slate-400",
+                            ? "!text-primary-foreground placeholder:!text-primary-foreground/80 placeholder:!font-bold placeholder:!uppercase"
+                            : "text-foreground placeholder:text-muted-foreground",
                         )}
                       />
                     </td>
 
-                    <td className="px-2 py-1 w-16 text-center text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-16 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-20 text-center text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-20 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-16 text-center text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-16 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-14 text-center text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-16 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-14 text-center text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-20 text-right text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-20 text-right text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-20 text-right text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-14 text-center text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-14 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-14 text-center text-slate-300 font-mono text-[11px] select-none">
+                    <td className="px-2 py-1 w-14 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
-                    <td className="px-2 py-1 w-24 text-right text-slate-300 font-mono font-semibold text-[11px] select-none">
+                    <td className="px-2 py-1 w-24 text-right text-muted-foreground/40 font-mono font-semibold text-[11px] select-none">
                       ₹0.00
                     </td>
                     <td className="px-2 py-1 w-8 text-center" />
@@ -1481,27 +1605,27 @@ function CartPage() {
                   left: `${dropdownPos.left}px`,
                   width: `${dropdownPos.width}px`,
                 }}
-                className="fixed z-50 bg-white border border-slate-300 rounded-lg shadow-2xl overflow-hidden max-h-80 flex flex-col text-xs select-none animate-in fade-in zoom-in-95 duration-75"
+                className="fixed z-50 bg-popover border border-border rounded-lg shadow-2xl overflow-hidden max-h-80 flex flex-col text-xs select-none animate-in fade-in zoom-in-95 duration-75"
               >
-                <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200 text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                <div className="bg-muted px-3 py-1.5 border-b border-border text-[11px] font-bold text-foreground flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-blue-600">🔍</span>
+                    <span className="text-primary">🔍</span>
                     <span>Product Catalog Match ({entryMatches.length})</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-slate-400 font-normal text-[10px]">
+                    <span className="text-muted-foreground font-normal text-[10px]">
                       ↑ / ↓ navigate • Enter select • F2 Add Product • Esc close
                     </span>
                     <button
                       type="button"
                       onClick={() => setEntryDropdownOpen(false)}
-                      className="text-slate-400 hover:text-red-600 font-bold px-1.5 py-0.5 rounded hover:bg-slate-200 text-xs transition-colors cursor-pointer"
+                      className="text-muted-foreground hover:text-destructive font-bold px-1.5 py-0.5 rounded hover:bg-muted text-xs transition-colors cursor-pointer"
                     >
                       ✕
                     </button>
                   </div>
                 </div>
-                <div className="overflow-y-auto flex-1 divide-y divide-slate-100">
+                <div className="overflow-y-auto flex-1 divide-y divide-border/50">
                   {entryMatches.map((p, pIdx) => {
                     const isActive = pIdx === entryActiveIdx;
                     return (
@@ -1510,7 +1634,9 @@ function CartPage() {
                         data-active-match={isActive}
                         className={cn(
                           "px-3 py-2 flex items-center justify-between cursor-pointer transition-colors",
-                          isActive ? "bg-blue-600 text-white" : "hover:bg-blue-50 text-slate-800",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-primary/10 text-foreground",
                         )}
                         onMouseDown={(e) => {
                           e.preventDefault();
@@ -1525,8 +1651,8 @@ function CartPage() {
                                 className={cn(
                                   "text-[9px] px-1.5 py-0.2 rounded font-bold uppercase",
                                   isActive
-                                    ? "bg-blue-800 text-white"
-                                    : "bg-red-100 text-red-700 border border-red-200",
+                                    ? "bg-primary-foreground/20 text-primary-foreground"
+                                    : "bg-destructive/10 text-destructive border border-destructive/20",
                                 )}
                               >
                                 Rx
@@ -1536,7 +1662,7 @@ function CartPage() {
                           <div
                             className={cn(
                               "text-[11px]",
-                              isActive ? "text-blue-100" : "text-slate-500",
+                              isActive ? "text-primary-foreground/80" : "text-muted-foreground",
                             )}
                           >
                             {p.manufacturer || p.category || "Pharma"} • Rack: {p.rack || "A1"} •
@@ -1548,7 +1674,7 @@ function CartPage() {
                             <span
                               className={cn(
                                 "text-[10px] uppercase font-bold",
-                                isActive ? "text-blue-200" : "text-slate-400",
+                                isActive ? "text-primary-foreground/80" : "text-muted-foreground",
                               )}
                             >
                               Stock
@@ -1557,10 +1683,12 @@ function CartPage() {
                               className={cn(
                                 "font-mono font-bold text-xs",
                                 isActive
-                                  ? "text-white"
-                                  : p.stock > 0
-                                    ? "text-emerald-600"
-                                    : "text-red-600",
+                                  ? "text-primary-foreground"
+                                  : p.stock > 10
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : p.stock > 0
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : "text-destructive",
                               )}
                             >
                               {formatQty(p.stock)}
@@ -1571,7 +1699,7 @@ function CartPage() {
                               <span
                                 className={cn(
                                   "text-[10px] uppercase font-bold",
-                                  isActive ? "text-blue-200" : "text-slate-400",
+                                  isActive ? "text-primary-foreground/80" : "text-muted-foreground",
                                 )}
                               >
                                 MRP
@@ -1579,7 +1707,7 @@ function CartPage() {
                               <span
                                 className={cn(
                                   "font-mono text-xs",
-                                  isActive ? "text-blue-100" : "text-slate-600",
+                                  isActive ? "text-primary-foreground/90" : "text-muted-foreground",
                                 )}
                               >
                                 ₹{p.mrp.toFixed(2)}
@@ -1590,7 +1718,7 @@ function CartPage() {
                             <span
                               className={cn(
                                 "text-[10px] uppercase font-bold",
-                                isActive ? "text-blue-200" : "text-slate-400",
+                                isActive ? "text-primary-foreground/80" : "text-muted-foreground",
                               )}
                             >
                               Rate
@@ -1598,7 +1726,7 @@ function CartPage() {
                             <span
                               className={cn(
                                 "font-mono font-bold text-xs",
-                                isActive ? "text-white" : "text-blue-700",
+                                isActive ? "text-primary-foreground" : "text-primary font-bold",
                               )}
                             >
                               ₹{p.price.toFixed(2)}
@@ -1637,10 +1765,77 @@ function CartPage() {
                   <span className="text-[10px] uppercase font-bold text-slate-400">
                     Location / Rack
                   </span>
-                  <span className="font-mono font-bold text-blue-700">
+                  <span className="font-mono font-bold text-primary">
                     {selectedItem.product.rack || selectedItem.product.category || "RACK-A1"}
                   </span>
                 </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                    Buying Price
+                  </span>
+                  {!session?.isEmployee && selectedItem.product.costPrice ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCostPrice((v) => !v)}
+                      className="flex items-center gap-1 font-mono font-bold text-slate-700 hover:text-primary transition-colors cursor-pointer"
+                      title={showCostPrice ? "Hide buying price" : "Show buying price"}
+                    >
+                      {showCostPrice ? (
+                        <EyeOff className="h-3 w-3 text-slate-400" />
+                      ) : (
+                        <Eye className="h-3 w-3 text-slate-400" />
+                      )}
+                      <span>
+                        {showCostPrice ? `₹${selectedItem.product.costPrice.toFixed(2)}` : "••••"}
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="font-mono text-slate-400">—</span>
+                  )}
+                </div>
+                {(() => {
+                  const normName = selectedItem.product.name
+                    ? selectedItem.product.name.trim().toLowerCase()
+                    : "";
+                  const cp =
+                    cart.customerPrices[normName] ||
+                    (selectedItem.product.id
+                      ? cart.customerPrices[selectedItem.product.id]
+                      : undefined);
+                  const hasPrev = cp && cp.price && cp.price > 0;
+                  if (!hasPrev) return null;
+                  const prevPrice = cp.price;
+                  const stdPrice = selectedItem.product.price;
+                  const activePrice =
+                    selectedItem.customPrice !== undefined ? selectedItem.customPrice : stdPrice;
+                  const isPrev = Math.abs(activePrice - prevPrice) < 0.001;
+
+                  return (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-slate-400">
+                        Cust Price Memory
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          cart.setCustomPrice(
+                            selectedItem.product.id,
+                            isPrev ? stdPrice : prevPrice,
+                          )
+                        }
+                        className={cn(
+                          "flex items-center gap-1 text-[11px] font-mono font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer",
+                          isPrev
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
+                        )}
+                        title="Click to toggle customer previous price"
+                      >
+                        <span>Prev: ₹{prevPrice.toFixed(2)}</span>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-6 text-right">
                 <div className="flex flex-col">
@@ -1655,8 +1850,16 @@ function CartPage() {
                   <span className="text-[10px] uppercase font-bold text-slate-400">
                     Stock Availability
                   </span>
-                  <span className="font-mono font-bold text-emerald-600">
+                  <span
+                    className={cn(
+                      "font-mono font-bold",
+                      (selectedItem.product.stock ?? 0) <= 10
+                        ? "text-amber-600"
+                        : "text-emerald-600",
+                    )}
+                  >
                     {formatQty(selectedItem.product.stock)} Packs in stock
+                    {(selectedItem.product.stock ?? 0) <= 10 && " (Low)"}
                   </span>
                 </div>
               </div>
@@ -1691,14 +1894,14 @@ function CartPage() {
                   className={cn(
                     "flex-1 flex items-center border rounded px-2 py-1 transition-colors",
                     discountPctFocused
-                      ? "!bg-blue-600 !border-blue-600 !text-white"
+                      ? "!bg-primary !border-primary !text-primary-foreground"
                       : "bg-white border-slate-300",
                   )}
                 >
                   <span
                     className={cn(
                       "text-[11px] font-mono mr-1 font-bold",
-                      discountPctFocused ? "!text-white/80" : "text-slate-400",
+                      discountPctFocused ? "!text-primary-foreground/80" : "text-slate-400",
                     )}
                   >
                     %
@@ -1729,7 +1932,7 @@ function CartPage() {
                     className={cn(
                       "w-full text-right font-mono text-xs font-semibold outline-none bg-transparent",
                       discountPctFocused
-                        ? "!text-white placeholder:!text-white/70"
+                        ? "!text-primary-foreground placeholder:!text-primary-foreground/70"
                         : "text-slate-800",
                     )}
                   />
@@ -1738,14 +1941,14 @@ function CartPage() {
                   className={cn(
                     "flex-1 flex items-center border rounded px-2 py-1 transition-colors",
                     discountFlatFocused
-                      ? "!bg-blue-600 !border-blue-600 !text-white"
+                      ? "!bg-primary !border-primary !text-primary-foreground"
                       : "bg-white border-slate-300",
                   )}
                 >
                   <span
                     className={cn(
                       "text-[11px] font-mono mr-1 font-bold",
-                      discountFlatFocused ? "!text-white/80" : "text-slate-400",
+                      discountFlatFocused ? "!text-primary-foreground/80" : "text-slate-400",
                     )}
                   >
                     ₹
@@ -1776,7 +1979,7 @@ function CartPage() {
                     className={cn(
                       "w-full text-right font-mono text-xs font-semibold outline-none bg-transparent",
                       discountFlatFocused
-                        ? "!text-white placeholder:!text-white/70"
+                        ? "!text-primary-foreground placeholder:!text-primary-foreground/70"
                         : "text-slate-800",
                     )}
                   />
@@ -1835,7 +2038,7 @@ function CartPage() {
           <div className="pt-2.5 border-t border-slate-200 flex flex-col gap-2">
             <div className="flex items-baseline justify-between">
               <span className="text-[11px] uppercase font-bold text-slate-700">Net Payable</span>
-              <span className="font-mono font-extrabold text-xl text-blue-700">
+              <span className="font-mono font-extrabold text-xl text-primary">
                 ₹{cart.total.toFixed(2)}
               </span>
             </div>
@@ -1905,7 +2108,7 @@ function CartPage() {
             <span className="truncate">Payment & Save</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <kbd className="text-blue-800 bg-blue-100 border border-blue-300 px-1 py-0.2 rounded border font-mono font-bold text-[9px]">
+            <kbd className="text-primary bg-primary/10 border border-primary/20 px-1 py-0.2 rounded font-mono font-bold text-[9px]">
               Ctrl+← / →
             </kbd>
             <span className="truncate">Switch Bill Tab</span>
