@@ -204,7 +204,8 @@ function CartPage() {
   const hasRx = rxItems.length > 0;
   const prescriptionRef = (cart.customer.prescriptionRef ?? "").trim();
   const prescriptionPhoto = (cart.customer.prescriptionPhoto ?? "").trim();
-  const rxBlocked = hasRx && !prescriptionRef && !prescriptionPhoto;
+  const dlNo = (cart.customer.drugLicNo ?? "").trim();
+  const rxBlocked = hasRx && !prescriptionRef && !prescriptionPhoto && !dlNo;
 
   // Keep selectedIdx in bounds when items change (e.g. after deletion)
   useEffect(() => {
@@ -237,22 +238,25 @@ function CartPage() {
   const newBillRef = useRef<() => void>();
   const entryInputRef = useRef<HTMLInputElement>(null);
   const entryDropdownRef = useRef<HTMLDivElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const partyInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const dlNoInputRef = useRef<HTMLInputElement>(null);
+  const gstNoInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+  const partyDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleNewBill = () => {
-    if (cart.items.length > 0) {
-      if (
-        !window.confirm(
-          "You have an active bill. Are you sure you want to clear it and start a new one?",
-        )
-      ) {
-        return;
-      }
+    if (cart.items.length > 0 || (cart.customer.name && cart.customer.name.trim() !== "")) {
+      const draft = cart.saveAsDraft();
+      toast.success(`Previous bill saved to drafts (${draft.name})`);
+    } else {
+      cart.clear({ removeDraft: false });
     }
-    cart.clear();
-    setCustomerOpen(true);
+    cart.dismissRestoredBanner();
     setTimeout(() => {
-      entryInputRef.current?.focus();
-    }, 100);
+      dateInputRef.current?.focus();
+    }, 60);
   };
 
   // Keep refs in sync every render (no re-subscription needed)
@@ -575,10 +579,10 @@ function CartPage() {
     }
   };
 
-  // Autofocus the medicine search box on initial load
+  // Autofocus the bill date input on initial load / opening Sale
   useEffect(() => {
     const t = setTimeout(() => {
-      entryInputRef.current?.focus();
+      dateInputRef.current?.focus();
     }, 120);
     return () => clearTimeout(t);
   }, []);
@@ -679,15 +683,71 @@ function CartPage() {
   }, [entryActiveIdx]);
 
   // Focus and cell navigation state matching reference
+  const [dateFocused, setDateFocused] = useState(false);
   const [customerFocused, setCustomerFocused] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
-  const [doctorFocused, setDoctorFocused] = useState(false);
+  const [dlNoFocused, setDlNoFocused] = useState(false);
+  const [gstNoFocused, setGstNoFocused] = useState(false);
+  const [addressFocused, setAddressFocused] = useState(false);
   const [entryFocused, setEntryFocused] = useState(false);
   const [focusedCell, setFocusedCell] = useState<{ row: number; col: number } | null>(null);
   const [discountPctFocused, setDiscountPctFocused] = useState(false);
   const [discountFlatFocused, setDiscountFlatFocused] = useState(false);
   const [discountPctInput, setDiscountPctInput] = useState<string>("");
   const [discountFlatInput, setDiscountFlatInput] = useState<string>("");
+  const [rateInputMap, setRateInputMap] = useState<Record<string, string>>({});
+  const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
+  const [partyDropdownOpen, setPartyDropdownOpen] = useState(false);
+  const [partyActiveIdx, setPartyActiveIdx] = useState(0);
+  const [billDate, setBillDate] = useState(() => {
+    const d = new Date();
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  });
+
+  useEffect(() => {
+    customersStore
+      .list()
+      .then(setSavedCustomers)
+      .catch(() => setSavedCustomers([]));
+  }, []);
+
+  const partyMatches = useMemo(() => {
+    const q = (cart.customer.name || "").trim().toLowerCase();
+    if (!q) return [];
+    return savedCustomers
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.phone && c.phone.includes(q)) ||
+          (c.drugLicNo && c.drugLicNo.toLowerCase().includes(q)) ||
+          (c.gstin && c.gstin.toLowerCase().includes(q)),
+      )
+      .slice(0, 8);
+  }, [savedCustomers, cart.customer.name]);
+
+  const selectSavedCustomer = (c: SavedCustomer) => {
+    cart.setCustomer({
+      ...cart.customer,
+      name: c.name,
+      phone: c.phone || "",
+      drugLicNo: c.drugLicNo || "",
+      gstin: c.gstin || "",
+      address: c.address || "",
+    });
+    cart.setCustomerSubmitted(true);
+    setPartyDropdownOpen(false);
+    if (c.name || c.phone) {
+      void cart.loadCustomerPrices(c.name, c.phone);
+    }
+    toast.success(`Selected customer: ${c.name}`);
+    setTimeout(() => {
+      entryInputRef.current?.focus();
+    }, 60);
+  };
 
   useEffect(() => {
     if (!discountPctFocused) {
@@ -751,44 +811,7 @@ function CartPage() {
     : 1;
 
   return (
-    <div className="-m-2 sm:-m-3 md:-m-3.5 min-h-[calc(100vh-68px)] flex-1 flex flex-col justify-between overflow-hidden bg-slate-50 text-slate-900 select-none">
-      {/* ─── Draft / Edit Restored Banner ─────────────────────────────────── */}
-      {cart.activeDraftRestored && (
-        <div className="bg-amber-400 text-slate-950 px-4 py-2 border-b border-amber-500 shadow-xs flex items-center justify-between no-print animate-fadeIn shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="bg-slate-950 text-amber-300 text-[11px] font-black px-2.5 py-0.5 rounded uppercase tracking-wider shadow-xs">
-              ⚠️ DRAFT IN PROGRESS
-            </span>
-            <span className="text-xs font-bold">
-              Editing Bill:{" "}
-              <strong className="font-mono text-sm underline decoration-slate-900">
-                {cart.activeDraftId ? "Draft Bill" : "Bill #1"}
-              </strong>
-            </span>
-            <span className="text-[11px] text-amber-950/80 font-medium hidden sm:inline">
-              • Your in-progress bill was preserved. You can edit items and generate the bill when
-              ready.
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setDraftsOpen(true)}
-              className="bg-amber-200 hover:bg-amber-100 text-slate-950 text-xs font-bold px-3 py-1 rounded shadow-xs border border-amber-500/30 cursor-pointer flex items-center gap-1"
-            >
-              📜 View Drafts ({cart.drafts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => cart.dismissRestoredBanner()}
-              className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3 py-1 rounded shadow-xs cursor-pointer"
-            >
-              ✕ Discard / Exit
-            </button>
-          </div>
-        </div>
-      )}
-
+    <div className="-m-2 sm:-m-3 md:-m-3.5 min-h-[calc(100vh-68px)] flex-1 flex flex-col justify-between overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-none">
       {/* ─── SECTION A: Bill Tabs Header (xv) ───────────────────────────────── */}
       <div className="no-print shrink-0">
         <div className="bg-muted/70 border-b border-border px-2 pt-1.5 flex items-center justify-between gap-2 select-none overflow-x-auto">
@@ -890,30 +913,43 @@ function CartPage() {
         </div>
       </div>
 
-      {/* ─── SECTION B: Customer / Doctor / Date Header Bar (ov) ───────────── */}
+      {/* ─── SECTION B: Customer / DL No / GST / Address / Date Header Bar ─── */}
       <div className="no-print shrink-0">
-        <div className="bg-card border-b border-border px-4 py-2 flex items-center justify-between gap-4 text-xs select-none">
-          <div className="flex items-center gap-4 flex-1">
-            {/* Date */}
-            <div className="flex flex-col w-28">
+        <div className="bg-card border-b border-border px-3 py-2 flex flex-wrap items-center justify-between gap-2.5 text-xs select-none">
+          <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+            {/* 1. Date */}
+            <div className="flex flex-col w-28 shrink-0">
               <span className="text-[10px] uppercase font-bold text-muted-foreground">Date</span>
               <input
+                ref={dateInputRef}
                 type="text"
-                readOnly
-                value={new Date().toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                })}
-                className="font-mono font-medium rounded px-2 py-0.5 outline-none text-center transition-colors text-foreground bg-muted/40 border border-border cursor-default"
+                value={billDate}
+                onChange={(e) => setBillDate(e.target.value)}
+                onFocus={(e) => {
+                  setDateFocused(true);
+                  e.target.select();
+                }}
+                onBlur={() => setDateFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    partyInputRef.current?.focus();
+                  }
+                }}
+                className={cn(
+                  "font-mono font-medium rounded px-2 py-0.5 outline-none text-center transition-colors",
+                  dateFocused
+                    ? "!bg-primary !border-primary !text-primary-foreground"
+                    : "text-foreground bg-muted/40 border border-border",
+                )}
               />
             </div>
 
-            {/* Patient / Party Name */}
-            <div className="flex flex-col flex-1 max-w-[260px] relative">
+            {/* 2. Patient / Party Name with Autocomplete */}
+            <div className="flex flex-col flex-1 min-w-[180px] max-w-[260px] relative">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] uppercase font-bold text-muted-foreground">
-                  Patient / Party Name
+                  Party Name
                 </span>
                 <button
                   type="button"
@@ -924,14 +960,56 @@ function CartPage() {
                 </button>
               </div>
               <input
+                ref={partyInputRef}
                 type="text"
                 autoComplete="off"
                 spellCheck={false}
-                placeholder="Patient / Party Name"
+                placeholder="Party / Customer Name"
                 value={cart.customer.name}
-                onChange={(e) => cart.setCustomer({ ...cart.customer, name: e.target.value })}
-                onFocus={() => setCustomerFocused(true)}
-                onBlur={() => setCustomerFocused(false)}
+                onChange={(e) => {
+                  cart.setCustomer({ ...cart.customer, name: e.target.value });
+                  setPartyDropdownOpen(true);
+                  setPartyActiveIdx(0);
+                }}
+                onFocus={() => {
+                  setCustomerFocused(true);
+                  if (cart.customer.name.trim()) {
+                    setPartyDropdownOpen(true);
+                  }
+                }}
+                onBlur={() => {
+                  setTimeout(() => {
+                    setPartyDropdownOpen(false);
+                    setCustomerFocused(false);
+                  }, 200);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    if (partyMatches.length > 0) {
+                      e.preventDefault();
+                      setPartyDropdownOpen(true);
+                      setPartyActiveIdx((prev) => (prev < partyMatches.length - 1 ? prev + 1 : 0));
+                    }
+                  } else if (e.key === "ArrowUp") {
+                    if (partyMatches.length > 0) {
+                      e.preventDefault();
+                      setPartyActiveIdx((prev) => (prev > 0 ? prev - 1 : partyMatches.length - 1));
+                    }
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (partyDropdownOpen && partyMatches.length > 0 && partyActiveIdx >= 0) {
+                      selectSavedCustomer(partyMatches[partyActiveIdx]);
+                    } else {
+                      setPartyDropdownOpen(false);
+                      entryInputRef.current?.focus();
+                    }
+                  } else if (e.key === "Tab") {
+                    setPartyDropdownOpen(false);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setPartyDropdownOpen(false);
+                  }
+                }}
                 className={cn(
                   "font-medium rounded px-2 py-0.5 outline-none transition-colors",
                   customerFocused
@@ -939,14 +1017,101 @@ function CartPage() {
                     : "text-foreground bg-muted/40 border border-border",
                 )}
               />
+
+              {/* Autocomplete Dropdown */}
+              {partyDropdownOpen && partyMatches.length > 0 && (
+                <div
+                  ref={partyDropdownRef}
+                  className="absolute left-0 top-full mt-1 w-80 sm:w-96 bg-popover text-popover-foreground border border-border rounded-lg shadow-xl z-50 max-h-64 overflow-y-auto py-1 divide-y divide-border/50 animate-in fade-in-0 zoom-in-95"
+                >
+                  <div className="px-3 py-1 bg-muted/60 text-[10px] uppercase font-bold text-muted-foreground flex justify-between items-center">
+                    <span>Saved Customers ({partyMatches.length})</span>
+                    <span className="font-mono text-[9px] lowercase">↑↓ navigate · enter select</span>
+                  </div>
+                  {partyMatches.map((c, idx) => {
+                    const isHighlighted = idx === partyActiveIdx;
+                    return (
+                      <div
+                        key={c.phone || c.name + idx}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectSavedCustomer(c);
+                        }}
+                        onMouseEnter={() => setPartyActiveIdx(idx)}
+                        className={cn(
+                          "px-3 py-2 cursor-pointer transition-colors text-xs flex flex-col gap-0.5",
+                          isHighlighted
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted/80 text-foreground",
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold truncate max-w-[200px]">{c.name}</span>
+                          {c.phone && (
+                            <span
+                              className={cn(
+                                "font-mono text-[11px]",
+                                isHighlighted
+                                  ? "text-primary-foreground/90"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              📱 {c.phone}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] truncate">
+                          {c.drugLicNo && (
+                            <span
+                              className={cn(
+                                "font-mono",
+                                isHighlighted
+                                  ? "text-primary-foreground/80"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              DL: {c.drugLicNo}
+                            </span>
+                          )}
+                          {c.gstin && (
+                            <span
+                              className={cn(
+                                "font-mono",
+                                isHighlighted
+                                  ? "text-primary-foreground/80"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              GST: {c.gstin}
+                            </span>
+                          )}
+                          {c.address && (
+                            <span
+                              className={cn(
+                                "truncate max-w-[150px]",
+                                isHighlighted
+                                  ? "text-primary-foreground/80"
+                                  : "text-muted-foreground",
+                              )}
+                            >
+                              📍 {c.address}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Mobile No. */}
-            <div className="flex flex-col w-36">
+            {/* 3. Mobile No. */}
+            <div className="flex flex-col w-32 shrink-0">
               <span className="text-[10px] uppercase font-bold text-muted-foreground">
                 Mobile No.
               </span>
               <input
+                ref={phoneInputRef}
                 type="tel"
                 autoComplete="off"
                 spellCheck={false}
@@ -955,6 +1120,12 @@ function CartPage() {
                 onChange={(e) => cart.setCustomer({ ...cart.customer, phone: e.target.value })}
                 onFocus={() => setPhoneFocused(true)}
                 onBlur={() => setPhoneFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    dlNoInputRef.current?.focus();
+                  }
+                }}
                 className={cn(
                   "font-mono rounded px-2 py-0.5 outline-none transition-colors",
                   phoneFocused
@@ -964,25 +1135,96 @@ function CartPage() {
               />
             </div>
 
-            {/* Prescribing Doctor */}
-            <div className="flex flex-col flex-1 max-w-[320px] relative">
+            {/* 4. Customer DL No. (Replaces Prescribing Doctor) */}
+            <div className="flex flex-col w-36 shrink-0">
               <span className="text-[10px] uppercase font-bold text-muted-foreground">
-                Prescribing Doctor
+                Customer DL No.
               </span>
               <input
+                ref={dlNoInputRef}
                 type="text"
                 autoComplete="off"
                 spellCheck={false}
-                placeholder="Doctor Name (Optional)"
-                value={cart.customer.prescriptionRef || ""}
+                placeholder="Drug Lic No"
+                value={cart.customer.drugLicNo || ""}
                 onChange={(e) =>
-                  cart.setCustomer({ ...cart.customer, prescriptionRef: e.target.value })
+                  cart.setCustomer({ ...cart.customer, drugLicNo: e.target.value.toUpperCase() })
                 }
-                onFocus={() => setDoctorFocused(true)}
-                onBlur={() => setDoctorFocused(false)}
+                onFocus={() => setDlNoFocused(true)}
+                onBlur={() => setDlNoFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    gstNoInputRef.current?.focus();
+                  }
+                }}
+                className={cn(
+                  "font-mono font-medium rounded px-2 py-0.5 outline-none transition-colors uppercase",
+                  dlNoFocused
+                    ? "!bg-primary !border-primary !text-primary-foreground placeholder:!text-primary-foreground/70"
+                    : "text-foreground bg-muted/40 border border-border",
+                )}
+              />
+            </div>
+
+            {/* 5. Customer GST No. */}
+            <div className="flex flex-col w-36 shrink-0">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                Customer GST No.
+              </span>
+              <input
+                ref={gstNoInputRef}
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="GSTIN"
+                value={cart.customer.gstin || ""}
+                onChange={(e) =>
+                  cart.setCustomer({ ...cart.customer, gstin: e.target.value.toUpperCase() })
+                }
+                onFocus={() => setGstNoFocused(true)}
+                onBlur={() => setGstNoFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addressInputRef.current?.focus();
+                  }
+                }}
+                className={cn(
+                  "font-mono font-medium rounded px-2 py-0.5 outline-none transition-colors uppercase",
+                  gstNoFocused
+                    ? "!bg-primary !border-primary !text-primary-foreground placeholder:!text-primary-foreground/70"
+                    : "text-foreground bg-muted/40 border border-border",
+                )}
+              />
+            </div>
+
+            {/* 6. Address */}
+            <div className="flex flex-col flex-1 min-w-[180px]">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                Address
+              </span>
+              <input
+                ref={addressInputRef}
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Customer Address"
+                value={cart.customer.address || ""}
+                onChange={(e) =>
+                  cart.setCustomer({ ...cart.customer, address: e.target.value })
+                }
+                onFocus={() => setAddressFocused(true)}
+                onBlur={() => setAddressFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    entryInputRef.current?.focus();
+                  }
+                }}
                 className={cn(
                   "font-medium rounded px-2 py-0.5 outline-none transition-colors",
-                  doctorFocused
+                  addressFocused
                     ? "!bg-primary !border-primary !text-primary-foreground placeholder:!text-primary-foreground/70"
                     : "text-foreground bg-muted/40 border border-border",
                 )}
@@ -991,7 +1233,7 @@ function CartPage() {
           </div>
 
           {/* Invoice No */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="flex flex-col items-end">
               <span className="text-[10px] uppercase font-bold text-muted-foreground">
                 Invoice No
@@ -1354,19 +1596,48 @@ function CartPage() {
                               type="text"
                               inputMode="decimal"
                               value={
-                                i.customPrice !== undefined
-                                  ? i.customPrice
-                                  : rate > 0
-                                    ? rate.toFixed(2)
-                                    : "0.00"
+                                rateInputMap[i.product.id] !== undefined
+                                  ? rateInputMap[i.product.id]
+                                  : i.customPrice !== undefined
+                                    ? String(i.customPrice)
+                                    : rate > 0
+                                      ? rate.toFixed(2)
+                                      : "0.00"
                               }
                               onChange={(e) => {
-                                const val = parseFloat(e.target.value);
-                                if (!isNaN(val) && val >= 0) {
-                                  cart.setCustomPrice(i.product.id, val);
+                                const raw = e.target.value;
+                                if (raw === "" || /^\d*\.?\d*$/.test(raw)) {
+                                  setRateInputMap((prev) => ({ ...prev, [i.product.id]: raw }));
+                                  if (raw !== "" && raw !== ".") {
+                                    const val = parseFloat(raw);
+                                    if (!isNaN(val) && val >= 0) {
+                                      cart.setCustomPrice(i.product.id, val);
+                                    }
+                                  } else if (raw === "") {
+                                    cart.setCustomPrice(i.product.id, 0);
+                                  }
                                 }
                               }}
-                              onFocus={(e) => e.target.select()}
+                              onFocus={(e) => {
+                                const current =
+                                  i.customPrice !== undefined
+                                    ? String(i.customPrice)
+                                    : rate > 0
+                                      ? String(rate)
+                                      : "";
+                                setRateInputMap((prev) => ({ ...prev, [i.product.id]: current }));
+                                setFocusedCell({ row: idx, col: 5 });
+                                setSelectedIdx(idx);
+                                e.target.select();
+                              }}
+                              onBlur={() => {
+                                setRateInputMap((prev) => {
+                                  const next = { ...prev };
+                                  delete next[i.product.id];
+                                  return next;
+                                });
+                                setFocusedCell(null);
+                              }}
                               onKeyDown={(e) => {
                                 if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
                                   e.stopPropagation();
@@ -1780,26 +2051,26 @@ function CartPage() {
 
           {/* ── Product Details Panel (dv) ── */}
           {selectedItem ? (
-            <div className="h-16 bg-white border border-slate-200 rounded-lg px-4 py-2 flex items-center justify-between text-xs select-none shrink-0 shadow-2xs">
+            <div className="h-16 bg-card border border-border rounded-lg px-4 py-2 flex items-center justify-between text-xs select-none shrink-0 shadow-2xs">
               <div className="flex items-center gap-6">
                 <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
                     Selected Product
                   </span>
-                  <span className="font-bold text-slate-900 text-sm truncate max-w-[200px]">
+                  <span className="font-bold text-foreground text-sm truncate max-w-[200px]">
                     {selectedItem.product.name}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
                     Manufacturer
                   </span>
-                  <span className="font-medium text-slate-700 truncate max-w-[150px]">
+                  <span className="font-medium text-foreground/80 truncate max-w-[150px]">
                     {selectedItem.product.manufacturer || selectedItem.product.category || "Pharma"}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
                     Location / Rack
                   </span>
                   <span className="font-mono font-bold text-primary">
@@ -1807,27 +2078,27 @@ function CartPage() {
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
                     Buying Price
                   </span>
                   {!session?.isEmployee && selectedItem.product.costPrice ? (
                     <button
                       type="button"
                       onClick={() => setShowCostPrice((v) => !v)}
-                      className="flex items-center gap-1 font-mono font-bold text-slate-700 hover:text-primary transition-colors cursor-pointer"
+                      className="flex items-center gap-1 font-mono font-bold text-foreground/80 hover:text-primary transition-colors cursor-pointer"
                       title={showCostPrice ? "Hide buying price" : "Show buying price"}
                     >
                       {showCostPrice ? (
-                        <EyeOff className="h-3 w-3 text-slate-400" />
+                        <EyeOff className="h-3 w-3 text-muted-foreground" />
                       ) : (
-                        <Eye className="h-3 w-3 text-slate-400" />
+                        <Eye className="h-3 w-3 text-muted-foreground" />
                       )}
                       <span>
                         {showCostPrice ? `₹${selectedItem.product.costPrice.toFixed(2)}` : "••••"}
                       </span>
                     </button>
                   ) : (
-                    <span className="font-mono text-slate-400">—</span>
+                    <span className="font-mono text-muted-foreground">—</span>
                   )}
                 </div>
                 {(() => {
@@ -1849,7 +2120,7 @@ function CartPage() {
 
                   return (
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-slate-400">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">
                         Cust Price Memory
                       </span>
                       <button
@@ -1876,23 +2147,23 @@ function CartPage() {
               </div>
               <div className="flex items-center gap-6 text-right">
                 <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
                     Pack / Unit
                   </span>
-                  <span className="font-mono font-semibold text-slate-700">
+                  <span className="font-mono font-semibold text-foreground/80">
                     {selectedItem.product.pack || "10's"} (Conv: {selectedPps})
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
                     Stock Availability
                   </span>
                   <span
                     className={cn(
                       "font-mono font-bold",
                       (selectedItem.product.stock ?? 0) <= 10
-                        ? "text-amber-600"
-                        : "text-emerald-600",
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-emerald-600 dark:text-emerald-400",
                     )}
                   >
                     {formatQty(selectedItem.product.stock)} Packs in stock
@@ -1902,27 +2173,27 @@ function CartPage() {
               </div>
             </div>
           ) : (
-            <div className="h-16 bg-white border border-slate-200 rounded-lg p-2.5 flex items-center justify-between text-xs text-slate-400 select-none shrink-0 shadow-2xs">
+            <div className="h-16 bg-card border border-border rounded-lg p-2.5 flex items-center justify-between text-xs text-muted-foreground select-none shrink-0 shadow-2xs">
               <span>No product selected on active row.</span>
             </div>
           )}
         </div>
 
         {/* ── Right Column: Billing Summary Panel (pv) ── */}
-        <div className="w-64 bg-white border border-slate-200 rounded-lg p-3 flex flex-col justify-between shadow-sm select-none shrink-0">
+        <div className="w-64 bg-card border border-border rounded-lg p-3 flex flex-col justify-between shadow-sm select-none shrink-0">
           <div className="flex flex-col gap-2.5">
             {/* Bill Discount Card */}
-            <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg flex flex-col gap-1.5 shadow-2xs">
+            <div className="p-2 bg-muted/40 border border-border rounded-lg flex flex-col gap-1.5 shadow-2xs">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                <span className="text-[11px] font-bold text-foreground uppercase tracking-wider flex items-center gap-1">
                   <span>🏷️</span> Bill Discount
                   {billDiscountPctStr && (
-                    <span className="text-emerald-700 font-mono font-bold text-[11px]">
+                    <span className="text-emerald-700 dark:text-emerald-400 font-mono font-bold text-[11px]">
                       {billDiscountPctStr}
                     </span>
                   )}
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">
+                <span className="text-[10px] text-muted-foreground font-mono">
                   ₹{cart.subtotal.toFixed(2)}
                 </span>
               </div>
@@ -1932,13 +2203,13 @@ function CartPage() {
                     "flex-1 flex items-center border rounded px-2 py-1 transition-colors",
                     discountPctFocused
                       ? "!bg-primary !border-primary !text-primary-foreground"
-                      : "bg-white border-slate-300",
+                      : "bg-background border-border text-foreground",
                   )}
                 >
                   <span
                     className={cn(
                       "text-[11px] font-mono mr-1 font-bold",
-                      discountPctFocused ? "!text-primary-foreground/80" : "text-slate-400",
+                      discountPctFocused ? "!text-primary-foreground/80" : "text-muted-foreground",
                     )}
                   >
                     %
@@ -1976,7 +2247,7 @@ function CartPage() {
                       "w-full text-right font-mono text-xs font-semibold outline-none bg-transparent",
                       discountPctFocused
                         ? "!text-primary-foreground placeholder:!text-primary-foreground/70"
-                        : "text-slate-800",
+                        : "text-foreground",
                     )}
                   />
                 </div>
@@ -1985,13 +2256,13 @@ function CartPage() {
                     "flex-1 flex items-center border rounded px-2 py-1 transition-colors",
                     discountFlatFocused
                       ? "!bg-primary !border-primary !text-primary-foreground"
-                      : "bg-white border-slate-300",
+                      : "bg-background border-border text-foreground",
                   )}
                 >
                   <span
                     className={cn(
                       "text-[11px] font-mono mr-1 font-bold",
-                      discountFlatFocused ? "!text-primary-foreground/80" : "text-slate-400",
+                      discountFlatFocused ? "!text-primary-foreground/80" : "text-muted-foreground",
                     )}
                   >
                     ₹
@@ -2029,7 +2300,7 @@ function CartPage() {
                       "w-full text-right font-mono text-xs font-semibold outline-none bg-transparent",
                       discountFlatFocused
                         ? "!text-primary-foreground placeholder:!text-primary-foreground/70"
-                        : "text-slate-800",
+                        : "text-foreground",
                     )}
                   />
                 </div>
@@ -2037,45 +2308,45 @@ function CartPage() {
             </div>
 
             {/* Bill Summary Title */}
-            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+            <div className="flex items-center justify-between pb-1.5 border-b border-border">
+              <span className="text-[11px] font-bold text-foreground uppercase tracking-wide">
                 Bill Summary
               </span>
-              <span className="text-[11px] font-mono text-slate-500">
+              <span className="text-[11px] font-mono text-muted-foreground">
                 {cart.items.length} Items
               </span>
             </div>
 
             {/* Bill Summary Rows */}
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-muted-foreground">
                 <span>Gross Total</span>
-                <span className="font-mono font-medium">₹{grossTotal.toFixed(2)}</span>
+                <span className="font-mono font-medium text-foreground">₹{grossTotal.toFixed(2)}</span>
               </div>
               {cart.discount > 0 && (
-                <div className="flex justify-between text-slate-600">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Bill Discount{billDiscountPctStr}</span>
-                  <span className="font-mono font-medium text-amber-600">
+                  <span className="font-mono font-medium text-amber-600 dark:text-amber-400">
                     -₹{cart.discount.toFixed(2)}
                   </span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-muted-foreground">
                 <span>Taxable Value</span>
-                <span className="font-mono font-medium">₹{cart.subtotal.toFixed(2)}</span>
+                <span className="font-mono font-medium text-foreground">₹{cart.subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-muted-foreground">
                 <span>CGST</span>
-                <span className="font-mono font-medium">₹{(cart.tax / 2).toFixed(2)}</span>
+                <span className="font-mono font-medium text-foreground">₹{(cart.tax / 2).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-muted-foreground">
                 <span>SGST</span>
-                <span className="font-mono font-medium">₹{(cart.tax / 2).toFixed(2)}</span>
+                <span className="font-mono font-medium text-foreground">₹{(cart.tax / 2).toFixed(2)}</span>
               </div>
               {Math.abs(roundOff) >= 0.01 && (
-                <div className="flex justify-between text-slate-500 text-[11px] pt-1 border-t border-slate-100">
+                <div className="flex justify-between text-muted-foreground text-[11px] pt-1 border-t border-border">
                   <span>Round Off</span>
-                  <span className="font-mono">
+                  <span className="font-mono text-foreground">
                     {roundOff >= 0 ? "+" : ""}₹{roundOff.toFixed(2)}
                   </span>
                 </div>
@@ -2084,16 +2355,16 @@ function CartPage() {
           </div>
 
           {/* Bottom Net Payable & Buttons */}
-          <div className="pt-2.5 border-t border-slate-200 flex flex-col gap-2">
+          <div className="pt-2.5 border-t border-border flex flex-col gap-2">
             <div className="flex items-baseline justify-between">
-              <span className="text-[11px] uppercase font-bold text-slate-700">Net Payable</span>
+              <span className="text-[11px] uppercase font-bold text-foreground">Net Payable</span>
               <span className="font-mono font-extrabold text-xl text-primary">
                 ₹{cart.total.toFixed(2)}
               </span>
             </div>
 
             {hasRx && (
-              <div className="bg-red-50 border border-red-200 rounded p-1.5 text-[10px] text-red-700 leading-tight">
+              <div className="bg-destructive/10 border border-destructive/20 rounded p-1.5 text-[10px] text-destructive leading-tight">
                 ⚠️ Contains <strong>Schedule H1 / Rx</strong> drugs.
               </div>
             )}
@@ -2108,7 +2379,7 @@ function CartPage() {
               className={cn(
                 "w-full font-bold py-2 px-3 rounded shadow-sm transition-colors flex items-center justify-center gap-1.5 text-xs",
                 cart.items.length === 0 || submitting || rxBlocked
-                  ? "bg-slate-300 text-slate-500 cursor-not-allowed opacity-60"
+                  ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
                   : "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white cursor-pointer",
               )}
             >
@@ -2117,7 +2388,7 @@ function CartPage() {
                 className={cn(
                   "text-[10px] px-1.5 py-0.5 rounded font-mono",
                   cart.items.length === 0 || submitting || rxBlocked
-                    ? "bg-slate-400 text-slate-200"
+                    ? "bg-muted-foreground/20 text-muted-foreground"
                     : "bg-emerald-700 text-emerald-100",
                 )}
               >
@@ -2130,10 +2401,10 @@ function CartPage() {
               <button
                 type="button"
                 onClick={handleSaveDraft}
-                className="w-full font-semibold py-1.5 px-3 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full font-semibold py-1.5 px-3 rounded border border-border text-foreground hover:bg-muted text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 title="Save current bill as draft"
               >
-                <Save className="h-3 w-3 text-slate-500" />
+                <Save className="h-3 w-3 text-muted-foreground" />
                 <span>Save as Draft</span>
               </button>
             )}
@@ -2142,16 +2413,16 @@ function CartPage() {
       </main>
 
       {/* ─── SECTION D: Compact Bottom Keyboard Shortcut Bar (ya) ─────────── */}
-      <footer className="h-7 bg-white border-t border-slate-200 px-4 flex items-center justify-between text-[11px] text-slate-600 shrink-0 select-none">
+      <footer className="h-7 bg-card border-t border-border px-4 flex items-center justify-between text-[11px] text-muted-foreground shrink-0 select-none">
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="flex items-center gap-1 shrink-0">
-            <kbd className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded border border-slate-300 font-mono font-bold text-[9px]">
+            <kbd className="bg-muted text-foreground px-1 py-0.2 rounded border border-border font-mono font-bold text-[9px]">
               ↑ ↓ ← →
             </kbd>
             <span className="truncate">Grid</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <kbd className="text-emerald-800 bg-emerald-100 border border-emerald-300 font-bold px-1 py-0.2 rounded font-mono text-[9px]">
+            <kbd className="text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 font-bold px-1 py-0.2 rounded font-mono text-[9px]">
               Ctrl+S / End
             </kbd>
             <span className="truncate">Payment & Save</span>
@@ -2163,20 +2434,20 @@ function CartPage() {
             <span className="truncate">Switch Bill Tab</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <kbd className="bg-slate-100 text-slate-800 px-1 py-0.2 rounded border border-slate-300 font-mono font-bold text-[9px]">
+            <kbd className="bg-muted text-foreground px-1 py-0.2 rounded border border-border font-mono font-bold text-[9px]">
               Ctrl+T
             </kbd>
             <span className="truncate">New Bill Tab</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500 shrink-0">
-          <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+        <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground shrink-0">
+          <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span>Local database</span>
-            <span className="text-slate-300 font-normal">·</span>
-            <span className="text-slate-600 font-normal">Ready</span>
-            <span className="text-slate-300 font-normal">·</span>
-            <span className="text-slate-500 font-normal">v1.0.3</span>
+            <span className="text-border font-normal">·</span>
+            <span className="text-muted-foreground font-normal">Ready</span>
+            <span className="text-border font-normal">·</span>
+            <span className="text-muted-foreground/80 font-normal">v1.0.3</span>
           </span>
         </div>
       </footer>
@@ -2644,7 +2915,7 @@ function CartAddDialog({
       >
         <DialogContent className="max-w-md p-4">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">
+            <DialogTitle className="text-base font-bold text-foreground">
               Select Batch for {batchesProduct?.name}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -2681,7 +2952,7 @@ function CartAddDialog({
                     onMouseEnter={() => setSelectedBatchIdx(idx)}
                   >
                     <div>
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5 uppercase">
+                      <div className="font-bold text-foreground flex items-center gap-1.5 uppercase">
                         Batch: {b.batch || "UNBATCHED"}
                       </div>
                       <div className="text-[10px] text-muted-foreground mt-0.5">

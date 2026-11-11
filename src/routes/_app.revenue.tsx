@@ -1,7 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, IndianRupee, ReceiptText, TrendingUp, Wallet } from "lucide-react";
-import { billsStore, customersStore, type Bill } from "@/lib/storage";
+import {
+  ArrowLeft,
+  IndianRupee,
+  ReceiptText,
+  TrendingUp,
+  Wallet,
+  Package,
+  ShoppingCart,
+  AlertTriangle,
+  Clock,
+  LayoutDashboard,
+  BarChart3,
+} from "lucide-react";
+import { billsStore, customersStore, productsStore, type Bill, type Product } from "@/lib/storage";
+import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +37,8 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { TableSkeleton } from "@/components/loading-skeleton";
+import { DashboardSkeleton, TableSkeleton } from "@/components/loading-skeleton";
+import { cn } from "@/lib/utils";
 
 type Range = "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "year" | "custom" | "all";
 type RevenueSearch = { range?: Range; from?: string; to?: string };
@@ -95,6 +109,11 @@ function rangeBounds(range: Range, from?: string, to?: string): { start: Date; e
 
 function RevenuePage() {
   const [bills, setBills] = useState<Bill[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [activeTab, setActiveTab] = useState<"overview" | "financial">("overview");
+  const { session } = useAuth();
+  const expiryDays = session?.expiryDays ?? 60;
+  const lowStockQty = session?.lowStockQty ?? 10;
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
@@ -103,7 +122,7 @@ function RevenuePage() {
   const [loading, setLoading] = useState(true);
 
   const [payments, setPayments] = useState<
-    { id?: string; amount: number; method: string; created_at: string; customer_name?: string }[]
+    { id?: string; amount: number; method: string; created_at: string; customer_name?: string; customer_phone?: string }[]
   >([]);
 
   const [detailType, setDetailType] = useState<
@@ -116,11 +135,12 @@ function RevenuePage() {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([billsStore.list(), customersStore.getAllPayments()])
-      .then(([b, p]) => {
+    Promise.all([billsStore.list(), customersStore.getAllPayments(), productsStore.list()])
+      .then(([b, p, prod]) => {
         if (!cancelled) {
           setBills(b);
           setPayments(p);
+          setProducts(prod);
           setLoading(false);
         }
       })
@@ -128,6 +148,7 @@ function RevenuePage() {
         if (!cancelled) {
           setBills([]);
           setPayments([]);
+          setProducts([]);
           setLoading(false);
         }
       });
@@ -135,6 +156,111 @@ function RevenuePage() {
       cancelled = true;
     };
   }, []);
+
+  const completedBills = useMemo(
+    () => bills.filter((b) => b.status === "completed" || !b.status),
+    [bills],
+  );
+  const pendingBills = useMemo(() => bills.filter((b) => b.status === "pending"), [bills]);
+
+  // Month-to-date: strictly bounded to the current calendar month
+  const { monthStart, monthEnd } = useMemo(() => {
+    const d = new Date();
+    const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+    return { monthStart: start, monthEnd: end };
+  }, []);
+
+  const billsThisMonth = useMemo(
+    () =>
+      completedBills.filter((b) => {
+        const t = new Date(b.createdAt).getTime();
+        return t >= monthStart && t <= monthEnd;
+      }),
+    [completedBills, monthStart, monthEnd],
+  );
+
+  const totalSalesThisMonth = useMemo(
+    () => billsThisMonth.reduce((s, b) => s + b.total, 0),
+    [billsThisMonth],
+  );
+
+  // Stock value = sum of rounded (batch purchase price × batch quantity) across all batches
+  const stockValue = useMemo(() => {
+    return products.reduce((total, p) => {
+      if (p.batches && p.batches.length > 0) {
+        return (
+          total +
+          p.batches.reduce(
+            (bSum, b) =>
+              bSum + Math.round((b.costPrice ?? b.price ?? 0) * (b.stock || 0) * 100) / 100,
+            0,
+          )
+        );
+      }
+      return total + Math.round((p.costPrice ?? p.price ?? 0) * (p.stock || 0) * 100) / 100;
+    }, 0);
+  }, [products]);
+
+  const lowStock = useMemo(
+    () => products.filter((p) => p.stock <= lowStockQty),
+    [products, lowStockQty],
+  );
+
+  const expiringSoon = useMemo(
+    () =>
+      products
+        .filter((p) => {
+          const d = new Date(p.expiry).getTime();
+          const days = (d - Date.now()) / (1000 * 60 * 60 * 24);
+          return days <= expiryDays && days >= 0;
+        })
+        .sort((a, b) => new Date(a.expiry).getTime() - new Date(b.expiry).getTime()),
+    [products, expiryDays],
+  );
+
+  const expired = useMemo(
+    () => products.filter((p) => new Date(p.expiry).getTime() < Date.now()),
+    [products],
+  );
+
+  // Last 14 days revenue trend for the dashboard graph
+  const trendData = useMemo(() => {
+    const days: { label: string; key: string; revenue: number }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      days.push({
+        key: `${year}-${month}-${day}`,
+        label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        revenue: 0,
+      });
+    }
+    const map = new Map(days.map((d) => [d.key, d]));
+    for (const b of completedBills) {
+      const d = new Date(b.createdAt);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const k = `${year}-${month}-${day}`;
+      const row = map.get(k);
+      if (row) row.revenue += b.total;
+    }
+    return days;
+  }, [completedBills]);
+
+  const trendDelta = useMemo(() => {
+    const half = Math.floor(trendData.length / 2);
+    const first = trendData.slice(0, half).reduce((s, d) => s + d.revenue, 0);
+    const second = trendData.slice(half).reduce((s, d) => s + d.revenue, 0);
+    if (first === 0) return second > 0 ? 100 : 0;
+    return ((second - first) / first) * 100;
+  }, [trendData]);
 
   const { start, end } = useMemo(
     () => rangeBounds(range, search.from, search.to),
@@ -496,23 +622,326 @@ function RevenuePage() {
     boxShadow: "var(--shadow-soft)",
   };
 
-  if (loading && bills.length === 0) return <TableSkeleton cols={4} rows={10} />;
+  const overviewStats: Array<{
+    label: string;
+    value: string | number;
+    icon: any;
+    tint: string;
+    to: string;
+    search?: Record<string, string | number>;
+  }> = [
+    {
+      label: "Products",
+      value: products.length,
+      icon: Package,
+      tint: "bg-primary/10 text-primary",
+      to: "/inventory",
+    },
+    {
+      label: "Stock value",
+      value: formatMoney(stockValue),
+      icon: IndianRupee,
+      tint: "bg-primary/10 text-primary",
+      to: "/inventory",
+    },
+    {
+      label: "Bills this month",
+      value: billsThisMonth.length,
+      icon: ReceiptText,
+      tint: "bg-accent text-accent-foreground",
+      to: "/bills",
+      search: { range: "month" },
+    },
+    {
+      label: "Revenue this month",
+      value: formatMoney(totalSalesThisMonth),
+      icon: IndianRupee,
+      tint: "bg-success/15 text-success",
+      to: "/revenue",
+      search: { range: "month" },
+    },
+    {
+      label: "Low stock",
+      value: lowStock.length,
+      icon: AlertTriangle,
+      tint: "bg-warning/20 text-warning-foreground",
+      to: "/inventory",
+      search: { filter: "low" },
+    },
+    {
+      label: "Expiring soon",
+      value: expiringSoon.length,
+      icon: AlertTriangle,
+      tint: "bg-destructive/10 text-destructive",
+      to: "/inventory",
+      search: { filter: "expiring" },
+    },
+  ];
+
+  if (loading && bills.length === 0 && products.length === 0) {
+    return activeTab === "overview" ? <DashboardSkeleton /> : <TableSkeleton cols={4} rows={10} />;
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2">
+          <Button asChild variant="ghost" size="sm" className="mb-1 -ml-2 h-7 text-xs text-muted-foreground hover:text-foreground">
             <Link to="/dashboard">
-              <ArrowLeft className="h-4 w-4" /> Back to dashboard
+              <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to menu (Esc)
             </Link>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Revenue analytics</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {rangeLabel[range]} · {start.toLocaleDateString()} – {end.toLocaleDateString()}
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">Reports & Dashboard</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {activeTab === "overview"
+              ? "Complete overview of pharmacy operations, inventory, stock value, and recent sales."
+              : `${rangeLabel[range]} · ${start.toLocaleDateString()} – ${end.toLocaleDateString()}`}
           </p>
         </div>
+
+        {/* View Switcher Tabs & Quick Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="bg-muted p-1 rounded-lg border border-border flex items-center gap-1 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab("overview")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                activeTab === "overview"
+                  ? "bg-card text-foreground shadow-xs font-bold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-card/50",
+              )}
+            >
+              <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
+              <span>Dashboard Overview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("financial")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                activeTab === "financial"
+                  ? "bg-card text-foreground shadow-xs font-bold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-card/50",
+              )}
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-primary" />
+              <span>Financial Analytics</span>
+            </button>
+          </div>
+
+          {activeTab === "overview" && (
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+                <Link to="/inventory" search={{ add: 1 }}>
+                  Add product
+                </Link>
+              </Button>
+              <Button asChild size="sm" className="shadow-soft h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Link to="/cart">
+                  <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> New sale
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ─── TAB 1: PREVIOUS DASHBOARD OVERVIEW ─── */}
+      {activeTab === "overview" ? (
+        <div className="space-y-4 sm:space-y-5 animate-in fade-in-0 duration-150">
+          {pendingBills.length > 0 && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-soft">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                  <Clock className="h-4 w-4 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold">
+                    {pendingBills.length} Employee Bill{pendingBills.length === 1 ? "" : "s"} Awaiting Approval
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Staff submitted sales invoices that require your review and confirmation before stock is deducted.
+                  </p>
+                </div>
+              </div>
+              <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs h-7 text-xs">
+                <Link to="/bills" search={{ status: "pending" }}>
+                  Review & Approve Bills →
+                </Link>
+              </Button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
+            {overviewStats.map((s, i) => (
+              <Link key={s.label} to={s.to} search={s.search ?? {}} className="block group">
+                <Card
+                  className="shadow-soft border-border/60 animate-fade-in transition-smooth hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer h-full"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <CardContent className="p-3.5">
+                    <div
+                      className={`inline-flex h-9 w-9 rounded-lg items-center justify-center ${s.tint}`}
+                    >
+                      <s.icon className="h-5 w-5" />
+                    </div>
+                    <div className="mt-4 text-2xl font-semibold">{s.value}</div>
+                    <div className="text-xs text-muted-foreground mt-1 group-hover:text-foreground transition-smooth">
+                      {s.label}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+
+          <Card className="shadow-soft animate-fade-in">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Revenue trend</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Last 14 days · see if your sales are trending up or down.
+                </p>
+              </div>
+              <div
+                className={
+                  "inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full " +
+                  (trendDelta >= 0
+                    ? "bg-success/15 text-success"
+                    : "bg-destructive/10 text-destructive")
+                }
+              >
+                <TrendingUp className={"h-3.5 w-3.5 " + (trendDelta < 0 ? "rotate-180" : "")} />
+                {trendDelta >= 0 ? "+" : ""}
+                {trendDelta.toFixed(1)}%
+              </div>
+            </CardHeader>
+            <CardContent className="h-60">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="revOverview" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" stroke="var(--color-muted-foreground)" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-popover)",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      color: "var(--color-popover-foreground)",
+                    }}
+                    formatter={(v) => formatMoney(Number(v))}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="var(--color-primary)"
+                    strokeWidth={2}
+                    fill="url(#revOverview)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Card className="shadow-soft animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-base">Recent bills</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {bills.length === 0 ? (
+                  <EmptyHint label="No bills yet. Make your first sale." to="/cart" cta="New sale" />
+                ) : (
+                  bills.slice(0, 5).map((b) => (
+                    <div
+                      key={b.id}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-smooth"
+                    >
+                      <div>
+                        <div className="font-medium text-sm">{b.number}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(b.createdAt).toLocaleString()} · {b.items.length} items
+                        </div>
+                      </div>
+                      <div className="text-sm font-semibold">{formatMoney(b.total)}</div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft animate-fade-in">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Expiring soon</CardTitle>
+                <span className="text-xs text-muted-foreground">Next {expiryDays} days</span>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {expired.length === 0 && expiringSoon.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No products expiring soon.</p>
+                ) : (
+                  <>
+                    {expired.slice(0, 3).map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-smooth"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Batch {p.batch ?? "—"} · {p.stock} in stock
+                          </div>
+                        </div>
+                        <span className="text-destructive bg-destructive/10 px-2 py-0.5 rounded-md text-xs font-medium shrink-0">
+                          Expired {new Date(p.expiry).toLocaleDateString()}
+                        </span>
+                      </div>
+                    ))}
+                    {expiringSoon.slice(0, 6).map((p) => {
+                      const days = Math.max(
+                        0,
+                        Math.ceil((new Date(p.expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+                      );
+                      const urgent = days <= 14;
+                      return (
+                        <div
+                          key={p.id}
+                          className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-smooth"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">{p.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Batch {p.batch ?? "—"} · {p.stock} in stock
+                            </div>
+                          </div>
+                          <span
+                            className={
+                              urgent
+                                ? "text-destructive bg-destructive/10 px-2 py-0.5 rounded-md text-xs font-medium shrink-0"
+                                : "text-warning-foreground bg-warning/30 px-2 py-0.5 rounded-md text-xs font-medium shrink-0"
+                            }
+                          >
+                            {days}d · {new Date(p.expiry).toLocaleDateString()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        /* ─── TAB 2: FINANCIAL & TAX ANALYTICS ─── */
+        <div className="space-y-6 animate-in fade-in-0 duration-150">
 
       <Card className="shadow-soft">
         <CardContent className="p-4 space-y-4">
@@ -849,6 +1278,19 @@ function RevenuePage() {
           )}
         </DialogContent>
       </Dialog>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyHint({ label, to, cta }: { label: string; to: string; cta: string }) {
+  return (
+    <div className="text-center py-6 space-y-3">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <Button asChild size="sm">
+        <Link to={to}>{cta}</Link>
+      </Button>
     </div>
   );
 }

@@ -232,7 +232,7 @@ function DashboardPage() {
             hotkey: "R",
             title: "Reports",
             path: "/revenue",
-            desc: "Schedule H1 register, sales and profit",
+            desc: "Dashboard overview, stock value, sales & profit",
             icon: TrendingUp,
           },
           {

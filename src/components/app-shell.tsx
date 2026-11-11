@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (path.startsWith("/purchases")) return "Purchases";
     if (path.startsWith("/credit")) return "Credit Sales";
     if (path.startsWith("/ledger")) return "Ledger";
-    if (path.startsWith("/revenue")) return "Reports & Revenue";
+    if (path.startsWith("/revenue")) return "Reports & Dashboard";
     if (path.startsWith("/customers")) return "Customers";
     if (path.startsWith("/employees")) return "Employees";
     if (path.startsWith("/settings")) return "Settings";
