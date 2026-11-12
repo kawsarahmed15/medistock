@@ -48,6 +48,7 @@ function formatDate(iso: string) {
 function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[] | null>(null);
   const [q, setQ, clearQ] = usePersistentSearch("medistock_search_customers", "");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [period, setPeriod] = useState("all_time");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -155,28 +156,36 @@ function CustomersPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
-      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
+      const isSearchBox = tgt === searchInputRef.current;
+      const isOtherInput =
+        tgt &&
+        (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable) &&
+        !isSearchBox;
+
+      if (isOtherInput) {
         return;
       }
       if (editingCustomer || selectedCustomer) return;
       if (filtered.length === 0) return;
 
-      if (e.key === "ArrowDown" || e.key === "j") {
+      if (e.key === "ArrowDown" || (!isSearchBox && e.key === "j")) {
         e.preventDefault();
         setFocusedIdx((i) => {
           const next = Math.min(filtered.length - 1, i + 1);
-          rowRefs.current[next]?.focus();
+          if (!isSearchBox) rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
-      } else if (e.key === "ArrowUp" || e.key === "k") {
+      } else if (e.key === "ArrowUp" || (!isSearchBox && e.key === "k")) {
         e.preventDefault();
         setFocusedIdx((i) => {
           const next = Math.max(0, i - 1);
-          rowRefs.current[next]?.focus();
+          if (!isSearchBox) rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
       } else if (e.key === "Enter") {
-        const c = filtered[focusedIdx];
+        const c = filtered[focusedIdx] || filtered[0];
         if (c) {
           e.preventDefault();
           viewCustomerDetails(c);
@@ -277,6 +286,7 @@ function CustomersPage() {
             <div className="relative">
               <Search className="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search by name or phone"

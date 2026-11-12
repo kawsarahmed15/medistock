@@ -3888,6 +3888,32 @@ function CheckoutFlowDialog({
       .slice(0, 6);
   }, [savedCustomers, custSearch]);
 
+  const [activeCustPickIdx, setActiveCustPickIdx] = useState(0);
+
+  useEffect(() => {
+    setActiveCustPickIdx(0);
+  }, [custSearch]);
+
+  const handleCustSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const totalItems = matchedCustomers.length + 1; // 0 is Walk-in Customer
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveCustPickIdx((i) => Math.min(i + 1, totalItems - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveCustPickIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeCustPickIdx === 0) {
+        handleSetWalkIn();
+      } else if (matchedCustomers[activeCustPickIdx - 1]) {
+        selectCustomer(matchedCustomers[activeCustPickIdx - 1]);
+      }
+    } else if (e.key === "Escape") {
+      setShowPicker(false);
+    }
+  };
+
   const selectCustomer = (c: SavedCustomer) => {
     cart.setCustomer({
       name: c.name,
@@ -4078,6 +4104,7 @@ function CheckoutFlowDialog({
                       <Input
                         value={custSearch}
                         onChange={(e) => setCustSearch(e.target.value)}
+                        onKeyDown={handleCustSearchKeyDown}
                         placeholder="Search by party name or phone number..."
                         className="h-8 text-xs pl-8"
                         autoFocus
@@ -4105,16 +4132,22 @@ function CheckoutFlowDialog({
 
                   <div className="max-h-40 overflow-y-auto divide-y rounded border text-xs">
                     <div
-                      className="p-2 hover:bg-muted cursor-pointer flex items-center justify-between"
+                      className={cn(
+                        "p-2 hover:bg-muted cursor-pointer flex items-center justify-between",
+                        activeCustPickIdx === 0 && "bg-muted ring-1 ring-inset ring-primary/40"
+                      )}
                       onClick={handleSetWalkIn}
                     >
                       <span className="font-medium text-foreground">Walk-in Customer</span>
                       <span className="text-[10px] text-muted-foreground">Default</span>
                     </div>
-                    {matchedCustomers.map((c) => (
+                    {matchedCustomers.map((c, idx) => (
                       <div
                         key={c.id}
-                        className="p-2 hover:bg-muted cursor-pointer flex items-center justify-between"
+                        className={cn(
+                          "p-2 hover:bg-muted cursor-pointer flex items-center justify-between",
+                          activeCustPickIdx === idx + 1 && "bg-muted ring-1 ring-inset ring-primary/40"
+                        )}
                         onClick={() => selectCustomer(c)}
                       >
                         <div>

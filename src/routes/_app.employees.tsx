@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { usePersistentSearch } from "@/lib/use-persistent-search";
 import { employeesStore, billsStore, type Employee, type Bill } from "@/lib/storage";
@@ -390,6 +390,62 @@ function EmployeesPage() {
 
   const selectedStats = selectedEmployee ? employeeStatsMap.get(selectedEmployee.id) : null;
 
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+
+  useEffect(() => {
+    setFocusedIdx(0);
+  }, [query, statusFilter]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      const isSearchBox = tgt === searchInputRef.current;
+
+      if (!isSearchBox && tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
+        return;
+      }
+
+      if (e.key === "/" && !isSearchBox) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (e.key === "Escape") {
+        if (isSearchBox) {
+          searchInputRef.current?.blur();
+        }
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIdx((prev) => {
+          const next = Math.min(prev + 1, Math.max(0, filteredEmployees.length - 1));
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return next;
+        });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIdx((prev) => {
+          const next = Math.max(0, prev - 1);
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return next;
+        });
+      } else if (e.key === "Enter") {
+        if (filteredEmployees[focusedIdx] && !profileOpen && !modalOpen && !pwdModalOpen && !inspectingBill) {
+          e.preventDefault();
+          openEmployeeProfile(filteredEmployees[focusedIdx]);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [filteredEmployees, focusedIdx, profileOpen, modalOpen, pwdModalOpen, inspectingBill]);
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto animate-fade-in pb-16">
       {/* Header */}
@@ -607,6 +663,7 @@ function EmployeesPage() {
           <div className="relative w-full md:w-64">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               placeholder="Search by name, phone, email..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -677,8 +734,12 @@ function EmployeesPage() {
                   return (
                     <TableRow
                       key={emp.id}
+                      ref={(el) => {
+                        rowRefs.current[idx] = el;
+                      }}
                       className={cn(
                         "hover:bg-muted/60 transition-colors cursor-pointer",
+                        idx === focusedIdx && "bg-muted/70 ring-1 ring-inset ring-primary/40",
                         hasPending && "bg-amber-500/5 hover:bg-amber-500/10"
                       )}
                       onClick={() => openEmployeeProfile(emp)}

@@ -57,6 +57,7 @@ function CreditPage() {
 
   const [focusedIdx, setFocusedIdx] = useState(0);
   const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerBills, setCustomerBills] = useState<Bill[]>([]);
@@ -132,35 +133,42 @@ function CreditPage() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in dialogs or search
       const tgt = e.target as HTMLElement | null;
-      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
+      const isSearchBox = tgt === searchInputRef.current;
+      const isOtherInput =
+        tgt &&
+        (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable) &&
+        !isSearchBox;
+
+      if (isOtherInput) {
         return;
       }
-      if (paymentCustomer || historyCustomer || selectedCustomer) return; // Don't navigate if dialog is open
+      if (paymentCustomer || historyCustomer || selectedCustomer) return;
       if (filtered.length === 0) return;
 
-      if (e.key === "ArrowDown" || e.key === "j") {
+      if (e.key === "ArrowDown" || (!isSearchBox && e.key === "j")) {
         e.preventDefault();
         setFocusedIdx((i) => {
           const next = Math.min(filtered.length - 1, i + 1);
-          rowRefs.current[next]?.focus();
+          if (!isSearchBox) rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
-      } else if (e.key === "ArrowUp" || e.key === "k") {
+      } else if (e.key === "ArrowUp" || (!isSearchBox && e.key === "k")) {
         e.preventDefault();
         setFocusedIdx((i) => {
           const next = Math.max(0, i - 1);
-          rowRefs.current[next]?.focus();
+          if (!isSearchBox) rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
       } else if (e.key === "Enter") {
-        const c = filtered[focusedIdx];
+        const c = filtered[focusedIdx] || filtered[0];
         if (c) {
           e.preventDefault();
           viewCustomerDetails(c);
         }
-      } else if (e.key === "h" || e.key === "H") {
+      } else if (!isSearchBox && (e.key === "h" || e.key === "H")) {
         const c = filtered[focusedIdx];
         if (c) {
           e.preventDefault();
@@ -170,7 +178,7 @@ function CreditPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [filtered, focusedIdx, paymentCustomer, historyCustomer]);
+  }, [filtered, focusedIdx, paymentCustomer, historyCustomer, selectedCustomer]);
 
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,6 +239,7 @@ function CreditPage() {
         <div className="relative w-full sm:w-72">
           <Search className="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
+            ref={searchInputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by name or phone"

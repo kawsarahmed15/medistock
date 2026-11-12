@@ -97,6 +97,7 @@ function BillsPage() {
   const statusTab: StatusTab = search.status ?? "all";
   const [focusedIdx, setFocusedIdx] = useState(0);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Sale Return Dialog State
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
@@ -483,23 +484,30 @@ function BillsPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
-      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable)) {
+      const isSearchBox = tgt === searchInputRef.current;
+      const isOtherField =
+        tgt &&
+        (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable) &&
+        !isSearchBox;
+
+      if (isOtherField || isReturnDialogOpen) {
         return;
       }
       if (filtered.length === 0) return;
-      if (e.key === "ArrowDown" || e.key === "j") {
+
+      if (e.key === "ArrowDown" || (!isSearchBox && e.key === "j")) {
         e.preventDefault();
         setFocusedIdx((i) => {
           const next = Math.min(filtered.length - 1, i + 1);
-          rowRefs.current[next]?.focus();
+          if (!isSearchBox) rowRefs.current[next]?.focus();
           rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
-      } else if (e.key === "ArrowUp" || e.key === "k") {
+      } else if (e.key === "ArrowUp" || (!isSearchBox && e.key === "k")) {
         e.preventDefault();
         setFocusedIdx((i) => {
           const next = Math.max(0, i - 1);
-          rowRefs.current[next]?.focus();
+          if (!isSearchBox) rowRefs.current[next]?.focus();
           rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
           return next;
         });
@@ -509,7 +517,7 @@ function BillsPage() {
           e.preventDefault();
           routerNavigate({ to: "/bills/$id", params: { id: b.id } });
         }
-      } else if (e.key === "d" || e.key === "D") {
+      } else if (!isSearchBox && (e.key === "d" || e.key === "D")) {
         const b = filtered[focusedIdx];
         if (b) {
           e.preventDefault();
@@ -519,7 +527,7 @@ function BillsPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [filtered, focusedIdx, routerNavigate]);
+  }, [filtered, focusedIdx, routerNavigate, isReturnDialogOpen]);
 
   if (loading && bills.length === 0) return <TableSkeleton cols={7} />;
 
@@ -556,6 +564,7 @@ function BillsPage() {
           <div className="relative w-full md:w-72">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               placeholder="Search by invoice or customer…"
               className="pl-9 pr-8"
               value={query}
@@ -765,6 +774,9 @@ function BillsPage() {
             return (
               <Card
                 key={b.id}
+                ref={(el) => {
+                  if (!rowRefs.current[idx]) rowRefs.current[idx] = el as any;
+                }}
                 className={cn(
                   "shadow-soft p-4 active:scale-[0.99] transition-smooth cursor-pointer border-l-4",
                   idx === focusedIdx

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Search, TrendingDown, TrendingUp, Wallet, X } from "lucide-react";
 import { billsStore, purchasesStore, type Bill, type Purchase } from "@/lib/storage";
 import { usePersistentSearch } from "@/lib/use-persistent-search";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth-context";
 import { TableSkeleton } from "@/components/loading-skeleton";
+import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -98,6 +99,9 @@ function LedgerPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [filterType, setFilterType] = useState<"all" | "sale" | "purchase">("all");
   const [searchQuery, setSearchQuery, clearSearchQuery] = usePersistentSearch("medistock_search_ledger", "");
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,6 +216,44 @@ function LedgerPage() {
       netFlow: salesTotal - purchasesTotal,
     };
   }, [ledgerEntries]);
+
+  useEffect(() => {
+    if (focusedIdx >= ledgerEntries.length) setFocusedIdx(0);
+  }, [ledgerEntries.length, focusedIdx]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      const isSearchBox = tgt === searchInputRef.current;
+      const isOtherInput =
+        tgt &&
+        (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.isContentEditable) &&
+        !isSearchBox;
+
+      if (isOtherInput) return;
+      if (ledgerEntries.length === 0) return;
+
+      if (e.key === "ArrowDown" || (!isSearchBox && e.key === "j")) {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.min(ledgerEntries.length - 1, i + 1);
+          if (!isSearchBox) rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return next;
+        });
+      } else if (e.key === "ArrowUp" || (!isSearchBox && e.key === "k")) {
+        e.preventDefault();
+        setFocusedIdx((i) => {
+          const next = Math.max(0, i - 1);
+          if (!isSearchBox) rowRefs.current[next]?.focus();
+          rowRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          return next;
+        });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ledgerEntries, focusedIdx]);
 
   const handleRangeChange = (r: Range) => {
     if (r === "custom") {
@@ -580,6 +622,7 @@ function LedgerPage() {
             <div className="relative w-full sm:w-72">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 placeholder="Search ref #, party or item..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -619,8 +662,21 @@ function LedgerPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ledgerEntries.map((e) => (
-                    <TableRow key={e.id} className="hover:bg-slate-50/50">
+                  {ledgerEntries.map((e, idx) => (
+                    <TableRow
+                      key={e.id}
+                      ref={(el) => {
+                        rowRefs.current[idx] = el;
+                      }}
+                      tabIndex={0}
+                      onFocus={() => setFocusedIdx(idx)}
+                      className={cn(
+                        "transition-colors border-l-4 outline-none",
+                        idx === focusedIdx
+                          ? "bg-primary/15 dark:bg-primary/25 border-l-primary ring-1 ring-primary/30 font-medium"
+                          : "hover:bg-slate-50/50 border-l-transparent",
+                      )}
+                    >
                       <TableCell className="font-medium">
                         {new Date(e.date).toLocaleDateString("en-IN", {
                           day: "2-digit",

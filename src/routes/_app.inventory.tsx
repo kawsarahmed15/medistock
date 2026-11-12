@@ -385,9 +385,9 @@ function InventoryPage() {
         e.preventDefault();
         setSelectedIdx(Math.max(0, sorted.length - 1));
       } else if (e.key === "Enter") {
-        if (selectedIdx >= 0 && selectedIdx < sorted.length) {
+        const targetProduct = selectedIdx >= 0 && selectedIdx < sorted.length ? sorted[selectedIdx] : sorted[0];
+        if (targetProduct) {
           e.preventDefault();
-          const targetProduct = sorted[selectedIdx];
           navigate({ to: "/inventory/$id", params: { id: targetProduct.productId || targetProduct.id } });
         }
       }

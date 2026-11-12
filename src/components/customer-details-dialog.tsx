@@ -58,6 +58,31 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
       .slice(0, 6);
   }, [saved, pickQuery]);
 
+  const [activeQuickPickIdx, setActiveQuickPickIdx] = useState(0);
+
+  useEffect(() => {
+    setActiveQuickPickIdx(0);
+  }, [pickQuery]);
+
+  const handleQuickPickKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (matches.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveQuickPickIdx((prev) => Math.min(prev + 1, matches.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveQuickPickIdx((prev) => Math.max(0, prev - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (matches[activeQuickPickIdx]) {
+        pick(matches[activeQuickPickIdx]);
+      }
+    } else if (e.key === "Escape") {
+      setShowPicker(false);
+    }
+  };
+
   const pick = (c: SavedCustomer) => {
     setForm({
       name: c.name,
@@ -246,6 +271,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                   <Input
                     value={pickQuery}
                     onChange={(e) => setPickQuery(e.target.value)}
+                    onKeyDown={handleQuickPickKeyDown}
                     placeholder="Search name or phone"
                     className="pl-8 h-8 text-xs bg-background"
                     autoFocus
@@ -255,7 +281,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                   {matches.length === 0 ? (
                     <p className="text-xs text-muted-foreground px-2 py-2">No matches.</p>
                   ) : (
-                    matches.map((c) => (
+                    matches.map((c, idx) => (
                       <button
                         key={`${c.phone}-${c.name}`}
                         type="button"
@@ -264,6 +290,7 @@ export function CustomerDetailsDialog({ open, onOpenChange }: Props) {
                           "w-full text-left rounded-md px-2.5 py-1.5 text-xs transition-smooth",
                           "hover:bg-accent hover:text-accent-foreground",
                           "border border-transparent hover:border-border",
+                          idx === activeQuickPickIdx && "bg-accent text-accent-foreground border-border"
                         )}
                       >
                         <div className="font-medium truncate">

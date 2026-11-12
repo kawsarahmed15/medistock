@@ -43,6 +43,8 @@ export function NewSaleCustomerPage() {
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [nameFocused, setNameFocused] = useState(false);
   const [activeMatchIdx, setActiveMatchIdx] = useState(-1);
+  const [focusedCustomerIdx, setFocusedCustomerIdx] = useState(0);
+  const customerItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -115,6 +117,35 @@ export function NewSaleCustomerPage() {
       setNameFocused(false);
     } else if (e.key === "Escape") {
       setNameFocused(false);
+    }
+  };
+
+  useEffect(() => {
+    setFocusedCustomerIdx(0);
+  }, [pickQuery]);
+
+  const handlePickQueryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (matches.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusedCustomerIdx((prev) => {
+        const next = Math.min(prev + 1, matches.length - 1);
+        customerItemRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        return next;
+      });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusedCustomerIdx((prev) => {
+        const next = Math.max(0, prev - 1);
+        customerItemRefs.current[next]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        return next;
+      });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (matches[focusedCustomerIdx]) {
+        pickCustomer(matches[focusedCustomerIdx], true);
+      }
     }
   };
 
@@ -532,6 +563,7 @@ export function NewSaleCustomerPage() {
                   placeholder="Filter name or phone..."
                   value={pickQuery}
                   onChange={(e) => setPickQuery(e.target.value)}
+                  onKeyDown={handlePickQueryKeyDown}
                   className="h-8 text-xs pl-8"
                 />
               </div>
@@ -543,12 +575,18 @@ export function NewSaleCustomerPage() {
                   {saved.length === 0 ? "No registered customers yet." : "No matching customers."}
                 </p>
               ) : (
-                matches.map((c) => (
+                matches.map((c, idx) => (
                   <button
                     key={c.phone || c.name}
+                    ref={(el) => {
+                      customerItemRefs.current[idx] = el;
+                    }}
                     type="button"
                     onClick={() => pickCustomer(c, true)}
-                    className="w-full text-left p-2.5 rounded-lg border bg-card hover:bg-muted/60 transition-colors text-xs space-y-1 block group"
+                    className={cn(
+                      "w-full text-left p-2.5 rounded-lg border bg-card hover:bg-muted/60 transition-colors text-xs space-y-1 block group",
+                      idx === focusedCustomerIdx && "bg-muted/80 ring-2 ring-primary border-primary"
+                    )}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
