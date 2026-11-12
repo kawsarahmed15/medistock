@@ -36,7 +36,7 @@ const SHORTCUTS = [
   { keys: "D", label: "Download focused bill PDF" },
   { keys: "/", label: "Focus the global search" },
   { keys: "?", label: "Show this cheatsheet" },
-  { keys: "Esc", label: "Close popups" },
+  { keys: "Esc", label: "Back / Close popups" },
 ];
 
 function isTypingTarget(t: EventTarget | null) {

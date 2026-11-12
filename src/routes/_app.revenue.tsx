@@ -729,10 +729,20 @@ function RevenuePage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Button asChild variant="ghost" size="sm" className="mb-1 -ml-2 h-7 text-xs text-muted-foreground hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary">
-            <Link to="/dashboard">
-              <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to menu (Esc)
-            </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mb-1 -ml-2 h-7 text-xs text-muted-foreground hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+                window.history.back();
+              } else {
+                navigate({ to: "/dashboard" });
+              }
+            }}
+            title="Back to menu (Esc)"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to menu (Esc)
           </Button>
           <h1 className="text-xl md:text-2xl font-bold tracking-tight">Reports & Dashboard</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -914,18 +924,20 @@ function RevenuePage() {
                   <EmptyHint label="No bills yet. Make your first sale." to="/cart" cta="New sale" />
                 ) : (
                   bills.slice(0, 5).map((b) => (
-                    <div
+                    <Link
                       key={b.id}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-smooth"
+                      to="/bills/$id"
+                      params={{ id: b.id }}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-smooth group cursor-pointer block"
                     >
                       <div>
-                        <div className="font-medium text-sm">{b.number}</div>
+                        <div className="font-medium text-sm group-hover:text-primary transition-colors">{b.number}</div>
                         <div className="text-xs text-muted-foreground">
                           {new Date(b.createdAt).toLocaleString()} · {b.items.length} items
                         </div>
                       </div>
                       <div className="text-sm font-semibold">{formatMoney(b.total)}</div>
-                    </div>
+                    </Link>
                   ))
                 )}
               </CardContent>

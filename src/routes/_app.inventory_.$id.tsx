@@ -153,7 +153,11 @@ function ProductDetails() {
           return;
         }
         e.preventDefault();
-        navigate({ to: "/inventory" });
+        if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+          window.history.back();
+        } else {
+          navigate({ to: "/inventory" });
+        }
       }
     };
 
@@ -411,11 +415,21 @@ function ProductDetails() {
       {/* Header Panel */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-background p-4 rounded-lg border shadow-soft">
         <div className="flex items-center gap-4">
-          <Link to="/inventory">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" title="Back to Inventory (Esc)">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full"
+            title="Back (Esc)"
+            onClick={() => {
+              if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+                window.history.back();
+              } else {
+                navigate({ to: "/inventory" });
+              }
+            }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{product.name}</h1>
             <p className="text-sm text-muted-foreground">{product.category}</p>

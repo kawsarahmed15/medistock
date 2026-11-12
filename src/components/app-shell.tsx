@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Package,
@@ -51,6 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { count } = useCart();
   const location = useLocation();
   const navigate = useNavigate();
+  const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [activeFocusIndex, setActiveFocusIndex] = useState(0);
@@ -88,10 +89,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if ((e.key === "Escape" || e.key === "F10") && location.pathname !== "/dashboard") {
+    const handleNavKey = (e: KeyboardEvent) => {
+      // F10 key jumps directly to Main Menu / Dashboard
+      if (e.key === "F10" && location.pathname !== "/dashboard") {
         if (e.defaultPrevented) return;
-        // Check if an open modal or alert dialog is present
+        const hasOpenDialog = Boolean(
+          document.querySelector(
+            '[role="dialog"], [role="alertdialog"], [data-radix-portal] [data-state="open"]'
+          )
+        );
+        if (hasOpenDialog) return;
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        e.preventDefault();
+        navigate({ to: "/dashboard" });
+        return;
+      }
+
+      // Escape is used as a BACK BUTTON (navigates back one page in history)
+      if (e.key === "Escape") {
+        if (e.defaultPrevented) return;
+
+        // If a modal, dialog, or sheet is open, allow it to close naturally
         const hasOpenDialog = Boolean(
           document.querySelector(
             '[role="dialog"], [role="alertdialog"], [data-radix-portal] [data-state="open"]'
@@ -99,17 +119,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         );
         if (hasOpenDialog) return;
 
-        // If an input/textarea/select is focused, blur it first
+        // If mobile sidebar drawer is open, close it first
+        if (mobileNavOpen) {
+          e.preventDefault();
+          setMobileNavOpen(false);
+          return;
+        }
+
+        // If already on the main dashboard, Esc should not navigate away from the app
+        if (location.pathname === "/dashboard") {
+          return;
+        }
+
+        // If an input/textarea/select is focused, blur it
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
+
         e.preventDefault();
-        navigate({ to: "/dashboard" });
+
+        // Check if we can go back in the current session history
+        const canGoBack = Boolean(
+          typeof window !== "undefined" &&
+            (window.history.state?.__TSR_index > 0 ||
+              (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.host)))
+        );
+
+        if (canGoBack) {
+          router.history.back();
+        } else {
+          // Contextual single-page fallback when opened directly
+          const path = location.pathname;
+          if (path.startsWith("/bills/")) {
+            navigate({ to: "/bills" });
+          } else if (path.startsWith("/purchases/")) {
+            navigate({ to: "/purchases" });
+          } else if (path.startsWith("/inventory/")) {
+            navigate({ to: "/inventory" });
+          } else {
+            navigate({ to: "/dashboard" });
+          }
+        }
       }
     };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [location.pathname, navigate]);
+    window.addEventListener("keydown", handleNavKey);
+    return () => window.removeEventListener("keydown", handleNavKey);
+  }, [location.pathname, navigate, mobileNavOpen, router]);
 
   // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar drawer
   useEffect(() => {

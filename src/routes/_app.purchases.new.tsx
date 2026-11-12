@@ -1128,10 +1128,20 @@ function AddPurchasePage() {
     <div className="space-y-4 w-full pb-14">
       {/* Navigation Header */}
       <div className="flex items-center gap-3 border-b pb-3">
-        <Button variant="ghost" size="icon" asChild className="shrink-0 text-muted-foreground hover:text-foreground h-8 w-8">
-          <Link to="/purchases">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-muted-foreground hover:text-foreground h-8 w-8"
+          title="Back (Esc)"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+              window.history.back();
+            } else {
+              navigate({ to: "/purchases" });
+            }
+          }}
+        >
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">

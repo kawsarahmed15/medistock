@@ -104,20 +104,31 @@ function BillDetailPage() {
   const gstNumber = bill?.pharmacyGstNumber || session?.gstNumber || "";
   const drugLicNo = bill?.pharmacyDrugLicNo || session?.drugLicNo || "";
 
-  // Backspace → go back to bills list or sell page (guarded when typing)
+  // Escape / Backspace → go back one page
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key !== "Backspace") return;
+      if (e.key !== "Backspace" && e.key !== "Escape") return;
       const tag = (e.target as HTMLElement)?.tagName;
       const isTyping =
         tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
         (e.target as HTMLElement)?.isContentEditable;
       if (isTyping) return;
+      const hasOpenDialog = Boolean(
+        document.querySelector(
+          '[role="dialog"], [role="alertdialog"], [data-radix-portal] [data-state="open"]'
+        )
+      );
+      if (hasOpenDialog) return;
+
       e.preventDefault();
-      if (isEmployee) {
-        void navigate({ to: "/new-sale" });
+      if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+        window.history.back();
       } else {
-        void navigate({ to: "/bills" });
+        if (isEmployee) {
+          void navigate({ to: "/new-sale" });
+        } else {
+          void navigate({ to: "/bills" });
+        }
       }
     };
     window.addEventListener("keydown", handler);
@@ -264,14 +275,23 @@ function BillDetailPage() {
 
       {/* Action Bar (Hidden in Print) */}
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background sticky top-0 z-10 py-4 border-b">
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/bills">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {isEmployee ? "My Bills" : "All Bills"}
-            <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-              Backspace
-            </kbd>
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+              window.history.back();
+            } else {
+              void navigate({ to: isEmployee ? "/new-sale" : "/bills" });
+            }
+          }}
+          title="Back (Esc)"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          {isEmployee ? "My Bills" : "All Bills"}
+          <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+            Esc
+          </kbd>
         </Button>
 
         <div className="flex flex-wrap items-center gap-2">

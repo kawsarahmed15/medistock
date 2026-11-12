@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { ArrowLeft, Truck, Printer, Download, Pill, FileText, CheckCircle, AlertTriangle } from "lucide-react";
 import { purchasesStore, type Purchase } from "@/lib/storage";
@@ -57,6 +57,7 @@ function numberToWords(num: number): string {
 
 function PurchaseDetailsPage() {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const isRetailer = resolveBusinessCategory(session?.role) === "retailer";
   const { id } = Route.useParams();
   const [purchase, setPurchase] = useState<Purchase | null>(null);
@@ -71,6 +72,34 @@ function PurchaseDetailsPage() {
       return null;
     }
   }, [purchase]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "Backspace") {
+        const tag = (e.target as HTMLElement)?.tagName;
+        const isTyping =
+          tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
+          (e.target as HTMLElement)?.isContentEditable;
+        if (isTyping) return;
+
+        const hasOpenDialog = Boolean(
+          document.querySelector(
+            '[role="dialog"], [role="alertdialog"], [data-radix-portal] [data-state="open"]'
+          )
+        );
+        if (hasOpenDialog) return;
+
+        e.preventDefault();
+        if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+          window.history.back();
+        } else {
+          void navigate({ to: "/purchases" });
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigate]);
 
   useEffect(() => {
     purchasesStore
@@ -104,10 +133,22 @@ function PurchaseDetailsPage() {
     <div className="space-y-6 max-w-4xl mx-auto pb-20">
       {/* Top action header */}
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden bg-background py-4">
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/purchases">
-            <ArrowLeft className="h-4 w-4 mr-2" /> All purchases
-          </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.state?.__TSR_index > 0) {
+              window.history.back();
+            } else {
+              void navigate({ to: "/purchases" });
+            }
+          }}
+          title="Back (Esc)"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back
+          <kbd className="ml-2 hidden sm:inline-flex items-center rounded border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+            Esc
+          </kbd>
         </Button>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => purchase && downloadPurchasePdf(purchase, meta, {
