@@ -7,7 +7,6 @@ import {
   TrendingUp,
   Wallet,
   Package,
-  ShoppingCart,
   AlertTriangle,
   Clock,
   LayoutDashboard,
@@ -37,7 +36,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { DashboardSkeleton, TableSkeleton } from "@/components/loading-skeleton";
+import { ReportsOverviewSkeleton, TableSkeleton } from "@/components/loading-skeleton";
 import { cn } from "@/lib/utils";
 
 type Range = "today" | "yesterday" | "7d" | "30d" | "month" | "last_month" | "year" | "custom" | "all";
@@ -130,6 +129,50 @@ function RevenuePage() {
   >(null);
 
   const [monthlyRange, setMonthlyRange] = useState<"6m" | "12m" | "24m">("12m");
+
+  // Keyboard navigation for Reports & Dashboard
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const inField = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if (inField) return;
+
+      // Tab navigation shortcuts
+      if (e.key === "1" || e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        setActiveTab("overview");
+      } else if (e.key === "2" || e.key.toLowerCase() === "f" || e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setActiveTab("financial");
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const activeEl = document.activeElement;
+        if (activeEl && activeEl.getAttribute("role") === "tab") {
+          e.preventDefault();
+          const nextTab = activeTab === "overview" ? "financial" : "overview";
+          setActiveTab(nextTab);
+          const nextId = nextTab === "overview" ? "tab-overview" : "tab-financial";
+          document.getElementById(nextId)?.focus();
+        }
+      } else if (activeTab === "financial") {
+        if (e.key.toLowerCase() === "t") {
+          e.preventDefault();
+          navigate({ search: (prev: RevenueSearch) => ({ ...prev, range: "today" }), replace: true });
+        } else if (e.key.toLowerCase() === "y") {
+          e.preventDefault();
+          navigate({ search: (prev: RevenueSearch) => ({ ...prev, range: "yesterday" }), replace: true });
+        } else if (e.key.toLowerCase() === "w") {
+          e.preventDefault();
+          navigate({ search: (prev: RevenueSearch) => ({ ...prev, range: "7d" }), replace: true });
+        } else if (e.key.toLowerCase() === "m") {
+          e.preventDefault();
+          navigate({ search: (prev: RevenueSearch) => ({ ...prev, range: "30d" }), replace: true });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -679,14 +722,14 @@ function RevenuePage() {
   ];
 
   if (loading && bills.length === 0 && products.length === 0) {
-    return activeTab === "overview" ? <DashboardSkeleton /> : <TableSkeleton cols={4} rows={10} />;
+    return activeTab === "overview" ? <ReportsOverviewSkeleton /> : <TableSkeleton cols={4} rows={10} />;
   }
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Button asChild variant="ghost" size="sm" className="mb-1 -ml-2 h-7 text-xs text-muted-foreground hover:text-foreground">
+          <Button asChild variant="ghost" size="sm" className="mb-1 -ml-2 h-7 text-xs text-muted-foreground hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <Link to="/dashboard">
               <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to menu (Esc)
             </Link>
@@ -699,14 +742,23 @@ function RevenuePage() {
           </p>
         </div>
 
-        {/* View Switcher Tabs & Quick Actions */}
+        {/* View Switcher Tabs */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="bg-muted p-1 rounded-lg border border-border flex items-center gap-1 shadow-2xs">
+          <div
+            role="tablist"
+            aria-label="Reports & Dashboard views"
+            className="bg-muted p-1 rounded-lg border border-border flex items-center gap-1 shadow-2xs"
+          >
             <button
               type="button"
+              role="tab"
+              id="tab-overview"
+              aria-selected={activeTab === "overview"}
+              aria-controls="panel-overview"
+              tabIndex={0}
               onClick={() => setActiveTab("overview")}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 activeTab === "overview"
                   ? "bg-card text-foreground shadow-xs font-bold"
                   : "text-muted-foreground hover:text-foreground hover:bg-card/50",
@@ -714,12 +766,20 @@ function RevenuePage() {
             >
               <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
               <span>Dashboard Overview</span>
+              <kbd className="hidden sm:inline-block font-mono text-[9px] px-1 py-0.2 rounded bg-muted/80 text-muted-foreground border border-border">
+                1
+              </kbd>
             </button>
             <button
               type="button"
+              role="tab"
+              id="tab-financial"
+              aria-selected={activeTab === "financial"}
+              aria-controls="panel-financial"
+              tabIndex={0}
               onClick={() => setActiveTab("financial")}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                "flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 activeTab === "financial"
                   ? "bg-card text-foreground shadow-xs font-bold"
                   : "text-muted-foreground hover:text-foreground hover:bg-card/50",
@@ -727,29 +787,17 @@ function RevenuePage() {
             >
               <BarChart3 className="h-3.5 w-3.5 text-primary" />
               <span>Financial Analytics</span>
+              <kbd className="hidden sm:inline-block font-mono text-[9px] px-1 py-0.2 rounded bg-muted/80 text-muted-foreground border border-border">
+                2
+              </kbd>
             </button>
           </div>
-
-          {activeTab === "overview" && (
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-                <Link to="/inventory" search={{ add: 1 }}>
-                  Add product
-                </Link>
-              </Button>
-              <Button asChild size="sm" className="shadow-soft h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Link to="/cart">
-                  <ShoppingCart className="h-3.5 w-3.5 mr-1.5" /> New sale
-                </Link>
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
       {/* ─── TAB 1: PREVIOUS DASHBOARD OVERVIEW ─── */}
       {activeTab === "overview" ? (
-        <div className="space-y-4 sm:space-y-5 animate-in fade-in-0 duration-150">
+        <div role="tabpanel" id="panel-overview" aria-labelledby="tab-overview" className="space-y-4 sm:space-y-5 animate-in fade-in-0 duration-150">
           {pendingBills.length > 0 && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-soft">
               <div className="flex items-center gap-3">
@@ -765,7 +813,7 @@ function RevenuePage() {
                   </p>
                 </div>
               </div>
-              <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs h-7 text-xs">
+              <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-xs h-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <Link to="/bills" search={{ status: "pending" }}>
                   Review & Approve Bills →
                 </Link>
@@ -775,7 +823,12 @@ function RevenuePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
             {overviewStats.map((s, i) => (
-              <Link key={s.label} to={s.to} search={s.search ?? {}} className="block group">
+              <Link
+                key={s.label}
+                to={s.to}
+                search={s.search ?? {}}
+                className="block group rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
                 <Card
                   className="shadow-soft border-border/60 animate-fade-in transition-smooth hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 cursor-pointer h-full"
                   style={{ animationDelay: `${i * 60}ms` }}
@@ -941,7 +994,7 @@ function RevenuePage() {
         </div>
       ) : (
         /* ─── TAB 2: FINANCIAL & TAX ANALYTICS ─── */
-        <div className="space-y-6 animate-in fade-in-0 duration-150">
+        <div role="tabpanel" id="panel-financial" aria-labelledby="tab-financial" className="space-y-6 animate-in fade-in-0 duration-150">
 
       <Card className="shadow-soft">
         <CardContent className="p-4 space-y-4">
@@ -1023,8 +1076,17 @@ function RevenuePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card 
-          className="shadow-soft border-l-4 border-l-success cursor-pointer hover:bg-accent/40 transition-colors"
+          className="shadow-soft border-l-4 border-l-success cursor-pointer hover:bg-accent/40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          tabIndex={0}
+          role="button"
+          aria-label={`Cash collection: ${formatMoney(stats.cash)}. Press Enter to view details.`}
           onClick={() => setDetailType("cash")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setDetailType("cash");
+            }
+          }}
         >
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -1036,8 +1098,17 @@ function RevenuePage() {
           </CardContent>
         </Card>
         <Card 
-          className="shadow-soft border-l-4 border-l-primary cursor-pointer hover:bg-accent/40 transition-colors"
+          className="shadow-soft border-l-4 border-l-primary cursor-pointer hover:bg-accent/40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          tabIndex={0}
+          role="button"
+          aria-label={`Online collection: ${formatMoney(stats.online)}. Press Enter to view details.`}
           onClick={() => setDetailType("online")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setDetailType("online");
+            }
+          }}
         >
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -1049,8 +1120,17 @@ function RevenuePage() {
           </CardContent>
         </Card>
         <Card 
-          className="shadow-soft border-l-4 border-l-amber-500 cursor-pointer hover:bg-accent/40 transition-colors"
+          className="shadow-soft border-l-4 border-l-amber-500 cursor-pointer hover:bg-accent/40 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          tabIndex={0}
+          role="button"
+          aria-label={`Pending credit: ${formatMoney(stats.pendingCredit)}. Press Enter to view details.`}
           onClick={() => setDetailType("credit")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setDetailType("credit");
+            }
+          }}
         >
           <CardContent className="p-5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -1308,8 +1388,20 @@ function StatCard({
 }) {
   return (
     <Card 
-      className={`shadow-soft ${onClick ? "cursor-pointer hover:bg-accent/40 transition-colors" : ""}`}
+      className={cn(
+        "shadow-soft transition-colors",
+        onClick && "cursor-pointer hover:bg-accent/40 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+      )}
+      tabIndex={onClick ? 0 : undefined}
+      role={onClick ? "button" : undefined}
+      aria-label={onClick ? `${label}: ${value}. Press Enter to view details.` : undefined}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <CardContent className="p-5">
         <div className="inline-flex h-10 w-10 rounded-xl items-center justify-center bg-primary/10 text-primary">

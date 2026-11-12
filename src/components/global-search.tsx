@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Search, Package, X } from "lucide-react";
 import { productsStore, type Product } from "@/lib/storage";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export function GlobalSearch() {
@@ -10,6 +11,7 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -17,13 +19,20 @@ export function GlobalSearch() {
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    setLoading(true);
     productsStore
       .list()
       .then((rows) => {
-        if (!cancelled) setProducts(rows);
+        if (!cancelled) {
+          setProducts(rows);
+          setLoading(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setProducts([]);
+        if (!cancelled) {
+          setProducts([]);
+          setLoading(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -147,7 +156,23 @@ export function GlobalSearch() {
 
       {open && (
         <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 rounded-lg border border-border bg-popover shadow-soft overflow-hidden animate-scale-in origin-top">
-          {results.length === 0 ? (
+          {loading && products.length === 0 ? (
+            <div className="p-2 space-y-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 animate-pulse">
+                  <Skeleton className="h-8 w-8 rounded-md shrink-0" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-3/4" />
+                    <Skeleton className="h-2.5 w-1/2" />
+                  </div>
+                  <div className="text-right space-y-1 shrink-0">
+                    <Skeleton className="h-3.5 w-12 ml-auto" />
+                    <Skeleton className="h-2.5 w-8 ml-auto" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : results.length === 0 ? (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               No medicines match "{query}"
             </div>

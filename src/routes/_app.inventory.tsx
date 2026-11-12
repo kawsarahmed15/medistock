@@ -355,18 +355,35 @@ function InventoryPage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (open) return;
+      if (open || scannerOpen || isDuplicateAlertOpen) return;
 
       const tag = (e.target as HTMLElement)?.tagName;
-      const isEditingForm = tag === "INPUT" && (e.target as HTMLElement).closest("form");
+      const isEditingForm =
+        (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") &&
+        Boolean((e.target as HTMLElement).closest("form"));
       if (isEditingForm) return;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIdx((prev) => (prev < sorted.length - 1 ? prev + 1 : prev));
       } else if (e.key === "ArrowUp") {
+        if (selectedIdx === 0 && searchInputRef.current && e.target !== searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
         e.preventDefault();
         setSelectedIdx((prev) => (prev > 0 ? prev - 1 : 0));
+      } else if (e.key === "PageDown") {
+        e.preventDefault();
+        setSelectedIdx((prev) => Math.min(sorted.length - 1, Math.max(0, prev + 10)));
+      } else if (e.key === "PageUp") {
+        e.preventDefault();
+        setSelectedIdx((prev) => Math.max(0, prev - 10));
+      } else if (e.key === "Home" && tag !== "INPUT") {
+        e.preventDefault();
+        setSelectedIdx(0);
+      } else if (e.key === "End" && tag !== "INPUT") {
+        e.preventDefault();
+        setSelectedIdx(Math.max(0, sorted.length - 1));
       } else if (e.key === "Enter") {
         if (selectedIdx >= 0 && selectedIdx < sorted.length) {
           e.preventDefault();
@@ -378,7 +395,21 @@ function InventoryPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [sorted, selectedIdx, open]);
+  }, [sorted, selectedIdx, open, scannerOpen, isDuplicateAlertOpen]);
+
+  // Smooth scroll selected item into view during keyboard navigation
+  useEffect(() => {
+    if (selectedIdx >= 0 && selectedIdx < sorted.length) {
+      const row = document.querySelector(`[data-inventory-row="${selectedIdx}"]`);
+      if (row) {
+        row.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+          inline: "nearest",
+        });
+      }
+    }
+  }, [selectedIdx, sorted.length]);
 
   useEffect(() => {
     if (typeof qParam === "string") setQuery(qParam);
@@ -1071,18 +1102,29 @@ function InventoryPage() {
                 return (
                   <TableRow
                     key={p.id || idx}
+                    data-inventory-row={idx}
+                    tabIndex={0}
+                    role="row"
+                    aria-selected={idx === selectedIdx}
+                    onFocus={() => setSelectedIdx(idx)}
                     className={cn(
-                      "animate-fade-in cursor-pointer transition-colors border-l-2",
+                      "animate-fade-in cursor-pointer transition-colors border-l-2 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset scroll-mt-24 scroll-mb-24",
                       rowBg,
                       idx === selectedIdx
-                        ? "border-l-primary"
+                        ? "border-l-primary ring-1 ring-primary/30"
                         : isRed
                           ? "border-l-red-500"
                           : isOrange
                             ? "border-l-amber-500"
-                            : "border-l-transparent"
+                            : "border-l-transparent",
                     )}
                     onClick={() => navigate({ to: "/inventory/$id", params: { id: (p as any).productId || p.id } })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        navigate({ to: "/inventory/$id", params: { id: (p as any).productId || p.id } });
+                      }
+                    }}
                   >
                     <TableCell className="text-center font-medium text-muted-foreground">
                       {idx + 1}
