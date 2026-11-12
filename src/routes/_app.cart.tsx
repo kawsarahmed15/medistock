@@ -144,6 +144,27 @@ const emptyForm: FormState = {
   packCostPrice: "",
 };
 
+const formatToDDMMYY = (date: Date = new Date()): string => {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yy = String(date.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
+};
+
+const normalizeDateInput = (val: string): string => {
+  const trimmed = (val || "").trim();
+  if (!trimmed) return formatToDDMMYY();
+  const parts = trimmed.split(/[/\-.]/);
+  if (parts.length === 3) {
+    const [d, m, y] = parts;
+    const dd = d.padStart(2, "0").slice(-2);
+    const mm = m.padStart(2, "0").slice(-2);
+    const yy = y.slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  }
+  return trimmed;
+};
+
 // ─── Main Cart Page ───────────────────────────────────────────────────────────
 
 function CartPage() {
@@ -160,6 +181,7 @@ function CartPage() {
   const browseButtonRef = useRef<HTMLButtonElement>(null);
   const [productList, setProductList] = useState<Product[]>([]);
   const [showCostPrice, setShowCostPrice] = useState(false);
+  const [billDate, setBillDate] = useState(() => formatToDDMMYY());
 
   useEffect(() => {
     productsStore
@@ -247,6 +269,7 @@ function CartPage() {
   const partyDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleNewBill = () => {
+    setBillDate(formatToDDMMYY());
     if (cart.items.length > 0 || (cart.customer.name && cart.customer.name.trim() !== "")) {
       const draft = cart.saveAsDraft();
       toast.success(`Previous bill saved to drafts (${draft.name})`);
@@ -363,6 +386,40 @@ function CartPage() {
         toast.success(`Bill ${bill.number} generated`);
       } else {
         toast.success(`Bill ${bill.number} submitted for Admin confirmation (Pending)`);
+      }
+
+      // If customer details were entered for this bill, ensure customer is registered and saved
+      if (cart.customer.name?.trim() && !isWalkIn) {
+        setSavedCustomers((prev) => {
+          const cNameTrim = cart.customer.name.trim().toLowerCase();
+          const cPhoneTrim = (cart.customer.phone || "").trim();
+          const existingIdx = prev.findIndex(
+            (c) =>
+              c.name.trim().toLowerCase() === cNameTrim ||
+              (c.phone && cPhoneTrim && c.phone.trim() === cPhoneTrim)
+          );
+          const newCust: SavedCustomer = {
+            name: cart.customer.name.trim(),
+            phone: cart.customer.phone?.trim() || "",
+            address: cart.customer.address?.trim() || "",
+            drugLicNo: cart.customer.drugLicNo?.trim() || "",
+            gstin: cart.customer.gstin?.trim() || "",
+            notes: cart.customer.notes?.trim() || "",
+            visits: existingIdx >= 0 ? (prev[existingIdx].visits || 1) + 1 : 1,
+            totalSpent: (existingIdx >= 0 ? prev[existingIdx].totalSpent || 0 : 0) + cart.total,
+            totalCredit: cart.paymentMethod === "credit" ? (existingIdx >= 0 ? prev[existingIdx].totalCredit || 0 : 0) + cart.total : 0,
+            totalPaid: cart.advanceAmount || 0,
+            balance: 0,
+            lastVisit: new Date().toISOString(),
+          };
+          if (existingIdx >= 0) {
+            const updated = [...prev];
+            updated[existingIdx] = { ...updated[existingIdx], ...newCust };
+            return updated;
+          }
+          return [newCust, ...prev];
+        });
+        void customersStore.list().then(setSavedCustomers).catch(() => {});
       }
 
       setCheckoutOpen(false);
@@ -699,14 +756,6 @@ function CartPage() {
   const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
   const [partyDropdownOpen, setPartyDropdownOpen] = useState(false);
   const [partyActiveIdx, setPartyActiveIdx] = useState(0);
-  const [billDate, setBillDate] = useState(() => {
-    const d = new Date();
-    return d.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  });
 
   useEffect(() => {
     customersStore
@@ -923,17 +972,23 @@ function CartPage() {
               <input
                 ref={dateInputRef}
                 type="text"
+                placeholder="dd/mm/yy"
                 value={billDate}
                 onChange={(e) => setBillDate(e.target.value)}
                 onFocus={(e) => {
                   setDateFocused(true);
                   e.target.select();
                 }}
-                onBlur={() => setDateFocused(false)}
+                onBlur={() => {
+                  setDateFocused(false);
+                  setBillDate((prev) => normalizeDateInput(prev));
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === "Tab") {
                     e.preventDefault();
+                    setBillDate((prev) => normalizeDateInput(prev));
                     partyInputRef.current?.focus();
+                    partyInputRef.current?.select();
                   }
                 }}
                 className={cn(
@@ -997,12 +1052,40 @@ function CartPage() {
                     }
                   } else if (e.key === "Enter") {
                     e.preventDefault();
-                    if (partyDropdownOpen && partyMatches.length > 0 && partyActiveIdx >= 0) {
+
+                    // 1. If dropdown is open and user actively selected an entry with arrow keys / hover:
+                    if (partyDropdownOpen && partyMatches.length > 0 && partyActiveIdx >= 0 && partyMatches[partyActiveIdx]) {
                       selectSavedCustomer(partyMatches[partyActiveIdx]);
-                    } else {
+                      return;
+                    }
+
+                    // 2. Check if the typed party name or phone matches any registered/saved customer in data:
+                    const qName = (cart.customer.name || "").trim().toLowerCase();
+                    const qPhone = (cart.customer.phone || "").trim();
+                    const matchedSaved = savedCustomers.find((c) => {
+                      const cName = (c.name || "").trim().toLowerCase();
+                      const cPhone = (c.phone || "").trim();
+                      return (qName && cName === qName) || (qPhone && cPhone === qPhone);
+                    });
+
+                    if (matchedSaved) {
+                      // Already registered/saved customer: auto-fill details and redirect focus to "type product name" section
+                      selectSavedCustomer(matchedSaved);
+                      return;
+                    }
+
+                    // 3. If walk-in (empty or "walk-in"):
+                    const isWalkInName = !qName || ["walk-in customer", "walk-in", "walkin"].includes(qName);
+                    if (isWalkInName) {
                       setPartyDropdownOpen(false);
                       entryInputRef.current?.focus();
+                      return;
                     }
+
+                    // 4. New customer detected (not in saved data): redirect autofocus to mobile no. section
+                    setPartyDropdownOpen(false);
+                    phoneInputRef.current?.focus();
+                    phoneInputRef.current?.select();
                   } else if (e.key === "Tab") {
                     setPartyDropdownOpen(false);
                   } else if (e.key === "Escape") {
@@ -1124,6 +1207,7 @@ function CartPage() {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     dlNoInputRef.current?.focus();
+                    dlNoInputRef.current?.select();
                   }
                 }}
                 className={cn(
@@ -1155,7 +1239,8 @@ function CartPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    gstNoInputRef.current?.focus();
+                    addressInputRef.current?.focus();
+                    addressInputRef.current?.select();
                   }
                 }}
                 className={cn(
@@ -1188,6 +1273,7 @@ function CartPage() {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     addressInputRef.current?.focus();
+                    addressInputRef.current?.select();
                   }
                 }}
                 className={cn(
