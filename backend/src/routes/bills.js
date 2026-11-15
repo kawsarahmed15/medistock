@@ -32,7 +32,7 @@ router.get("/pending-count", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   try {
     const statusParam = req.query.status ? String(req.query.status).trim().toLowerCase() : null;
-    let query = `SELECT b.id, b.number, b.customer_name, b.customer_phone, b.customer_address, b.customer_drug_lic_no, b.customer_gstin, b.customer_notes, b.cashier, b.payment_method, b.advance_amount, b.advance_payment_method, b.subtotal, b.tax, b.discount, b.total, b.status, b.created_by_role, b.created_by_name, b.employee_id, b.approved_at, b.approved_by, b.created_at,
+    let query = `SELECT b.id, b.number, b.customer_name, b.customer_phone, b.customer_address, b.customer_drug_lic_no, b.customer_gstin, b.customer_notes, b.cashier, b.payment_method, b.advance_amount, b.advance_payment_method, b.subtotal, b.tax, b.discount, b.total, b.status, b.created_by_role, b.created_by_name, b.employee_id, b.challan_id, b.challan_number, b.approved_at, b.approved_by, b.created_at,
               u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number AS pharmacy_gst_number, u.drug_lic_no AS pharmacy_drug_lic_no
        FROM bills b
        LEFT JOIN users u ON b.user_id = u.id
@@ -279,7 +279,7 @@ router.delete("/drafts", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     let query = `SELECT b.id, b.number, b.customer_name, b.customer_phone, b.customer_address, b.customer_drug_lic_no, b.customer_gstin, b.customer_notes, b.cashier, b.payment_method, b.advance_amount, b.advance_payment_method,
-              b.subtotal, b.tax, b.discount, b.total, b.status, b.created_by_role, b.created_by_name, b.employee_id, b.approved_at, b.approved_by, b.created_at,
+              b.subtotal, b.tax, b.discount, b.total, b.status, b.created_by_role, b.created_by_name, b.employee_id, b.challan_id, b.challan_number, b.approved_at, b.approved_by, b.created_at,
               u.pharmacy_name, u.pharmacy_phone, u.pharmacy_address, u.gst_number AS pharmacy_gst_number, u.drug_lic_no AS pharmacy_drug_lic_no
        FROM bills b
        LEFT JOIN users u ON b.user_id = u.id
@@ -808,14 +808,27 @@ router.post("/", async (req, res, next) => {
               "SELECT COALESCE(SUM(qty), 0) AS total_locked FROM draft_bill_items WHERE user_id = ? AND product_id = ?",
               [req.auth.userId, targetProductId]
             );
-            const totalLocked = Math.max(0, Number(lockedRows[0]?.total_locked || 0));
+            const totalDraftLocked = Math.max(0, Number(lockedRows[0]?.total_locked || 0));
+
+            const [reservedRows] = await conn.query(
+              `SELECT COALESCE(SUM(remaining_qty), 0) AS total_reserved
+               FROM stock_reservations
+               WHERE user_id = ? AND product_id = ? AND status = 'active' AND remaining_qty > 0 ${body.challanId ? "AND challan_id != ?" : ""}`,
+              body.challanId ? [req.auth.userId, targetProductId, body.challanId] : [req.auth.userId, targetProductId]
+            );
+            const totalReserved = Math.max(0, Number(reservedRows[0]?.total_reserved || 0));
+
+            const totalLocked = totalDraftLocked + totalReserved;
             const availableForSale = Math.max(0, totalPhysical - totalLocked);
 
             if (totalItemQty > availableForSale) {
               if (totalLocked > 0) {
+                const parts = [];
+                if (totalReserved > 0) parts.push(`${totalReserved} units reserved in sale challans`);
+                if (totalDraftLocked > 0) parts.push(`${totalDraftLocked} units reserved in draft bills`);
                 throw buildApiError(
                   400,
-                  `Cannot complete sale: Insufficient available stock for "${item.name}". Requested ${totalItemQty}, but only ${availableForSale} available (${totalLocked} units are reserved in draft bills).`
+                  `Cannot complete sale: Insufficient available stock for "${item.name}". Requested ${totalItemQty}, but only ${availableForSale} available (${parts.join(", ")}).`
                 );
               } else {
                 throw buildApiError(

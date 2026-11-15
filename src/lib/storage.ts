@@ -88,6 +88,88 @@ export type Bill = {
   returns?: Array<{ id: string; number: string; total: number; date?: string; created_at?: string }>;
 };
 
+export type SaleChallanStatus = "draft" | "issued" | "partially_billed" | "billed" | "cancelled";
+
+export type SaleChallanItem = {
+  id?: string;
+  productId?: string;
+  batchId?: string;
+  productName: string;
+  batchNo?: string;
+  expiryDate?: string;
+  availableStock?: number;
+  qty: number;
+  freeQty: number;
+  mrp?: number;
+  rate: number;
+  discountPercent: number;
+  taxPercent: number;
+  amount: number;
+  billedQty?: number;
+  billedFreeQty?: number;
+  remainingQtyToBill?: number;
+  pack?: string;
+  sku?: string;
+  conversionFactor?: number;
+  reservation?: {
+    id: string;
+    reservedQty: number;
+    billedQty: number;
+    remainingQty: number;
+    status: string;
+  } | null;
+};
+
+export type SaleChallan = {
+  id: string;
+  challanNumber: string;
+  challanDate: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerGstin?: string;
+  notes?: string;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  status: SaleChallanStatus;
+  createdByRole?: "admin" | "employee";
+  createdByName?: string;
+  employeeId?: string;
+  createdAt: string;
+  itemCount?: number;
+  remainingReservedQty?: number;
+  pharmacy?: {
+    name: string;
+    phone: string;
+    address: string;
+    gstin: string;
+    drugLicNo: string;
+    billColor: string;
+    signature: string | null;
+  };
+  items: SaleChallanItem[];
+  linkedInvoices?: Array<{
+    billId: string;
+    invoiceNumber: string;
+    total?: number;
+    status?: string;
+    createdAt?: string;
+  }>;
+};
+
+export type SaleChallanDashboardMetrics = {
+  totalChallans: number;
+  todayChallans: number;
+  pendingChallans: number;
+  partiallyBilledChallans: number;
+  fullyBilledChallans: number;
+  cancelledChallans: number;
+  draftChallans: number;
+  totalReservedStockValue: number;
+};
+
 type ProductRow = {
   id: string;
   name: string;
@@ -412,6 +494,80 @@ export const draftBillsStore = {
   },
   async clear(): Promise<void> {
     await apiRequest("/bills/drafts", { method: "DELETE", auth: true });
+  },
+};
+
+export const challansStore = {
+  async list(filters?: {
+    status?: string;
+    from?: string;
+    to?: string;
+    customer?: string;
+    q?: string;
+  }): Promise<SaleChallan[]> {
+    const params = new URLSearchParams();
+    if (filters?.status && filters.status !== "all") params.append("status", filters.status);
+    if (filters?.from) params.append("from", filters.from);
+    if (filters?.to) params.append("to", filters.to);
+    if (filters?.customer) params.append("customer", filters.customer);
+    if (filters?.q) params.append("q", filters.q);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return await apiRequest<SaleChallan[]>(`/challans${qs}`, { auth: true });
+  },
+
+  async get(id: string): Promise<SaleChallan> {
+    return await apiRequest<SaleChallan>(`/challans/${id}`, { auth: true });
+  },
+
+  async getNextNumber(): Promise<string> {
+    const res = await apiRequest<{ nextNumber: string }>("/challans/next-number", { auth: true });
+    return res.nextNumber;
+  },
+
+  async getDashboardMetrics(): Promise<SaleChallanDashboardMetrics> {
+    return await apiRequest<SaleChallanDashboardMetrics>("/challans/dashboard-metrics", { auth: true });
+  },
+
+  async create(challan: Partial<SaleChallan>): Promise<{ success: boolean; challan: SaleChallan }> {
+    return await apiRequest<{ success: boolean; challan: SaleChallan }>("/challans", {
+      method: "POST",
+      body: challan,
+      auth: true,
+    });
+  },
+
+  async update(id: string, challan: Partial<SaleChallan>): Promise<{ success: boolean; challan: SaleChallan }> {
+    return await apiRequest<{ success: boolean; challan: SaleChallan }>(`/challans/${id}`, {
+      method: "PUT",
+      body: challan,
+      auth: true,
+    });
+  },
+
+  async cancel(id: string): Promise<{ success: boolean; message: string }> {
+    return await apiRequest<{ success: boolean; message: string }>(`/challans/${id}/cancel`, {
+      method: "POST",
+      auth: true,
+    });
+  },
+
+  async generateBill(
+    id: string,
+    options?: {
+      paymentMethod?: string;
+      advanceAmount?: number;
+      notes?: string;
+      items?: Array<{ challanItemId: string; qty: number; freeQty?: number }>;
+    }
+  ): Promise<{ success: boolean; billId: string; invoiceNumber: string; challanStatus: string; total: number }> {
+    return await apiRequest<{ success: boolean; billId: string; invoiceNumber: string; challanStatus: string; total: number }>(
+      `/challans/${id}/generate-bill`,
+      {
+        method: "POST",
+        body: options || {},
+        auth: true,
+      }
+    );
   },
 };
 

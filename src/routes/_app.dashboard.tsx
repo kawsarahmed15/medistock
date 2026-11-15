@@ -21,6 +21,7 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
+  ClipboardList,
 } from "lucide-react";
 import { productsStore, billsStore, type Product, type Bill } from "@/lib/storage";
 import { DashboardSkeleton } from "@/components/loading-skeleton";
@@ -153,6 +154,14 @@ function DashboardPage() {
               desc: "My submitted bills and approval status",
               icon: ReceiptText,
             },
+            {
+              num: "3",
+              hotkey: "H",
+              title: "Sale Challan",
+              path: "/challans",
+              desc: "Delivery challans & live stock reservations",
+              icon: ClipboardList,
+            },
           ],
         },
         {
@@ -160,7 +169,7 @@ function DashboardPage() {
           label: "Books & Accounts",
           items: [
             {
-              num: "3",
+              num: "4",
               hotkey: "I",
               title: "Inventory",
               path: "/inventory",
@@ -198,6 +207,14 @@ function DashboardPage() {
           },
           {
             num: "3",
+            hotkey: "H",
+            title: "Sale Challan",
+            path: "/challans",
+            desc: "Temporary delivery challan, dispatch & stock reservation",
+            icon: ClipboardList,
+          },
+          {
+            num: "4",
             hotkey: "P",
             title: "Purchase",
             path: "/purchases/new",
@@ -205,7 +222,7 @@ function DashboardPage() {
             icon: Truck,
           },
           {
-            num: "4",
+            num: "5",
             hotkey: "C",
             title: "Purchase Book",
             path: "/purchases",

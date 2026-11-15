@@ -11,6 +11,7 @@ import {
   Settings,
   Building,
   UserCheck,
+  ClipboardList,
 } from "lucide-react";
 import type { BusinessModuleConfig } from "../types";
 
@@ -47,6 +48,7 @@ export const enterpriseConfig: BusinessModuleConfig = {
     { to: "/new-sale", label: "New Sale", icon: ShoppingCart },
     { to: "/cart", label: "Cart", icon: ShoppingBag },
     { to: "/bills", label: "Bills", icon: ReceiptText },
+    { to: "/challans", label: "Sale Challan", icon: ClipboardList },
     { to: "/customers", label: "Customers", icon: Users },
     { to: "/employees", label: "Employees", icon: UserCheck },
     { to: "/purchases", label: "Purchases", icon: Truck },

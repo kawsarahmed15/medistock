@@ -23,6 +23,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LayoutGrid,
+  ClipboardList,
 } from "lucide-react";
 import { UserProfileDialog } from "@/components/user-profile-dialog";
 import { useAuth } from "@/lib/auth-context";
@@ -43,6 +44,7 @@ const employeeNav = [
   { to: "/new-sale", label: "New Sale", icon: ShoppingCart },
   { to: "/cart", label: "Cart", icon: ShoppingBag },
   { to: "/bills", label: "My Bills", icon: ReceiptText },
+  { to: "/challans", label: "Sale Challan", icon: ClipboardList },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -76,6 +78,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (path.startsWith("/new-sale")) return "New Sale";
     if (path.startsWith("/inventory")) return "Inventory (Stock)";
     if (path.startsWith("/bills")) return "Sale Book (Bills)";
+    if (path.startsWith("/challans")) return "Sale Challan";
     if (path.startsWith("/purchases/new")) return "Purchase Bill";
     if (path.startsWith("/purchases")) return "Purchases";
     if (path.startsWith("/credit")) return "Credit Sales";
@@ -152,6 +155,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           const path = location.pathname;
           if (path.startsWith("/bills/")) {
             navigate({ to: "/bills" });
+          } else if (path.startsWith("/challans/")) {
+            navigate({ to: "/challans" });
           } else if (path.startsWith("/purchases/")) {
             navigate({ to: "/purchases" });
           } else if (path.startsWith("/inventory/")) {

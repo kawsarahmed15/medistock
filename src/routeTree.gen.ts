@@ -33,13 +33,17 @@ import { Route as AppEmployeesRouteImport } from './routes/_app.employees'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCustomersRouteImport } from './routes/_app.customers'
 import { Route as AppCreditRouteImport } from './routes/_app.credit'
+import { Route as AppChallansRouteImport } from './routes/_app.challans'
 import { Route as AppCartRouteImport } from './routes/_app.cart'
 import { Route as AppBillsRouteImport } from './routes/_app.bills'
 import { Route as AppPurchasesIndexRouteImport } from './routes/_app.purchases.index'
+import { Route as AppChallansIndexRouteImport } from './routes/_app.challans.index'
 import { Route as AppBillsIndexRouteImport } from './routes/_app.bills.index'
 import { Route as AppPurchasesNewRouteImport } from './routes/_app.purchases.new'
 import { Route as AppPurchasesIdRouteImport } from './routes/_app.purchases.$id'
 import { Route as AppInventoryIdRouteImport } from './routes/_app.inventory_.$id'
+import { Route as AppChallansNewRouteImport } from './routes/_app.challans.new'
+import { Route as AppChallansIdRouteImport } from './routes/_app.challans.$id'
 import { Route as AppBillsIdRouteImport } from './routes/_app.bills.$id'
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -161,6 +165,11 @@ const AppCreditRoute = AppCreditRouteImport.update({
   path: '/credit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChallansRoute = AppChallansRouteImport.update({
+  id: '/challans',
+  path: '/challans',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCartRoute = AppCartRouteImport.update({
   id: '/cart',
   path: '/cart',
@@ -175,6 +184,11 @@ const AppPurchasesIndexRoute = AppPurchasesIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppPurchasesRoute,
+} as any)
+const AppChallansIndexRoute = AppChallansIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppChallansRoute,
 } as any)
 const AppBillsIndexRoute = AppBillsIndexRouteImport.update({
   id: '/',
@@ -196,6 +210,16 @@ const AppInventoryIdRoute = AppInventoryIdRouteImport.update({
   path: '/inventory/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppChallansNewRoute = AppChallansNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AppChallansRoute,
+} as any)
+const AppChallansIdRoute = AppChallansIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppChallansRoute,
+} as any)
 const AppBillsIdRoute = AppBillsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -213,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/bills': typeof AppBillsRouteWithChildren
   '/cart': typeof AppCartRoute
+  '/challans': typeof AppChallansRouteWithChildren
   '/credit': typeof AppCreditRoute
   '/customers': typeof AppCustomersRoute
   '/dashboard': typeof AppDashboardRoute
@@ -229,10 +254,13 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
   '/bills/$id': typeof AppBillsIdRoute
+  '/challans/$id': typeof AppChallansIdRoute
+  '/challans/new': typeof AppChallansNewRoute
   '/inventory/$id': typeof AppInventoryIdRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/bills/': typeof AppBillsIndexRoute
+  '/challans/': typeof AppChallansIndexRoute
   '/purchases/': typeof AppPurchasesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -260,10 +288,13 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
   '/bills/$id': typeof AppBillsIdRoute
+  '/challans/$id': typeof AppChallansIdRoute
+  '/challans/new': typeof AppChallansNewRoute
   '/inventory/$id': typeof AppInventoryIdRoute
   '/purchases/$id': typeof AppPurchasesIdRoute
   '/purchases/new': typeof AppPurchasesNewRoute
   '/bills': typeof AppBillsIndexRoute
+  '/challans': typeof AppChallansIndexRoute
   '/purchases': typeof AppPurchasesIndexRoute
 }
 export interface FileRoutesById {
@@ -279,6 +310,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_app/bills': typeof AppBillsRouteWithChildren
   '/_app/cart': typeof AppCartRoute
+  '/_app/challans': typeof AppChallansRouteWithChildren
   '/_app/credit': typeof AppCreditRoute
   '/_app/customers': typeof AppCustomersRoute
   '/_app/dashboard': typeof AppDashboardRoute
@@ -295,10 +327,13 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/users': typeof AdminUsersRoute
   '/_app/bills/$id': typeof AppBillsIdRoute
+  '/_app/challans/$id': typeof AppChallansIdRoute
+  '/_app/challans/new': typeof AppChallansNewRoute
   '/_app/inventory_/$id': typeof AppInventoryIdRoute
   '/_app/purchases/$id': typeof AppPurchasesIdRoute
   '/_app/purchases/new': typeof AppPurchasesNewRoute
   '/_app/bills/': typeof AppBillsIndexRoute
+  '/_app/challans/': typeof AppChallansIndexRoute
   '/_app/purchases/': typeof AppPurchasesIndexRoute
 }
 export interface FileRouteTypes {
@@ -314,6 +349,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/bills'
     | '/cart'
+    | '/challans'
     | '/credit'
     | '/customers'
     | '/dashboard'
@@ -330,10 +366,13 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/users'
     | '/bills/$id'
+    | '/challans/$id'
+    | '/challans/new'
     | '/inventory/$id'
     | '/purchases/$id'
     | '/purchases/new'
     | '/bills/'
+    | '/challans/'
     | '/purchases/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -361,10 +400,13 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/users'
     | '/bills/$id'
+    | '/challans/$id'
+    | '/challans/new'
     | '/inventory/$id'
     | '/purchases/$id'
     | '/purchases/new'
     | '/bills'
+    | '/challans'
     | '/purchases'
   id:
     | '__root__'
@@ -379,6 +421,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_app/bills'
     | '/_app/cart'
+    | '/_app/challans'
     | '/_app/credit'
     | '/_app/customers'
     | '/_app/dashboard'
@@ -395,10 +438,13 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/users'
     | '/_app/bills/$id'
+    | '/_app/challans/$id'
+    | '/_app/challans/new'
     | '/_app/inventory_/$id'
     | '/_app/purchases/$id'
     | '/_app/purchases/new'
     | '/_app/bills/'
+    | '/_app/challans/'
     | '/_app/purchases/'
   fileRoutesById: FileRoutesById
 }
@@ -584,6 +630,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCreditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/challans': {
+      id: '/_app/challans'
+      path: '/challans'
+      fullPath: '/challans'
+      preLoaderRoute: typeof AppChallansRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cart': {
       id: '/_app/cart'
       path: '/cart'
@@ -604,6 +657,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/purchases/'
       preLoaderRoute: typeof AppPurchasesIndexRouteImport
       parentRoute: typeof AppPurchasesRoute
+    }
+    '/_app/challans/': {
+      id: '/_app/challans/'
+      path: '/'
+      fullPath: '/challans/'
+      preLoaderRoute: typeof AppChallansIndexRouteImport
+      parentRoute: typeof AppChallansRoute
     }
     '/_app/bills/': {
       id: '/_app/bills/'
@@ -633,6 +693,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInventoryIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/challans/new': {
+      id: '/_app/challans/new'
+      path: '/new'
+      fullPath: '/challans/new'
+      preLoaderRoute: typeof AppChallansNewRouteImport
+      parentRoute: typeof AppChallansRoute
+    }
+    '/_app/challans/$id': {
+      id: '/_app/challans/$id'
+      path: '/$id'
+      fullPath: '/challans/$id'
+      preLoaderRoute: typeof AppChallansIdRouteImport
+      parentRoute: typeof AppChallansRoute
+    }
     '/_app/bills/$id': {
       id: '/_app/bills/$id'
       path: '/$id'
@@ -657,6 +731,22 @@ const AppBillsRouteWithChildren = AppBillsRoute._addFileChildren(
   AppBillsRouteChildren,
 )
 
+interface AppChallansRouteChildren {
+  AppChallansIdRoute: typeof AppChallansIdRoute
+  AppChallansNewRoute: typeof AppChallansNewRoute
+  AppChallansIndexRoute: typeof AppChallansIndexRoute
+}
+
+const AppChallansRouteChildren: AppChallansRouteChildren = {
+  AppChallansIdRoute: AppChallansIdRoute,
+  AppChallansNewRoute: AppChallansNewRoute,
+  AppChallansIndexRoute: AppChallansIndexRoute,
+}
+
+const AppChallansRouteWithChildren = AppChallansRoute._addFileChildren(
+  AppChallansRouteChildren,
+)
+
 interface AppPurchasesRouteChildren {
   AppPurchasesIdRoute: typeof AppPurchasesIdRoute
   AppPurchasesNewRoute: typeof AppPurchasesNewRoute
@@ -676,6 +766,7 @@ const AppPurchasesRouteWithChildren = AppPurchasesRoute._addFileChildren(
 interface AppRouteChildren {
   AppBillsRoute: typeof AppBillsRouteWithChildren
   AppCartRoute: typeof AppCartRoute
+  AppChallansRoute: typeof AppChallansRouteWithChildren
   AppCreditRoute: typeof AppCreditRoute
   AppCustomersRoute: typeof AppCustomersRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -695,6 +786,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBillsRoute: AppBillsRouteWithChildren,
   AppCartRoute: AppCartRoute,
+  AppChallansRoute: AppChallansRouteWithChildren,
   AppCreditRoute: AppCreditRoute,
   AppCustomersRoute: AppCustomersRoute,
   AppDashboardRoute: AppDashboardRoute,

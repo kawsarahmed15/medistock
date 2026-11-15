@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import mysql from "mysql2/promise";
 import { config } from "./config.js";
+import { runSaleChallanMigration } from "./alter_sale_challans.js";
 
 async function runMigration() {
   const sql = await readFile(new URL("../sql/schema.sql", import.meta.url), "utf8");
@@ -365,6 +366,12 @@ async function runMigration() {
       }
     } catch (e) {
       console.warn("customer_product_prices migration check skipped:", e.message);
+    }
+
+    try {
+      await runSaleChallanMigration(connection);
+    } catch (e) {
+      console.warn("Sale challan migration check skipped:", e.message);
     }
 
     console.log("MySQL migration completed successfully.");

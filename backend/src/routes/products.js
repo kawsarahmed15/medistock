@@ -150,8 +150,19 @@ router.get("/batches", async (req, res, next) => {
       [req.auth.userId]
     );
 
+    const [reservedItems] = await pool.query(
+      `SELECT product_id, batch_id, batch_no, SUM(remaining_qty) AS reserved_qty
+       FROM stock_reservations
+       WHERE user_id = ? AND status = 'active' AND remaining_qty > 0
+       GROUP BY product_id, batch_id, batch_no`,
+      [req.auth.userId]
+    );
+
     const lockedByBatchId = new Map();
     const lockedByBatchKey = new Map();
+    const reservedByBatchId = new Map();
+    const reservedByBatchKey = new Map();
+
     for (const d of draftItems) {
       const q = Number(d.locked_qty || 0);
       if (d.batch_id) {
@@ -163,11 +174,26 @@ router.get("/batches", async (req, res, next) => {
       }
     }
 
+    for (const r of reservedItems) {
+      const q = Number(r.reserved_qty || 0);
+      if (r.batch_id) {
+        reservedByBatchId.set(r.batch_id, (reservedByBatchId.get(r.batch_id) || 0) + q);
+        lockedByBatchId.set(r.batch_id, (lockedByBatchId.get(r.batch_id) || 0) + q);
+      }
+      if (r.product_id && r.batch_no) {
+        const key = `${r.product_id}:::${String(r.batch_no).toLowerCase().trim()}`;
+        reservedByBatchKey.set(key, (reservedByBatchKey.get(key) || 0) + q);
+        lockedByBatchKey.set(key, (lockedByBatchKey.get(key) || 0) + q);
+      }
+    }
+
     for (const b of rows) {
       const phys = Math.max(0, Number(b.available_qty || 0));
       const key = `${b.product_id}:::${String(b.batch_no || "").toLowerCase().trim()}`;
       const locked = lockedByBatchId.get(b.id) || lockedByBatchKey.get(key) || 0;
+      const reserved = reservedByBatchId.get(b.id) || reservedByBatchKey.get(key) || 0;
       b.physical_qty = phys;
+      b.reserved_qty = reserved;
       b.locked_qty = locked;
       b.available_qty = Math.max(0, Number((phys - locked).toFixed(4)));
     }
@@ -211,9 +237,20 @@ router.get("/", async (req, res, next) => {
       [req.auth.userId]
     );
 
+    const [reservedItems] = await pool.query(
+      `SELECT product_id, batch_id, batch_no, SUM(remaining_qty) AS reserved_qty
+       FROM stock_reservations
+       WHERE user_id = ? AND status = 'active' AND remaining_qty > 0
+       GROUP BY product_id, batch_id, batch_no`,
+      [req.auth.userId]
+    );
+
     const lockedByProd = new Map();
+    const reservedByProd = new Map();
     const lockedByBatchId = new Map();
     const lockedByBatchKey = new Map();
+    const reservedByBatchId = new Map();
+    const reservedByBatchKey = new Map();
 
     for (const d of draftItems) {
       const q = Number(d.locked_qty || 0);
@@ -229,11 +266,30 @@ router.get("/", async (req, res, next) => {
       }
     }
 
+    for (const r of reservedItems) {
+      const q = Number(r.reserved_qty || 0);
+      if (r.product_id) {
+        reservedByProd.set(r.product_id, (reservedByProd.get(r.product_id) || 0) + q);
+        lockedByProd.set(r.product_id, (lockedByProd.get(r.product_id) || 0) + q);
+      }
+      if (r.batch_id) {
+        reservedByBatchId.set(r.batch_id, (reservedByBatchId.get(r.batch_id) || 0) + q);
+        lockedByBatchId.set(r.batch_id, (lockedByBatchId.get(r.batch_id) || 0) + q);
+      }
+      if (r.product_id && r.batch_no) {
+        const key = `${r.product_id}:::${String(r.batch_no).toLowerCase().trim()}`;
+        reservedByBatchKey.set(key, (reservedByBatchKey.get(key) || 0) + q);
+        lockedByBatchKey.set(key, (lockedByBatchKey.get(key) || 0) + q);
+      }
+    }
+
     for (const batch of batches) {
       const phys = Math.max(0, Number(batch.available_qty || 0));
       const key = `${batch.product_id}:::${String(batch.batch_no || "").toLowerCase().trim()}`;
       const locked = lockedByBatchId.get(batch.id) || lockedByBatchKey.get(key) || 0;
+      const reserved = reservedByBatchId.get(batch.id) || reservedByBatchKey.get(key) || 0;
       batch.physical_qty = phys;
+      batch.reserved_qty = reserved;
       batch.locked_qty = locked;
       batch.available_qty = Math.max(0, Number((phys - locked).toFixed(4)));
     }
@@ -248,11 +304,14 @@ router.get("/", async (req, res, next) => {
     const data = products.map((product) => {
       const pBatches = map.get(product.id) || [];
       const totalPhysical = pBatches.reduce((sum, b) => sum + (Number(b.physical_qty) || 0), 0);
+      const totalReserved = Number((reservedByProd.get(product.id) || 0).toFixed(4));
       const totalLocked = Number((lockedByProd.get(product.id) || 0).toFixed(4));
       const availableStock = Math.max(0, Number((totalPhysical - totalLocked).toFixed(4)));
       return {
         ...product,
         total_stock: totalPhysical,
+        physical_stock: totalPhysical,
+        reserved_qty: totalReserved,
         locked_qty: totalLocked,
         stock: availableStock,
         available_stock: availableStock,
@@ -319,9 +378,21 @@ router.get("/:id", async (req, res, next) => {
       [req.auth.userId, product.id]
     );
 
+    const [reservedItems] = await pool.query(
+      `SELECT product_id, batch_id, batch_no, SUM(remaining_qty) AS reserved_qty
+       FROM stock_reservations
+       WHERE user_id = ? AND product_id = ? AND status = 'active' AND remaining_qty > 0
+       GROUP BY product_id, batch_id, batch_no`,
+      [req.auth.userId, product.id]
+    );
+
     const lockedByBatchId = new Map();
     const lockedByBatchKey = new Map();
+    const reservedByBatchId = new Map();
+    const reservedByBatchKey = new Map();
     let totalLocked = 0;
+    let totalReserved = 0;
+
     for (const d of draftItems) {
       const q = Number(d.locked_qty || 0);
       totalLocked += q;
@@ -334,11 +405,28 @@ router.get("/:id", async (req, res, next) => {
       }
     }
 
+    for (const r of reservedItems) {
+      const q = Number(r.reserved_qty || 0);
+      totalReserved += q;
+      totalLocked += q;
+      if (r.batch_id) {
+        reservedByBatchId.set(r.batch_id, (reservedByBatchId.get(r.batch_id) || 0) + q);
+        lockedByBatchId.set(r.batch_id, (lockedByBatchId.get(r.batch_id) || 0) + q);
+      }
+      if (r.product_id && r.batch_no) {
+        const key = `${r.product_id}:::${String(r.batch_no).toLowerCase().trim()}`;
+        reservedByBatchKey.set(key, (reservedByBatchKey.get(key) || 0) + q);
+        lockedByBatchKey.set(key, (lockedByBatchKey.get(key) || 0) + q);
+      }
+    }
+
     for (const batch of batches) {
       const phys = Math.max(0, Number(batch.available_qty || 0));
       const key = `${batch.product_id}:::${String(batch.batch_no || "").toLowerCase().trim()}`;
       const locked = lockedByBatchId.get(batch.id) || lockedByBatchKey.get(key) || 0;
+      const reserved = reservedByBatchId.get(batch.id) || reservedByBatchKey.get(key) || 0;
       batch.physical_qty = phys;
+      batch.reserved_qty = reserved;
       batch.locked_qty = locked;
       batch.available_qty = Math.max(0, Number((phys - locked).toFixed(4)));
     }
@@ -349,6 +437,8 @@ router.get("/:id", async (req, res, next) => {
     res.json({
       ...product,
       total_stock: totalPhysical,
+      physical_stock: totalPhysical,
+      reserved_qty: totalReserved,
       locked_qty: totalLocked,
       stock: availableStock,
       available_stock: availableStock,
