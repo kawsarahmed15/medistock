@@ -519,10 +519,19 @@ function CartPage() {
         if (!item) return;
         const current = item.freeQty || 0;
         if (e.key === "ArrowLeft") {
-          if (current > 0) cartRef.current.setFreeQty(item.product.id, current - 1);
+          if (current > 0) {
+            const nextVal = current - 1;
+            cartRef.current.setFreeQty(item.product.id, nextVal);
+            setFreeInputMap((prev) => ({
+              ...prev,
+              [item.product.id]: nextVal > 0 ? String(nextVal) : "",
+            }));
+          }
         } else {
           if (current < item.qty) {
-            cartRef.current.setFreeQty(item.product.id, current + 1);
+            const nextVal = current + 1;
+            cartRef.current.setFreeQty(item.product.id, nextVal);
+            setFreeInputMap((prev) => ({ ...prev, [item.product.id]: String(nextVal) }));
           } else {
             toast.warning("Free qty cannot exceed total qty");
           }
@@ -605,7 +614,7 @@ function CartPage() {
   const handleCellNav = (e: React.KeyboardEvent, rowIdx: number, colIdx: number) => {
     if (e.key === "Enter" || e.key === "ArrowRight") {
       e.preventDefault();
-      if (colIdx < 9) {
+      if (colIdx < 10) {
         focusCell(rowIdx, colIdx + 1);
       } else {
         // Reached end of row -> jump to search box for next item!
@@ -753,6 +762,7 @@ function CartPage() {
   const [discountPctInput, setDiscountPctInput] = useState<string>("");
   const [discountFlatInput, setDiscountFlatInput] = useState<string>("");
   const [rateInputMap, setRateInputMap] = useState<Record<string, string>>({});
+  const [freeInputMap, setFreeInputMap] = useState<Record<string, string>>({});
   const [savedCustomers, setSavedCustomers] = useState<SavedCustomer[]>([]);
   const [partyDropdownOpen, setPartyDropdownOpen] = useState(false);
   const [partyActiveIdx, setPartyActiveIdx] = useState(0);
@@ -835,6 +845,32 @@ function CartPage() {
     billDiscountPct > 0
       ? ` (${billDiscountPct % 1 === 0 ? billDiscountPct.toFixed(0) : billDiscountPct.toFixed(1)}%)`
       : "";
+
+  const totalFreeQty = cart.items.reduce((s, it) => s + (it.freeQty || 0), 0);
+
+  const handleAdjustFreeQty = (productId: string, delta: number) => {
+    const item = cart.items.find((it) => it.product.id === productId);
+    if (!item) return;
+    const current = item.freeQty || 0;
+    if (delta < 0) {
+      if (current > 0) {
+        const nextVal = current - 1;
+        cart.setFreeQty(productId, nextVal);
+        setFreeInputMap((prev) => ({
+          ...prev,
+          [productId]: nextVal > 0 ? String(nextVal) : "",
+        }));
+      }
+    } else {
+      if (current < item.qty) {
+        const nextVal = current + 1;
+        cart.setFreeQty(productId, nextVal);
+        setFreeInputMap((prev) => ({ ...prev, [productId]: String(nextVal) }));
+      } else {
+        toast.warning("Free qty cannot exceed total qty");
+      }
+    }
+  };
 
   const isCellFocused = (r: number, c: number) => focusedCell?.row === r && focusedCell?.col === c;
 
@@ -1348,6 +1384,7 @@ function CartPage() {
                     <th className="px-2 py-2 text-center w-20">Batch</th>
                     <th className="px-2 py-2 text-center w-16">Exp</th>
                     <th className="px-2 py-2 text-center w-16">Qty</th>
+                    <th className="px-2 py-2 text-center w-14">Free</th>
                     <th className="px-2 py-2 text-right w-20">Rate (₹)</th>
                     <th className="px-2 py-2 text-right w-20">MRP (₹)</th>
                     <th className="px-2 py-2 text-center w-14">Dis%</th>
@@ -1548,6 +1585,12 @@ function CartPage() {
                           }}
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => {
+                            if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
+                              return;
+                            }
                             if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
                               // Disable left/right arrow from modifying quantity or jumping
                               e.stopPropagation();
@@ -1588,6 +1631,12 @@ function CartPage() {
                                   : i.qty
                             }
                             onKeyDown={(e) => {
+                              if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
+                                return;
+                              }
                               if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
                                 // Disable arrow left/right from changing quantity or jumping
                                 e.stopPropagation();
@@ -1644,7 +1693,7 @@ function CartPage() {
                           />
                         </td>
 
-                        {/* 7. Rate (₹) */}
+                        {/* 7. Free Qty */}
                         <td
                           ref={(el) => setCellRef(idx, 5, el)}
                           tabIndex={0}
@@ -1654,12 +1703,18 @@ function CartPage() {
                           }}
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === "ArrowRight" || e.key === "Tab") {
+                            if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey) {
                               e.preventDefault();
-                              focusCell(idx, 6);
-                            } else if (e.key === "ArrowLeft") {
+                              e.stopPropagation();
+                              handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
+                              return;
+                            }
+                            if (e.key === "ArrowLeft") {
                               e.preventDefault();
                               focusCell(idx, 4);
+                            } else if (e.key === "Enter" || e.key === "Tab" || e.key === "ArrowRight") {
+                              e.preventDefault();
+                              focusCell(idx, 6);
                             } else if (e.key === "ArrowDown") {
                               e.preventDefault();
                               if (idx < cart.items.length - 1) focusCell(idx + 1, 5);
@@ -1670,8 +1725,124 @@ function CartPage() {
                             }
                           }}
                           className={cn(
-                            "px-2 py-1 w-20 text-right transition-colors outline-none",
+                            "px-2 py-1 w-14 text-center transition-colors outline-none",
                             isCellFocused(idx, 5)
+                              ? "!bg-primary !text-primary-foreground font-bold"
+                              : "",
+                          )}
+                        >
+                          <input
+                            id={`cell-${idx}-free`}
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            spellCheck={false}
+                            value={
+                              freeInputMap[i.product.id] !== undefined
+                                ? freeInputMap[i.product.id]
+                                : i.freeQty && i.freeQty > 0
+                                  ? String(i.freeQty)
+                                  : ""
+                            }
+                            placeholder="0"
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/[^0-9]/g, "");
+                              setFreeInputMap((prev) => ({ ...prev, [i.product.id]: raw }));
+                              if (raw === "") {
+                                cart.setFreeQty(i.product.id, 0);
+                                return;
+                              }
+                              const val = parseInt(raw, 10);
+                              if (isNaN(val) || val <= 0) {
+                                cart.setFreeQty(i.product.id, 0);
+                                return;
+                              }
+                              if (val > i.qty) {
+                                toast.warning("Free qty cannot exceed total qty", {
+                                  id: `free-limit-${i.product.id}`,
+                                });
+                                cart.setFreeQty(i.product.id, i.qty);
+                                setFreeInputMap((prev) => ({ ...prev, [i.product.id]: String(i.qty) }));
+                                return;
+                              }
+                              cart.setFreeQty(i.product.id, val);
+                            }}
+                            onFocus={(e) => {
+                              const current = i.freeQty && i.freeQty > 0 ? String(i.freeQty) : "";
+                              setFreeInputMap((prev) => ({ ...prev, [i.product.id]: current }));
+                              setFocusedCell({ row: idx, col: 5 });
+                              setSelectedIdx(idx);
+                              e.target.select();
+                            }}
+                            onBlur={() => {
+                              setFreeInputMap((prev) => {
+                                const next = { ...prev };
+                                delete next[i.product.id];
+                                return next;
+                              });
+                              setFocusedCell(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
+                                return;
+                              }
+                              if (e.key === "ArrowLeft") {
+                                e.preventDefault();
+                                focusCell(idx, 4);
+                              } else if (e.key === "Enter" || e.key === "Tab" || e.key === "ArrowRight") {
+                                e.preventDefault();
+                                focusCell(idx, 6);
+                              } else if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                if (idx < cart.items.length - 1) focusCell(idx + 1, 5);
+                                else entryInputRef.current?.focus();
+                              } else if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                if (idx > 0) focusCell(idx - 1, 5);
+                              }
+                            }}
+                            className={cn(
+                              "w-full text-center bg-transparent font-mono font-bold outline-none placeholder:text-muted-foreground/40",
+                              isCellFocused(idx, 5)
+                                ? "!text-primary-foreground font-bold"
+                                : i.freeQty && i.freeQty > 0
+                                  ? "text-emerald-700 dark:text-emerald-400 font-extrabold"
+                                  : "text-foreground",
+                            )}
+                          />
+                        </td>
+
+                        {/* 8. Rate (₹) */}
+                        <td
+                          ref={(el) => setCellRef(idx, 6, el)}
+                          tabIndex={0}
+                          onFocus={() => {
+                            setFocusedCell({ row: idx, col: 6 });
+                            setSelectedIdx(idx);
+                          }}
+                          onBlur={() => setFocusedCell(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === "ArrowRight" || e.key === "Tab") {
+                              e.preventDefault();
+                              focusCell(idx, 7);
+                            } else if (e.key === "ArrowLeft") {
+                              e.preventDefault();
+                              focusCell(idx, 5);
+                            } else if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              if (idx < cart.items.length - 1) focusCell(idx + 1, 6);
+                              else entryInputRef.current?.focus();
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              if (idx > 0) focusCell(idx - 1, 6);
+                            }
+                          }}
+                          className={cn(
+                            "px-2 py-1 w-20 text-right transition-colors outline-none",
+                            isCellFocused(idx, 6)
                               ? "!bg-primary !text-primary-foreground font-bold"
                               : "",
                           )}
@@ -1712,7 +1883,7 @@ function CartPage() {
                                       ? String(rate)
                                       : "";
                                 setRateInputMap((prev) => ({ ...prev, [i.product.id]: current }));
-                                setFocusedCell({ row: idx, col: 5 });
+                                setFocusedCell({ row: idx, col: 6 });
                                 setSelectedIdx(idx);
                                 e.target.select();
                               }}
@@ -1731,19 +1902,19 @@ function CartPage() {
                                 }
                                 if (e.key === "Enter" || e.key === "Tab") {
                                   e.preventDefault();
-                                  focusCell(idx, 6);
+                                  focusCell(idx, 7);
                                 } else if (e.key === "ArrowDown") {
                                   e.preventDefault();
-                                  if (idx < cart.items.length - 1) focusCell(idx + 1, 5);
+                                  if (idx < cart.items.length - 1) focusCell(idx + 1, 6);
                                   else entryInputRef.current?.focus();
                                 } else if (e.key === "ArrowUp") {
                                   e.preventDefault();
-                                  if (idx > 0) focusCell(idx - 1, 5);
+                                  if (idx > 0) focusCell(idx - 1, 6);
                                 }
                               }}
                               className={cn(
                                 "w-full text-right bg-transparent font-mono font-bold outline-none",
-                                isCellFocused(idx, 5)
+                                isCellFocused(idx, 6)
                                   ? "!text-primary-foreground font-bold"
                                   : "text-foreground",
                               )}
@@ -1787,36 +1958,7 @@ function CartPage() {
                           </div>
                         </td>
 
-                        {/* 8. MRP (₹) */}
-                        <td
-                          ref={(el) => setCellRef(idx, 6, el)}
-                          tabIndex={0}
-                          onFocus={() => {
-                            setFocusedCell({ row: idx, col: 6 });
-                            setSelectedIdx(idx);
-                          }}
-                          onBlur={() => setFocusedCell(null)}
-                          onKeyDown={(e) => handleCellNav(e, idx, 6)}
-                          className={cn(
-                            "px-2 py-1 w-20 text-right transition-colors outline-none",
-                            isCellFocused(idx, 6)
-                              ? "!bg-primary !text-primary-foreground font-bold"
-                              : "",
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "font-mono font-semibold",
-                              isCellFocused(idx, 6)
-                                ? "!text-primary-foreground font-bold"
-                                : "text-foreground",
-                            )}
-                          >
-                            {mrp > 0 ? mrp.toFixed(2) : "0.00"}
-                          </span>
-                        </td>
-
-                        {/* 9. Dis% */}
+                        {/* 9. MRP (₹) */}
                         <td
                           ref={(el) => setCellRef(idx, 7, el)}
                           tabIndex={0}
@@ -1827,25 +1969,25 @@ function CartPage() {
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => handleCellNav(e, idx, 7)}
                           className={cn(
-                            "px-2 py-1 w-14 text-center transition-colors outline-none",
+                            "px-2 py-1 w-20 text-right transition-colors outline-none",
                             isCellFocused(idx, 7)
-                              ? "!bg-primary !text-primary-foreground font-semibold"
+                              ? "!bg-primary !text-primary-foreground font-bold"
                               : "",
                           )}
                         >
                           <span
                             className={cn(
-                              "font-mono",
+                              "font-mono font-semibold",
                               isCellFocused(idx, 7)
                                 ? "!text-primary-foreground font-bold"
                                 : "text-foreground",
                             )}
                           >
-                            {rowDis}%
+                            {mrp > 0 ? mrp.toFixed(2) : "0.00"}
                           </span>
                         </td>
 
-                        {/* 10. GST% */}
+                        {/* 10. Dis% */}
                         <td
                           ref={(el) => setCellRef(idx, 8, el)}
                           tabIndex={0}
@@ -1856,8 +1998,37 @@ function CartPage() {
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => handleCellNav(e, idx, 8)}
                           className={cn(
-                            "px-2 py-1 w-14 text-center font-mono text-[11px] outline-none select-none transition-colors",
+                            "px-2 py-1 w-14 text-center transition-colors outline-none",
                             isCellFocused(idx, 8)
+                              ? "!bg-primary !text-primary-foreground font-semibold"
+                              : "",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "font-mono",
+                              isCellFocused(idx, 8)
+                                ? "!text-primary-foreground font-bold"
+                                : "text-foreground",
+                            )}
+                          >
+                            {rowDis}%
+                          </span>
+                        </td>
+
+                        {/* 11. GST% */}
+                        <td
+                          ref={(el) => setCellRef(idx, 9, el)}
+                          tabIndex={0}
+                          onFocus={() => {
+                            setFocusedCell({ row: idx, col: 9 });
+                            setSelectedIdx(idx);
+                          }}
+                          onBlur={() => setFocusedCell(null)}
+                          onKeyDown={(e) => handleCellNav(e, idx, 9)}
+                          className={cn(
+                            "px-2 py-1 w-14 text-center font-mono text-[11px] outline-none select-none transition-colors",
+                            isCellFocused(idx, 9)
                               ? "!bg-primary !text-primary-foreground font-bold"
                               : "text-muted-foreground",
                           )}
@@ -1869,28 +2040,36 @@ function CartPage() {
                               : "0%"}
                         </td>
 
-                        {/* 11. Net (₹) */}
+                        {/* 12. Net (₹) */}
                         <td
-                          ref={(el) => setCellRef(idx, 9, el)}
+                          ref={(el) => setCellRef(idx, 10, el)}
                           tabIndex={0}
                           onFocus={() => {
-                            setFocusedCell({ row: idx, col: 9 });
+                            setFocusedCell({ row: idx, col: 10 });
                             setSelectedIdx(idx);
                           }}
                           onBlur={() => setFocusedCell(null)}
-                          onKeyDown={(e) => handleCellNav(e, idx, 9)}
+                          onKeyDown={(e) => handleCellNav(e, idx, 10)}
                           className={cn(
                             "px-2 py-1 w-24 text-right font-mono font-bold outline-none select-none transition-colors",
-                            isCellFocused(idx, 9)
+                            isCellFocused(idx, 10)
                               ? "!bg-primary !text-primary-foreground font-bold"
-                              : "text-foreground",
+                              : "",
                           )}
                         >
-                          ₹
-                          {(
-                            (i.customPrice ?? i.product.price) *
-                            (i.qty - (i.freeQty || 0))
-                          ).toFixed(2)}
+                          {i.freeQty && i.freeQty === i.qty && i.qty > 0 ? (
+                            <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                              ₹0.00 (Free)
+                            </span>
+                          ) : (
+                            <>
+                              ₹
+                              {(
+                                (i.customPrice ?? i.product.price) *
+                                (i.qty - (i.freeQty || 0))
+                              ).toFixed(2)}
+                            </>
+                          )}
                         </td>
 
                         {/* 12. Delete Action */}
@@ -1966,9 +2145,15 @@ function CartPage() {
                     <td className="px-2 py-1 w-16 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
+                    {/* Qty placeholder */}
                     <td className="px-2 py-1 w-16 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
+                    {/* Free placeholder */}
+                    <td className="px-2 py-1 w-14 text-center text-muted-foreground/40 font-mono text-[11px] select-none">
+                      —
+                    </td>
+                    {/* Rate placeholder */}
                     <td className="px-2 py-1 w-20 text-right text-muted-foreground/40 font-mono text-[11px] select-none">
                       —
                     </td>
@@ -2256,6 +2441,16 @@ function CartPage() {
                     {(selectedItem.product.stock ?? 0) <= 10 && " (Low)"}
                   </span>
                 </div>
+                {(selectedItem.freeQty ?? 0) > 0 && (
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
+                      Free Scheme
+                    </span>
+                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                      {selectedItem.freeQty} Free ({selectedItem.qty - selectedItem.freeQty} Billed)
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -2409,6 +2604,12 @@ function CartPage() {
                 <span>Gross Total</span>
                 <span className="font-mono font-medium text-foreground">₹{grossTotal.toFixed(2)}</span>
               </div>
+              {totalFreeQty > 0 && (
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-semibold">
+                  <span>Free Items</span>
+                  <span className="font-mono">{totalFreeQty} Free</span>
+                </div>
+              )}
               {cart.discount > 0 && (
                 <div className="flex justify-between text-muted-foreground">
                   <span>Bill Discount{billDiscountPctStr}</span>
@@ -2514,10 +2715,10 @@ function CartPage() {
             <span className="truncate">Payment & Save</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <kbd className="text-primary bg-primary/10 border border-primary/20 px-1 py-0.2 rounded font-mono font-bold text-[9px]">
+            <kbd className="text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 font-bold px-1 py-0.2 rounded font-mono text-[9px]">
               Ctrl+← / →
             </kbd>
-            <span className="truncate">Switch Bill Tab</span>
+            <span className="truncate">Free Qty</span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <kbd className="bg-muted text-foreground px-1 py-0.2 rounded border border-border font-mono font-bold text-[9px]">
@@ -4787,13 +4988,13 @@ function CheckoutFlowDialog({
                           <td className="py-2 px-2 text-right font-medium">
                             {isTabCap ? (
                               <>
-                                {formatStripPcDisplay(it.qty, pps)}
-                                {it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps)}` : ""}
+                                {formatStripPcDisplay(lineQty, pps)}
+                                {it.freeQty ? ` + ${formatStripPcDisplay(it.freeQty, pps)} Free` : ""}
                               </>
                             ) : (
                               <>
-                                {it.qty}
-                                {it.freeQty ? `+${it.freeQty}` : ""}
+                                {lineQty}
+                                {it.freeQty ? ` + ${it.freeQty} Free` : ""}
                               </>
                             )}
                           </td>
