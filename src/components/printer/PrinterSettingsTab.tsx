@@ -537,22 +537,6 @@ export const PrinterSettingsTab: React.FC = () => {
               )}
 
               <div className="flex items-center justify-between pt-1">
-                <Label htmlFor="sig-doc" className="text-[11px]">
-                  Doctor / Prescriber Line
-                </Label>
-                <Switch
-                  id="sig-doc"
-                  checked={settings.customization.showDoctorSign}
-                  onCheckedChange={(checked) =>
-                    setSettings((prev) => ({
-                      ...prev,
-                      customization: { ...prev.customization, showDoctorSign: checked },
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
                 <Label htmlFor="sig-qr" className="text-[11px]">
                   Print QR Code (Scan to Verify)
                 </Label>
@@ -570,11 +554,11 @@ export const PrinterSettingsTab: React.FC = () => {
             </div>
           </div>
 
-          {/* D. Header, Terms & Greeting */}
+          {/* D. Customer Details, Dispatch & Terms */}
           <div className="space-y-3 p-3.5 rounded-xl border border-border/80 bg-muted/20">
             <div className="font-semibold text-xs flex items-center gap-1.5 text-foreground">
               <FileText className="h-4 w-4 text-primary" />
-              📄 Header &amp; Terms &amp; Greetings
+              📄 Customer, Dispatch &amp; Terms
             </div>
 
             <div className="space-y-2">
@@ -605,15 +589,53 @@ export const PrinterSettingsTab: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-[11px]">Patient &amp; Dr Strip</span>
+                <div>
+                  <div className="text-[11px] font-medium">Customer Details Block</div>
+                  <div className="text-[10px] text-muted-foreground">Phone, D.L. No., GSTIN, Address</div>
+                </div>
                 <Switch
-                  checked={settings.customization.showPatientDoctor}
+                  checked={settings.customization.showCustomerDetails ?? settings.customization.showPatientDoctor ?? true}
                   onCheckedChange={(c) =>
                     setSettings((prev) => ({
                       ...prev,
-                      customization: { ...prev.customization, showPatientDoctor: c },
+                      customization: {
+                        ...prev.customization,
+                        showCustomerDetails: c,
+                        showPatientDoctor: c,
+                      },
                     }))
                   }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-medium">Dispatch &amp; Payment Block</div>
+                  <div className="text-[10px] text-muted-foreground">Transport &amp; Payment Mode</div>
+                </div>
+                <Switch
+                  checked={settings.customization.showDispatchPayment ?? true}
+                  onCheckedChange={(c) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      customization: { ...prev.customization, showDispatchPayment: c },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1 pt-1">
+                <Label className="text-[10px] text-muted-foreground">Default Transport</Label>
+                <Input
+                  value={settings.customization.transportText ?? "Direct / By Hand"}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      customization: { ...prev.customization, transportText: e.target.value },
+                    }))
+                  }
+                  placeholder="e.g. Direct / By Hand"
+                  className="text-xs h-7"
                 />
               </div>
 

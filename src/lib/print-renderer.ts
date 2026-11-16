@@ -127,12 +127,13 @@ export function renderBillHtml(
   const pharmacyGstNumber = bill.pharmacyGstNumber || "";
   const pharmacyDrugLicNo = bill.pharmacyDrugLicNo || "";
 
-  const customerName = bill.customerName || "Walk-in Customer";
+  const customerName = bill.customerName || "M/S MEDILAND";
   const customerPhone = bill.customerPhone || "";
   const customerAddress = bill.customerAddress || "";
   const customerGstin = bill.customerGstin || "";
   const customerDrugLicNo = bill.customerDrugLicNo || "";
-  const paymentMethod = (bill.paymentMethod || "CASH").toUpperCase();
+  const transport = (bill as any).transport || cust.transportText || "Direct / By Hand";
+  const paymentMethod = (bill.paymentMethod || "credit").toUpperCase();
 
   const items = Array.isArray(bill.items) ? bill.items : [];
   const subtotal = Number(bill.subtotal || 0);
@@ -282,9 +283,18 @@ export function renderBillHtml(
             <div><strong>Inv:</strong> ${escapeHtml(invoiceNo)}</div>
             <div>${invoiceDate} ${invoiceTime}</div>
           </div>
-          <div style="font-size: 9px; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 3px;">
-            <div><strong>Patient:</strong> ${escapeHtml(customerName)}</div>
-            ${customerPhone ? `<div><strong>Phone:</strong> ${escapeHtml(customerPhone)}</div>` : ""}
+          <div style="font-size: 8.5px; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 3px; line-height: 1.35;">
+            <div style="font-weight: bold; font-size: 8px; text-transform: uppercase;">CUSTOMER DETAILS</div>
+            <div style="font-weight: bold; font-size: 10px; text-transform: uppercase;">${escapeHtml(customerName)}</div>
+            ${customerPhone ? `<div>PHONE: ${escapeHtml(customerPhone)}</div>` : ""}
+            ${customerDrugLicNo ? `<div>D.L.NO.: ${escapeHtml(customerDrugLicNo.toUpperCase())}</div>` : ""}
+            ${customerGstin ? `<div>GSTIN: ${escapeHtml(customerGstin.toUpperCase())}</div>` : ""}
+            ${customerAddress ? `<div>ADDRESS: ${escapeHtml(customerAddress)}</div>` : ""}
+            <div style="border-top: 1px dotted #000; margin-top: 3px; padding-top: 2px;">
+              <div style="font-weight: bold; font-size: 8px; text-transform: uppercase;">DISPATCH &amp; PAYMENT</div>
+              <div>Transport: ${escapeHtml(transport)}</div>
+              <div>Payment Mode: <span style="text-transform: uppercase;">${escapeHtml(paymentMethod)}</span></div>
+            </div>
           </div>
 
           <table style="width: 100%; border-collapse: collapse; font-size: 9px; margin-bottom: 5px;">
@@ -363,20 +373,21 @@ export function renderBillHtml(
           </div>
 
           <!-- Customer & Dispatch -->
-          <div style="display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 11px;">
+          <div style="display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 11px; line-height: 1.4;">
             <div style="flex: 1;">
               <div style="font-size: 9px; font-weight: bold; color: ${color}; text-transform: uppercase; margin-bottom: 2px;">CUSTOMER DETAILS</div>
-              <div style="font-size: 13px; font-weight: bold;">${escapeHtml(customerName)}</div>
-              ${customerPhone ? `<div>PHONE: ${escapeHtml(customerPhone)}</div>` : ""}
-              ${customerAddress ? `<div>ADDRESS: ${escapeHtml(customerAddress)}</div>` : ""}
-              ${customerDrugLicNo ? `<div>D.L. NO: ${escapeHtml(customerDrugLicNo)}</div>` : ""}
-              ${customerGstin ? `<div>GSTIN: ${escapeHtml(customerGstin)}</div>` : ""}
+              <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">${escapeHtml(customerName)}</div>
+              ${customerPhone ? `<div><strong>PHONE:</strong> <span style="font-family: monospace;">${escapeHtml(customerPhone)}</span></div>` : ""}
+              ${customerDrugLicNo ? `<div><strong>D.L.NO.:</strong> <span style="font-family: monospace; font-weight: bold;">${escapeHtml(customerDrugLicNo.toUpperCase())}</span></div>` : ""}
+              ${customerGstin ? `<div><strong>GSTIN:</strong> <span style="font-family: monospace; font-weight: bold;">${escapeHtml(customerGstin.toUpperCase())}</span></div>` : ""}
+              ${customerAddress ? `<div><strong>ADDRESS:</strong> ${escapeHtml(customerAddress)}</div>` : ""}
             </div>
-            <div style="width: 200px; border-left: 1px solid #e2e8f0; padding-left: 12px;">
-              <div style="font-size: 9px; font-weight: bold; color: ${color}; text-transform: uppercase; margin-bottom: 2px;">PAYMENT DETAILS</div>
-              <div>Payment Mode: <strong style="text-transform: uppercase; color: ${color};">${paymentMethod}</strong></div>
-              <div>Status: <strong style="color: #059669; text-transform: uppercase;">${escapeHtml(bill.status || "COMPLETED")}</strong></div>
-              ${bill.customerNotes ? `<div style="font-style: italic; color: #64748b; margin-top: 3px;">${escapeHtml(bill.customerNotes)}</div>` : ""}
+            <div style="width: 220px; border-left: 1px solid #e2e8f0; padding-left: 14px;">
+              <div style="font-size: 9px; font-weight: bold; color: ${color}; text-transform: uppercase; margin-bottom: 2px;">DISPATCH &amp; PAYMENT</div>
+              <div><strong>Transport:</strong> <span>${escapeHtml(transport)}</span></div>
+              <div><strong>Payment Mode:</strong> <strong style="text-transform: uppercase; color: ${color};">${escapeHtml(paymentMethod)}</strong></div>
+              <div><strong>Status:</strong> <strong style="color: #059669; text-transform: uppercase;">${escapeHtml(bill.status || "COMPLETED")}</strong></div>
+              ${bill.customerNotes ? `<div style="font-style: italic; color: #64748b; margin-top: 3px; font-size: 10px;">${escapeHtml(bill.customerNotes)}</div>` : ""}
             </div>
           </div>
 
@@ -463,10 +474,18 @@ export function renderBillHtml(
               <div style="font-size: 8px; color: #64748b; margin-top: 2px;">Scan to Verify</div>
             </div>
 
-            <div style="font-size: 9px; border-top: 1px solid #cbd5e1; padding-top: 6px;">
-              <div style="font-weight: bold; color: #0f172a; margin-bottom: 2px;">PATIENT</div>
-              <div>${escapeHtml(customerName)}</div>
-              ${customerPhone ? `<div>${escapeHtml(customerPhone)}</div>` : ""}
+            <div style="font-size: 8.5px; border-top: 1.5px solid #0f172a; padding-top: 5px; line-height: 1.3;">
+              <div style="font-weight: 900; color: #0f172a; font-size: 8px; text-transform: uppercase; margin-bottom: 2px;">CUSTOMER DETAILS</div>
+              <div style="font-weight: 800; font-size: 10px; text-transform: uppercase; color: #0f172a;">${escapeHtml(customerName)}</div>
+              ${customerPhone ? `<div><b>PHONE:</b> ${escapeHtml(customerPhone)}</div>` : ""}
+              ${customerDrugLicNo ? `<div><b>D.L.NO.:</b> ${escapeHtml(customerDrugLicNo.toUpperCase())}</div>` : ""}
+              ${customerGstin ? `<div><b>GSTIN:</b> ${escapeHtml(customerGstin.toUpperCase())}</div>` : ""}
+              ${customerAddress ? `<div><b>ADDRESS:</b> ${escapeHtml(customerAddress)}</div>` : ""}
+              <div style="border-top: 1px dashed #cbd5e1; margin-top: 4px; padding-top: 4px;">
+                <div style="font-weight: 900; color: #0f172a; font-size: 8px; text-transform: uppercase; margin-bottom: 2px;">DISPATCH &amp; PAYMENT</div>
+                <div><b>Transport:</b> ${escapeHtml(transport)}</div>
+                <div><b>Payment Mode:</b> <span style="text-transform: uppercase; font-weight: 800;">${escapeHtml(paymentMethod)}</span></div>
+              </div>
             </div>
           </div>
 
@@ -541,10 +560,22 @@ export function renderBillHtml(
               <div>PAYMENT: ${paymentMethod}</div>
             </div>
 
-            <!-- Patient Strip -->
-            <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 4px; font-size: 9.5px;">
-              <div><b>Patient:</b> ${escapeHtml(customerName)} ${customerPhone ? `(${escapeHtml(customerPhone)})` : ""}</div>
-              <div><b>Dr:</b> ${escapeHtml(bill.customerNotes || "Self / Prescribed")}</div>
+            <!-- Customer Details & Dispatch / Payment Box -->
+            <div style="display: grid; grid-template-columns: 1.4fr 1fr; border-bottom: 1.5px solid #000; padding: 4px 6px; margin-bottom: 4px; font-size: 9px; line-height: 1.35; background: #fff;">
+              <div>
+                <div style="font-size: 8px; font-weight: 900; text-transform: uppercase; color: #000; letter-spacing: 0.05em;">CUSTOMER DETAILS</div>
+                <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #000;">${escapeHtml(customerName)}</div>
+                ${customerPhone ? `<div><b>PHONE:</b> ${escapeHtml(customerPhone)}</div>` : ""}
+                ${customerDrugLicNo ? `<div><b>D.L.NO.:</b> ${escapeHtml(customerDrugLicNo.toUpperCase())}</div>` : ""}
+                ${customerGstin ? `<div><b>GSTIN:</b> ${escapeHtml(customerGstin.toUpperCase())}</div>` : ""}
+                ${customerAddress ? `<div><b>ADDRESS:</b> ${escapeHtml(customerAddress)}</div>` : ""}
+              </div>
+              <div style="border-left: 1.5px solid #000; padding-left: 8px;">
+                <div style="font-size: 8px; font-weight: 900; text-transform: uppercase; color: #000; letter-spacing: 0.05em;">DISPATCH &amp; PAYMENT</div>
+                <div><b>Transport:</b> ${escapeHtml(transport)}</div>
+                <div><b>Payment Mode:</b> <span style="text-transform: uppercase; font-weight: 900;">${escapeHtml(paymentMethod)}</span></div>
+                ${bill.customerNotes ? `<div style="font-style: italic; font-size: 8px; margin-top: 2px;">${escapeHtml(bill.customerNotes)}</div>` : ""}
+              </div>
             </div>
 
             <!-- Table -->
@@ -602,10 +633,22 @@ export function renderBillHtml(
               </div>
             </div>
 
-            <!-- Patient strip -->
-            <div style="display: flex; justify-content: space-between; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 4px 10px; font-size: 9.5px;">
-              <div><b>Patient:</b> ${escapeHtml(customerName)} ${customerPhone ? `· ${escapeHtml(customerPhone)}` : ""}</div>
-              <div><b>GSTIN:</b> <span style="font-family: monospace;">${escapeHtml(pharmacyGstNumber || "-")}</span> · <b>DL:</b> ${escapeHtml(pharmacyDrugLicNo || "-")}</div>
+            <!-- Customer Details & Dispatch / Payment Bar -->
+            <div style="display: grid; grid-template-columns: 1.4fr 1fr; background: #f8fafc; border-bottom: 1.5px solid #18232d; padding: 6px 12px; font-size: 9px; line-height: 1.35;">
+              <div>
+                <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #18232d; letter-spacing: 0.05em;">CUSTOMER DETAILS</div>
+                <div style="font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase;">${escapeHtml(customerName)}</div>
+                ${customerPhone ? `<div><b>PHONE:</b> ${escapeHtml(customerPhone)}</div>` : ""}
+                ${customerDrugLicNo ? `<div><b>D.L.NO.:</b> ${escapeHtml(customerDrugLicNo.toUpperCase())}</div>` : ""}
+                ${customerGstin ? `<div><b>GSTIN:</b> ${escapeHtml(customerGstin.toUpperCase())}</div>` : ""}
+                ${customerAddress ? `<div><b>ADDRESS:</b> ${escapeHtml(customerAddress)}</div>` : ""}
+              </div>
+              <div style="border-left: 1px solid #cbd5e1; padding-left: 10px;">
+                <div style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #18232d; letter-spacing: 0.05em;">DISPATCH &amp; PAYMENT</div>
+                <div><b>Transport:</b> ${escapeHtml(transport)}</div>
+                <div><b>Payment Mode:</b> <span style="text-transform: uppercase; font-weight: 800; color: #0284c7;">${escapeHtml(paymentMethod)}</span></div>
+                ${bill.customerNotes ? `<div style="font-style: italic; color: #64748b; font-size: 8px; margin-top: 2px;">${escapeHtml(bill.customerNotes)}</div>` : ""}
+              </div>
             </div>
 
             <!-- Table -->
@@ -678,26 +721,24 @@ export function renderBillHtml(
             </div>
           </div>
 
-          <!-- Patient / Doctor Strip -->
+          <!-- Wholesaler Customer Details & Dispatch / Payment Block -->
           ${
-            cust.showPatientDoctor
+            (cust.showCustomerDetails ?? cust.showPatientDoctor ?? true)
               ? `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; background: #eef4f3; margin-top: 5px; padding: 4px 8px; gap: 2px 12px; border-radius: 3px; font-size: 9.5px;">
-              <div style="display: flex; gap: 4px; align-items: baseline;">
-                <span style="font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; color: #5d6b76; width: 65px; flex-shrink: 0;">Patient Name</span>
-                <span style="font-weight: 700;">${escapeHtml(customerName)}</span>
+            <div style="display: grid; grid-template-columns: 1.35fr 1fr; background: #f8fafc; border: 0.25mm solid #cbd5e1; margin-top: 5px; padding: 5px 8px; gap: 4px 12px; border-radius: 3px; font-size: 9.5px; line-height: 1.35;">
+              <div>
+                <div style="font-size: 8px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: ${color}; margin-bottom: 1px;">CUSTOMER DETAILS</div>
+                <div style="font-weight: 800; font-size: 11px; color: #0f172a; text-transform: uppercase;">${escapeHtml(customerName)}</div>
+                ${customerPhone ? `<div><span style="color: #64748b; font-size: 8.5px; font-weight: 700;">PHONE:</span> <span style="font-family: monospace; font-weight: 600;">${escapeHtml(customerPhone)}</span></div>` : ""}
+                ${customerDrugLicNo ? `<div><span style="color: #64748b; font-size: 8.5px; font-weight: 700;">D.L.NO.:</span> <span style="font-family: monospace; font-weight: 700; color: #0f172a;">${escapeHtml(customerDrugLicNo.toUpperCase())}</span></div>` : ""}
+                ${customerGstin ? `<div><span style="color: #64748b; font-size: 8.5px; font-weight: 700;">GSTIN:</span> <span style="font-family: monospace; font-weight: 600;">${escapeHtml(customerGstin.toUpperCase())}</span></div>` : ""}
+                ${customerAddress ? `<div><span style="color: #64748b; font-size: 8.5px; font-weight: 700;">ADDRESS:</span> <span>${escapeHtml(customerAddress)}</span></div>` : ""}
               </div>
-              <div style="display: flex; gap: 4px; align-items: baseline;">
-                <span style="font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; color: #5d6b76; width: 65px; flex-shrink: 0;">Mobile</span>
-                <span style="font-family: monospace;">${escapeHtml(customerPhone || "-")}</span>
-              </div>
-              <div style="display: flex; gap: 4px; align-items: baseline;">
-                <span style="font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; color: #5d6b76; width: 65px; flex-shrink: 0;">Address</span>
-                <span>${escapeHtml(customerAddress || "-")}</span>
-              </div>
-              <div style="display: flex; gap: 4px; align-items: baseline;">
-                <span style="font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; color: #5d6b76; width: 65px; flex-shrink: 0;">Doctor</span>
-                <span>${escapeHtml(bill.customerNotes || "Self / Counter")}</span>
+              <div style="border-left: 0.2mm solid #cbd5e1; padding-left: 8px;">
+                <div style="font-size: 8px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: ${color}; margin-bottom: 1px;">DISPATCH &amp; PAYMENT</div>
+                <div><span style="color: #64748b; font-size: 8.5px; font-weight: 700;">Transport:</span> <span>${escapeHtml(transport)}</span></div>
+                <div><span style="color: #64748b; font-size: 8.5px; font-weight: 700;">Payment Mode:</span> <strong style="text-transform: uppercase; color: ${color};">${escapeHtml(paymentMethod)}</strong></div>
+                ${bill.customerNotes ? `<div style="font-style: italic; color: #64748b; font-size: 8.5px; margin-top: 2px;">${escapeHtml(bill.customerNotes)}</div>` : ""}
               </div>
             </div>
           `
