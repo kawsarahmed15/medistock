@@ -26,13 +26,23 @@ import {
   EyeOff,
   CheckCircle2,
   AlertCircle,
+  Printer,
+  Store,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { getBusinessModule } from "@/features";
+import { PrinterSettingsTab } from "@/components/printer/PrinterSettingsTab";
+
+interface SettingsSearch {
+  tab?: string;
+}
 
 export const Route = createFileRoute("/_app/settings")({
+  validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
   component: SettingsPage,
 });
 
@@ -47,6 +57,50 @@ const PRESETS = [
 ];
 
 function SettingsPage() {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [activeTab, setActiveTab] = useState<"store" | "printer">(
+    search.tab === "printer" ? "printer" : "store",
+  );
+
+  useEffect(() => {
+    let t = search.tab;
+    if (!t && typeof window !== "undefined") {
+      const hash = window.location.hash;
+      const sp = new URLSearchParams(window.location.search);
+      t = sp.get("tab") || undefined;
+      if (!t && hash.includes("tab=printer")) {
+        t = "printer";
+      }
+    }
+    if (t === "printer") {
+      setActiveTab("printer");
+    } else {
+      setActiveTab("store");
+    }
+  }, [search.tab]);
+
+  const handleTabSwitch = (tab: "store" | "printer") => {
+    setActiveTab(tab);
+    void navigate({ search: { tab } });
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.altKey && e.key === "2") {
+        e.preventDefault();
+        handleTabSwitch("store");
+      } else if (e.altKey && e.key === "4") {
+        e.preventDefault();
+        handleTabSwitch("printer");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const {
     session,
     updateSession,
@@ -335,17 +389,62 @@ function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Customize your pharmacy profile, tax settings, and invoice layout template.
-        </p>
+    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Settings</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Customize your pharmacy profile, tax settings, and invoice print templates.
+          </p>
+        </div>
+
+        {/* Tab Buttons */}
+        <div className="flex items-center p-1 bg-muted/60 rounded-xl border border-border/80 self-start sm:self-auto shadow-2xs">
+          <button
+            type="button"
+            onClick={() => handleTabSwitch("store")}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer",
+              activeTab === "store"
+                ? "bg-background text-foreground shadow-xs border border-border/50"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Store className="h-4 w-4 text-primary" />
+            <span>Store Profile &amp; Security</span>
+            <kbd className="hidden md:inline text-[9px] font-mono text-muted-foreground/70 bg-muted px-1 rounded">
+              Alt+2
+            </kbd>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSwitch("printer")}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer",
+              activeTab === "printer"
+                ? "bg-background text-foreground shadow-xs border border-border/50"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Printer className="h-4 w-4 text-primary" />
+            <span>🖨️ Printer &amp; Formats</span>
+            <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.2 rounded-full font-bold">
+              v1.4 Spec
+            </span>
+            <kbd className="hidden md:inline text-[9px] font-mono text-muted-foreground/70 bg-muted px-1 rounded">
+              Alt+4
+            </kbd>
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSave} className="grid md:grid-cols-3 gap-6">
-        {/* Main Configuration Card */}
-        <div className="md:col-span-2 space-y-6">
+      {activeTab === "printer" ? (
+        <PrinterSettingsTab />
+      ) : (
+        <>
+          <form onSubmit={handleSave} className="grid md:grid-cols-3 gap-6">
+            {/* Main Configuration Card */}
+            <div className="md:col-span-2 space-y-6">
           <Card className="shadow-soft border-border/80">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -1008,6 +1107,8 @@ function SettingsPage() {
           {saving ? "Saving Changes…" : "Save Changes"}
         </Button>
       </div>
+        </>
+      )}
     </div>
   );
 }

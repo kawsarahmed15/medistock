@@ -1,6 +1,19 @@
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, Printer, Pill, CheckCircle2, XCircle, Clock, AlertTriangle, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  Printer,
+  Pill,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  Pencil,
+  ChevronDown,
+  Sparkles,
+  FileText,
+} from "lucide-react";
 import QRCode from "react-qr-code";
 import { billsStore, type Bill } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
@@ -11,6 +24,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { downloadBillPdf } from "@/lib/bill-pdf";
@@ -19,6 +39,9 @@ import { BillDetailSkeleton } from "@/components/loading-skeleton";
 import { toast } from "sonner";
 import { resolveBusinessCategory } from "@/features";
 import { isTabOrCap, getPiecesPerStrip, formatStripPcDisplay } from "@/lib/pack-utils";
+import { PrinterSettingsService } from "@/lib/printer-settings";
+import { printBillDocument } from "@/lib/print-renderer";
+import { PrintBillModal } from "@/components/printer/PrintBillModal";
 
 export const Route = createFileRoute("/_app/bills/$id")({
   component: BillDetailPage,
@@ -206,6 +229,28 @@ function BillDetailPage() {
   const netPayable = bill.total;
   const roundOff = isReturn ? 0 : bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
 
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+
+  const handleCustomPrint = async () => {
+    const printerSettings = PrinterSettingsService.getSettings();
+    if (printerSettings.workflowMode === "DIRECT_PRINT") {
+      try {
+        await printBillDocument(bill, {
+          ...printerSettings,
+          customization: {
+            ...printerSettings.customization,
+            primaryColor: session?.billColor || printerSettings.customization.primaryColor,
+          },
+        });
+        toast.success("Bill dispatched to printer spooler.");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to print bill.");
+      }
+    } else {
+      setPrintModalOpen(true);
+    }
+  };
+
   const handlePrint = () => {
     downloadBillPdf(bill, {
       pharmacyName,
@@ -319,10 +364,62 @@ function BillDetailPage() {
             </>
           )}
 
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Print</span>
-          </Button>
+          {/* Enhanced Print Action: Quick Print + Format Options Dropdown */}
+          <div className="flex items-center shadow-xs rounded-md">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCustomPrint}
+              className="rounded-r-none border-r-0 font-medium"
+            >
+              <Printer className="h-4 w-4 mr-1.5 text-primary" />
+              <span>Print Bill</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-l-none px-2"
+                  title="Print formats and options"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 text-xs">
+                <DropdownMenuItem onClick={() => setPrintModalOpen(true)}>
+                  <Sparkles className="h-4 w-4 mr-2 text-amber-500" />
+                  <span>Choose Format &amp; Preview</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCustomPrint}>
+                  <Printer className="h-4 w-4 mr-2 text-primary" />
+                  <span>Quick Print (Active Template)</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handlePrint}>
+                  <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span>Original Standard Print</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    void downloadBillPdf(bill, {
+                      pharmacyName,
+                      pharmacyPhone,
+                      pharmacyAddress,
+                      gstNumber,
+                      drugLicNo,
+                      billColor: session?.billColor,
+                      signature: session?.signature,
+                      print: false,
+                    })
+                  }
+                >
+                  <Download className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span>Original Classic PDF</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <Button
             size="sm"
             onClick={() =>
@@ -412,7 +509,7 @@ function BillDetailPage() {
             <div className="flex gap-1.5">
               {bill.returns.map((r: any) => (
                 <Button key={r.id || r.number} asChild size="sm" variant="outline" className="text-xs h-7 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20">
-                  <Link to={`/bills/${r.id}`}>View {r.number}</Link>
+                  <Link to="/bills/$id" params={{ id: r.id }}>View {r.number}</Link>
                 </Button>
               ))}
             </div>
@@ -911,6 +1008,22 @@ function BillDetailPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Interactive Bill Print Modal with Format Selection */}
+      <PrintBillModal
+        isOpen={printModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        bill={bill}
+        pharmacyInfo={{
+          pharmacyName,
+          pharmacyPhone,
+          pharmacyAddress,
+          gstNumber,
+          drugLicNo,
+          billColor: session?.billColor,
+          signature: session?.signature,
+        }}
+      />
     </div>
   );
 }
