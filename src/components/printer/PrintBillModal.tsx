@@ -208,7 +208,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
                 className="text-xs font-semibold rounded-md border border-input bg-background px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
               >
                 <option value="HALF_A4_SINGLE">Half A4 (A5 Landscape)</option>
-                <option value="A4_DUAL_COPY">A4 Dual Copy (2 on 1 Page)</option>
+                <option value="A4_DUAL_COPY">A4 Half-Page (Top Half on A4 Paper)</option>
                 <option value="A4_PORTRAIT">Full A4 Portrait</option>
                 <option value="THERMAL_80MM">3-Inch Thermal Receipt (80mm)</option>
               </select>

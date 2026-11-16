@@ -817,24 +817,22 @@ export function renderBillHtml(
     `;
   };
 
-  // Multiple copies rendering for A4_DUAL_COPY
+  // Rendering content for A4_DUAL_COPY (Top half on A4 sheet, bottom half remains white)
   let bodyContent = "";
   if (paperPreset === "A4_DUAL_COPY") {
     bodyContent = `
-      <div class="page-container" style="width: 210mm; min-height: 297mm; box-sizing: border-box; padding: ${mTop}mm ${mRight}mm ${mBottom}mm ${mLeft}mm; display: flex; flex-direction: column; gap: 8mm; justify-content: flex-start; transform: translate(${xOffset}mm, ${yOffset}mm);">
-        <div style="height: 138mm; overflow: hidden; display: flex; flex-direction: column;">
-          ${buildSingleBillContent("ORIGINAL - CUSTOMER COPY")}
+      <div class="page-container" style="width: 210mm; height: 297mm; min-height: 297mm; box-sizing: border-box; padding: ${mTop}mm ${mRight}mm ${mBottom}mm ${mLeft}mm; display: flex; flex-direction: column; justify-content: flex-start; transform: translate(${xOffset}mm, ${yOffset}mm); background: #ffffff;">
+        <div style="height: 140mm; max-height: 144mm; overflow: hidden; display: flex; flex-direction: column;">
+          ${buildSingleBillContent()}
         </div>
-        <div style="border-top: 1px dashed #94a3b8; margin: 2px 0;"></div>
-        <div style="height: 138mm; overflow: hidden; display: flex; flex-direction: column;">
-          ${buildSingleBillContent("DUPLICATE - STORE COPY")}
-        </div>
+        <!-- Bottom half remains blank white paper -->
+        <div style="flex: 1; min-height: 140mm; background: #ffffff;"></div>
       </div>
     `;
   } else {
     bodyContent = `
       <div class="page-container" style="${containerDimensions} box-sizing: border-box; padding: ${mTop}mm ${mRight}mm ${mBottom}mm ${mLeft}mm; transform: translate(${xOffset}mm, ${yOffset}mm);">
-        ${buildSingleBillContent("ORIGINAL")}
+        ${buildSingleBillContent()}
       </div>
     `;
   }

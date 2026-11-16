@@ -686,8 +686,8 @@ export const PrinterSettingsTab: React.FC = () => {
               },
               {
                 id: "A4_DUAL_COPY",
-                name: "A4 Dual Copy (Customer + Store)",
-                desc: "2 identical bills printed together on 1 A4 sheet.",
+                name: "A4 Half-Page (Top Half on A4)",
+                desc: "1 bill on top half of A4 sheet; bottom half remains blank white.",
               },
               {
                 id: "A4_PORTRAIT",
