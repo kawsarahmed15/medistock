@@ -24,6 +24,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Check,
+  ChevronDown,
   Receipt,
   Coins,
   Clock,
@@ -221,6 +222,18 @@ function CartPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null); // product id to delete
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const itemsContainerRef = useRef<HTMLDivElement>(null);
+
+  // ── Sale Batch Selection Dialog State ──────────────────────────────────────
+  const [saleBatchProduct, setSaleBatchProduct] = useState<Product | null>(null);
+  const [saleBatchReplacingProductId, setSaleBatchReplacingProductId] = useState<string | null>(null);
+  const [saleBatchIdx, setSaleBatchIdx] = useState<number>(0);
+  const saleBatchIdxRef = useRef(saleBatchIdx);
+  const batchListContainerRef = useRef<HTMLDivElement>(null);
+  const batchItemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    saleBatchIdxRef.current = saleBatchIdx;
+  }, [saleBatchIdx]);
 
   const rxItems = cart.items.filter((i) => i.product.prescription);
   const hasRx = rxItems.length > 0;
@@ -612,7 +625,7 @@ function CartPage() {
   };
 
   const handleCellNav = (e: React.KeyboardEvent, rowIdx: number, colIdx: number) => {
-    if (e.key === "Enter" || e.key === "ArrowRight") {
+    if (e.key === "Enter" || e.key === "ArrowRight" || e.key === "Tab") {
       e.preventDefault();
       if (colIdx < 10) {
         focusCell(rowIdx, colIdx + 1);
@@ -666,57 +679,149 @@ function CartPage() {
       .slice(0, 10);
   }, [productList, entryQuery]);
 
-  const handleAddProduct = (p: Product) => {
-    const targetRow = cart.items.length;
-    const activeBatches = p.batches ? p.batches.filter((b) => b.stock > 0) : [];
-    if (activeBatches.length > 1) {
-      cart.add(activeBatches[0], 1);
-      toast.success(`${p.name} added (Batch ${activeBatches[0].batch})`);
-    } else if (activeBatches.length === 1) {
-      cart.add(activeBatches[0], 1);
-      toast.success(`${p.name} added`);
-    } else {
-      cart.add(p, 1);
-      toast.success(`${p.name} added`);
+  // Prepared sorted batches for Sale Batch Selection Modal (FEFO: in-stock first, nearest expiry first)
+  const saleBatchList = useMemo(() => {
+    if (!saleBatchProduct) return [];
+    const raw =
+      saleBatchProduct.batches && saleBatchProduct.batches.length > 0
+        ? saleBatchProduct.batches
+        : [saleBatchProduct];
+    return [...raw].sort((a, b) => {
+      const aStock = (a.stock ?? 0) > 0 ? 1 : 0;
+      const bStock = (b.stock ?? 0) > 0 ? 1 : 0;
+      if (aStock !== bStock) return bStock - aStock;
+
+      const aExp = a.expiry ? new Date(a.expiry).getTime() : Infinity;
+      const bExp = b.expiry ? new Date(b.expiry).getTime() : Infinity;
+      return aExp - bExp;
+    });
+  }, [saleBatchProduct]);
+
+  useEffect(() => {
+    if (saleBatchIdx >= saleBatchList.length && saleBatchList.length > 0) {
+      setSaleBatchIdx(0);
     }
+  }, [saleBatchList.length, saleBatchIdx]);
+
+  const confirmBatchSelection = (batch: Product) => {
+    if (!batch) return;
+    if (saleBatchReplacingProductId) {
+      cart.switchBatch(saleBatchReplacingProductId, batch);
+      toast.success(`Switched to batch ${batch.batch || "—"}`);
+    } else {
+      const targetRow = cart.items.length;
+      cart.add(batch, 1);
+      toast.success(`${saleBatchProduct?.name || batch.name} added (Batch ${batch.batch || "—"})`);
+      setTimeout(() => {
+        setSelectedIdx(targetRow);
+        focusCell(targetRow, 4); // Focuses Qty box directly for fast billing!
+      }, 80);
+    }
+    setSaleBatchProduct(null);
+    setSaleBatchReplacingProductId(null);
+    setEntryQuery("");
+    setEntryDropdownOpen(false);
+    setEntryActiveIdx(0);
+  };
+
+  const handleAddProduct = (p: Product) => {
+    const batches = p.batches && p.batches.length > 0 ? p.batches : [];
+    // If product has more than 1 batch, open batch selection dialog
+    if (batches.length > 1) {
+      setSaleBatchProduct(p);
+      setSaleBatchReplacingProductId(null);
+      setSaleBatchIdx(0);
+      setEntryDropdownOpen(false);
+      return;
+    }
+
+    const chosen = batches.length === 1 ? batches[0] : p;
+    const targetRow = cart.items.length;
+    cart.add(chosen, 1);
+    toast.success(`${p.name} added${chosen.batch ? ` (Batch ${chosen.batch})` : ""}`);
     setEntryQuery("");
     setEntryDropdownOpen(false);
     setEntryActiveIdx(0);
 
-    // Autofocus advances box-by-box into the added row
     setTimeout(() => {
       setSelectedIdx(targetRow);
-      focusCell(targetRow, 1); // Focuses PACK box, user can hit Enter/Right Arrow to cycle to QTY, PCS, RATE, etc.
+      focusCell(targetRow, 4); // Focuses Qty box directly!
     }, 60);
   };
 
+  // Keyboard navigation for Sale Batch Selection Modal
+  useEffect(() => {
+    if (!saleBatchProduct) return;
+    const len = saleBatchList.length;
+    if (len === 0) return;
+
+    const handleBatchKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        setSaleBatchIdx((prev) => (prev < len - 1 ? prev + 1 : 0));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        setSaleBatchIdx((prev) => (prev > 0 ? prev - 1 : len - 1));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        const chosen = saleBatchList[saleBatchIdxRef.current];
+        if (chosen) {
+          confirmBatchSelection(chosen);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setSaleBatchProduct(null);
+        setSaleBatchReplacingProductId(null);
+        setTimeout(() => entryInputRef.current?.focus(), 50);
+      }
+    };
+
+    window.addEventListener("keydown", handleBatchKeyDown, true);
+    return () => window.removeEventListener("keydown", handleBatchKeyDown, true);
+  }, [saleBatchProduct, saleBatchList]);
+
+  useEffect(() => {
+    if (saleBatchProduct && batchItemRefs.current[saleBatchIdx]) {
+      batchItemRefs.current[saleBatchIdx]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [saleBatchIdx, saleBatchProduct]);
+
   const handleEntryKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (entryMatches.length > 0) {
+      if (entryDropdownOpen && entryMatches.length > 0) {
+        e.preventDefault();
         setEntryActiveIdx((prev) => (prev < entryMatches.length - 1 ? prev + 1 : 0));
       } else if (cart.items.length > 0) {
-        focusCell(0, 0);
+        e.preventDefault();
+        focusCell(0, 4); // Focus Qty of row 0
       }
     } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (entryMatches.length > 0) {
+      if (entryDropdownOpen && entryMatches.length > 0) {
+        e.preventDefault();
         setEntryActiveIdx((prev) => (prev > 0 ? prev - 1 : entryMatches.length - 1));
       } else if (cart.items.length > 0) {
-        focusCell(cart.items.length - 1, 0);
+        e.preventDefault();
+        focusCell(cart.items.length - 1, 4); // Focus Qty of last row
       }
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (entryMatches.length > 0 && entryMatches[entryActiveIdx]) {
         const p = entryMatches[entryActiveIdx];
-        if (p.stock > 0) {
+        const hasStock = p.stock > 0 || (p.batches && p.batches.some((b) => b && (b.stock ?? 0) > 0));
+        if (hasStock) {
           handleAddProduct(p);
         } else {
           toast.warning(`${p.name} is out of stock`);
         }
       }
     } else if (e.key === "Escape") {
+      e.preventDefault();
       setEntryDropdownOpen(false);
+      setEntryQuery("");
     }
   };
 
@@ -1509,7 +1614,20 @@ function CartPage() {
                             setSelectedIdx(idx);
                           }}
                           onBlur={() => setFocusedCell(null)}
-                          onKeyDown={(e) => handleCellNav(e, idx, 2)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && activeBatches.length > 1) {
+                              e.preventDefault();
+                              const parent = parentProduct || i.product;
+                              setSaleBatchProduct(parent);
+                              setSaleBatchReplacingProductId(i.product.id);
+                              const currIdx = (parent.batches || []).findIndex(
+                                (b) => b.id === i.product.id,
+                              );
+                              setSaleBatchIdx(currIdx >= 0 ? currIdx : 0);
+                              return;
+                            }
+                            handleCellNav(e, idx, 2);
+                          }}
                           className={cn(
                             "px-2 py-1 w-20 text-center font-semibold font-mono text-[11px] outline-none transition-colors",
                             isCellFocused(idx, 2)
@@ -1518,33 +1636,29 @@ function CartPage() {
                           )}
                         >
                           {activeBatches.length > 1 ? (
-                            <select
-                              className={cn(
-                                "bg-transparent border-0 outline-none w-full text-center font-mono font-semibold text-[11px] cursor-pointer",
-                                isCellFocused(idx, 2)
-                                  ? "!text-primary-foreground font-bold"
-                                  : "text-foreground",
-                              )}
-                              value={i.product.id}
-                              onChange={(e) => {
-                                const newBatch = activeBatches.find((b) => b.id === e.target.value);
-                                if (newBatch) {
-                                  cart.switchBatch(i.product.id, newBatch);
-                                  toast.success(`Switched to batch ${newBatch.batch}`);
-                                }
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const parent = parentProduct || i.product;
+                                setSaleBatchProduct(parent);
+                                setSaleBatchReplacingProductId(i.product.id);
+                                const currIdx = (parent.batches || []).findIndex(
+                                  (b) => b.id === i.product.id,
+                                );
+                                setSaleBatchIdx(currIdx >= 0 ? currIdx : 0);
                               }}
-                              onClick={(e) => e.stopPropagation()}
+                              className={cn(
+                                "inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded border text-[11px] font-mono font-bold transition-all w-full cursor-pointer",
+                                isCellFocused(idx, 2)
+                                  ? "!text-primary-foreground border-primary-foreground/30 bg-primary-foreground/10"
+                                  : "text-primary border-primary/20 bg-primary/5 hover:bg-primary/10",
+                              )}
+                              title="Click or press Enter to change batch"
                             >
-                              {activeBatches.map((b) => (
-                                <option
-                                  key={b.id}
-                                  value={b.id}
-                                  className="text-foreground bg-popover"
-                                >
-                                  {String(b.batch || "No Batch").toUpperCase()}
-                                </option>
-                              ))}
-                            </select>
+                              <span className="truncate">{String(i.product.batch || "No Batch").toUpperCase()}</span>
+                              <ChevronDown className="h-2.5 w-2.5 opacity-70 shrink-0" />
+                            </button>
                           ) : (
                             String(i.product.batch || "—").toUpperCase()
                           )}
@@ -1591,9 +1705,14 @@ function CartPage() {
                               handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
                               return;
                             }
-                            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                              // Disable left/right arrow from modifying quantity or jumping
-                              e.stopPropagation();
+                            if (e.key === "ArrowRight") {
+                              e.preventDefault();
+                              focusCell(idx, 5);
+                              return;
+                            }
+                            if (e.key === "ArrowLeft") {
+                              e.preventDefault();
+                              focusCell(idx, 3);
                               return;
                             }
                             if (e.key === "Enter" || e.key === "Tab") {
@@ -1637,9 +1756,14 @@ function CartPage() {
                                 handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
                                 return;
                               }
-                              if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                                // Disable arrow left/right from changing quantity or jumping
-                                e.stopPropagation();
+                              if (e.key === "ArrowRight") {
+                                e.preventDefault();
+                                focusCell(idx, 5);
+                                return;
+                              }
+                              if (e.key === "ArrowLeft") {
+                                e.preventDefault();
+                                focusCell(idx, 3);
                                 return;
                               }
                               if (e.key === "Enter" || e.key === "Tab") {
@@ -1896,8 +2020,14 @@ function CartPage() {
                                 setFocusedCell(null);
                               }}
                               onKeyDown={(e) => {
-                                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                                  e.stopPropagation();
+                                if (e.key === "ArrowRight") {
+                                  e.preventDefault();
+                                  focusCell(idx, 7);
+                                  return;
+                                }
+                                if (e.key === "ArrowLeft") {
+                                  e.preventDefault();
+                                  focusCell(idx, 5);
                                   return;
                                 }
                                 if (e.key === "Enter" || e.key === "Tab") {
@@ -2738,6 +2868,153 @@ function CartPage() {
       </footer>
 
       {/* ─── Modals and Dialogs ────────────────────────────────────────────── */}
+      {/* ─── Batch Selection Dialog for Sale ───────────────────────────────────── */}
+      <Dialog
+        open={!!saleBatchProduct}
+        onOpenChange={(v) => {
+          if (!v) {
+            setSaleBatchProduct(null);
+            setSaleBatchReplacingProductId(null);
+            setTimeout(() => entryInputRef.current?.focus(), 60);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md p-4">
+          <DialogHeader className="border-b border-border pb-2.5">
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <span className="text-primary">📦</span>
+              <span>Select Batch — {saleBatchProduct?.name}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Multiple batches available in stock. Use <kbd className="px-1 py-0.2 rounded bg-muted font-mono font-bold text-[10px] text-foreground">↑</kbd> <kbd className="px-1 py-0.2 rounded bg-muted font-mono font-bold text-[10px] text-foreground">↓</kbd> to select, <kbd className="px-1 py-0.2 rounded bg-muted font-mono font-bold text-[10px] text-foreground">Enter</kbd> to add, <kbd className="px-1 py-0.2 rounded bg-muted font-mono font-bold text-[10px] text-foreground">Esc</kbd> to cancel.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div
+            ref={batchListContainerRef}
+            className="mt-3 space-y-1.5 max-h-64 overflow-y-auto pr-1"
+          >
+            {saleBatchList.map((b, idx) => {
+              const isActive = idx === saleBatchIdx;
+              const now = Date.now();
+              const expiryStr = b.expiry || "";
+              const expiryDate = expiryStr ? new Date(expiryStr).getTime() : 0;
+              const daysUntilExpiry = expiryDate ? Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24)) : null;
+              const isNearExpiry = daysUntilExpiry !== null && daysUntilExpiry <= 90 && daysUntilExpiry > 0;
+              const isExpired = daysUntilExpiry !== null && daysUntilExpiry <= 0;
+
+              const normName = (saleBatchProduct?.name || b.name || "").trim().toLowerCase();
+              const cp = cart.customerPrices[normName] || (b.id ? cart.customerPrices[b.id] : undefined);
+              const hasPrev = cp && cp.price && cp.price > 0;
+
+              return (
+                <div
+                  key={b.id || idx}
+                  ref={(el) => {
+                    batchItemRefs.current[idx] = el;
+                  }}
+                  onClick={() => confirmBatchSelection(b)}
+                  className={cn(
+                    "flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer select-none",
+                    isActive
+                      ? "bg-primary/10 border-primary ring-2 ring-primary/40 shadow-xs"
+                      : "bg-card border-border hover:bg-muted/60",
+                  )}
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono font-bold text-xs text-foreground">
+                        Batch: {b.batch || "No Batch"}
+                      </span>
+                      {isActive && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-primary text-primary-foreground">
+                          <Check className="h-2.5 w-2.5" /> Selected
+                        </span>
+                      )}
+                      {isExpired && (
+                        <span className="text-[9px] font-semibold text-destructive bg-destructive/10 px-1 py-0.2 rounded border border-destructive/20">
+                          Expired
+                        </span>
+                      )}
+                      {isNearExpiry && (
+                        <span className="text-[9px] font-semibold text-amber-600 bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">
+                          {daysUntilExpiry}d left
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                      <span>
+                        Exp:{" "}
+                        <strong className="text-foreground font-mono">
+                          {expiryStr ? new Date(expiryStr).toLocaleDateString("en-IN", { month: "2-digit", year: "2-digit" }) : "—"}
+                        </strong>
+                      </span>
+                      <span>·</span>
+                      <span>
+                        Stock:{" "}
+                        <strong className={cn("font-mono", (b.stock ?? 0) <= 0 ? "text-destructive" : "text-foreground")}>
+                          {b.stock ?? 0} {saleBatchProduct?.pack || "Units"}
+                        </strong>
+                      </span>
+                      {b.rack && (
+                        <>
+                          <span>·</span>
+                          <span>Rack: <strong className="text-foreground font-mono">{b.rack}</strong></span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right flex flex-col items-end shrink-0 pl-2">
+                    <div className="font-mono font-bold text-xs text-primary">
+                      ₹{Number(b.price || saleBatchProduct?.price || 0).toFixed(2)}
+                    </div>
+                    {b.mrp ? (
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        MRP: ₹{Number(b.mrp).toFixed(2)}
+                      </div>
+                    ) : null}
+                    {hasPrev && (
+                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
+                        Cust: ₹{cp.price.toFixed(2)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="mt-3 pt-2.5 border-t border-border flex sm:justify-between items-center gap-2">
+            <span className="text-[11px] text-muted-foreground hidden sm:inline">
+              Press <kbd className="px-1 py-0.2 rounded bg-muted font-mono font-semibold text-[10px]">Enter</kbd> to add to sale
+            </span>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSaleBatchProduct(null);
+                  setSaleBatchReplacingProductId(null);
+                  setTimeout(() => entryInputRef.current?.focus(), 60);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const chosen = saleBatchList[saleBatchIdx];
+                  if (chosen) confirmBatchSelection(chosen);
+                }}
+              >
+                Select Batch
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <CustomerDetailsDialog open={customerOpen} onOpenChange={setCustomerOpen} />
       <CartAddDialog open={addOpen} onOpenChange={setAddOpen} />
       <DraftBillsDialog open={draftsOpen} onOpenChange={setDraftsOpen} />
@@ -2912,12 +3189,12 @@ function CartAddDialog({
   const [selectedBatchIdx, setSelectedBatchIdx] = useState(0);
 
   const handleAddClick = (p: Product) => {
-    const activeBatches = p.batches ? p.batches.filter((b) => b.stock > 0) : [];
-    if (activeBatches.length > 1) {
+    const batches = p.batches && p.batches.length > 0 ? p.batches : [];
+    if (batches.length > 1) {
       setBatchesProduct(p);
       setSelectedBatchIdx(0);
-    } else if (activeBatches.length === 1) {
-      onAdd(activeBatches[0]);
+    } else if (batches.length === 1) {
+      onAdd(batches[0]);
     } else {
       onAdd(p);
     }
