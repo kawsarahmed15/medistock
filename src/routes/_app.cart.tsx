@@ -610,7 +610,11 @@ function CartPage() {
     cellRefs.current[row][col] = el;
   };
 
-  const focusCell = (row: number, col: number) => {
+  const focusCell = (
+    row: number,
+    col: number,
+    cursorPos?: "start" | "end" | "select",
+  ) => {
     const el = cellRefs.current[row]?.[col];
     if (el) {
       el.focus();
@@ -618,17 +622,91 @@ function CartPage() {
         el.querySelector("input") || (el.tagName === "INPUT" ? (el as HTMLInputElement) : null);
       if (input) {
         input.focus();
-        input.select();
+        const applyCursor = () => {
+          if (cursorPos === "start") {
+            input.setSelectionRange(0, 0);
+          } else if (cursorPos === "end") {
+            const len = input.value.length;
+            input.setSelectionRange(len, len);
+          } else {
+            input.select();
+          }
+        };
+        applyCursor();
+        if (cursorPos === "start" || cursorPos === "end") {
+          setTimeout(applyCursor, 0);
+        }
       }
       setSelectedIdx(row);
     }
   };
 
+  const handleEditableCellKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    rowIdx: number,
+    colIdx: number,
+    prevCol: number,
+    nextCol: number,
+  ) => {
+    const input = e.currentTarget;
+    const { selectionStart, selectionEnd, value } = input;
+    const len = value.length;
+
+    if (e.key === "ArrowLeft") {
+      // If entire text was selected (e.g. cell just focused), collapse caret to the end so user can navigate leftwards (e.g. 3 -> 2 -> 1)
+      if (selectionStart === 0 && selectionEnd === len && len > 0) {
+        e.preventDefault();
+        input.setSelectionRange(len, len);
+        return;
+      }
+
+      // If caret is at the very beginning (0) and no text is selected: text has ended -> navigate to previous box!
+      if (selectionStart === 0 && selectionEnd === 0) {
+        e.preventDefault();
+        if (prevCol >= 0) {
+          focusCell(rowIdx, prevCol, "end");
+        } else {
+          entryInputRef.current?.focus();
+        }
+        return;
+      }
+
+      // Otherwise let native browser move caret left within the text
+      return;
+    }
+
+    if (e.key === "ArrowRight") {
+      // If entire text was selected, collapse caret to the start so user can navigate rightwards (e.g. 1 -> 2 -> 3)
+      if (selectionStart === 0 && selectionEnd === len && len > 0) {
+        e.preventDefault();
+        input.setSelectionRange(0, 0);
+        return;
+      }
+
+      // If caret is at the very end (len) and no text is selected: text has ended -> navigate to next box!
+      if (selectionStart === len && selectionEnd === len) {
+        e.preventDefault();
+        if (nextCol <= 10) {
+          focusCell(rowIdx, nextCol, "start");
+        } else {
+          entryInputRef.current?.focus();
+        }
+        return;
+      }
+
+      // Otherwise let native browser move caret right within the text
+      return;
+    }
+  };
+
   const handleCellNav = (e: React.KeyboardEvent, rowIdx: number, colIdx: number) => {
+    if (e.target !== e.currentTarget) return;
     if (e.key === "Enter" || e.key === "ArrowRight" || e.key === "Tab") {
       e.preventDefault();
       if (colIdx < 10) {
-        focusCell(rowIdx, colIdx + 1);
+        const nextCol = colIdx + 1;
+        const cursorPos = nextCol === 4 || nextCol === 5 || nextCol === 6 ? "start" : undefined;
+        focusCell(rowIdx, nextCol, cursorPos);
       } else {
         // Reached end of row -> jump to search box for next item!
         entryInputRef.current?.focus();
@@ -636,7 +714,9 @@ function CartPage() {
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
       if (colIdx > 0) {
-        focusCell(rowIdx, colIdx - 1);
+        const prevCol = colIdx - 1;
+        const cursorPos = prevCol === 4 || prevCol === 5 || prevCol === 6 ? "end" : undefined;
+        focusCell(rowIdx, prevCol, cursorPos);
       } else {
         entryInputRef.current?.focus();
       }
@@ -726,8 +806,10 @@ function CartPage() {
 
   const handleAddProduct = (p: Product) => {
     const batches = p.batches && p.batches.length > 0 ? p.batches : [];
-    // If product has more than 1 batch, open batch selection dialog
-    if (batches.length > 1) {
+    const inStockBatches = batches.filter((b) => (b.stock ?? 0) > 0);
+
+    // If more than 1 batch has positive stock (available quantity), open batch selection dialog
+    if (inStockBatches.length > 1) {
       setSaleBatchProduct(p);
       setSaleBatchReplacingProductId(null);
       setSaleBatchIdx(0);
@@ -735,7 +817,8 @@ function CartPage() {
       return;
     }
 
-    const chosen = batches.length === 1 ? batches[0] : p;
+    // If only 1 batch has stock, or all batches are out of stock: directly add without showing modal
+    const chosen = inStockBatches.length === 1 ? inStockBatches[0] : batches.length > 0 ? batches[0] : p;
     const targetRow = cart.items.length;
     cart.add(chosen, 1);
     toast.success(`${p.name} added${chosen.batch ? ` (Batch ${chosen.batch})` : ""}`);
@@ -1215,9 +1298,17 @@ function CartPage() {
                       return;
                     }
 
-                    // 3. If walk-in (empty or "walk-in"):
-                    const isWalkInName = !qName || ["walk-in customer", "walk-in", "walkin"].includes(qName);
+                    // 3. If no party selected and no new party details entered (empty or "walk-in"): continue as Walk-in Customer
+                    const isWalkInName = !qName || ["walk-in customer", "walk-in", "walkin", "cash", "counter"].includes(qName);
                     if (isWalkInName) {
+                      cart.setCustomer({
+                        name: "Walk-in Customer",
+                        phone: "",
+                        address: "",
+                        drugLicNo: "",
+                        gstin: "",
+                        notes: cart.customer.notes || "",
+                      });
                       setPartyDropdownOpen(false);
                       entryInputRef.current?.focus();
                       return;
@@ -1229,6 +1320,18 @@ function CartPage() {
                     phoneInputRef.current?.select();
                   } else if (e.key === "Tab") {
                     setPartyDropdownOpen(false);
+                    const qName = (cart.customer.name || "").trim().toLowerCase();
+                    const isWalkInName = !qName || ["walk-in customer", "walk-in", "walkin", "cash", "counter"].includes(qName);
+                    if (isWalkInName) {
+                      cart.setCustomer({
+                        name: "Walk-in Customer",
+                        phone: "",
+                        address: "",
+                        drugLicNo: "",
+                        gstin: "",
+                        notes: cart.customer.notes || "",
+                      });
+                    }
                   } else if (e.key === "Escape") {
                     e.preventDefault();
                     setPartyDropdownOpen(false);
@@ -1699,15 +1802,16 @@ function CartPage() {
                           }}
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
                             if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey) {
                               e.preventDefault();
                               e.stopPropagation();
                               handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
                               return;
                             }
-                            if (e.key === "ArrowRight") {
+                            if (e.key === "ArrowRight" || e.key === "Enter" || e.key === "Tab") {
                               e.preventDefault();
-                              focusCell(idx, 5);
+                              focusCell(idx, 5, "start");
                               return;
                             }
                             if (e.key === "ArrowLeft") {
@@ -1715,10 +1819,7 @@ function CartPage() {
                               focusCell(idx, 3);
                               return;
                             }
-                            if (e.key === "Enter" || e.key === "Tab") {
-                              e.preventDefault();
-                              focusCell(idx, 5);
-                            } else if (e.key === "ArrowDown") {
+                            if (e.key === "ArrowDown") {
                               e.preventDefault();
                               if (idx < cart.items.length - 1) focusCell(idx + 1, 4);
                               else entryInputRef.current?.focus();
@@ -1756,19 +1857,13 @@ function CartPage() {
                                 handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
                                 return;
                               }
-                              if (e.key === "ArrowRight") {
-                                e.preventDefault();
-                                focusCell(idx, 5);
-                                return;
-                              }
-                              if (e.key === "ArrowLeft") {
-                                e.preventDefault();
-                                focusCell(idx, 3);
+                              if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                                handleEditableCellKeyDown(e, idx, 4, 3, 5);
                                 return;
                               }
                               if (e.key === "Enter" || e.key === "Tab") {
                                 e.preventDefault();
-                                focusCell(idx, 5);
+                                focusCell(idx, 5, "start");
                               } else if (e.key === "ArrowDown") {
                                 e.preventDefault();
                                 if (idx < cart.items.length - 1) focusCell(idx + 1, 4);
@@ -1827,6 +1922,7 @@ function CartPage() {
                           }}
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
                             if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && e.ctrlKey) {
                               e.preventDefault();
                               e.stopPropagation();
@@ -1835,10 +1931,10 @@ function CartPage() {
                             }
                             if (e.key === "ArrowLeft") {
                               e.preventDefault();
-                              focusCell(idx, 4);
+                              focusCell(idx, 4, "end");
                             } else if (e.key === "Enter" || e.key === "Tab" || e.key === "ArrowRight") {
                               e.preventDefault();
-                              focusCell(idx, 6);
+                              focusCell(idx, 6, "start");
                             } else if (e.key === "ArrowDown") {
                               e.preventDefault();
                               if (idx < cart.items.length - 1) focusCell(idx + 1, 5);
@@ -1891,12 +1987,11 @@ function CartPage() {
                               }
                               cart.setFreeQty(i.product.id, val);
                             }}
-                            onFocus={(e) => {
+                            onFocus={() => {
                               const current = i.freeQty && i.freeQty > 0 ? String(i.freeQty) : "";
                               setFreeInputMap((prev) => ({ ...prev, [i.product.id]: current }));
                               setFocusedCell({ row: idx, col: 5 });
                               setSelectedIdx(idx);
-                              e.target.select();
                             }}
                             onBlur={() => {
                               setFreeInputMap((prev) => {
@@ -1913,12 +2008,13 @@ function CartPage() {
                                 handleAdjustFreeQty(i.product.id, e.key === "ArrowLeft" ? -1 : 1);
                                 return;
                               }
-                              if (e.key === "ArrowLeft") {
+                              if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                                handleEditableCellKeyDown(e, idx, 5, 4, 6);
+                                return;
+                              }
+                              if (e.key === "Enter" || e.key === "Tab") {
                                 e.preventDefault();
-                                focusCell(idx, 4);
-                              } else if (e.key === "Enter" || e.key === "Tab" || e.key === "ArrowRight") {
-                                e.preventDefault();
-                                focusCell(idx, 6);
+                                focusCell(idx, 6, "start");
                               } else if (e.key === "ArrowDown") {
                                 e.preventDefault();
                                 if (idx < cart.items.length - 1) focusCell(idx + 1, 5);
@@ -1949,12 +2045,13 @@ function CartPage() {
                           }}
                           onBlur={() => setFocusedCell(null)}
                           onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
                             if (e.key === "Enter" || e.key === "ArrowRight" || e.key === "Tab") {
                               e.preventDefault();
                               focusCell(idx, 7);
                             } else if (e.key === "ArrowLeft") {
                               e.preventDefault();
-                              focusCell(idx, 5);
+                              focusCell(idx, 5, "end");
                             } else if (e.key === "ArrowDown") {
                               e.preventDefault();
                               if (idx < cart.items.length - 1) focusCell(idx + 1, 6);
@@ -1999,7 +2096,7 @@ function CartPage() {
                                   }
                                 }
                               }}
-                              onFocus={(e) => {
+                              onFocus={() => {
                                 const current =
                                   i.customPrice !== undefined
                                     ? String(i.customPrice)
@@ -2009,7 +2106,6 @@ function CartPage() {
                                 setRateInputMap((prev) => ({ ...prev, [i.product.id]: current }));
                                 setFocusedCell({ row: idx, col: 6 });
                                 setSelectedIdx(idx);
-                                e.target.select();
                               }}
                               onBlur={() => {
                                 setRateInputMap((prev) => {
@@ -2020,14 +2116,8 @@ function CartPage() {
                                 setFocusedCell(null);
                               }}
                               onKeyDown={(e) => {
-                                if (e.key === "ArrowRight") {
-                                  e.preventDefault();
-                                  focusCell(idx, 7);
-                                  return;
-                                }
-                                if (e.key === "ArrowLeft") {
-                                  e.preventDefault();
-                                  focusCell(idx, 5);
+                                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                                  handleEditableCellKeyDown(e, idx, 6, 5, 7);
                                   return;
                                 }
                                 if (e.key === "Enter" || e.key === "Tab") {
@@ -3190,10 +3280,13 @@ function CartAddDialog({
 
   const handleAddClick = (p: Product) => {
     const batches = p.batches && p.batches.length > 0 ? p.batches : [];
-    if (batches.length > 1) {
+    const inStockBatches = batches.filter((b) => (b.stock ?? 0) > 0);
+    if (inStockBatches.length > 1) {
       setBatchesProduct(p);
       setSelectedBatchIdx(0);
-    } else if (batches.length === 1) {
+    } else if (inStockBatches.length === 1) {
+      onAdd(inStockBatches[0]);
+    } else if (batches.length > 0) {
       onAdd(batches[0]);
     } else {
       onAdd(p);
