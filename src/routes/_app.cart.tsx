@@ -229,14 +229,14 @@ function CartPage() {
   const dlNo = (cart.customer.drugLicNo ?? "").trim();
   const rxBlocked = hasRx && !prescriptionRef && !prescriptionPhoto && !dlNo;
 
-  // Keep selectedIdx in bounds when items change (e.g. after deletion)
+  // Keep selectedIdx in bounds when items change (e.g. after deletion or initial add)
   useEffect(() => {
     if (cart.items.length === 0) {
       setSelectedIdx(-1);
-    } else if (selectedIdx >= cart.items.length) {
+    } else if (selectedIdx < 0 || selectedIdx >= cart.items.length) {
       setSelectedIdx(cart.items.length - 1);
     }
-  }, [cart.items.length]);
+  }, [cart.items.length, selectedIdx]);
 
   // Scroll selected row into view
   useEffect(() => {
@@ -1868,10 +1868,10 @@ function CartPage() {
                                   if (raw !== "" && raw !== ".") {
                                     const val = parseFloat(raw);
                                     if (!isNaN(val) && val >= 0) {
-                                      cart.setCustomPrice(i.product.id, val);
+                                      cart.setCustomPrice(i.product.id, val, true);
                                     }
                                   } else if (raw === "") {
-                                    cart.setCustomPrice(i.product.id, 0);
+                                    cart.setCustomPrice(i.product.id, 0, false);
                                   }
                                 }
                               }}
@@ -1919,42 +1919,6 @@ function CartPage() {
                                   : "text-foreground",
                               )}
                             />
-                            {(() => {
-                              const normName = i.product.name
-                                ? i.product.name.trim().toLowerCase()
-                                : "";
-                              const cp =
-                                cart.customerPrices[normName] ||
-                                (i.product.id ? cart.customerPrices[i.product.id] : undefined);
-                              const hasPrevPrice = cp && cp.price && cp.price > 0;
-                              if (!hasPrevPrice) return null;
-                              const prevPrice = cp.price;
-                              const standardPrice = i.product.price;
-                              const activePrice =
-                                i.customPrice !== undefined ? i.customPrice : standardPrice;
-                              const isPrevActive = Math.abs(activePrice - prevPrice) < 0.001;
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    cart.setCustomPrice(
-                                      i.product.id,
-                                      isPrevActive ? standardPrice : prevPrice,
-                                    );
-                                  }}
-                                  className={cn(
-                                    "text-[9px] px-1 py-0.2 rounded font-semibold border transition-all cursor-pointer mt-0.5",
-                                    isPrevActive
-                                      ? "bg-primary text-primary-foreground border-primary"
-                                      : "bg-primary/10 text-primary border-primary/20",
-                                  )}
-                                  title={`Previous customer rate: ₹${prevPrice.toFixed(2)}`}
-                                >
-                                  Prev: ₹{prevPrice.toFixed(0)}
-                                </button>
-                              );
-                            })()}
                           </div>
                         </td>
 
@@ -2394,24 +2358,58 @@ function CartPage() {
                       <span className="text-[10px] uppercase font-bold text-muted-foreground">
                         Cust Price Memory
                       </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          cart.setCustomPrice(
-                            selectedItem.product.id,
-                            isPrev ? stdPrice : prevPrice,
-                          )
-                        }
-                        className={cn(
-                          "flex items-center gap-1 text-[11px] font-mono font-bold px-1.5 py-0.5 rounded border transition-colors cursor-pointer",
-                          isPrev
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20",
-                        )}
-                        title="Click to toggle customer previous price"
-                      >
-                        <span>Prev: ₹{prevPrice.toFixed(2)}</span>
-                      </button>
+                      <div className="inline-flex items-center gap-1 mt-0.5 p-0.5 rounded border border-border bg-muted/40">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextPrice = isPrev ? stdPrice : prevPrice;
+                            cart.setCustomPrice(selectedItem.product.id, nextPrice, false);
+                            setRateInputMap((prev) => ({
+                              ...prev,
+                              [selectedItem.product.id]: nextPrice.toFixed(2),
+                            }));
+                          }}
+                          className={cn(
+                            "flex items-center gap-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded transition-all cursor-pointer",
+                            isPrev
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-background/60",
+                          )}
+                          title={
+                            isPrev
+                              ? `Customer Memory Rate: ₹${prevPrice.toFixed(2)} (Active). Click to switch to Actual Inventory Rate: ₹${stdPrice.toFixed(2)}`
+                              : `Customer Memory Rate: ₹${prevPrice.toFixed(2)}. Click to select`
+                          }
+                        >
+                          <span>Prev: ₹{prevPrice.toFixed(2)}</span>
+                          {isPrev && <Check className="h-3 w-3 ml-0.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextPrice = !isPrev ? prevPrice : stdPrice;
+                            cart.setCustomPrice(selectedItem.product.id, nextPrice, false);
+                            setRateInputMap((prev) => ({
+                              ...prev,
+                              [selectedItem.product.id]: nextPrice.toFixed(2),
+                            }));
+                          }}
+                          className={cn(
+                            "flex items-center gap-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded transition-all cursor-pointer",
+                            !isPrev
+                              ? "bg-emerald-600 text-white shadow-xs"
+                              : "text-muted-foreground hover:text-foreground hover:bg-background/60",
+                          )}
+                          title={
+                            !isPrev
+                              ? `Actual Inventory Rate: ₹${stdPrice.toFixed(2)} (Active). Click to switch to Customer Memory Rate: ₹${prevPrice.toFixed(2)}`
+                              : `Actual Inventory Rate: ₹${stdPrice.toFixed(2)}. Click to select`
+                          }
+                        >
+                          <span>Actual: ₹{stdPrice.toFixed(2)}</span>
+                          {!isPrev && <Check className="h-3 w-3 ml-0.5" />}
+                        </button>
+                      </div>
                     </div>
                   );
                 })()}

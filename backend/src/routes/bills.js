@@ -963,30 +963,42 @@ router.post("/", async (req, res, next) => {
 
       // Save customer product prices for future bills
       const custName = (body.customerName || "").trim();
-      if (custName && custName.toLowerCase() !== "walk-in" && custName.toLowerCase() !== "walk-in customer") {
+      const isWalkIn = !custName || custName.toLowerCase() === "walk-in" || custName.toLowerCase() === "walk-in customer";
+      if ((custName && !isWalkIn) || customerPhone) {
         for (const item of items) {
           const itemPrice = Number(item.price || 0);
           const rawItemName = (item.name || "").trim();
           if (itemPrice > 0 && rawItemName) {
             try {
-              const [existing] = await conn.query(
-                `SELECT id FROM customer_product_prices 
-                 WHERE user_id = ? AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?)) AND LOWER(TRIM(product_name)) = LOWER(TRIM(?)) LIMIT 1`,
-                [req.auth.userId, custName, rawItemName]
-              );
+              let existing = [];
+              if (custName && !isWalkIn) {
+                [existing] = await conn.query(
+                  `SELECT id FROM customer_product_prices 
+                   WHERE user_id = ? AND LOWER(TRIM(customer_name)) = LOWER(TRIM(?)) AND LOWER(TRIM(product_name)) = LOWER(TRIM(?)) LIMIT 1`,
+                  [req.auth.userId, custName, rawItemName]
+                );
+              }
+              const cleanDigits = customerPhone ? customerPhone.replace(/\D/g, "").slice(-10) : "";
+              if (existing.length === 0 && cleanDigits && cleanDigits.length === 10) {
+                [existing] = await conn.query(
+                  `SELECT id FROM customer_product_prices 
+                   WHERE user_id = ? AND (customer_phone = ? OR RIGHT(REGEXP_REPLACE(customer_phone, '[^0-9]', ''), 10) = ?) AND LOWER(TRIM(product_name)) = LOWER(TRIM(?)) LIMIT 1`,
+                  [req.auth.userId, customerPhone, cleanDigits, rawItemName]
+                );
+              }
               if (existing.length > 0) {
                 await conn.query(
                   `UPDATE customer_product_prices 
-                   SET last_price = ?, last_bill_number = ?, product_id = ?, customer_phone = COALESCE(?, customer_phone), updated_at = NOW()
+                   SET last_price = ?, last_bill_number = ?, product_id = ?, customer_phone = COALESCE(?, customer_phone), customer_name = CASE WHEN ? != '' AND ? NOT IN ('walk-in', 'walk-in customer') THEN ? ELSE customer_name END, updated_at = NOW()
                    WHERE id = ?`,
-                  [itemPrice, invoiceNo, item.productId || null, customerPhone || null, existing[0].id]
+                  [itemPrice, invoiceNo, item.productId || null, customerPhone || null, custName, custName.toLowerCase(), custName, existing[0].id]
                 );
               } else {
                 await conn.query(
                   `INSERT INTO customer_product_prices 
                    (id, user_id, customer_name, customer_phone, product_id, product_name, last_price, last_bill_number)
                    VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?)`,
-                  [req.auth.userId, custName, customerPhone || null, item.productId || null, rawItemName, itemPrice, invoiceNo]
+                  [req.auth.userId, custName || "Customer", customerPhone || null, item.productId || null, rawItemName, itemPrice, invoiceNo]
                 );
               }
             } catch (priceErr) {

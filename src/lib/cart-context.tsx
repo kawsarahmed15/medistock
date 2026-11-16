@@ -57,7 +57,7 @@ type CartCtx = {
   remove: (productId: string) => void;
   setQty: (productId: string, qty: number) => void;
   setFreeQty: (productId: string, freeQty: number) => void;
-  setCustomPrice: (productId: string, price: number) => void;
+  setCustomPrice: (productId: string, price: number, updateMemory?: boolean) => void;
   switchBatch: (oldProductId: string, newProduct: Product) => void;
   clear: (options?: { removeDraft?: boolean }) => void;
   subtotal: number;
@@ -633,12 +633,36 @@ export function CartProvider({ children }: { children: ReactNode }) {
       ),
     );
 
-  const setCustomPrice: CartCtx["setCustomPrice"] = (id, price) =>
+  const setCustomPrice: CartCtx["setCustomPrice"] = (id, price, updateMemory = false) => {
+    let targetItem = items.find((i) => i.product.id === id);
     setItems((prev) =>
-      prev.map((i) =>
-        i.product.id === id ? { ...i, customPrice: price } : i,
-      ),
+      prev.map((i) => {
+        if (i.product.id === id) {
+          targetItem = i;
+          return { ...i, customPrice: price };
+        }
+        return i;
+      }),
     );
+
+    if (updateMemory && price > 0) {
+      setCustomerPrices((prevCp) => {
+        const prodName = targetItem?.product.name;
+        const normName = prodName ? prodName.trim().toLowerCase() : "";
+        const next = { ...prevCp };
+        const updatedRecord: CustomerProductPrice = {
+          productId: id,
+          productName: prodName || "",
+          price: price,
+          billNumber: prevCp[normName]?.billNumber || prevCp[id]?.billNumber || "Current Bill",
+          updatedAt: new Date().toISOString(),
+        };
+        if (normName) next[normName] = updatedRecord;
+        next[id] = updatedRecord;
+        return next;
+      });
+    }
+  };
 
   const switchBatch: CartCtx["switchBatch"] = (oldId, newProduct) => {
     setItems((prev) => {
