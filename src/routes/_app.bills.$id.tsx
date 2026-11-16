@@ -120,6 +120,7 @@ function BillDetailPage() {
     customerAddress: "",
   });
   const [customerSaving, setCustomerSaving] = useState(false);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
 
   const pharmacyName = bill?.pharmacyName || session?.pharmacyName || "MediStock Pharmacy";
   const pharmacyAddress = bill?.pharmacyAddress || session?.pharmacyAddress || "";
@@ -228,8 +229,6 @@ function BillDetailPage() {
 
   const netPayable = bill.total;
   const roundOff = isReturn ? 0 : bill.total - (bill.subtotal + bill.tax - (bill.discount || 0));
-
-  const [printModalOpen, setPrintModalOpen] = useState(false);
 
   const handleCustomPrint = async () => {
     const printerSettings = PrinterSettingsService.getSettings();
@@ -1010,20 +1009,22 @@ function BillDetailPage() {
       </Dialog>
 
       {/* Interactive Bill Print Modal with Format Selection */}
-      <PrintBillModal
-        isOpen={printModalOpen}
-        onClose={() => setPrintModalOpen(false)}
-        bill={bill}
-        pharmacyInfo={{
-          pharmacyName,
-          pharmacyPhone,
-          pharmacyAddress,
-          gstNumber,
-          drugLicNo,
-          billColor: session?.billColor,
-          signature: session?.signature,
-        }}
-      />
+      {printModalOpen && bill && (
+        <PrintBillModal
+          isOpen={printModalOpen}
+          onClose={() => setPrintModalOpen(false)}
+          bill={bill}
+          pharmacyInfo={{
+            pharmacyName,
+            pharmacyPhone,
+            pharmacyAddress,
+            gstNumber,
+            drugLicNo,
+            billColor: session?.billColor,
+            signature: session?.signature,
+          }}
+        />
+      )}
     </div>
   );
 }

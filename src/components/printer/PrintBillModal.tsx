@@ -266,6 +266,7 @@ export const PrintBillModal: React.FC<PrintBillModalProps> = ({
           >
             <iframe
               ref={iframeRef}
+              srcDoc={htmlContent}
               title="Print Document Preview"
               className="border-0 bg-white"
               style={{

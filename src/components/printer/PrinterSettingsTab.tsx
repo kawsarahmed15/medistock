@@ -1005,6 +1005,7 @@ export const PrinterSettingsTab: React.FC = () => {
           >
             <iframe
               ref={previewIframeRef}
+              srcDoc={previewHtml}
               title="Bill Live Preview"
               className="border-0 bg-white"
               style={{
