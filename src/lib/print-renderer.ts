@@ -5,6 +5,26 @@ import {
   PrintColumnKey,
   PaperPreset,
 } from "./printer-settings";
+import QRCode from "qrcode";
+
+function generateQrSvg(url: string, color: string = "#000000", sizePx: number = 48): string {
+  try {
+    const qr = QRCode.create(url, { errorCorrectionLevel: "M" });
+    const size = qr.modules.size;
+    const data = qr.modules.data;
+    let path = "";
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (data[r * size + c]) {
+          path += `M${c + 1} ${r + 1}h1v1h-1z `;
+        }
+      }
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size + 2} ${size + 2}" width="${sizePx}" height="${sizePx}" style="display:block;shape-rendering:crispEdges;"><rect width="${size + 2}" height="${size + 2}" fill="#ffffff"/><path d="${path}" fill="${color}"/></svg>`;
+  } catch {
+    return "";
+  }
+}
 
 function escapeHtml(str: string | number | undefined | null): string {
   if (str === undefined || str === null) return "";
@@ -174,12 +194,10 @@ export function renderBillHtml(
     containerDimensions = "width: 210mm; min-height: 297mm;";
   }
 
-  // QR Code generator helper (SVG)
+  // QR Code generator helper (SVG) redirecting to medistock.teklin.in
   const qrSvg = cust.showQrCode
     ? `<div style="display: inline-flex; align-items: center; justify-content: center; background: #fff; padding: 2px; border: 1px solid #cbd5e1; border-radius: 4px;">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h.01"/><path d="M17 7h.01"/><path d="M7 17h.01"/><path d="M17 17h.01"/><path d="M12 7v10"/><path d="M7 12h10"/>
-        </svg>
+        ${generateQrSvg("https://medistock.teklin.in", color, 48)}
       </div>`
     : "";
 

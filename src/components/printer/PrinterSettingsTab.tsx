@@ -47,7 +47,10 @@ import {
   Check,
   Compass,
   Monitor,
+  QrCode,
+  ExternalLink,
 } from "lucide-react";
+import QRCode from "react-qr-code";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -537,9 +540,15 @@ export const PrinterSettingsTab: React.FC = () => {
               )}
 
               <div className="flex items-center justify-between pt-1">
-                <Label htmlFor="sig-qr" className="text-[11px]">
-                  Print QR Code (Scan to Verify)
-                </Label>
+                <div className="space-y-0.5">
+                  <Label htmlFor="sig-qr" className="text-[11px] font-medium flex items-center gap-1.5 cursor-pointer">
+                    <QrCode className="h-3.5 w-3.5 text-primary" />
+                    Print QR Code (Scan to Verify)
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Includes digital verification QR on invoice
+                  </p>
+                </div>
                 <Switch
                   id="sig-qr"
                   checked={settings.customization.showQrCode}
@@ -551,6 +560,49 @@ export const PrinterSettingsTab: React.FC = () => {
                   }
                 />
               </div>
+
+              {/* Demo QR Code redirecting to medistock.teklin.in */}
+              {settings.customization.showQrCode && (
+                <div className="mt-2.5 p-3 rounded-lg border border-border/80 bg-background/80 shadow-2xs space-y-2.5">
+                  <div className="flex items-center justify-between border-b border-border/50 pb-1.5">
+                    <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                      <QrCode className="h-3.5 w-3.5 text-primary" />
+                      Demo QR Code
+                    </span>
+                    <span className="text-[9px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      Website Link
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg border border-slate-200 shrink-0 shadow-xs flex items-center justify-center">
+                      <QRCode
+                        value="https://medistock.teklin.in"
+                        size={68}
+                        level="M"
+                      />
+                    </div>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Scan with your phone camera to visit:
+                      </p>
+                      <a
+                        href="https://medistock.teklin.in"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-mono font-semibold text-primary hover:underline inline-flex items-center gap-1 break-all"
+                      >
+                        medistock.teklin.in
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                      <div className="text-[9.5px] text-muted-foreground flex items-center gap-1.5 pt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                        <span>Redirects to https://medistock.teklin.in</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
