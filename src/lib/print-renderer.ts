@@ -819,8 +819,8 @@ export function renderBillHtml(
             <div style="font-size: 9.5px; line-height: 1.4; border-bottom: 0.15mm solid #d5dbe0; padding-bottom: 2px;">
               <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span><span style="font-family: monospace;">₹${subtotal.toFixed(2)}</span></div>
               ${discount > 0 ? `<div style="display: flex; justify-content: space-between; color: #059669;"><span>Discount:</span><span style="font-family: monospace;">-₹${discount.toFixed(2)}</span></div>` : ""}
-              <div style="display: flex; justify-content: space-between;"><span>SGST (6%):</span><span style="font-family: monospace;">₹${sgst.toFixed(2)}</span></div>
-              <div style="display: flex; justify-content: space-between;"><span>CGST (6%):</span><span style="font-family: monospace;">₹${cgst.toFixed(2)}</span></div>
+              <div style="display: flex; justify-content: space-between;"><span>SGST:</span><span style="font-family: monospace;">₹${sgst.toFixed(2)}</span></div>
+              <div style="display: flex; justify-content: space-between;"><span>CGST:</span><span style="font-family: monospace;">₹${cgst.toFixed(2)}</span></div>
             </div>
             <div style="font-size: 8px; color: #64748b; text-align: right; margin: 2px 0;">
               ${escapeHtml(amountInWords)}

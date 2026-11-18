@@ -552,24 +552,6 @@ function CartPage() {
         return;
       }
 
-      // Left/Right: adjust qty of selected row
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        if (idx < 0) return;
-        e.preventDefault();
-        const item = items[idx];
-        if (!item) return;
-        if (e.key === "ArrowLeft") {
-          cartRef.current.setQty(item.product.id, item.qty - 1);
-        } else {
-          if (item.qty < item.product.stock) {
-            cartRef.current.setQty(item.product.id, item.qty + 1);
-          } else {
-            toast.warning(`Only ${item.product.stock} in stock`);
-          }
-        }
-        return;
-      }
-
       // Delete / Backspace: open delete confirm for selected row
       if (e.key === "Delete" || e.key === "Backspace") {
         if (idx < 0) return;
